@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import mcpScript from '../../sap-mcp-server/index.js?raw';
 import {
-  Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronRight,
+  Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronDown, ChevronRight,
   Clock, Code2, Copy, Eye, FileCode2, FileText, FolderOpen, LayoutGrid, Loader2,
   Link2, Mail, RefreshCw,
   Play, Plus, Save, Settings, Sparkles, ThumbsDown, ThumbsUp, Upload, User, X, XCircle,
@@ -1037,171 +1037,327 @@ function McpRestartButton({ mcpUrl }) {
 }
 
 function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl, onUpdateMcpUrl }) {
-  const [checking, setChecking] = useState(false);
-  const [result, setResult] = useState(null); // null | { vm, vpn, sap, vmDetail, vpnDetail, sapDetail }
-  const [refreshingUrl, setRefreshingUrl] = useState(false);
-  const [refreshMsg, setRefreshMsg] = useState('');
+  const STORAGE_KEY = `infra_v2_${env.id}`;
+  const bundledVersion = mcpScript.match(/version:\s*'([^']+)'/)?.[1] ?? '?';
+
+  const emptyNodes = () => ({
+    vm:  { status: 'idle', detail: '', log: [] },
+    vpn: { status: 'idle', detail: '', log: [] },
+    mcp: { status: 'idle', detail: '', log: [], extra: {} },
+    sap: { status: 'idle', detail: '', log: [], extra: {} },
+  });
+
+  const loadPersisted = () => {
+    try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  };
+
+  const [running, setRunning] = useState(false);
+  const [nodes, setNodes] = useState(() => loadPersisted()?.nodes ?? emptyNodes());
+  const [checkedAt, setCheckedAt] = useState(() => loadPersisted()?.checkedAt ?? null);
+  const [expanded, setExpanded] = useState({});
+  const [stoppedAt, setStoppedAt] = useState(null);
   const [deploying, setDeploying] = useState(false);
   const [deployMsg, setDeployMsg] = useState('');
+  const cancelRef = useRef(false);
 
-  const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
-  const isVpn = linkedConn?.db_type === 'vpn';
-  const mcpBase = (env.mcp_server_url?.trim() || globalMcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
+  const getMcpBase = () =>
+    (env.mcp_server_url?.trim() || globalMcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
 
-  async function refreshTunnelUrl() {
-    setRefreshingUrl(true);
-    setRefreshMsg('');
-    try {
-      const { data, error } = await supabase
-        .from('vm_tunnel_registry')
-        .select('tunnel_url, updated_at')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      if (!data?.tunnel_url) { setRefreshMsg('No URL registered yet — start cloudflared on VM first'); return; }
-      const newUrl = data.tunnel_url.replace(/\/$/, '');
-      const ageMins = Math.round((Date.now() - new Date(data.updated_at).getTime()) / 60000);
-      if (onUpdateMcpUrl) onUpdateMcpUrl(newUrl);
-      setRefreshMsg(`URL updated (registered ${ageMins}m ago) — click Check again`);
-    } catch (e) {
-      setRefreshMsg(e.message?.slice(0, 80) || 'Lookup failed');
-    } finally {
-      setRefreshingUrl(false);
+  useEffect(() => {
+    if (checkedAt) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, checkedAt })); } catch {}
     }
+  }, [nodes, checkedAt]);
+
+  function ts() { return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
+
+  // Because React state batches, we use a local mutable ref during the run
+  const liveNodes = useRef(emptyNodes());
+
+  function setLiveNode(key, patch) {
+    liveNodes.current = { ...liveNodes.current, [key]: { ...liveNodes.current[key], ...patch } };
+    setNodes({ ...liveNodes.current });
   }
 
-  async function check() {
-    setChecking(true);
-    setResult(null);
-    let vm = false, vpn = null, sap = false;
-    let vmDetail = '', vpnDetail = '', sapDetail = '';
+  function addLog(key, msg, level = 'info') {
+    const entry = { ts: ts(), msg, level };
+    const node = liveNodes.current[key];
+    const newLog = [...(node.log || []), entry];
+    liveNodes.current = { ...liveNodes.current, [key]: { ...node, log: newLog } };
+    setNodes({ ...liveNodes.current });
+  }
 
-    if (mcpBase) {
-      try {
-        const res = await fetch(`${mcpBase}/status`, { signal: AbortSignal.timeout(8000) });
-        if (res.ok) {
-          const d = await res.json();
-          vm = true; vmDetail = d.timestamp ? `Responded at ${new Date(d.timestamp).toLocaleTimeString()}` : 'Online';
-          vpn = d.vpn === true; vpnDetail = vpn ? 'active' : 'inactive';
-        } else if (res.status === 404) {
-          const h = await fetch(`${mcpBase}/health`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
-          if (h?.ok) { vm = true; vmDetail = 'Online (update server for VPN check)'; if (isVpn) { vpn = null; vpnDetail = 'Update MCP server to enable'; } }
-          else { vmDetail = `HTTP ${res.status}`; }
-        } else { vmDetail = `HTTP ${res.status}`; }
-      } catch (e) { vmDetail = 'Unreachable — check URL or tunnel'; }
-    } else { vmDetail = 'No MCP server URL configured'; }
+  async function run() {
+    if (running) return;
+    cancelRef.current = false;
+    setRunning(true);
+    setStoppedAt(null);
+    setDeployMsg('');
+    const now = new Date().toISOString();
+    setCheckedAt(now);
 
-    if (env.host && env.username && env.password) {
+    const fresh = emptyNodes();
+    liveNodes.current = fresh;
+    setNodes({ ...fresh });
+
+    let currentMcpBase = getMcpBase();
+    let vmStatusData = null;
+
+    // ── Node 1: VM ────────────────────────────────────────────────
+    setLiveNode('vm', { status: 'checking', detail: 'Connecting…', log: [] });
+
+    if (!currentMcpBase) {
+      setLiveNode('vm', { status: 'error', detail: 'No MCP server URL configured' });
+      addLog('vm', 'No MCP server URL — configure it in SAP integration settings', 'error');
+      setStoppedAt('vm');
+      setRunning(false);
+      return;
+    }
+
+    addLog('vm', `Connecting to ${currentMcpBase}…`);
+
+    const tryFetchStatus = async (base) => {
       try {
-        // Use /sap-info on the MCP server: https module + cert bypass + timeout, no CORS preflight issues
-        if (mcpBase) {
-          const r = await fetch(`${mcpBase}/sap-info`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              host: env.host,
-              username: env.username,
-              password: env.password,
-              client: env.client || '100',
-            }),
-            signal: AbortSignal.timeout(35000),
-          }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
-          if (r?.ok) {
-            sap = true;
-            const info = r.systemInfo || '';
-            sapDetail = info || `Connected (${env.host})`;
-          } else {
-            sap = false;
-            sapDetail = r?.status === 401 ? 'HTTP 401 — wrong credentials'
-              : r?.status === 403 ? 'HTTP 403 — no ADT authorization'
-              : r?.status === 404 ? 'HTTP 404 — ADT not active (check SICF)'
-              : r?.error || `HTTP ${r?.status || 'error'}`;
-          }
+        const r = await fetch(`${base}/status`, { signal: AbortSignal.timeout(8000) });
+        if (r.ok) return await r.json();
+        const h = await fetch(`${base}/health`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+        if (h?.ok) { const hd = await h.json(); return { vm: true, mcp: true, vpn: null, version: hd?.version }; }
+        return null;
+      } catch { return null; }
+    };
+
+    vmStatusData = await tryFetchStatus(currentMcpBase);
+
+    if (!vmStatusData) {
+      setLiveNode('vm', { ...liveNodes.current.vm, status: 'fixing', detail: 'Refreshing tunnel URL…' });
+      addLog('vm', 'VM unreachable — looking up latest tunnel URL from registry…', 'warn');
+      try {
+        const { data } = await supabase
+          .from('vm_tunnel_registry')
+          .select('tunnel_url, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data?.tunnel_url) {
+          const freshUrl = data.tunnel_url.replace(/\/$/, '');
+          const ageMins = Math.round((Date.now() - new Date(data.updated_at).getTime()) / 60000);
+          addLog('vm', `Found URL in registry (${ageMins}m ago): ${freshUrl} — retrying…`);
+          currentMcpBase = freshUrl;
+          if (onUpdateMcpUrl) onUpdateMcpUrl(freshUrl);
+          vmStatusData = await tryFetchStatus(currentMcpBase);
         } else {
-          // Fallback: direct sapLiveCheck (no MCP server configured)
-          const enriched = enrichEnvWithVpn(env);
-          const r = await sapLiveCheck(enriched);
-          if (r && r.error == null) {
-            sap = true;
-            sapDetail = r.systemInfo || `Connected (${env.host})`;
-          } else {
-            sap = false;
-            const errCode = r?.error;
-            sapDetail = errCode === 401 ? 'HTTP 401 — wrong credentials'
-              : errCode === 403 ? 'HTTP 403 — no ADT authorization'
-              : errCode === 404 ? 'HTTP 404 — ADT not active (check SICF)'
-              : r?.message?.slice(0, 100) || `HTTP ${errCode}`;
-          }
+          addLog('vm', 'No URL in registry — cloudflared may not be running on VM', 'error');
         }
-      } catch (e) { sap = false; sapDetail = e.message?.slice(0, 80) || 'Connection failed'; }
-    } else { sapDetail = 'Enter host, username and password to test'; }
-
-    setResult({ vm, vpn, sap, vmDetail, vpnDetail, sapDetail, isVpn });
-    setChecking(false);
-  }
-
-  const [vpnActing, setVpnActing] = useState(false);
-
-  async function toggleVpn(action) {
-    if (!mcpBase) return;
-    setVpnActing(true);
-    try {
-      let body;
-      if (action === 'start' || action === 'restart') {
-        const vpnConn = (linkedConn?.db_type === 'vpn' ? linkedConn : null)
-          ?? projectConns.find(c => c.db_type === 'vpn');
-        if (vpnConn) {
-          const rawHost = vpnConn.meta?.remote_gateway?.trim() || vpnConn.host?.trim() || '';
-          const [gHost, gPort] = rawHost.includes(':') ? rawHost.split(':') : [rawHost, String(vpnConn.port || '443')];
-          body = JSON.stringify({
-            host: gHost,
-            port: gPort,
-            username: vpnConn.username || '',
-            password: vpnConn.meta?.password || '',
-            trusted_cert: vpnConn.meta?.trusted_cert || '',
-          });
-        }
+      } catch (e) {
+        addLog('vm', `Registry lookup failed: ${e.message?.slice(0, 60)}`, 'error');
       }
-      const res = await fetch(`${mcpBase}/vpn/${action}`, {
-        method: 'POST',
-        headers: body ? { 'Content-Type': 'application/json' } : {},
-        body,
-        signal: AbortSignal.timeout(35000),
-      });
-      const d = await res.json();
-      if (d.ok === false) {
-        // Command failed — keep current VPN status, surface the error
-        setResult(r => ({ ...r, vpnDetail: `Failed: ${d.error?.slice(0, 80) || 'unknown error'}` }));
-      } else {
-        setResult(r => ({ ...r, vpn: d.vpn === true, vpnDetail: d.vpn ? 'active' : 'inactive' }));
-      }
-    } catch (e) {
-      setResult(r => ({ ...r, vpnDetail: `Error: ${e.message?.slice(0, 60) || 'Request failed'}` }));
     }
-    setVpnActing(false);
+
+    if (!vmStatusData) {
+      setLiveNode('vm', { ...liveNodes.current.vm, status: 'error', detail: 'VM unreachable — check AWS console or tunnel' });
+      addLog('vm', 'Could not reach VM after URL refresh. Check AWS console.', 'error');
+      setStoppedAt('vm');
+      setRunning(false);
+      return;
+    }
+
+    const serverVer = vmStatusData?.version ?? null;
+    setLiveNode('vm', { ...liveNodes.current.vm, status: 'ok', detail: `Online${serverVer ? ` · v${serverVer}` : ''}` });
+    addLog('vm', `VM responded OK${serverVer ? ` (server v${serverVer})` : ''}`, 'success');
+
+    if (cancelRef.current) { setRunning(false); return; }
+
+    // ── Node 2: VPN ───────────────────────────────────────────────
+    setLiveNode('vpn', { status: 'checking', detail: 'Reading VPN status from VM…', log: [] });
+    addLog('vpn', 'Reading VPN status from VM…');
+
+    const vpnActive = vmStatusData?.vpn;
+    const vpnSvc = vmStatusData?.vpnService || '';
+
+    if (vpnActive === null || vpnActive === undefined) {
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: 'Status unknown — update MCP server' });
+      addLog('vpn', 'VPN status unavailable (old server). Deploy latest to enable monitoring.', 'warn');
+    } else if (vpnActive === true) {
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: `Connected${vpnSvc ? ` (${vpnSvc})` : ''}` });
+      addLog('vpn', `VPN active${vpnSvc ? `: ${vpnSvc}` : ''}`, 'success');
+    } else {
+      addLog('vpn', 'VPN inactive — attempting to start…', 'warn');
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'fixing', detail: 'Starting VPN…' });
+
+      const vpnConn = projectConns?.find(c => c.db_type === 'vpn');
+      let startBody = null;
+      if (vpnConn) {
+        const rawHost = vpnConn.meta?.remote_gateway?.trim() || vpnConn.host?.trim() || '';
+        const [gHost, gPort] = rawHost.includes(':') ? rawHost.split(':') : [rawHost, String(vpnConn.port || '443')];
+        startBody = JSON.stringify({
+          host: gHost, port: gPort,
+          username: vpnConn.username || '',
+          password: vpnConn.meta?.password || '',
+          trusted_cert: vpnConn.meta?.trusted_cert || '',
+        });
+        addLog('vpn', `Using VPN connection "${vpnConn.meta?.conn_name || vpnConn.host}"…`);
+      } else {
+        addLog('vpn', 'No VPN connection configured in project — trying start without credentials', 'warn');
+      }
+
+      let startOk = false;
+      try {
+        const sr = await fetch(`${currentMcpBase}/vpn/start`, {
+          method: 'POST',
+          headers: startBody ? { 'Content-Type': 'application/json' } : {},
+          body: startBody ?? undefined,
+          signal: AbortSignal.timeout(35000),
+        });
+        const sd = await sr.json();
+        if (sd.ok === false) {
+          const errMsg = sd.error || 'Unknown error';
+          const isCredErr = /password|auth|credential|denied/i.test(errMsg);
+          addLog('vpn', `VPN start failed: ${errMsg}`, 'error');
+          if (isCredErr) addLog('vpn', 'Authentication error — check VPN credentials in project settings', 'error');
+          setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: `Cannot start: ${errMsg.slice(0, 80)}` });
+          setStoppedAt('vpn');
+          setRunning(false);
+          return;
+        }
+        if (sd.vpn === true) {
+          startOk = true;
+        } else {
+          addLog('vpn', 'Start command sent — waiting 8s for tunnel…');
+          await new Promise(r => setTimeout(r, 8000));
+          const rechk = await fetch(`${currentMcpBase}/status`, { signal: AbortSignal.timeout(8000) }).then(r => r.json()).catch(() => null);
+          startOk = rechk?.vpn === true;
+        }
+      } catch (e) {
+        addLog('vpn', `VPN start request failed: ${e.message?.slice(0, 80)}`, 'error');
+        setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: `Start failed: ${e.message?.slice(0, 60)}` });
+        setStoppedAt('vpn');
+        setRunning(false);
+        return;
+      }
+
+      if (!startOk) {
+        setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'VPN still inactive after start attempt' });
+        addLog('vpn', 'VPN failed to connect. Check credentials and gateway. Infrastructure check stopped.', 'error');
+        setStoppedAt('vpn');
+        setRunning(false);
+        return;
+      }
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: 'VPN started successfully' });
+      addLog('vpn', 'VPN connected', 'success');
+    }
+
+    if (cancelRef.current) { setRunning(false); return; }
+
+    // ── Node 3: MCP ───────────────────────────────────────────────
+    setLiveNode('mcp', { status: 'checking', detail: 'Checking MCP server…', log: [], extra: {} });
+    addLog('mcp', 'Checking MCP server health…');
+
+    let healthData = null;
+    try {
+      const hr = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) });
+      if (hr.ok) healthData = await hr.json();
+    } catch {}
+
+    if (!healthData) {
+      addLog('mcp', 'Health check failed — sending restart command…', 'warn');
+      setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'fixing', detail: 'Restarting…' });
+      try {
+        await fetch(`${currentMcpBase}/restart`, { method: 'POST', signal: AbortSignal.timeout(5000) }).catch(() => {});
+        addLog('mcp', 'Restart sent — waiting 7s…');
+        await new Promise(r => setTimeout(r, 7000));
+        const rhr = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+        if (rhr?.ok) { healthData = await rhr.json(); addLog('mcp', 'MCP recovered after restart', 'success'); }
+      } catch {}
+    }
+
+    if (!healthData) {
+      setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'error', detail: 'MCP server unresponsive — SAP calls will fail' });
+      addLog('mcp', 'MCP server not responding. SAP check skipped.', 'error');
+      setStoppedAt('mcp');
+      setRunning(false);
+      return;
+    }
+
+    const deployedVer = healthData?.version ?? serverVer ?? null;
+    const verMismatch = deployedVer && bundledVersion && bundledVersion !== '?' && deployedVer !== bundledVersion;
+    const mcpExtra = { deployedVersion: deployedVer, bundledVersion, needsDeploy: verMismatch };
+
+    if (verMismatch) {
+      setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'warning', detail: `v${deployedVer} running — v${bundledVersion} available`, extra: mcpExtra });
+      addLog('mcp', `Version mismatch: deployed v${deployedVer}, bundled v${bundledVersion} — use Deploy button to update`, 'warn');
+    } else {
+      setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'ok', detail: `v${deployedVer ?? '?'} running`, extra: mcpExtra });
+      addLog('mcp', `MCP server OK (v${deployedVer ?? '?'})`, 'success');
+    }
+
+    if (cancelRef.current) { setRunning(false); return; }
+
+    // ── Node 4: SAP ───────────────────────────────────────────────
+    setLiveNode('sap', { status: 'checking', detail: 'Testing SAP ADT connection…', log: [], extra: {} });
+    addLog('sap', `Connecting to SAP at ${env.host || '(no host configured)'}…`);
+
+    if (!env.host || !env.username || !env.password) {
+      setLiveNode('sap', { ...liveNodes.current.sap, status: 'warning', detail: 'No SAP credentials configured' });
+      addLog('sap', 'Host, username or password not configured — skipping SAP check', 'warn');
+    } else {
+      const doSapCheck = async () => {
+        const r = await fetch(`${currentMcpBase}/sap-info`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ host: env.host, username: env.username, password: env.password, client: env.client || '100' }),
+          signal: AbortSignal.timeout(35000),
+        });
+        return r.json();
+      };
+
+      let sapResult = null;
+      try {
+        sapResult = await doSapCheck();
+      } catch (e) {
+        addLog('sap', `Attempt 1 failed (${e.message?.slice(0, 50)}) — retrying…`, 'warn');
+        try { await new Promise(r => setTimeout(r, 2000)); sapResult = await doSapCheck(); } catch {}
+      }
+
+      if (!sapResult) {
+        setLiveNode('sap', { ...liveNodes.current.sap, status: 'error', detail: 'SAP unreachable — network or timeout error' });
+        addLog('sap', 'SAP unreachable after 2 attempts', 'error');
+      } else if (sapResult.ok) {
+        const info = sapResult.systemInfo || `Connected (${env.host})`;
+        setLiveNode('sap', { ...liveNodes.current.sap, status: 'ok', detail: info, extra: { systemInfo: info } });
+        addLog('sap', `SAP connected: ${info}`, 'success');
+      } else {
+        const code = sapResult.status;
+        const errMsg = sapResult.error || `HTTP ${code || 'error'}`;
+        setLiveNode('sap', { ...liveNodes.current.sap, status: 'error', detail: errMsg });
+        addLog('sap', `SAP error: ${errMsg}`, 'error');
+        if (code === 401) addLog('sap', 'Wrong credentials — check username and password', 'error');
+        else if (code === 403) addLog('sap', 'No ADT authorization — check user roles in SAP', 'error');
+        else if (code === 404) addLog('sap', 'ADT service not active — check SICF in SAP', 'error');
+      }
+    }
+
+    setRunning(false);
   }
 
   async function deployServer() {
-    if (!mcpBase || deploying) return;
+    const base = getMcpBase();
+    if (!base || deploying) return;
     setDeploying(true);
     setDeployMsg('Deploying…');
     try {
-      // POST with Content-Type: text/plain is a simple CORS request — no preflight.
-      // We push the bundled script directly so the VM needs no external URL.
-      const r = await fetch(`${mcpBase}/update`, {
+      const r = await fetch(`${base}/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: mcpScript,
         signal: AbortSignal.timeout(25000),
       }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
       if (r.ok) {
-        setDeployMsg('Updated — server restarting…');
-        await new Promise(resolve => setTimeout(resolve, 4000));
+        setDeployMsg('Deployed — restarting server…');
+        await new Promise(resolve => setTimeout(resolve, 4500));
         setDeployMsg('');
-        check();
+        run();
       } else {
-        setDeployMsg(`Failed: ${r.error?.slice(0, 80) || 'unknown error'}`);
+        setDeployMsg(`Failed: ${r.error?.slice(0, 80) || 'unknown'}`);
       }
     } catch (e) {
       setDeployMsg(`Error: ${e.message?.slice(0, 60)}`);
@@ -1210,94 +1366,167 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
     }
   }
 
-  const Row = ({ ok, label, detail }) => (
-    <div className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-      <span className="mt-0.5">
-        {ok === true  ? <CheckCircle2 size={15} className="text-green-500" />
-         : ok === false ? <XCircle size={15} className="text-red-400" />
-         : <AlertTriangle size={15} className="text-gray-300" />}
-      </span>
-      <div className="flex-1 min-w-0">
-        <span className={`text-xs font-semibold ${ok === true ? 'text-green-700 dark:text-green-400' : ok === false ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}>{label}</span>
-        {detail && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 break-words">{detail}</p>}
-      </div>
-    </div>
-  );
+  const NODE_META = [
+    { key: 'vm',  label: 'Virtual Machine' },
+    { key: 'vpn', label: 'VPN' },
+    { key: 'mcp', label: 'MCP Server' },
+    { key: 'sap', label: 'SAP Connection' },
+  ];
+
+  const statusIcon = (status) => {
+    if (status === 'checking' || status === 'fixing') return <RefreshCw size={14} className="animate-spin text-blue-400" />;
+    if (status === 'ok')      return <CheckCircle2 size={14} className="text-green-500" />;
+    if (status === 'warning') return <AlertTriangle size={14} className="text-amber-400" />;
+    if (status === 'error')   return <XCircle size={14} className="text-red-400" />;
+    return <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-gray-200 dark:border-gray-600" />;
+  };
+
+  const statusPill = (status) => {
+    const cls = 'text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none';
+    if (status === 'checking') return <span className={`${cls} bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300`}>Checking…</span>;
+    if (status === 'fixing')   return <span className={`${cls} bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-300`}>Fixing…</span>;
+    if (status === 'ok')       return <span className={`${cls} bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300`}>OK</span>;
+    if (status === 'warning')  return <span className={`${cls} bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-300`}>Warning</span>;
+    if (status === 'error')    return <span className={`${cls} bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300`}>Error</span>;
+    return <span className={`${cls} bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500`}>Pending</span>;
+  };
+
+  const logColor = (level) => ({
+    info:    'text-gray-500 dark:text-gray-400',
+    warn:    'text-amber-500 dark:text-amber-400',
+    error:   'text-red-500 dark:text-red-400',
+    success: 'text-green-600 dark:text-green-400',
+  }[level] ?? 'text-gray-500 dark:text-gray-400');
+
+  const nodeBg = (status) =>
+    status === 'ok'       ? 'border-green-100 dark:border-green-900/40 bg-green-50/40 dark:bg-green-900/10'
+    : status === 'error'  ? 'border-red-100 dark:border-red-900/40 bg-red-50/30 dark:bg-red-900/10'
+    : status === 'warning'? 'border-amber-100 dark:border-amber-900/40 bg-amber-50/20 dark:bg-amber-900/10'
+    : (status === 'checking' || status === 'fixing') ? 'border-blue-100 dark:border-blue-800/40 bg-blue-50/20 dark:bg-blue-900/10'
+    : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/20';
+
+  const lastCheckedLabel = checkedAt
+    ? (() => {
+        const diffMs = Date.now() - new Date(checkedAt).getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        return new Date(checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      })()
+    : null;
+
+  const overallStatus = () => {
+    const statuses = Object.values(nodes).map(n => n.status);
+    if (statuses.every(s => s === 'idle')) return null;
+    if (statuses.some(s => s === 'error')) return 'error';
+    if (statuses.some(s => s === 'warning')) return 'warning';
+    if (statuses.every(s => s === 'ok')) return 'all-ok';
+    return null;
+  };
+
+  const overall = overallStatus();
 
   return (
-    <div className="mt-2">
-      <button onClick={check} disabled={checking}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-xs text-gray-600 dark:text-gray-300 hover:border-blue-300 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all bg-white dark:bg-gray-800">
-        {checking ? <RefreshCw size={12} className="animate-spin" /> : <Activity size={12} />}
-        Check infrastructure status
-      </button>
-      {result && (
-        <div className="mt-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 divide-y divide-gray-100 dark:divide-gray-700">
-          <div className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-gray-700">
-            <span className="mt-0.5 shrink-0">
-              {result.vm ? <CheckCircle2 size={15} className="text-green-500" /> : <XCircle size={15} className="text-red-400" />}
-            </span>
-            <div className="flex-1 min-w-0">
-              <span className={`text-xs font-semibold ${result.vm ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>VM</span>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 break-words">{result.vmDetail}</p>
-              {refreshMsg && <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">{refreshMsg}</p>}
-            </div>
-            {result.vm === false && onUpdateMcpUrl && (
-              <button onClick={refreshTunnelUrl} disabled={refreshingUrl}
-                className="shrink-0 px-2 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                {refreshingUrl ? <RefreshCw size={11} className="animate-spin" /> : 'New URL'}
-              </button>
-            )}
-          </div>
-          {mcpBase && (
-            <div className="flex items-center gap-2 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-              <span className="mt-0.5 shrink-0">
-                {result.vpn === true ? <CheckCircle2 size={15} className="text-green-500" />
-                 : result.vpn === false ? <XCircle size={15} className="text-red-400" />
-                 : <AlertTriangle size={15} className="text-gray-300" />}
-              </span>
-              <div className="flex-1 min-w-0">
-                <span className={`text-xs font-semibold ${result.vpn === true ? 'text-green-700 dark:text-green-400' : result.vpn === false ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}>VPN</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{result.vpnDetail || (result.vpn === null ? 'Update MCP server for VPN status' : result.vpn ? 'Connected' : 'Not connected')}</p>
+    <div className="mt-3">
+      {/* Header bar */}
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <button
+          onClick={running ? () => { cancelRef.current = true; setRunning(false); } : run}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all
+            ${running
+              ? 'border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 hover:border-red-400 bg-white dark:bg-gray-800'
+              : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-blue-300 hover:text-blue-600 bg-white dark:bg-gray-800'
+            }`}
+        >
+          {running
+            ? <><X size={12} className="shrink-0" /> Stop</>
+            : <><Activity size={12} className="shrink-0" /> Check Infrastructure</>
+          }
+        </button>
+        <div className="flex items-center gap-2">
+          {overall === 'all-ok' && <span className="text-[10px] font-medium text-green-600 dark:text-green-400 flex items-center gap-1"><CheckCircle2 size={10} /> All systems OK</span>}
+          {overall === 'error' && <span className="text-[10px] font-medium text-red-500 flex items-center gap-1"><XCircle size={10} /> Issue detected</span>}
+          {overall === 'warning' && <span className="text-[10px] font-medium text-amber-500 flex items-center gap-1"><AlertTriangle size={10} /> Warnings</span>}
+          {lastCheckedLabel && <span className="text-[10px] text-gray-400 dark:text-gray-500">{lastCheckedLabel}</span>}
+        </div>
+      </div>
+
+      {/* Node pipeline */}
+      <div className="space-y-1">
+        {NODE_META.map(({ key, label }, idx) => {
+          const node = nodes[key];
+          const isExpandedLog = !!expanded[key];
+          const hasLog = node.log?.length > 0;
+          const showDeploy = key === 'mcp' && node.extra?.needsDeploy;
+
+          return (
+            <div key={key} className={`rounded-lg border transition-colors ${nodeBg(node.status)}`}>
+              {/* Node row */}
+              <div className="flex items-start gap-2.5 px-3 py-2">
+                <div className="shrink-0 mt-0.5">{statusIcon(node.status)}</div>
+                <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full bg-gray-100 dark:bg-gray-700 text-[9px] font-bold text-gray-500 dark:text-gray-400 flex items-center justify-center leading-none">{idx + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{label}</span>
+                    {statusPill(node.status)}
+                  </div>
+                  {node.detail && (
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug break-words">{node.detail}</p>
+                  )}
+                </div>
+                {showDeploy && (
+                  <button onClick={deployServer} disabled={deploying}
+                    className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors">
+                    {deploying ? <RefreshCw size={9} className="animate-spin" /> : <Upload size={9} />}
+                    {deploying ? 'Deploying…' : 'Deploy'}
+                  </button>
+                )}
+                {hasLog && (
+                  <button onClick={() => setExpanded(e => ({ ...e, [key]: !e[key] }))}
+                    className="shrink-0 p-1 text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 transition-colors">
+                    <ChevronDown size={12} className={`transition-transform duration-150 ${isExpandedLog ? 'rotate-180' : ''}`} />
+                  </button>
+                )}
               </div>
-              {result.vpn === false && (
-                <button onClick={() => toggleVpn('start')} disabled={vpnActing}
-                  className="shrink-0 px-2 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                  {vpnActing ? 'Starting…' : 'Start VPN'}
-                </button>
+
+              {/* Deploy message */}
+              {showDeploy && deployMsg && (
+                <div className="px-10 pb-2">
+                  <p className={`text-[10px] ${deployMsg.startsWith('Failed') || deployMsg.startsWith('Error') ? 'text-red-400' : 'text-blue-400'}`}>{deployMsg}</p>
+                </div>
               )}
-              {result.vpn === true && (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button onClick={() => toggleVpn('restart')} disabled={vpnActing}
-                    className="px-2 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                    {vpnActing ? 'Working…' : 'Restart VPN'}
-                  </button>
-                  <button onClick={() => toggleVpn('stop')} disabled={vpnActing}
-                    className="px-2 py-1 rounded text-xs font-medium bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                    {vpnActing ? 'Working…' : 'Stop VPN'}
-                  </button>
+
+              {/* Collapsible log */}
+              {isExpandedLog && hasLog && (
+                <div className="border-t border-gray-100 dark:border-gray-700/50 px-3 pt-2 pb-2.5">
+                  <div className="space-y-0.5">
+                    {node.log.map((entry, i) => (
+                      <div key={i} className="flex items-start gap-2 font-mono">
+                        <span className="shrink-0 text-[10px] text-gray-300 dark:text-gray-600 tabular-nums">{entry.ts}</span>
+                        <span className={`text-[10px] ${logColor(entry.level)}`}>{entry.msg}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
-          )}
-          <Row ok={result.sap} label="SAP Connection" detail={result.sapDetail} />
-          {result.vm && mcpBase && (
-            <div className="py-2 flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <span className="text-xs font-semibold text-gray-400">Server Version</span>
-                {deployMsg && <p className={`text-xs mt-0.5 ${deployMsg.startsWith('Failed') || deployMsg.startsWith('Error') ? 'text-red-400' : 'text-blue-400'}`}>{deployMsg}</p>}
-              </div>
-              <button onClick={deployServer} disabled={deploying}
-                className="shrink-0 px-2 py-1 rounded text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1">
-                {deploying ? <><RefreshCw size={10} className="animate-spin" />Deploying…</> : '⬆ Deploy to VM'}
-              </button>
-            </div>
-          )}
+          );
+        })}
+      </div>
+
+      {/* Stop banner */}
+      {stoppedAt && !running && (
+        <div className="mt-1.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50">
+          <AlertTriangle size={12} className="text-red-400 shrink-0" />
+          <p className="text-[11px] text-red-600 dark:text-red-400">
+            Stopped at <strong>{NODE_META.find(n => n.key === stoppedAt)?.label}</strong>. Fix the issue above and run check again.
+          </p>
         </div>
       )}
     </div>
   );
 }
+
 
 function VpnStatusBanner({ linkedConn, isVpn, mcpUrl, env }) {
   const [checking, setChecking] = useState(false);
