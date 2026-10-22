@@ -1327,6 +1327,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     addLog('mcp', 'Checking MCP server health…');
 
     let healthData = null;
+    let preDiag = null;
     try {
       const hr = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) });
       if (hr.ok) healthData = await hr.json();
@@ -1345,7 +1346,6 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'fixing', detail: 'Restarting MCP server…' });
 
       // Grab diagnostics before restart while server may still respond to requests
-      let preDiag = null;
       try {
         const dr = await fetch(`${currentMcpBase}/diagnostics`, { signal: AbortSignal.timeout(4000) });
         if (dr.ok) { preDiag = await dr.json(); addLog('mcp', 'Pre-restart diagnostics captured', 'info'); }
