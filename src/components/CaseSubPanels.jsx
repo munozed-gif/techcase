@@ -2452,7 +2452,28 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     if (!sapConnCfg || sapConnTest === 'testing') return;
     setSapConnTest('testing');
     const lsKey = `sap_test_${caseData.id}`;
-    const mcpBase = ((sapConnCfg.mcp_server_url?.trim() || sapMcpServerUrl) || '')
+
+    // Auto-refresh tunnel URL from vm_tunnel_registry so a restarted cloudflared never
+    // requires a manual settings update before the live check or spec generation.
+    let resolvedCfg = sapConnCfg;
+    try {
+      const { data } = await supabase
+        .from('vm_tunnel_registry')
+        .select('tunnel_url')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data?.tunnel_url) {
+        const registeredUrl = data.tunnel_url.replace(/\/$/, '');
+        const currentUrl = (sapConnCfg.mcp_server_url?.trim() || sapMcpServerUrl || '').replace(/\/$/, '');
+        if (registeredUrl && registeredUrl !== currentUrl) {
+          resolvedCfg = { ...sapConnCfg, mcp_server_url: registeredUrl };
+          setSapConnCfg(resolvedCfg);
+        }
+      }
+    } catch { /* registry lookup is best-effort */ }
+
+    const mcpBase = ((resolvedCfg.mcp_server_url?.trim() || sapMcpServerUrl) || '')
       .replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
     try {
       if (mcpBase) {
@@ -2461,17 +2482,17 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            host:     sapConnCfg.host,
-            username: sapConnCfg.username,
-            password: sapConnCfg.password,
-            client:   sapConnCfg.client || '100',
+            host:     resolvedCfg.host,
+            username: resolvedCfg.username,
+            password: resolvedCfg.password,
+            client:   resolvedCfg.client || '100',
           }),
           signal: AbortSignal.timeout(35000),
         }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
         if (r?.ok) {
           const next = {
             ok: true,
-            info: r.systemInfo || `Connected (${sapConnCfg.host})`,
+            info: r.systemInfo || `Connected (${resolvedCfg.host})`,
             capabilities: r.capabilities ?? [],
             components:   r.components ?? [],
             sid: r.debug?.sid ?? null,
