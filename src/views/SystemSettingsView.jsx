@@ -1216,6 +1216,181 @@ function SettingsRolesTab({ ssCtx }) {
   );
 }
 
+const INFRA_NODE_META = [
+  {
+    key: 'vm',
+    label: 'Virtual Machine',
+    icon: Monitor,
+    color: 'text-blue-500',
+    autoSolveActions: [
+      'Refresh Cloudflare tunnel URL from Supabase registry',
+      'Retry connection with fresh URL',
+    ],
+    cannotSolve: ['VM fully down — requires AWS Console restart'],
+  },
+  {
+    key: 'vpn',
+    label: 'VPN',
+    icon: Shield,
+    color: 'text-purple-500',
+    autoSolveActions: [
+      'Start VPN using project connection credentials',
+      'Wait up to 8s for tunnel to establish',
+      'Re-verify VPN status after start',
+    ],
+    cannotSolve: ['Credential / authentication errors — requires manual fix'],
+  },
+  {
+    key: 'mcp',
+    label: 'MCP Server',
+    icon: Rocket,
+    color: 'text-indigo-500',
+    autoSolveActions: [
+      'POST /restart → systemctl restart sap-mcp',
+      'Poll /health every 3s for up to 45s',
+      'Refresh tunnel URL if still unreachable',
+      'Write restart_mcp to Supabase vm_command_queue (VM picks up within 60s)',
+      'Poll /health for 90s more after queue command',
+    ],
+    cannotSolve: ['Port conflict requiring manual investigation', 'Missing vm_command_queue table in Supabase'],
+  },
+  {
+    key: 'sap',
+    label: 'SAP Connection',
+    icon: Database,
+    color: 'text-green-500',
+    autoSolveActions: [
+      'Retry once on network / timeout errors',
+      'Classify error type (401 / 403 / 404) for diagnosis',
+    ],
+    cannotSolve: ['Wrong credentials — requires updating SAP settings', 'No ADT authorization (403)', 'SICF service not active (404)'],
+  },
+];
+
+const INFRA_CHECK_DEFAULTS = {
+  vm:  { enabled: true, autoSolve: true },
+  vpn: { enabled: true, autoSolve: true },
+  mcp: { enabled: true, autoSolve: true },
+  sap: { enabled: true, autoSolve: false },
+};
+
+function InfraCheckSettingsCard({ ssCtx }) {
+  const raw = ssCtx.settings['infra_check_settings'] ?? {};
+  const [cfg, setCfg] = useState(() =>
+    Object.fromEntries(INFRA_NODE_META.map(n => [
+      n.key,
+      { enabled: raw[n.key]?.enabled ?? INFRA_CHECK_DEFAULTS[n.key].enabled,
+        autoSolve: raw[n.key]?.autoSolve ?? INFRA_CHECK_DEFAULTS[n.key].autoSolve },
+    ]))
+  );
+  const [expanded, setExpanded] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function save(next) {
+    setCfg(next);
+    setSaving(true);
+    try {
+      await ssCtx.setSetting('infra_check_settings', next);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally { setSaving(false); }
+  }
+
+  function toggle(nodeKey, field) {
+    const next = { ...cfg, [nodeKey]: { ...cfg[nodeKey], [field]: !cfg[nodeKey][field] } };
+    save(next);
+  }
+
+  const Toggle = ({ on, onClick, disabled }) => (
+    <button onClick={onClick} disabled={disabled}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${on ? 'bg-blue-500' : 'bg-gray-200 dark:bg-gray-600'} ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
+      <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+    </button>
+  );
+
+  return (
+    <div className="mt-6 pt-5 border-t border-gray-100">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+            <Activity size={14} className="text-blue-500" /> Infrastructure Check
+          </h4>
+          <p className="text-xs text-gray-400 mt-0.5">Configure which nodes to check and whether auto-solve is allowed per node.</p>
+        </div>
+        {saving && <RefreshCw size={12} className="animate-spin text-gray-400" />}
+        {saved && !saving && <span className="text-xs text-green-500 flex items-center gap-1"><Check size={11} /> Saved</span>}
+      </div>
+
+      <div className="space-y-2">
+        {INFRA_NODE_META.map(({ key, label, icon: Icon, color, autoSolveActions, cannotSolve }) => {
+          const node = cfg[key];
+          const isExpanded = !!expanded[key];
+          return (
+            <div key={key} className={`rounded-xl border transition-colors ${node.enabled ? 'border-gray-200 bg-gray-50' : 'border-gray-100 bg-gray-50/50 opacity-60'}`}>
+              <div className="flex items-center gap-3 px-3 py-2.5">
+                <Icon size={14} className={color} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium text-gray-700">{label}</span>
+                </div>
+
+                {/* Auto-solve toggle — only shown when node is enabled */}
+                {node.enabled && (
+                  <div className="flex items-center gap-1.5 mr-3">
+                    <span className="text-xs text-gray-400">Auto-solve</span>
+                    <Toggle on={node.autoSolve} onClick={() => toggle(key, 'autoSolve')} />
+                  </div>
+                )}
+
+                {/* Enable toggle */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-400">Check</span>
+                  <Toggle on={node.enabled} onClick={() => toggle(key, 'enabled')} />
+                </div>
+
+                {/* Expand actions */}
+                <button onClick={() => setExpanded(e => ({ ...e, [key]: !e[key] }))}
+                  className="p-1 text-gray-300 hover:text-gray-500 transition-colors">
+                  {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                </button>
+              </div>
+
+              {isExpanded && (
+                <div className="border-t border-gray-100 px-4 py-3 space-y-2">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Auto-solve actions</p>
+                    <ul className="space-y-1">
+                      {autoSolveActions.map((a, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
+                          <CheckCircle2 size={11} className="text-green-400 mt-0.5 shrink-0" />
+                          {a}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  {cannotSolve?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5 mt-2">Cannot auto-solve</p>
+                      <ul className="space-y-1">
+                        {cannotSolve.map((a, i) => (
+                          <li key={i} className="flex items-start gap-2 text-xs text-gray-500">
+                            <XCircle size={11} className="text-red-300 mt-0.5 shrink-0" />
+                            {a}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SapInfraStatus({ mcpUrl }) {
   const [status, setStatus] = useState(null); // null | { vm, mcp, vpn, vpnDetail, timestamp } | 'error'
   const [checking, setChecking] = useState(false);
@@ -1409,6 +1584,9 @@ function SettingsGenerationTab({ ssCtx }) {
           <p className="text-xs text-gray-400 mt-1">URL of the TechCase SAP MCP server. When set, ABAP code generation connects to SAP live for reading and writing objects.</p>
           <SapInfraStatus mcpUrl={form.sap_mcp_server_url} />
         </div>
+
+        {/* ── Infrastructure Check Settings ─────────────────────── */}
+        <InfraCheckSettingsCard ssCtx={ssCtx} />
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 p-5">

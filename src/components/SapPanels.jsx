@@ -1041,6 +1041,13 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const bundledVersion = mcpScript.match(/version:\s*'([^']+)'/)?.[1] ?? '?';
   const { settings: sysSettings } = useSystemSettings();
   const diagnosisModel = sysSettings['analysis_model'] ?? sysSettings['ai_model'] ?? 'claude-haiku-5-5';
+  const infraCfgRaw = sysSettings['infra_check_settings'] ?? {};
+  const infraCfg = {
+    vm:  { enabled: infraCfgRaw.vm?.enabled  ?? true, autoSolve: infraCfgRaw.vm?.autoSolve  ?? true },
+    vpn: { enabled: infraCfgRaw.vpn?.enabled ?? true, autoSolve: infraCfgRaw.vpn?.autoSolve ?? true },
+    mcp: { enabled: infraCfgRaw.mcp?.enabled ?? true, autoSolve: infraCfgRaw.mcp?.autoSolve ?? true },
+    sap: { enabled: infraCfgRaw.sap?.enabled ?? true, autoSolve: infraCfgRaw.sap?.autoSolve ?? false },
+  };
 
   const emptyNodes = () => ({
     vm:  { status: 'idle', detail: '', log: [] },
@@ -1140,6 +1147,9 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     let vmStatusData = null;
 
     // ── Node 1: VM ────────────────────────────────────────────────
+    if (!infraCfg.vm.enabled) {
+      setLiveNode('vm', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }] });
+    } else {
     setLiveNode('vm', { status: 'checking', detail: 'Connecting…', log: [] });
 
     if (!currentMcpBase) {
@@ -1165,7 +1175,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
     vmStatusData = await tryFetchStatus(currentMcpBase);
 
-    if (!vmStatusData) {
+    if (!vmStatusData && infraCfg.vm.autoSolve) {
       setLiveNode('vm', { ...liveNodes.current.vm, status: 'fixing', detail: 'Refreshing tunnel URL…' });
       addLog('vm', 'VM unreachable — looking up latest tunnel URL from registry…', 'warn');
       try {
@@ -1202,10 +1212,14 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     const serverVer = vmStatusData?.version ?? null;
     setLiveNode('vm', { ...liveNodes.current.vm, status: 'ok', detail: `Online${serverVer ? ` · v${serverVer}` : ''}` });
     addLog('vm', `VM responded OK${serverVer ? ` (server v${serverVer})` : ''}`, 'success');
+    } // end infraCfg.vm.enabled
 
     if (cancelRef.current) { setRunning(false); return; }
 
     // ── Node 2: VPN ───────────────────────────────────────────────
+    if (!infraCfg.vpn.enabled) {
+      setLiveNode('vpn', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }] });
+    } else {
     setLiveNode('vpn', { status: 'checking', detail: 'Reading VPN status from VM…', log: [] });
     addLog('vpn', 'Reading VPN status from VM…');
 
@@ -1218,6 +1232,13 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     } else if (vpnActive === true) {
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: `Connected${vpnSvc ? ` (${vpnSvc})` : ''}` });
       addLog('vpn', `VPN active${vpnSvc ? `: ${vpnSvc}` : ''}`, 'success');
+    } else if (!infraCfg.vpn.autoSolve) {
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'VPN inactive — auto-solve disabled in settings' });
+      addLog('vpn', 'VPN inactive. Auto-solve is off — enable it in platform settings to auto-start.', 'warn');
+      setStoppedAt('vpn');
+      setRunning(false);
+      diagnoseFailure('vpn');
+      return;
     } else {
       addLog('vpn', 'VPN inactive — attempting to start…', 'warn');
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'fixing', detail: 'Starting VPN…' });
@@ -1286,10 +1307,14 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: 'VPN started successfully' });
       addLog('vpn', 'VPN connected', 'success');
     }
+    } // end infraCfg.vpn.enabled
 
     if (cancelRef.current) { setRunning(false); return; }
 
     // ── Node 3: MCP ───────────────────────────────────────────────
+    if (!infraCfg.mcp.enabled) {
+      setLiveNode('mcp', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }], extra: {} });
+    } else {
     setLiveNode('mcp', { status: 'checking', detail: 'Checking MCP server…', log: [], extra: {} });
     addLog('mcp', 'Checking MCP server health…');
 
@@ -1299,6 +1324,14 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       if (hr.ok) healthData = await hr.json();
     } catch {}
 
+    if (!healthData && !infraCfg.mcp.autoSolve) {
+      setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'error', detail: 'MCP health check failed — auto-solve disabled in settings' });
+      addLog('mcp', 'Health check failed. Auto-solve is off — enable it in platform settings to auto-restart.', 'warn');
+      setStoppedAt('mcp');
+      setRunning(false);
+      diagnoseFailure('mcp');
+      return;
+    }
     if (!healthData) {
       addLog('mcp', 'Health check failed — attempting restart…', 'warn');
       setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'fixing', detail: 'Restarting MCP server…' });
@@ -1397,10 +1430,14 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'ok', detail: `v${deployedVer ?? '?'} running`, extra: mcpExtra });
       addLog('mcp', `MCP server OK (v${deployedVer ?? '?'})`, 'success');
     }
+    } // end infraCfg.mcp.enabled
 
     if (cancelRef.current) { setRunning(false); return; }
 
     // ── Node 4: SAP ───────────────────────────────────────────────
+    if (!infraCfg.sap.enabled) {
+      setLiveNode('sap', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }], extra: {} });
+    } else {
     setLiveNode('sap', { status: 'checking', detail: 'Testing SAP ADT connection…', log: [], extra: {} });
     addLog('sap', `Connecting to SAP at ${env.host || '(no host configured)'}…`);
 
@@ -1443,6 +1480,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         else if (code === 404) addLog('sap', 'ADT service not active — check SICF in SAP', 'error');
       }
     }
+    } // end infraCfg.sap.enabled
 
     setRunning(false);
   }
