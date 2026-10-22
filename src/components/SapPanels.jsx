@@ -1133,8 +1133,19 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         max_tokens: 600,
       });
       if (result) setAiDiagnosis(result.trim());
-    } catch { /* best-effort */ }
-    finally { setDiagnosing(false); }
+      else setAiDiagnosis('AI returned empty response. Check the VM logs in the node detail above.');
+    } catch (e) {
+      addLog(nodeKey, `AI diagnosis error: ${e.message?.slice(0, 80) || 'unknown'}`, 'error');
+      const rawLogs = diagContext.postDiag
+        ? String(diagContext.postDiag).slice(0, 800)
+        : diagContext.preDiag?.journal
+          ? `Journal:\n${diagContext.preDiag.journal.slice(0, 500)}`
+          : null;
+      setAiDiagnosis(
+        `AI diagnosis failed: ${e.message?.slice(0, 100) || 'unknown error'}` +
+        (rawLogs ? `\n\nRaw VM logs:\n${rawLogs}` : '')
+      );
+    } finally { setDiagnosing(false); }
   }
 
   async function run() {
