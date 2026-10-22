@@ -4812,6 +4812,21 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   // This ensures project documents like VSS_Order.pdf are also analysed
                   const docBlocks = await buildAllDocBlocks();
                   const langName = lang === 'es' ? 'Spanish' : lang === 'fr' ? 'French' : lang === 'pt' ? 'Portuguese' : lang === 'de' ? 'German' : 'English';
+                  const h_summary = lang === 'es' ? 'Resumen de la Solicitud del Cliente'
+                    : lang === 'fr' ? 'Résumé de la Demande Client'
+                    : lang === 'pt' ? 'Resumo da Solicitação do Cliente'
+                    : lang === 'de' ? 'Zusammenfassung der Kundenanfrage'
+                    : 'Customer Request Summary';
+                  const h_considerations = lang === 'es' ? 'Consideraciones Clave'
+                    : lang === 'fr' ? 'Considérations Clés'
+                    : lang === 'pt' ? 'Considerações Principais'
+                    : lang === 'de' ? 'Wichtige Überlegungen'
+                    : 'Key Considerations';
+                  const h_sap_objects = lang === 'es' ? 'Objetos SAP en el Sistema'
+                    : lang === 'fr' ? 'Objets SAP dans le Système'
+                    : lang === 'pt' ? 'Objetos SAP no Sistema'
+                    : lang === 'de' ? 'SAP-Objekte im System'
+                    : 'SAP Objects in System';
                   const docNote = docBlocks.length > 0
                     ? `IMPORTANT: All ${docBlocks.length} document(s) listed are already provided above as content blocks. Any email, message, or document that mentions "attached files", "see attached", or "adjunto" is referring to the other documents already included in this analysis. Do not say that documents are missing or not received — they are all here.`
                     : 'No documents attached.';
@@ -4826,12 +4841,12 @@ ${customerContent || '(see attached documents)'}
 
 ${docNote}
 
-Based on ALL the information above and the document content provided, produce a structured analysis in ${langName}.
+Based on ALL the information above and the document content provided, produce a structured analysis in ${langName}. Use only bullet points — do not use sub-headings (###) inside sections.
 
-## Customer Request Summary
+## ${h_summary}
 List 3–6 bullet points summarizing exactly what the customer is asking to be built or configured. Be specific — use module names, transaction codes, field names, business process names, and actual terminology from the source material.
 
-## Key Considerations
+## ${h_considerations}
 List each important technical or business consideration the development team must be aware of, including:
 - Existing custom solutions, tools, or systems already in place (e.g. VSS, custom Z-programs, third-party add-ons, previous enhancements — always name them explicitly)
 - Integration points with other SAP modules or external systems
@@ -4857,7 +4872,7 @@ Keep each bullet point to 1–2 lines. Base every point on actual content from t
 
 For each identified object, use the available SAP tools to check whether it exists in the system. Then produce a section titled:
 
-## SAP Objects in System
+## ${h_sap_objects}
 
 With a table or bullet list showing:
 - Object name
