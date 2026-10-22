@@ -2011,6 +2011,7 @@ ${mdToHtml(markdownContent)}
           if (nd.selectedSpec)  setSelectedSpec(nd.selectedSpec);
           if (nd.prevMode)      setPrevMode(nd.prevMode);
           if (nd.analysisCustomerContent) setAnalysisCustomerContent(nd.analysisCustomerContent);
+          if (nd.requestSummary) setRequestSummary(nd.requestSummary);
           if (nd.activeProfile) setActiveProfile(nd.activeProfile);
           if (nd.protoHtml)    { setProtoHtmlState(nd.protoHtml); setProtoSaved(true); setActiveProfile(p => p ?? { prototype_enabled: true }); }
         } catch (_) {}
@@ -3228,7 +3229,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       setViewingProto(false);
       const saveStatus = autoSubmit ? 'submitted' : 'draft';
       try {
-        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix") });
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (_) {}
       await saveAllSpecsAsDocuments(specA, specB, specC, specD, sapCheck, proposalCheck);
@@ -3356,7 +3357,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       } catch (saveErr) { console.warn('Spec D doc save failed:', saveErr?.message); }
       // Persist in spec notes
       try {
-        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, requestSummary, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") });
       } catch (_) {}
     } catch (e) {
       console.error('Spec D generation error:', e?.message);
@@ -3453,7 +3454,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           mode: 'ai', status: spec?.status ?? 'draft',
           content: newSpecs.a || newSpecs.b || newSpecs.c || newSpecs.d,
           objects: [],
-          notes: JSON.stringify({ sapCheck, proposalCheck, specA: newSpecs.a, specB: newSpecs.b, specC: newSpecs.c, specD: newSpecs.d, selectedSpec: firstKey, prevMode, analysisCustomerContent, activeProfile: profile }),
+          notes: JSON.stringify({ sapCheck, proposalCheck, specA: newSpecs.a, specB: newSpecs.b, specC: newSpecs.c, specD: newSpecs.d, selectedSpec: firstKey, prevMode, analysisCustomerContent, requestSummary, activeProfile: profile }),
           title: caseData.title + t("spec.doc_title_suffix"),
         });
       } catch (_) {}
@@ -3522,7 +3523,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         status: 'submitted',
         content: specContent ?? null,
         objects: specObjects ?? [],
-        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, activeProfile }) : null),
+        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile }) : null),
         document_ids: specMode === 'manual' ? manualDocIds : [],
         title: caseData.title + t("spec.doc_title_suffix"),
       });
@@ -4268,6 +4269,16 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 onClick={() => setActiveNode(0)}
               />
 
+              {/* Node 6: Compiled Context — before SAP live; turns green when analysis exists */}
+              <NodeBtn id={6} icon={Code2}
+                title={t("spec.compiled_ctx_lbl") || "Compiled Context"}
+                sub={requestSummaryLoading ? (t("spec.checking") || "Analyzing…") : requestSummary ? (t("spec.compiled_ctx_ready") || "Analysis ready") : (t("spec.compiled_ctx_sub") || "Assembled prompt context")}
+                status={requestSummaryLoading ? 'running' : (requestSummary || compiledCtxPreview) ? 'complete' : 'pending'}
+                isActive={activeNode===6}
+                canClick={true}
+                onClick={() => setActiveNode(6)}
+              />
+
               {/* Node 5: Live SAP Connection (only when live check is enabled in settings) */}
               {liveCheckEnabled && (
                 <NodeBtn id={5} icon={Zap}
@@ -4289,16 +4300,6 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   }}
                 />
               )}
-
-              {/* Node 6: Compiled Context Preview */}
-              <NodeBtn id={6} icon={Code2}
-                title={t("spec.compiled_ctx_lbl") || "Compiled Context"}
-                sub={compiledCtxPreview ? (t("spec.compiled_ctx_ready") || "Context ready") : (t("spec.compiled_ctx_sub") || "Assembled prompt context")}
-                status={compiledCtxPreview ? 'complete' : 'pending'}
-                isActive={activeNode===6}
-                canClick={true}
-                onClick={() => setActiveNode(6)}
-              />
 
               {/* Node 1: SAP Verification */}
               <NodeBtn id={1} icon={CheckCircle2}
@@ -4846,7 +4847,39 @@ Keep each bullet point to 1–2 lines. Base every point on actual content from t
                     messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
                     max_tokens: 3000,
                   }).catch(_ => callClaude({ model: analysisModel, system, messages: [{ role: 'user', content: prompt }], max_tokens: 3000 }));
-                  setRequestSummary(result);
+
+                  // SAP object verification — only when a live SAP MCP connection is available
+                  const mcpServers = buildMcpConfig();
+                  let fullResult = result;
+                  if (mcpServers.length > 0 && result) {
+                    try {
+                      const sapObjPrompt = `Based on the following analysis of a customer SAP development request, identify every SAP technical object mentioned: custom programs (Z*/Y*), function modules, BAPIs, tables (Z* or standard), classes, enhancement spots, BADIs, transaction codes, and any other named SAP artefacts.
+
+For each identified object, use the available SAP tools to check whether it exists in the system. Then produce a section titled:
+
+## SAP Objects in System
+
+With a table or bullet list showing:
+- Object name
+- Type (program, table, FM, BAPI, class, etc.)
+- ✓ Exists / ✗ Not found
+- Brief note if relevant (e.g. "enhancement spot already contains 3 implementations")
+
+Only include objects you actually checked. If no technical objects are named in the analysis, write "No named SAP objects found in documents."
+
+Analysis to process:
+${result}`;
+                      const sapObjResult = await callClaude({
+                        model: analysisModel,
+                        system: 'You are an SAP consultant with live system access. Use the SAP tools to verify object existence. Be concise.',
+                        messages: [{ role: 'user', content: sapObjPrompt }],
+                        max_tokens: 2000,
+                        mcp_servers: mcpServers,
+                      }).catch(() => null);
+                      if (sapObjResult) fullResult = result + '\n\n' + sapObjResult;
+                    } catch { /* best-effort — proceed without SAP verification */ }
+                  }
+                  setRequestSummary(fullResult);
                 } catch (e) {
                   setRequestSummaryError(e.message);
                 } finally {
@@ -5395,7 +5428,7 @@ Keep each bullet point to 1–2 lines. Base every point on actual content from t
                         {!specApproved && (
                           <button onClick={async () => {
                             const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : selectedSpec === 'd' ? aiSpecD : aiSpecA;
-                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
+                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
                           }} disabled={!selectedSpec} className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
                             {t("spec.save_draft")}
                           </button>
