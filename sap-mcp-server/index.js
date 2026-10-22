@@ -22,6 +22,7 @@ import { execSync } from 'child_process';
 import { writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 
+const SERVER_START = Date.now();
 const PORT = Number(process.env.PORT ?? 3100);
 
 // ── SAP ADT helpers ────────────────────────────────────────────────────────
@@ -519,15 +520,30 @@ const httpServer = http.createServer(async (req, res) => {
   if (req.method === 'GET' && (req.url === '/status' || req.url === '/status/')) {
     let vpn = false;
     let vpnDetail = '';
+    let vpnService = '';
     try {
-      const out = execSync('if systemctl is-active --quiet openfortivpn@vpn 2>/dev/null || systemctl is-active --quiet openfortivpn 2>/dev/null; then echo active; else echo inactive; fi', { timeout: 4000 }).toString().trim();
-      vpn = out === 'active';
-      vpnDetail = out;
+      // Detect which VPN service is active
+      const services = ['openfortivpn@vpn', 'openfortivpn', 'wg-quick@wg0', 'wireguard'];
+      for (const svc of services) {
+        try {
+          const out = execSync(`systemctl is-active ${svc} 2>/dev/null`, { timeout: 2000 }).toString().trim();
+          if (out === 'active') { vpn = true; vpnService = svc; vpnDetail = `${svc}: active`; break; }
+        } catch { /* try next */ }
+      }
+      if (!vpn) {
+        // Fallback: check if any ppp or tun interface is up (generic VPN indicator)
+        try {
+          const ifaces = execSync('ip link show up 2>/dev/null | grep -E "ppp|tun" | head -3', { timeout: 2000 }).toString().trim();
+          if (ifaces) { vpn = true; vpnService = ifaces.split(':')[1]?.trim() || 'tun/ppp'; vpnDetail = `Interface up: ${ifaces.split('\n')[0].slice(0, 60)}`; }
+          else { vpnDetail = 'No VPN service detected'; }
+        } catch { vpnDetail = 'inactive'; }
+      }
     } catch (e) {
       vpnDetail = e.message?.slice(0, 80) ?? 'error';
     }
+    const uptime = Math.floor((Date.now() - SERVER_START) / 1000);
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, timestamp: new Date().toISOString() }));
+    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.5.0', uptime, timestamp: new Date().toISOString() }));
     return;
   }
 
