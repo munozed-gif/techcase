@@ -513,7 +513,7 @@ const httpServer = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS' && req.url === '/health') { res.writeHead(204, CORS_HEADERS); res.end(); return; }
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.7.4', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', diagnostics: '/diagnostics', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.7.5', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', diagnostics: '/diagnostics', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
     return;
   }
 
@@ -523,28 +523,44 @@ const httpServer = http.createServer(async (req, res) => {
     let vpnDetail = '';
     let vpnService = '';
     try {
-      // Detect which VPN service is active
-      const services = ['openfortivpn@vpn', 'openfortivpn', 'wg-quick@wg0', 'wireguard'];
-      for (const svc of services) {
-        try {
-          const out = execSync(`systemctl is-active ${svc} 2>/dev/null`, { timeout: 2000 }).toString().trim();
-          if (out === 'active') { vpn = true; vpnService = svc; vpnDetail = `${svc}: active`; break; }
-        } catch { /* try next */ }
-      }
-      if (!vpn) {
-        // Fallback: check if any ppp or tun interface is up (generic VPN indicator)
-        try {
-          const ifaces = execSync('ip link show up 2>/dev/null | grep -E "ppp|tun" | head -3', { timeout: 2000 }).toString().trim();
-          if (ifaces) { vpn = true; vpnService = ifaces.split(':')[1]?.trim() || 'tun/ppp'; vpnDetail = `Interface up: ${ifaces.split('\n')[0].slice(0, 60)}`; }
-          else { vpnDetail = 'No VPN service detected'; }
-        } catch { vpnDetail = 'inactive'; }
-      }
+      // Primary check: verify a ppp/tun tunnel interface actually exists (service can be
+      // "active" in systemd while the PPP connection has silently dropped)
+      try {
+        const ifaces = execSync('ip link show up 2>/dev/null | grep -E "ppp[0-9]|tun[0-9]" | head -3', { timeout: 2000 }).toString().trim();
+        if (ifaces) {
+          const ifName = ifaces.match(/(ppp\d+|tun\d+)/)?.[1] || 'ppp/tun';
+          vpn = true;
+          vpnService = ifName;
+          vpnDetail = `Tunnel up (${ifName})`;
+          // Also find which systemd service owns it
+          const services = ['openfortivpn@vpn', 'openfortivpn', 'wg-quick@wg0', 'wireguard'];
+          for (const svc of services) {
+            try {
+              const st = execSync(`systemctl is-active ${svc} 2>/dev/null`, { timeout: 1500 }).toString().trim();
+              if (st === 'active') { vpnService = svc; vpnDetail = `Connected (${svc})`; break; }
+            } catch { /* try next */ }
+          }
+        } else {
+          // No tunnel interface — check if service is running but tunnel dropped
+          const services = ['openfortivpn@vpn', 'openfortivpn', 'wg-quick@wg0', 'wireguard'];
+          let svcActive = '';
+          for (const svc of services) {
+            try {
+              const st = execSync(`systemctl is-active ${svc} 2>/dev/null`, { timeout: 1500 }).toString().trim();
+              if (st === 'active') { svcActive = svc; break; }
+            } catch { /* try next */ }
+          }
+          vpn = false;
+          vpnDetail = svcActive ? `Service running (${svcActive}) but tunnel interface missing — VPN dropped` : 'No VPN service detected';
+          vpnService = svcActive;
+        }
+      } catch { vpnDetail = 'inactive'; }
     } catch (e) {
       vpnDetail = e.message?.slice(0, 80) ?? 'error';
     }
     const uptime = Math.floor((Date.now() - SERVER_START) / 1000);
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.7.4', uptime, timestamp: new Date().toISOString() }));
+    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.7.5', uptime, timestamp: new Date().toISOString() }));
     return;
   }
 
@@ -676,7 +692,7 @@ const httpServer = http.createServer(async (req, res) => {
 
   // Diagnostics: port status, journal tail, memory, process info
   if (req.method === 'GET' && req.url === '/diagnostics') {
-    const diag = { version: '1.7.4', uptime: Math.floor((Date.now() - SERVER_START) / 1000), timestamp: new Date().toISOString() };
+    const diag = { version: '1.7.5', uptime: Math.floor((Date.now() - SERVER_START) / 1000), timestamp: new Date().toISOString() };
     try {
       const portOut = execSync(`ss -ltnp 2>/dev/null | grep :${PORT} | head -3`, { timeout: 2000 }).toString().trim();
       diag.portListening = !!portOut;
