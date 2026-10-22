@@ -1112,7 +1112,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
       const { preDiag, postDiag } = diagContext;
       let diagSection = '';
       if (postDiag) {
-        diagSection = `\n\nActual VM diagnostic output (post-crash):\n${String(postDiag).slice(0, 900)}`;
+        diagSection = `\n\nActual VM diagnostic output (post-crash):\n${String(postDiag).slice(0, 2000)}`;
       } else if (preDiag?.journal) {
         diagSection = `\n\nVM diagnostic data (captured before restart):\nJournal: ${preDiag.journal.slice(0, 600)}\nPort: ${preDiag.portDetail || 'N/A'}\nMemory: ${preDiag.memory || 'N/A'}\nNode procs: ${preDiag.nodeProcs || 'none'}`;
       }

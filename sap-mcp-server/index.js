@@ -512,7 +512,7 @@ const httpServer = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.7.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', diagnostics: '/diagnostics', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.7.1', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', diagnostics: '/diagnostics', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
     return;
   }
 
@@ -543,7 +543,7 @@ const httpServer = http.createServer(async (req, res) => {
     }
     const uptime = Math.floor((Date.now() - SERVER_START) / 1000);
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.7.0', uptime, timestamp: new Date().toISOString() }));
+    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.7.1', uptime, timestamp: new Date().toISOString() }));
     return;
   }
 
@@ -675,7 +675,7 @@ const httpServer = http.createServer(async (req, res) => {
 
   // Diagnostics: port status, journal tail, memory, process info
   if (req.method === 'GET' && req.url === '/diagnostics') {
-    const diag = { version: '1.7.0', uptime: Math.floor((Date.now() - SERVER_START) / 1000), timestamp: new Date().toISOString() };
+    const diag = { version: '1.7.1', uptime: Math.floor((Date.now() - SERVER_START) / 1000), timestamp: new Date().toISOString() };
     try {
       const portOut = execSync(`ss -ltnp 2>/dev/null | grep :${PORT} | head -3`, { timeout: 2000 }).toString().trim();
       diag.portListening = !!portOut;
@@ -820,13 +820,13 @@ async function pollCommandQueue() {
       }
       if (cmd.command === 'get_diagnostics') {
         try {
-          const journal = execSync('journalctl -u sap-mcp --no-pager -n 50 2>/dev/null', { timeout: 5000 }).toString().trim();
-          const svcStatus = execSync('systemctl status sap-mcp 2>/dev/null | head -20', { timeout: 3000 }).toString().trim();
+          const journal = execSync('journalctl -u sap-mcp --no-pager -n 120 2>/dev/null', { timeout: 6000 }).toString().trim();
+          const svcStatus = execSync('systemctl status sap-mcp 2>/dev/null | head -25', { timeout: 3000 }).toString().trim();
           const portInfo = execSync(`ss -ltnp 2>/dev/null | grep :${PORT} | head -3`, { timeout: 2000 }).toString().trim();
           const memInfo = execSync('free -h 2>/dev/null | grep Mem', { timeout: 2000 }).toString().trim();
           const nodeProcs = execSync('ps aux 2>/dev/null | grep node | grep -v grep | head -5', { timeout: 2000 }).toString().trim();
-          const out = `=== Journal (last 50 lines) ===\n${journal}\n\n=== Service Status ===\n${svcStatus}\n\n=== Port ${PORT} ===\n${portInfo || 'not listening'}\n\n=== Memory ===\n${memInfo}\n\n=== Node processes ===\n${nodeProcs || 'none'}`;
-          await markDone(out.slice(0, 3000));
+          const out = `=== Journal (last 120 lines) ===\n${journal}\n\n=== Service Status ===\n${svcStatus}\n\n=== Port ${PORT} ===\n${portInfo || 'not listening'}\n\n=== Memory ===\n${memInfo}\n\n=== Node processes ===\n${nodeProcs || 'none'}`;
+          await markDone(out.slice(0, 6000));
         } catch (e) { await markDone(`diagnostics failed: ${e.message?.slice(0, 80)}`); }
       }
     }
