@@ -4269,16 +4269,6 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 onClick={() => setActiveNode(0)}
               />
 
-              {/* Node 6: Compiled Context — before SAP live; turns green when analysis exists */}
-              <NodeBtn id={6} icon={Code2}
-                title={t("spec.compiled_ctx_lbl") || "Compiled Context"}
-                sub={requestSummaryLoading ? (t("spec.checking") || "Analyzing…") : requestSummary ? (t("spec.compiled_ctx_ready") || "Analysis ready") : (t("spec.compiled_ctx_sub") || "Assembled prompt context")}
-                status={requestSummaryLoading ? 'running' : (requestSummary || compiledCtxPreview) ? 'complete' : 'pending'}
-                isActive={activeNode===6}
-                canClick={true}
-                onClick={() => setActiveNode(6)}
-              />
-
               {/* Node 5: Live SAP Connection (only when live check is enabled in settings) */}
               {liveCheckEnabled && (
                 <NodeBtn id={5} icon={Zap}
@@ -4300,6 +4290,16 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   }}
                 />
               )}
+
+              {/* Node 6: Compiled Context — turns green when analysis results exist */}
+              <NodeBtn id={6} icon={Code2}
+                title={t("spec.compiled_ctx_lbl") || "Compiled Context"}
+                sub={requestSummaryLoading ? (t("spec.checking") || "Analyzing…") : requestSummary ? (t("spec.compiled_ctx_ready") || "Analysis ready") : (t("spec.compiled_ctx_sub") || "Assembled prompt context")}
+                status={requestSummaryLoading ? 'running' : (requestSummary || compiledCtxPreview) ? 'complete' : 'pending'}
+                isActive={activeNode===6}
+                canClick={true}
+                onClick={() => setActiveNode(6)}
+              />
 
               {/* Node 1: SAP Verification */}
               <NodeBtn id={1} icon={CheckCircle2}
