@@ -1130,7 +1130,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         model: diagnosisModel,
         system: 'You are a DevOps assistant for TechCase. The stack: Node.js MCP server on AWS EC2 Ubuntu, exposed via Cloudflare Quick Tunnel, FortiClient VPN to SAP. Diagnose and give concrete fix steps.',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 600,
+        max_tokens: 1200,
       });
       if (result) setAiDiagnosis(result.trim());
       else setAiDiagnosis('AI returned empty response. Check the VM logs in the node detail above.');

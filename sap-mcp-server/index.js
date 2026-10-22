@@ -510,9 +510,10 @@ const httpServer = http.createServer(async (req, res) => {
   }
 
   // Health check
+  if (req.method === 'OPTIONS' && req.url === '/health') { res.writeHead(204, CORS_HEADERS); res.end(); return; }
   if (req.method === 'GET' && req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.7.1', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', diagnostics: '/diagnostics', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
+    res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.7.2', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', diagnostics: '/diagnostics', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
     return;
   }
 
@@ -543,7 +544,7 @@ const httpServer = http.createServer(async (req, res) => {
     }
     const uptime = Math.floor((Date.now() - SERVER_START) / 1000);
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.7.1', uptime, timestamp: new Date().toISOString() }));
+    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.7.2', uptime, timestamp: new Date().toISOString() }));
     return;
   }
 
@@ -675,7 +676,7 @@ const httpServer = http.createServer(async (req, res) => {
 
   // Diagnostics: port status, journal tail, memory, process info
   if (req.method === 'GET' && req.url === '/diagnostics') {
-    const diag = { version: '1.7.1', uptime: Math.floor((Date.now() - SERVER_START) / 1000), timestamp: new Date().toISOString() };
+    const diag = { version: '1.7.2', uptime: Math.floor((Date.now() - SERVER_START) / 1000), timestamp: new Date().toISOString() };
     try {
       const portOut = execSync(`ss -ltnp 2>/dev/null | grep :${PORT} | head -3`, { timeout: 2000 }).toString().trim();
       diag.portListening = !!portOut;
