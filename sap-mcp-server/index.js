@@ -604,11 +604,13 @@ const httpServer = http.createServer(async (req, res) => {
     return;
   }
 
-  // Graceful restart: respond first, then exit so systemd restarts the process
+  // Graceful restart: respond first, then restart via systemd (or exit so systemd restarts)
   if (req.method === 'POST' && req.url === '/restart') {
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, message: 'Restarting…' }));
-    setTimeout(() => process.exit(0), 120);
+    setTimeout(() => {
+      try { execSync('sudo systemctl restart sap-mcp 2>/dev/null', { timeout: 8000 }); } catch { process.exit(0); }
+    }, 200);
     return;
   }
 
@@ -668,6 +670,28 @@ const httpServer = http.createServer(async (req, res) => {
       res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, error: e.message?.slice(0, 200) }));
     }
+    return;
+  }
+
+  // Diagnostics: port status, journal tail, memory, process info
+  if (req.method === 'GET' && req.url === '/diagnostics') {
+    const diag = { version: '1.6.0', uptime: Math.floor((Date.now() - SERVER_START) / 1000), timestamp: new Date().toISOString() };
+    try {
+      const portOut = execSync(`ss -ltnp 2>/dev/null | grep :${PORT} | head -3`, { timeout: 2000 }).toString().trim();
+      diag.portListening = !!portOut;
+      diag.portDetail = portOut.slice(0, 150);
+    } catch { diag.portListening = true; diag.portDetail = 'ss command unavailable'; }
+    try {
+      diag.journal = execSync('journalctl -u sap-mcp --no-pager -n 30 2>/dev/null', { timeout: 3000 }).toString().trim().slice(-1200);
+    } catch { diag.journal = ''; }
+    try {
+      diag.memory = execSync('free -h 2>/dev/null | grep Mem', { timeout: 2000 }).toString().trim();
+    } catch { diag.memory = ''; }
+    try {
+      diag.nodeProcs = execSync('ps aux 2>/dev/null | grep node | grep -v grep | head -3', { timeout: 2000 }).toString().trim();
+    } catch { diag.nodeProcs = ''; }
+    res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(diag));
     return;
   }
 
