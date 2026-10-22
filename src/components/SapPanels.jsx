@@ -1300,15 +1300,81 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     } catch {}
 
     if (!healthData) {
-      addLog('mcp', 'Health check failed — sending restart command…', 'warn');
-      setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'fixing', detail: 'Restarting…' });
-      try {
-        await fetch(`${currentMcpBase}/restart`, { method: 'POST', signal: AbortSignal.timeout(5000) }).catch(() => {});
-        addLog('mcp', 'Restart sent — waiting 7s…');
-        await new Promise(r => setTimeout(r, 7000));
-        const rhr = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
-        if (rhr?.ok) { healthData = await rhr.json(); addLog('mcp', 'MCP recovered after restart', 'success'); }
-      } catch {}
+      addLog('mcp', 'Health check failed — attempting restart…', 'warn');
+      setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'fixing', detail: 'Restarting MCP server…' });
+
+      // Step 1: send /restart (works if process is alive but unhealthy; also tries systemctl)
+      const restartSent = await fetch(`${currentMcpBase}/restart`, { method: 'POST', signal: AbortSignal.timeout(5000) })
+        .then(r => r.ok).catch(() => false);
+      addLog('mcp', restartSent ? 'Restart command accepted — polling for recovery…' : 'Server unreachable — waiting for systemd auto-restart…');
+
+      // Step 2: poll /health every 3s for up to 45s (covers systemd RestartSec + startup time)
+      const pollStart = Date.now();
+      const pollTimeout = 45000;
+      while (Date.now() - pollStart < pollTimeout && !cancelRef.current) {
+        await new Promise(r => setTimeout(r, 3000));
+        const elapsed = Math.round((Date.now() - pollStart) / 1000);
+        const rhr = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(4000) }).catch(() => null);
+        if (rhr?.ok) {
+          healthData = await rhr.json();
+          addLog('mcp', `MCP recovered after ${elapsed}s`, 'success');
+          break;
+        }
+        setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'fixing', detail: `Waiting for restart… (${elapsed}s / 45s)` });
+        if (elapsed % 9 === 0) addLog('mcp', `Still restarting… (${elapsed}s)`);
+      }
+
+      // Step 3: if still dead, check if tunnel URL changed (Cloudflare restart generates new URL)
+      if (!healthData) {
+        addLog('mcp', 'MCP still unreachable — checking if tunnel URL changed…', 'warn');
+        try {
+          const { data: tData } = await supabase
+            .from('vm_tunnel_registry')
+            .select('tunnel_url, updated_at')
+            .order('updated_at', { ascending: false })
+            .limit(1).maybeSingle();
+          if (tData?.tunnel_url) {
+            const freshUrl = tData.tunnel_url.replace(/\/$/, '');
+            if (freshUrl !== currentMcpBase) {
+              addLog('mcp', `New tunnel URL: ${freshUrl} — retrying…`);
+              currentMcpBase = freshUrl;
+              if (onUpdateMcpUrl) onUpdateMcpUrl(freshUrl);
+              const rhr2 = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+              if (rhr2?.ok) { healthData = await rhr2.json(); addLog('mcp', 'MCP reached via new tunnel URL', 'success'); }
+            }
+          }
+        } catch {}
+      }
+
+      // Step 4: last resort — queue restart command via Supabase (VM polls this every 60s)
+      if (!healthData) {
+        addLog('mcp', 'Queuing restart command via Supabase (VM polls every 60s)…', 'warn');
+        setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'fixing', detail: 'Queued restart — polling for VM response…' });
+        try {
+          const { error: qErr } = await supabase
+            .from('vm_command_queue')
+            .insert({ command: 'restart_mcp', status: 'pending' });
+          if (!qErr) {
+            addLog('mcp', 'Restart queued ✓ — VM will execute within 60s. Polling for 90s more…');
+            const qPollStart = Date.now();
+            while (Date.now() - qPollStart < 90000 && !cancelRef.current) {
+              await new Promise(r => setTimeout(r, 5000));
+              const elapsed2 = Math.round((Date.now() - qPollStart) / 1000);
+              const rhr3 = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(4000) }).catch(() => null);
+              if (rhr3?.ok) {
+                healthData = await rhr3.json();
+                addLog('mcp', `MCP recovered ${elapsed2}s after queue restart`, 'success');
+                break;
+              }
+              setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'fixing', detail: `Queue restart pending… (${elapsed2}s / 90s)` });
+            }
+          } else {
+            addLog('mcp', `Queue write failed: ${qErr.message?.slice(0, 60)} — create vm_command_queue table in Supabase`, 'error');
+          }
+        } catch (qe) {
+          addLog('mcp', `Queue unavailable: ${qe.message?.slice(0, 60)}`, 'warn');
+        }
+      }
     }
 
     if (!healthData) {

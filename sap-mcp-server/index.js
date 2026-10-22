@@ -512,7 +512,7 @@ const httpServer = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.5.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.6.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', diagnostics: '/diagnostics', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
     return;
   }
 
@@ -543,7 +543,7 @@ const httpServer = http.createServer(async (req, res) => {
     }
     const uptime = Math.floor((Date.now() - SERVER_START) / 1000);
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.5.0', uptime, timestamp: new Date().toISOString() }));
+    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.6.0', uptime, timestamp: new Date().toISOString() }));
     return;
   }
 
@@ -789,6 +789,40 @@ async function registerTunnelUrl() {
   console.warn('Could not detect cloudflared tunnel URL for registration');
 }
 
+async function pollCommandQueue() {
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/vm_command_queue?status=eq.pending&order=created_at.asc&limit=5`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(8000) }
+    );
+    if (!resp.ok) { setTimeout(pollCommandQueue, 60000); return; }
+    const cmds = await resp.json();
+    for (const cmd of (Array.isArray(cmds) ? cmds : [])) {
+      const markDone = (result) => fetch(
+        `${SUPABASE_URL}/rest/v1/vm_command_queue?id=eq.${cmd.id}`,
+        { method: 'PATCH', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ status: 'done', result, processed_at: new Date().toISOString() }) }
+      ).catch(() => {});
+      if (cmd.command === 'restart_mcp') {
+        console.log('[queue] restart_mcp command received — restarting service');
+        await markDone('restarting');
+        setTimeout(() => {
+          try { execSync('sudo systemctl restart sap-mcp 2>/dev/null', { timeout: 8000 }); } catch { process.exit(0); }
+        }, 300);
+        return; // exit loop — process will restart
+      }
+      if (cmd.command === 'restart_vpn') {
+        try {
+          execSync('sudo systemctl restart openfortivpn@vpn 2>/dev/null || sudo systemctl restart openfortivpn 2>/dev/null', { timeout: 15000 });
+          await markDone('vpn restarted');
+        } catch (e) { await markDone(`failed: ${e.message?.slice(0, 80)}`); }
+      }
+    }
+  } catch { /* best-effort */ }
+  setTimeout(pollCommandQueue, 60000);
+}
+
 httpServer.listen(PORT, () => {
   console.log(`TechCase SAP MCP Server running on port ${PORT}`);
   console.log(`  MCP endpoint : http://localhost:${PORT}/mcp`);
@@ -797,5 +831,7 @@ httpServer.listen(PORT, () => {
   console.log(`  Health check : http://localhost:${PORT}/health`);
   console.log(`  Status       : http://localhost:${PORT}/status`);
   console.log(`  Restart      : http://localhost:${PORT}/restart  (POST)`);
+  console.log(`  Diagnostics  : http://localhost:${PORT}/diagnostics`);
   registerTunnelUrl().catch(() => {});
+  setTimeout(pollCommandQueue, 15000); // start polling 15s after boot
 });
