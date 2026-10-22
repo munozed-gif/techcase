@@ -1039,6 +1039,8 @@ function McpRestartButton({ mcpUrl }) {
 function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl, onUpdateMcpUrl }) {
   const STORAGE_KEY = `infra_v2_${env.id}`;
   const bundledVersion = mcpScript.match(/version:\s*'([^']+)'/)?.[1] ?? '?';
+  const { settings: sysSettings } = useSystemSettings();
+  const diagnosisModel = sysSettings['analysis_model'] ?? sysSettings['ai_model'] ?? 'claude-haiku-5-5';
 
   const emptyNodes = () => ({
     vm:  { status: 'idle', detail: '', log: [] },
@@ -1110,7 +1112,7 @@ ${prevPassed}
 Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
       const result = await callClaude({
-        model: 'claude-haiku-5-5',
+        model: diagnosisModel,
         system: 'You are a DevOps assistant for TechCase. The stack: Node.js MCP server on AWS EC2 Ubuntu, exposed via Cloudflare Quick Tunnel, FortiClient VPN to SAP. Diagnose and give concrete fix steps.',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 500,
