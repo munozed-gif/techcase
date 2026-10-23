@@ -94,7 +94,7 @@ function objectPath(objectType, objectName) {
 function buildMcpServer(creds) {
   const server = new McpServer({
     name: 'techcase-sap',
-    version: '1.0.0',
+    version: '1.7.5',
   });
 
   // ── Tool: live_check ────────────────────────────────────────────────────
