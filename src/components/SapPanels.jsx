@@ -4216,7 +4216,8 @@ Output ONLY the ABAP source code, no explanations.`;
                           <div className="flex items-center gap-2 pt-1">
                             <button onClick={() => onApplyConfigScript(selectedObj)} disabled={specState.applyingScript || specState.appliedScript}
                               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-40 transition-colors">
-                              <Upload size={11} />{specState.applyingScript ? 'Writing…' : specState.appliedScript ? '✓ Written to SAP' : 'Write to SAP'}
+                              {specState.applyingScript ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
+                              {specState.applyingScript ? 'Writing…' : specState.appliedScript ? '✓ Written to SAP' : 'Write to SAP'}
                             </button>
                             {specState.appliedScript && (
                               <button onClick={() => onRunConfigScript(selectedObj)} disabled={specState.runningScript || specState.scriptExecuted}
@@ -4226,11 +4227,19 @@ Output ONLY the ABAP source code, no explanations.`;
                             )}
                           </div>
                         )}
-                        {specState.scriptLog?.length > 0 && (
+                        {(specState.scriptLog?.length > 0 || specState.applyingScript) && (
                           <div className="bg-black/30 rounded-lg p-2.5 space-y-0.5">
-                            {specState.scriptLog.map((line, i) => (
+                            {specState.applyingScript && !specState.scriptLog?.length && (
+                              <p className="text-[10px] font-mono text-white/50 flex items-center gap-1.5"><Loader2 size={9} className="animate-spin" />Connecting to SAP…</p>
+                            )}
+                            {specState.scriptLog?.map((line, i) => (
                               <p key={i} className={`text-[10px] font-mono ${line.startsWith('✓') ? 'text-green-400' : line.startsWith('⚠') ? 'text-amber-400' : line.startsWith('→') ? 'text-blue-300' : 'text-white/50'}`}>{line}</p>
                             ))}
+                          </div>
+                        )}
+                        {specState.scriptApplyError && (
+                          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2.5">
+                            <p className="text-[10px] font-mono text-red-400">✗ {specState.scriptApplyError}</p>
                           </div>
                         )}
                         {specState.runError && <p className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5">ADT run unavailable — open SE38 → {specState.appliedProgramName} → F8</p>}
