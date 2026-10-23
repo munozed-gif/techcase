@@ -900,8 +900,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const liveCheckEnabled = (ssCtx.settings["generation_context"] ?? {}).sap_live_check === true;
 
   // Build MCP servers config for spec generation when SAP MCP server is configured and connection is verified
-  function buildMcpConfig() {
-    const effectiveMcpUrl = (sapConnCfg?.mcp_server_url?.trim() || sapMcpServerUrl).trim();
+  function buildMcpConfig(overrideUrl) {
+    const effectiveMcpUrl = (overrideUrl || sapConnCfg?.mcp_server_url?.trim() || sapMcpServerUrl).trim();
     if (!effectiveMcpUrl || !sapConnCfg || !sapConnTest?.ok) return [];
     try {
       const token = btoa(JSON.stringify({
@@ -3188,7 +3188,19 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const sysLiveNote = hasLiveSap
         ? ' Use the live SAP system data (release, software components, capabilities) provided in context to write accurate technical details.'
         : '';
-      const mcpServers = buildMcpConfig();
+      // Refresh tunnel URL from registry before building MCP config so a restarted
+      // cloudflared tunnel doesn't cause spec generation to fail with stale URL
+      let freshMcpUrl = null;
+      try {
+        const { data: regRow } = await supabase
+          .from('vm_tunnel_registry').select('tunnel_url')
+          .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+        if (regRow?.tunnel_url) {
+          freshMcpUrl = regRow.tunnel_url.replace(/\/$/, '');
+          setSapConnCfg(prev => prev ? { ...prev, mcp_server_url: freshMcpUrl } : prev);
+        }
+      } catch { /* best-effort */ }
+      const mcpServers = buildMcpConfig(freshMcpUrl);
       const mcpNote = mcpServers.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
       const callSpec = async (rawPrompt, extraBlocks = []) => {
         const prompt = sanitizeForJson(rawPrompt);
