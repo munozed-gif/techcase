@@ -1629,44 +1629,49 @@ function SettingsGenerationTab({ ssCtx }) {
         <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
           <ListChecks size={16} className="text-purple-600" /> Request Summary Sections
         </h3>
-        <p className="text-xs text-gray-400 mb-4">Configure the sections the AI generates in the Request Summary analysis. Drag to reorder — order is preserved in the output.</p>
+        <p className="text-xs text-gray-400 mb-4">Toggle which sections the AI generates in the Request Summary. Rename or add custom ones. Only enabled sections are included.</p>
         <div className="space-y-2 mb-3">
-          {(form.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections).map((sec, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={sec}
-                onChange={e => setForm(p => {
-                  const secs = [...(p.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections)];
-                  secs[i] = e.target.value;
-                  return { ...p, context: { ...p.context, request_summary_sections: secs } };
-                })}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-purple-400"
-                placeholder="Section name…"
-              />
-              <button
-                type="button"
-                onClick={() => setForm(p => {
-                  const secs = [...(p.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections)];
-                  secs.splice(i, 1);
-                  return { ...p, context: { ...p.context, request_summary_sections: secs } };
-                })}
-                className="p-1.5 text-gray-300 hover:text-red-400 transition-colors"
-                title="Remove section">
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
+          {(() => {
+            const raw = form.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections;
+            // Normalise: legacy string entries become objects
+            const secs = raw.map(s => typeof s === 'string' ? { name: s, enabled: true } : s);
+            const updateSecs = (next) => setForm(p => ({ ...p, context: { ...p.context, request_summary_sections: next } }));
+            return secs.map((sec, i) => (
+              <div key={i} className="flex items-center gap-2">
+                {/* Enable/disable toggle */}
+                <button
+                  type="button"
+                  onClick={() => { const next = [...secs]; next[i] = { ...sec, enabled: !sec.enabled }; updateSecs(next); }}
+                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${sec.enabled ? 'bg-purple-500' : 'bg-gray-200'}`}>
+                  <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${sec.enabled ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                </button>
+                {/* Name input */}
+                <input
+                  type="text"
+                  value={sec.name}
+                  onChange={e => { const next = [...secs]; next[i] = { ...sec, name: e.target.value }; updateSecs(next); }}
+                  className={`flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-purple-400 transition-colors ${sec.enabled ? 'border-gray-200 text-gray-800' : 'border-gray-100 text-gray-400 bg-gray-50'}`}
+                  placeholder="Section name…"
+                />
+                {/* Delete */}
+                <button
+                  type="button"
+                  onClick={() => { const next = [...secs]; next.splice(i, 1); updateSecs(next); }}
+                  className="p-1.5 text-gray-300 hover:text-red-400 transition-colors"
+                  title="Remove section">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ));
+          })()}
         </div>
         <button
           type="button"
-          onClick={() => setForm(p => ({
-            ...p,
-            context: {
-              ...p.context,
-              request_summary_sections: [...(p.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections), 'New Section'],
-            },
-          }))}
+          onClick={() => {
+            const raw = form.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections;
+            const secs = raw.map(s => typeof s === 'string' ? { name: s, enabled: true } : s);
+            setForm(p => ({ ...p, context: { ...p.context, request_summary_sections: [...secs, { name: 'New Section', enabled: true }] } }));
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors">
           <Plus size={12} /> Add Section
         </button>

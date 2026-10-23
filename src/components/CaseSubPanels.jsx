@@ -4860,9 +4860,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
                   // Use configured sections from platform settings, fall back to defaults
                   const genCtxNow = { ...GENERATION_CONTEXT_DEFAULTS, ...(ssCtx.settings["generation_context"] ?? {}) };
-                  const configuredSections = genCtxNow.request_summary_sections?.length
+                  const rawSections = genCtxNow.request_summary_sections?.length
                     ? genCtxNow.request_summary_sections
                     : GENERATION_CONTEXT_DEFAULTS.request_summary_sections;
+                  // Normalise legacy string entries; filter to enabled only
+                  const configuredSections = rawSections
+                    .map(s => typeof s === 'string' ? { name: s, enabled: true } : s)
+                    .filter(s => s.enabled !== false)
+                    .map(s => s.name);
 
                   const sectionBlocks = configuredSections.map(sec => `## ${sec}\nList 3–6 bullet points relevant to this section based on the case content above. Be specific — use module names, transaction codes, field names, business process names, and actual terminology from the source material. Keep each bullet to 1–2 lines.`).join('\n\n');
 

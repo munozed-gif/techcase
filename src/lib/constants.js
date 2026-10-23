@@ -42,7 +42,19 @@ const GENERATION_CONTEXT_DEFAULTS = {
   include_related_cases: false,
   related_cases_count:   3,
   sap_live_check:        false,
-  request_summary_sections: ['Customer Request Summary', 'Key Considerations'],
+  request_summary_sections: [
+    { name: 'Customer Request Summary',   enabled: true  },
+    { name: 'Key Considerations',         enabled: true  },
+    { name: 'Impacted Business Processes',enabled: false },
+    { name: 'Open Questions',             enabled: false },
+    { name: 'SAP Objects Referenced',     enabled: false },
+    { name: 'Out of Scope',               enabled: false },
+    { name: 'Assumptions',                enabled: false },
+    { name: 'Risks & Dependencies',       enabled: false },
+    { name: 'Suggested Technical Approach', enabled: false },
+    { name: 'Estimated Complexity',       enabled: false },
+    { name: 'Referenced T-Codes & Transactions', enabled: false },
+  ],
 };
 
 // ============================================================
