@@ -19,7 +19,7 @@ import { z } from 'zod';
 import http from 'http';
 import https from 'https';
 import { execSync } from 'child_process';
-import { writeFileSync } from 'fs';
+import { writeFileSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 
 const SERVER_START = Date.now();
@@ -770,37 +770,52 @@ const httpServer = http.createServer(async (req, res) => {
 const SUPABASE_URL = 'https://xwiduokkkoaxrhfyuwye.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3aWR1b2tra29heHJoZnl1d3llIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3Nzg4ODIsImV4cCI6MjEwNTM1NDg4Mn0.odiyfucEQgyaVr8D8dXW0l9qGn7LHxqYvfmCaV2qGcI';
 
+async function upsertTunnelUrl(tunnelUrl) {
+  const body = JSON.stringify({ tunnel_url: tunnelUrl });
+  await new Promise((resolve, reject) => {
+    const url = new URL(`${SUPABASE_URL}/rest/v1/vm_tunnel_registry`);
+    const options = {
+      hostname: url.hostname, port: 443, path: url.pathname, method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+    const req = https.request(options, res => { res.resume(); res.on('end', resolve); });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+  console.log(`Tunnel URL registered: ${tunnelUrl}`);
+}
+
 async function registerTunnelUrl() {
+  // Mode 1: TUNNEL_URL env var set explicitly (local/laptop mode via start-local.sh)
+  const envUrl = process.env.TUNNEL_URL?.trim();
+  if (envUrl) {
+    try { await upsertTunnelUrl(envUrl); } catch (e) { console.warn('Tunnel registration failed:', e.message); }
+    return;
+  }
+
+  // Mode 2: cloudflared log file written by start-local.sh
+  const CF_LOG = process.env.CLOUDFLARED_LOG ?? '/tmp/cloudflared-techcase.log';
+
   await new Promise(r => setTimeout(r, 10000));
   for (let i = 0; i < 15; i++) {
     try {
+      // Try systemd journal (VM mode)
       const journal = execSync('journalctl -u cloudflared-tunnel --no-pager -n 100 2>/dev/null', { timeout: 5000 }).toString();
       const m = journal.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
-      if (m) {
-        const tunnelUrl = m[0];
-        const body = JSON.stringify({ tunnel_url: tunnelUrl });
-        await new Promise((resolve, reject) => {
-          const url = new URL(`${SUPABASE_URL}/rest/v1/vm_tunnel_registry`);
-          const options = {
-            hostname: url.hostname, port: 443, path: url.pathname, method: 'POST',
-            headers: {
-              'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
-              'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates',
-              'Content-Length': Buffer.byteLength(body),
-            },
-          };
-          const req = https.request(options, res => {
-            res.resume();
-            res.on('end', resolve);
-          });
-          req.on('error', reject);
-          req.write(body);
-          req.end();
-        });
-        console.log(`Tunnel URL registered: ${tunnelUrl}`);
-        return;
-      }
-    } catch (e) { /* ignore */ }
+      if (m) { await upsertTunnelUrl(m[0]); return; }
+    } catch { /* not on Linux/systemd — try log file */ }
+
+    try {
+      const log = readFileSync(CF_LOG, 'utf8');
+      const m = log.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+      if (m) { await upsertTunnelUrl(m[0]); return; }
+    } catch { /* log file not present yet */ }
+
     await new Promise(r => setTimeout(r, 4000));
   }
   console.warn('Could not detect cloudflared tunnel URL for registration');
