@@ -4589,15 +4589,29 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
     const addLog = (msg) => setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), scriptLog: [...(p[obj.id]?.scriptLog ?? []), msg] } }));
     setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), applyingScript: true, scriptLog: [], appliedScript: false, scriptApplyError: null } }));
     try {
+      // Route through the MCP server proxy (VM has VPN access to SAP; direct browser→SAP is blocked by CORS)
+      let mcpBase = (enrichedSapConfig.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']?.trim() || '')
+        .replace(/\/mcp\/?$/, '').replace(/\/$/, '');
+      if (mcpBase) {
+        try {
+          const { data } = await supabase.from('vm_tunnel_registry').select('tunnel_url').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+          if (data?.tunnel_url) mcpBase = data.tunnel_url.replace(/\/$/, '');
+        } catch {}
+        addLog(`Using MCP proxy: ${mcpBase}/sap-proxy`);
+      }
+      const effectiveCfg = mcpBase
+        ? { ...enrichedSapConfig, proxyUrl: `${mcpBase}/sap-proxy` }
+        : enrichedSapConfig;
+
       addLog(`Writing ${programName} to SAP…`);
-      const writeResult = await sapWriteSourceDetail(enrichedSapConfig, 'program', programName, specState.configScript, transportReq || undefined);
+      const writeResult = await sapWriteSourceDetail(effectiveCfg, 'program', programName, specState.configScript, transportReq || undefined);
       if (!writeResult.ok) throw new Error(writeResult.error ?? writeResult.hint ?? `HTTP ${writeResult.status}`);
       addLog('✓ Program written to SAP');
       addLog('Activating…');
       try {
-        const csrfToken = await sapGetCsrfToken(enrichedSapConfig);
+        const csrfToken = await sapGetCsrfToken(effectiveCfg);
         const activateBody = `<?xml version="1.0" encoding="utf-8"?><adtcore:objectReferences xmlns:adtcore="http://www.sap.com/adt/core"><adtcore:objectReference adtcore:uri="/sap/bc/adt/programs/programs/${programName}" adtcore:name="${programName}"/></adtcore:objectReferences>`;
-        await sapApiRequest(enrichedSapConfig, '/sap/bc/adt/activation/activate', {
+        await sapApiRequest(effectiveCfg, '/sap/bc/adt/activation/activate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/vnd.sap.adt.activation.request+xml; charset=utf-8', 'X-CSRF-Token': csrfToken },
           body: activateBody,
@@ -4621,8 +4635,17 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
     if (!programName) return;
     setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), runningScript: true, runError: null } }));
     try {
-      const csrfToken = await sapGetCsrfToken(enrichedSapConfig);
-      const runResp = await sapApiRequest(enrichedSapConfig, `/sap/bc/adt/programs/programs/${programName}/executions`, {
+      let mcpBase = (enrichedSapConfig.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']?.trim() || '')
+        .replace(/\/mcp\/?$/, '').replace(/\/$/, '');
+      if (mcpBase) {
+        try {
+          const { data } = await supabase.from('vm_tunnel_registry').select('tunnel_url').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+          if (data?.tunnel_url) mcpBase = data.tunnel_url.replace(/\/$/, '');
+        } catch {}
+      }
+      const effectiveCfg = mcpBase ? { ...enrichedSapConfig, proxyUrl: `${mcpBase}/sap-proxy` } : enrichedSapConfig;
+      const csrfToken = await sapGetCsrfToken(effectiveCfg);
+      const runResp = await sapApiRequest(effectiveCfg, `/sap/bc/adt/programs/programs/${programName}/executions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/vnd.sap.adt.programs.runs.newrun+xml', 'X-CSRF-Token': csrfToken },
         body: `<?xml version="1.0"?><programs:newRun xmlns:programs="http://www.sap.com/adt/programs"><programs:mode>foreground</programs:mode></programs:newRun>`,
