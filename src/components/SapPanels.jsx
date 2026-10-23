@@ -4,7 +4,7 @@ import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronDown, ChevronRight,
   Clock, Code2, Copy, Eye, FileCode2, FileText, FolderOpen, LayoutGrid, Loader2,
   Link2, Mail, RefreshCw,
-  Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle,
+  Laptop, Monitor, Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -2199,16 +2199,16 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                           {/* VPN mode toggle */}
                           <div className="flex gap-1 mb-2">
                             {[
-                              { value: 'platform', label: '🖥 Platform VPN', desc: 'VM manages VPN (openfortivpn)' },
-                              { value: 'user',     label: '💻 User VPN',     desc: 'FortiClient or local VPN — platform skips VPN check' },
+                              { value: 'platform', label: 'Platform VPN', icon: <Monitor size={12} />, desc: 'VM manages VPN (openfortivpn)' },
+                              { value: 'user',     label: 'User VPN',     icon: <Laptop size={12} />,  desc: 'FortiClient or local VPN — platform skips VPN check' },
                             ].map(opt => {
                               const active = (env.vpn_mode ?? 'platform') === opt.value;
                               return (
                                 <button key={opt.value} type="button" disabled={!canEdit}
                                   onClick={() => updateEnvField(env.id, 'vpn_mode', opt.value)}
                                   title={opt.desc}
-                                  className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${active ? 'bg-blue-500/20 border-blue-500/40 text-blue-300' : 'bg-white/5 border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-white/10'} disabled:opacity-50`}>
-                                  {opt.label}
+                                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${active ? 'bg-blue-500/20 border-blue-500/40 text-blue-300' : 'bg-white/5 border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-white/10'} disabled:opacity-50`}>
+                                  {opt.icon}{opt.label}
                                 </button>
                               );
                             })}
