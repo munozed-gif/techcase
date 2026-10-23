@@ -2487,7 +2487,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
             password: resolvedCfg.password,
             client:   resolvedCfg.client || '100',
           }),
-          signal: AbortSignal.timeout(35000),
+          signal: AbortSignal.timeout(42000),
         }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
         if (r?.ok) {
           const next = {
