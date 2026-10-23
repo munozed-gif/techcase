@@ -3469,8 +3469,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     // Track newly generated values locally so we can persist them after state updates
     const newSpecs = { a: aiSpecA, b: aiSpecB, c: aiSpecC, d: aiSpecD };
 
-    await Promise.all(
-      failedKeys.filter(k => k !== 'proto').map(async key => {
+    const specKeys = failedKeys.filter(k => k !== 'proto');
+    if (mcpServers.length > 0) {
+      // Serialize MCP-backed specs to avoid concurrent tunnel connection failures
+      for (const key of specKeys) {
         setSpecStatus(key, 'generating');
         setSpecError(key, null);
         try {
@@ -3485,8 +3487,27 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           setSpecStatus(key, 'error');
           setSpecError(key, e.message);
         }
-      })
-    );
+      }
+    } else {
+      await Promise.all(
+        specKeys.map(async key => {
+          setSpecStatus(key, 'generating');
+          setSpecError(key, null);
+          try {
+            const result = await specMap[key]();
+            if (result) {
+              newSpecs[key] = result;
+              setters[key](result);
+              if (!selectedSpec || selectedSpec === key) { setSelectedSpec(key); setAiContent(result); }
+              setSpecStatus(key, 'done');
+            }
+          } catch (e) {
+            setSpecStatus(key, 'error');
+            setSpecError(key, e.message);
+          }
+        })
+      );
+    }
 
     // Persist the updated specs so they survive a logout/reload
     const anyNew = failedKeys.filter(k => k !== 'proto').some(k => newSpecs[k]);
