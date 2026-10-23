@@ -4,7 +4,7 @@ import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronDown, ChevronRight,
   Clock, Code2, Copy, Eye, FileCode2, FileText, FolderOpen, LayoutGrid, Loader2,
   Link2, Mail, RefreshCw,
-  Play, Plus, Save, Settings, Sparkles, ThumbsDown, ThumbsUp, Upload, User, X, XCircle,
+  Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -1067,6 +1067,8 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const [stoppedAt, setStoppedAt] = useState(null);
   const [deploying, setDeploying] = useState(false);
   const [deployMsg, setDeployMsg] = useState('');
+  const [showSetupPanel, setShowSetupPanel] = useState(false);
+  const [setupCopied, setSetupCopied] = useState(null);
   const [aiDiagnosis, setAiDiagnosis] = useState(() => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s)?.aiDiagnosis ?? null : null; } catch { return null; } });
   const [diagnosing, setDiagnosing] = useState(false);
   const cancelRef = useRef(false);
@@ -1568,6 +1570,20 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     }
   }
 
+  const SETUP_STEPS = [
+    { label: 'Clone repo (if not cloned)', cmd: 'git clone https://github.com/munozed-gif/techcase.git /home/ubuntu/techcase' },
+    { label: 'Install dependencies', cmd: 'cd /home/ubuntu/techcase/sap-mcp-server && npm install' },
+    { label: 'Start service (systemd)', cmd: 'sudo systemctl start sap-mcp && sudo systemctl enable sap-mcp' },
+    { label: 'Check service status', cmd: 'sudo systemctl status sap-mcp' },
+    { label: 'Or run directly (local tunnel)', cmd: 'cd /home/ubuntu/techcase/sap-mcp-server && ./start.sh' },
+  ];
+
+  const copySetupCmd = async (cmd, idx) => {
+    try { await navigator.clipboard.writeText(cmd); } catch { /* ignore */ }
+    setSetupCopied(idx);
+    setTimeout(() => setSetupCopied(s => s === idx ? null : s), 1800);
+  };
+
   const NODE_META = [
     { key: 'vm',  label: 'Virtual Machine' },
     { key: 'vpn', label: 'VPN' },
@@ -1660,6 +1676,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const isExpandedLog = !!expanded[key];
           const hasLog = node.log?.length > 0;
           const showDeploy = key === 'mcp' && (node.extra?.needsDeploy || node.status === 'error');
+          const showSetup = key === 'vm' && node.status === 'error';
 
           return (
             <div key={key} className={`rounded-lg border transition-colors ${nodeBg(node.status)}`}>
@@ -1676,6 +1693,13 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                     <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug break-words">{node.detail}</p>
                   )}
                 </div>
+                {showSetup && (
+                  <button onClick={() => setShowSetupPanel(v => !v)}
+                    className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-colors ${showSetupPanel ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300' : 'bg-amber-600 hover:bg-amber-700 text-white'}`}>
+                    <Terminal size={9} />
+                    {showSetupPanel ? 'Hide setup' : 'Setup MCP'}
+                  </button>
+                )}
                 {showDeploy && (
                   <button onClick={deployServer} disabled={deploying}
                     className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors">
@@ -1690,6 +1714,35 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                   </button>
                 )}
               </div>
+
+              {/* Setup MCP panel */}
+              {showSetup && showSetupPanel && (
+                <div className="border-t border-amber-200/30 dark:border-amber-800/30 px-3 pb-3 pt-2.5 space-y-2">
+                  <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                    <Terminal size={9} />
+                    SSH into your VM and run these commands:
+                  </p>
+                  {SETUP_STEPS.map((step, si) => (
+                    <div key={si} className="space-y-0.5">
+                      <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-semibold">{step.label}</p>
+                      <div className="flex items-center gap-1.5 bg-black/30 dark:bg-black/50 rounded px-2 py-1.5 group">
+                        <code className="flex-1 text-[10px] font-mono text-green-300 break-all leading-snug">{step.cmd}</code>
+                        <button
+                          onClick={() => copySetupCmd(step.cmd, si)}
+                          className="shrink-0 p-0.5 text-gray-500 hover:text-gray-300 transition-colors"
+                          title="Copy">
+                          {setupCopied === si
+                            ? <CheckCircle2 size={10} className="text-green-400" />
+                            : <Copy size={10} />}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug pt-0.5">
+                    After setup, run <strong className="text-gray-300">Check Infrastructure</strong> again.
+                  </p>
+                </div>
+              )}
 
               {/* Deploy message */}
               {showDeploy && deployMsg && (
