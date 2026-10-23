@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from "react";
 import DOMPurify from "dompurify";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
-  Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Link2, ListChecks, Paperclip, Pause, Play,
+  Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Laptop, Link2, ListChecks, Paperclip, Pause, Play,
   RotateCcw, Search, SlidersHorizontal, Sparkles, Star, Target, User,
   UserCheck, Users, Wand2, X, Zap,
 } from "lucide-react";
@@ -2455,6 +2455,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
 
     // Auto-refresh tunnel URL from vm_tunnel_registry so a restarted cloudflared never
     // requires a manual settings update before the live check or spec generation.
+    // In User VPN mode, always use the latest registry URL (laptop's start-local.sh tunnel).
     let resolvedCfg = baseCfg;
     try {
       const { data } = await supabase
@@ -2466,7 +2467,10 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       if (data?.tunnel_url) {
         const registeredUrl = data.tunnel_url.replace(/\/$/, '');
         const currentUrl = (baseCfg.mcp_server_url?.trim() || sapMcpServerUrl || '').replace(/\/$/, '');
-        if (registeredUrl && registeredUrl !== currentUrl) {
+        const isUserVpn = baseCfg.vpn_mode === 'user';
+        // User VPN: always apply registry URL (laptop tunnel may differ from env config)
+        // Platform VPN: only update when the URL has actually changed
+        if (registeredUrl && (isUserVpn || registeredUrl !== currentUrl)) {
           resolvedCfg = { ...baseCfg, mcp_server_url: registeredUrl };
           setSapConnCfg(resolvedCfg);
         }
@@ -4445,6 +4449,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
                 {!sapConnLoading && sapConnInfo && !sapConnInfo.notFound && !sapConnInfo.error && (
                   <div className="space-y-2">
+                    {/* VPN mode badge */}
+                    {sapConnCfg?.vpn_mode === 'user' && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-lg px-2.5 py-1.5">
+                        <Laptop className="w-3 h-3 shrink-0" />
+                        <span><strong>User VPN mode</strong> — make sure FortiClient is connected and <code className="font-mono">start-local.sh</code> is running on your laptop.</span>
+                      </div>
+                    )}
                     {/* Test result — only shown after an explicit live test, not the seeded green */}
                     {sapConnTest && sapConnTest !== 'testing' && !sapConnTest.seeded && (
                       <div className={`rounded-xl p-3 flex items-start gap-2 ${sapConnTest.ok ? 'bg-green-950 border border-green-700' : 'bg-red-950 border border-red-700'}`}>
