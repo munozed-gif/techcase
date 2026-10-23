@@ -1570,13 +1570,19 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     }
   }
 
-  const SETUP_STEPS = [
-    { label: 'Clone repo (if not cloned)', cmd: 'git clone https://github.com/munozed-gif/techcase.git /home/ubuntu/techcase' },
-    { label: 'Install dependencies', cmd: 'cd /home/ubuntu/techcase/sap-mcp-server && npm install' },
-    { label: 'Start service (systemd)', cmd: 'sudo systemctl start sap-mcp && sudo systemctl enable sap-mcp' },
-    { label: 'Check service status', cmd: 'sudo systemctl status sap-mcp' },
-    { label: 'Or run directly (local tunnel)', cmd: 'cd /home/ubuntu/techcase/sap-mcp-server && ./start.sh' },
-  ];
+  const isUserVpnMode = env.vpn_mode === 'user';
+  const SETUP_STEPS = isUserVpnMode
+    ? [
+        { label: '1. Clone repo on your laptop (once)', cmd: 'git clone https://github.com/munozed-gif/techcase.git' },
+        { label: '2. Start MCP server + tunnel', cmd: 'cd techcase/sap-mcp-server && ./start-local.sh' },
+      ]
+    : [
+        { label: '1. SSH into your VM', cmd: 'ssh ubuntu@3.16.56.90' },
+        { label: '2. Clone repo on the VM (once)', cmd: 'git clone https://github.com/munozed-gif/techcase.git /home/ubuntu/techcase' },
+        { label: '3. Install dependencies', cmd: 'cd /home/ubuntu/techcase/sap-mcp-server && npm install' },
+        { label: '4. Start service', cmd: 'sudo systemctl start sap-mcp && sudo systemctl enable sap-mcp' },
+        { label: '5. Check service status', cmd: 'sudo systemctl status sap-mcp' },
+      ];
 
   const copySetupCmd = async (cmd, idx) => {
     try { await navigator.clipboard.writeText(cmd); } catch { /* ignore */ }
@@ -1720,12 +1726,19 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                 <div className="border-t border-amber-200/30 dark:border-amber-800/30 px-3 pb-3 pt-2.5 space-y-2">
                   <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
                     <Terminal size={9} />
-                    SSH into your VM and run these commands:
+                    {isUserVpnMode
+                      ? 'Run these commands in your laptop terminal:'
+                      : 'Run these commands on the VM (via SSH):'}
                   </p>
+                  {isUserVpnMode && (
+                    <p className="text-[10px] text-blue-400/80 leading-snug -mt-1">
+                      <code className="font-mono">start-local.sh</code> auto-registers the tunnel URL — the platform will find it automatically.
+                    </p>
+                  )}
                   {SETUP_STEPS.map((step, si) => (
                     <div key={si} className="space-y-0.5">
                       <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-semibold">{step.label}</p>
-                      <div className="flex items-center gap-1.5 bg-black/30 dark:bg-black/50 rounded px-2 py-1.5 group">
+                      <div className="flex items-center gap-1.5 bg-black/30 dark:bg-black/50 rounded px-2 py-1.5">
                         <code className="flex-1 text-[10px] font-mono text-green-300 break-all leading-snug">{step.cmd}</code>
                         <button
                           onClick={() => copySetupCmd(step.cmd, si)}
