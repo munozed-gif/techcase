@@ -4970,7 +4970,7 @@ FALLBACK:
   ];
 
   const PipelineStepper = () => (
-    <div className="bg-gray-900/60 rounded-2xl border border-white/10 shadow-sm px-4 py-3">
+    <div className="bg-gray-100 dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm px-4 py-3">
       <div className="flex items-start overflow-x-auto gap-0 pb-0.5">
         {PIPELINE_STEPS.map((s, i) => {
           const n = i + 1;
@@ -4980,16 +4980,16 @@ FALLBACK:
             <button key={n} onClick={() => setImplStep(n)}
               className="flex flex-col items-center flex-1 min-w-[52px] relative">
               {i > 0 && (
-                <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${isDone ? 'bg-blue-500' : 'bg-white/15'}`} />
+                <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${isDone ? 'bg-blue-500' : 'bg-gray-300 dark:bg-white/15'}`} />
               )}
               <div className={`w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center relative z-10 transition-all
-                ${isActive ? 'border-blue-500 bg-blue-500/20 text-blue-400'
-                : isDone   ? 'border-green-500 bg-green-500/20 text-green-400'
-                           : 'border-white/20 bg-white/5 text-white/30'}`}>
+                ${isActive ? 'border-blue-500 bg-blue-500/20 text-blue-500'
+                : isDone   ? 'border-green-500 bg-green-500/20 text-green-500'
+                           : 'border-gray-300 dark:border-white/20 bg-white dark:bg-white/5 text-gray-400 dark:text-white/30'}`}>
                 {isDone ? <Check size={12} /> : s.icon}
               </div>
               <span className={`text-[9px] font-bold mt-1 uppercase tracking-wider
-                ${isActive ? 'text-blue-400' : isDone ? 'text-green-400' : 'text-white/30'}`}>
+                ${isActive ? 'text-blue-500' : isDone ? 'text-green-500' : 'text-gray-400 dark:text-white/30'}`}>
                 {s.label}
               </span>
             </button>
@@ -5001,13 +5001,13 @@ FALLBACK:
 
   // ── Toggle row helper ───────────────────────────────────
   const ToggleRow = ({ label, desc, value, onChange }) => (
-    <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer"
+    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 cursor-pointer"
       onClick={() => onChange(!value)}>
       <div>
-        <p className="text-sm font-medium text-white">{label}</p>
-        {desc && <p className="text-xs text-white/40 mt-0.5">{desc}</p>}
+        <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
+        {desc && <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">{desc}</p>}
       </div>
-      <div className={`w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${value ? 'bg-blue-500' : 'bg-white/20'}`}>
+      <div className={`w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${value ? 'bg-blue-500' : 'bg-gray-300 dark:bg-white/20'}`}>
         <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${value ? 'left-[18px]' : 'left-0.5'}`} />
       </div>
     </div>
@@ -5164,14 +5164,14 @@ FALLBACK:
 
   // ── Panel shell ─────────────────────────────────────────
   const Panel = ({ icon, title, sub, children }) => (
-    <div className="bg-gray-900/60 rounded-2xl border border-white/10 shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">
+    <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 dark:border-white/10 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500 dark:text-blue-400 flex-shrink-0">
           {icon}
         </div>
         <div>
-          <p className="font-bold text-white text-sm">{title}</p>
-          {sub && <p className="text-xs text-white/40 mt-0.5">{sub}</p>}
+          <p className="font-bold text-gray-900 dark:text-white text-sm">{title}</p>
+          {sub && <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">{sub}</p>}
         </div>
       </div>
       <div className="p-5 space-y-4">{children}</div>
@@ -5180,13 +5180,13 @@ FALLBACK:
 
   const StepNav = ({ prev, next, prevLabel = '← Back', nextLabel = 'Continue →' }) => (
     <div className="flex gap-2 pt-2">
-      {prev && <button onClick={() => setImplStep(prev)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">{prevLabel}</button>}
+      {prev && <button onClick={() => setImplStep(prev)} className="px-4 py-2 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-white/60 transition-colors">{prevLabel}</button>}
       {next && <button onClick={() => setImplStep(next)} className="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">{nextLabel}</button>}
     </div>
   );
 
   const SectionLabel = ({ children }) => (
-    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest border-b border-white/10 pb-2 mb-3">{children}</p>
+    <p className="text-[10px] font-bold text-gray-500 dark:text-white/40 uppercase tracking-widest border-b border-gray-200 dark:border-white/10 pb-2 mb-3">{children}</p>
   );
 
   // ── Render ──────────────────────────────────────────────
@@ -5221,9 +5221,9 @@ FALLBACK:
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {allConns.length > 0 && (
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1">Connection</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1">Connection</label>
                 <select value={selectedConnId ?? ''} onChange={e => saveCaseConn(e.target.value)}
-                  className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                   <option value="">— None —</option>
                   {projectConns.map(c => (
                     <option key={c.id} value={c.id}>{CONN_TYPE_LABELS[c.db_type] ?? c.db_type} · {c.host}{c.notes ? ` (${c.notes})` : ''}</option>
@@ -5236,10 +5236,10 @@ FALLBACK:
             )}
             {sapEnvironments.length > 0 && (
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1">{t('sap.case_env_label')}</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1">{t('sap.case_env_label')}</label>
                 <div className="flex gap-2 items-center">
                   <select value={sapCaseEnvMap[caseData.id] ?? ''} onChange={e => saveCaseEnv(e.target.value)}
-                    className="flex-1 border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    className="flex-1 border border-gray-200 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                     <option value="">{t('sap.case_env_inherit')}</option>
                     {sapEnvironments.map(env => {
                       const meta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
@@ -5255,12 +5255,12 @@ FALLBACK:
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-white/50 mb-1">{t('sap.transport_req')}</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1">{t('sap.transport_req')}</label>
               <input value={transportReq}
                 onChange={e => setTransportReq(e.target.value)}
                 onBlur={() => saveTransport(transportReq)}
                 placeholder={t('sap.ph_transport_req')}
-                className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
           </div>
 
@@ -5269,7 +5269,7 @@ FALLBACK:
             {[['all', <><RefreshCw size={11} /> All Objects at Once</>], ['one-by-one', <><Settings size={11} /> Object by Object</>]].map(([val, lbl]) => (
               <button key={val} onClick={() => setImplMode(val)}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold rounded-lg border transition-all
-                  ${implMode === val ? 'border-blue-500 bg-blue-500/20 text-blue-300' : 'border-white/15 text-white/40 hover:border-white/25'}`}>
+                  ${implMode === val ? 'border-blue-500 bg-blue-500/20 text-blue-600 dark:text-blue-300' : 'border-gray-300 dark:border-white/15 text-gray-500 dark:text-white/40 hover:border-gray-400 dark:hover:border-white/25'}`}>
                 {lbl}
               </button>
             ))}
