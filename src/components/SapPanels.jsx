@@ -3196,6 +3196,11 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   const [nlText, setNlText] = useState('');
   const [nlGenerating, setNlGenerating] = useState(false);
 
+  // AI Suggest from Spec
+  const [showSpecPickerModal, setShowSpecPickerModal] = useState(false);
+  const [bpSpecChoice, setBpSpecChoice] = useState('a');
+  const [bpSpecGenerating, setBpSpecGenerating] = useState(false);
+
   // Load reviewer info on mount
   useEffect(() => {
     async function loadReviewer() {
@@ -3447,9 +3452,13 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   }
 
 
-  async function handleAiSuggest() {
+  function handleAiSuggest() {
+    setShowSpecPickerModal(true);
+  }
+
+  async function handleAiSuggestFromSpec() {
     const prevAiObjs = objects.filter(o => o.aiSuggested);
-    const legacyObjs = objects.filter(o => !o.aiSuggested); // added before flag existed
+    const legacyObjs = objects.filter(o => !o.aiSuggested);
     if (objects.length > 0) {
       const edited = objects.filter(o => o.status !== 'planned' || o.generatedCode);
       let msg;
@@ -3465,30 +3474,52 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
       if (!window.confirm(msg)) return;
     }
 
-    const prompt = `You are an SAP architect. Analyze this implementation case and suggest ALL SAP objects needed — both custom ABAP development AND SPRO/IMG customizing configuration.
+    setBpSpecGenerating(true);
+    try {
+      // Fetch spec content from case_specifications
+      const { data: specRow } = await supabase
+        .from('case_specifications')
+        .select('notes')
+        .eq('case_id', caseData.id)
+        .maybeSingle();
+      const notes = specRow?.notes ? JSON.parse(specRow.notes) : {};
+      const specContent = notes[`spec${bpSpecChoice.toUpperCase()}`] ?? '';
 
-Case: ${caseData.title}
-Description: ${caseData.description ?? ''}
-SAP Module: ${caseData.area_sap ?? 'general'}
-Activities: ${activities.slice(0, 15).map(a => a.title).join(', ')}
+      // Fetch prototype doc if it exists
+      const { data: protoDocs } = await supabase
+        .from('case_documents')
+        .select('name, file_url')
+        .eq('case_id', caseData.id)
+        .ilike('note', '%Prototype%')
+        .limit(1);
+      const hasPrototype = (protoDocs?.length ?? 0) > 0;
+
+      const specLabel = { a: 'ABAP Custom Development', b: 'Standard SAP', c: 'Customer Proposal', d: 'Client Specification' }[bpSpecChoice] ?? bpSpecChoice.toUpperCase();
+
+      const contextSection = specContent
+        ? `\n\n## Functional/Technical Specification (${specLabel})\n${specContent.slice(0, 12000)}`
+        : `\nCase: ${caseData.title}\nDescription: ${caseData.description ?? ''}\nSAP Module: ${caseData.area_sap ?? 'general'}\nActivities: ${activities.slice(0, 15).map(a => a.title).join(', ')}`;
+
+      const protoNote = hasPrototype ? '\n\nNote: A UI prototype has also been generated for this case — factor that into the UI/Fiori objects if relevant.' : '';
+
+      const prompt = `You are an SAP architect. Based on the specification below, identify ALL SAP objects needed to implement this case — both custom ABAP development AND SPRO/IMG customizing configuration.${contextSection}${protoNote}
 
 Include BOTH:
 1. ABAP development objects (programs, classes, BAdIs, tables, etc.)
-2. Customizing/SPRO objects (type "config") — any IMG setting, parameter, movement type, account key, payment term, plant config, etc. that needs to be created or adjusted.
+2. Customizing/SPRO objects (type "config") — any IMG setting, movement type, account key, payment term, plant config, etc.
 
-For config objects: use a short uppercase descriptor as name (e.g. MT_901, PAYMENT_TERMS_30D, PLANT_CONFIG_1000). Include the source entry to copy from in the description if applicable.
+For config objects: use a short uppercase descriptor as name (e.g. MT_901, PAYMENT_TERMS_30D). Include the source entry to copy from in the description if applicable.
 
 Return ONLY a valid JSON array (no markdown, no explanation). Each object must have:
 - name: string
 - type: one of [${Object.keys(BP_TYPES).join(', ')}]
 - phase: one of [config, dictionary, development, integration, enhancement, ui]
-- description: string (for config: describe what to configure and source key if copying)
+- description: string
 - aiCapable: boolean (always false for type "config")
 - dependsOn: array of names of other objects in this list this depends on
 
 Suggest 5-15 objects covering the full scope.`;
 
-    try {
       const resp = await callClaude({
         model: genModel,
         system: 'You are an expert SAP architect. Return only valid JSON arrays, no markdown.',
@@ -3518,19 +3549,20 @@ Suggest 5-15 objects covering the full scope.`;
           aiSuggested: true,
         };
       });
-      // Resolve name-based dependsOn to ids
       parsed.forEach((item, i) => {
         if (item.dependsOn?.length) {
           newObjs[i].dependsOn = item.dependsOn.map(n => nameToId[n]).filter(Boolean);
         }
       });
-      // Keep manually added objects; for legacy canvases with no flags, replace all
       const kept = prevAiObjs.length > 0 ? objects.filter(o => !o.aiSuggested) : [];
       const next = [...newObjs, ...kept];
       setObjects(next);
       await saveBlueprint(next);
+      setShowSpecPickerModal(false);
     } catch (e) {
       alert('AI suggest failed: ' + e.message);
+    } finally {
+      setBpSpecGenerating(false);
     }
   }
 
@@ -4513,6 +4545,51 @@ Output ONLY the ABAP source code, no explanations.`;
               <button onClick={handleNlGenerate} disabled={!nlText.trim() || nlGenerating}
                 className="px-4 py-1.5 text-sm font-semibold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
                 {nlGenerating ? <><Loader2 size={12} className="animate-spin" />Generating…</> : <><Sparkles size={12} />Generate Blueprint</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Suggest from Spec modal */}
+      {showSpecPickerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Sparkles size={15} className="text-violet-600" />AI Suggest from Spec
+              </h3>
+              <button onClick={() => setShowSpecPickerModal(false)} disabled={bpSpecGenerating}
+                className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Select which specification to use as context. The AI will extract all SAP objects required based on that document.</p>
+            <div className="space-y-2">
+              {[
+                { key: 'a', label: 'Spec A — ABAP Custom Development', desc: 'Technical objects, programs, classes, BAdIs' },
+                { key: 'b', label: 'Spec B — Standard SAP', desc: 'Standard config and SPRO approach' },
+                { key: 'c', label: 'Spec C — Customer Proposal', desc: 'Customer-facing functional proposal' },
+                { key: 'd', label: 'Spec D — Client Specification', desc: 'Client specification document' },
+              ].map(({ key, label, desc }) => (
+                <label key={key}
+                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${bpSpecChoice === key ? 'border-violet-400 bg-violet-50 dark:bg-violet-900/20' : 'border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
+                  <input type="radio" name="bpSpecChoice" value={key} checked={bpSpecChoice === key}
+                    onChange={() => setBpSpecChoice(key)} className="mt-0.5 accent-violet-600" />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-white">{label}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
+              <Sparkles size={10} />Prototype (if generated) is always included as additional context.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowSpecPickerModal(false)} disabled={bpSpecGenerating}
+                className="px-3 py-1.5 text-sm border border-gray-200 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-50">Cancel</button>
+              <button onClick={handleAiSuggestFromSpec} disabled={bpSpecGenerating}
+                className="px-4 py-1.5 text-sm font-semibold bg-violet-600 text-white rounded-xl hover:bg-violet-700 disabled:opacity-50 flex items-center gap-1.5">
+                {bpSpecGenerating ? <><Loader2 size={12} className="animate-spin" />Generating…</> : <><Sparkles size={12} />Generate Blueprint</>}
               </button>
             </div>
           </div>
