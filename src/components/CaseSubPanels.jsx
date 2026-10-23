@@ -3209,8 +3209,11 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         try {
           const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
           return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000, mcp_servers: mcpServers });
-        } catch (_) {
-          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000, mcp_servers: mcpServers });
+        } catch (e) {
+          // If MCP server failed (connection closed / unavailable), retry without MCP
+          const isMcpErr = mcpServers.length > 0 && /mcp|connection closed|connection error|listing tools/i.test(e?.message ?? '');
+          const fallbackMcp = isMcpErr ? [] : mcpServers;
+          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000, mcp_servers: fallbackMcp });
         }
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
