@@ -87,14 +87,17 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
 
   if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error'); }
   const data = await res.json();
-  // Sonnet 5 may return a thinking block before the text block — find by type
+  // Sonnet 5+ may return a thinking block before the text block — find by type
   const text = data?.content?.find(b => b.type === 'text')?.text;
-  if (!text) {
-    const detail = data?.error?.message
-      ?? `stop_reason=${data?.stop_reason ?? 'none'}, content_blocks=${data?.content?.length ?? 0}, model=${data?.model ?? model}`;
-    throw new Error(detail);
+  if (text) return text;
+  // If the model ran out of tokens before generating any text (e.g. thinking consumed all tokens),
+  // provide a clear error rather than raw API debug info
+  if (data?.stop_reason === 'max_tokens') {
+    throw new Error('La respuesta de IA fue cortada (max_tokens). Por favor intente de nuevo.');
   }
-  return text;
+  const detail = data?.error?.message
+    ?? `stop_reason=${data?.stop_reason ?? 'none'}, content_blocks=${data?.content?.length ?? 0}, model=${data?.model ?? model}`;
+  throw new Error(detail);
 }
 
 let _auditCfgCache = null; // null = not yet fetched

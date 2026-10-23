@@ -3343,7 +3343,7 @@ Suggest 5-15 objects covering the full scope.`;
         model: genModel,
         system: 'You are an expert SAP architect. Return only valid JSON arrays, no markdown.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-        max_tokens: 2000,
+        max_tokens: 4096,
       });
       const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const parsed = JSON.parse(raw.replace(/```json?/g, '').replace(/```/g, '').trim());
@@ -3406,7 +3406,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
         model: genModel,
         system: 'You are an expert SAP architect. Return only valid JSON arrays, no markdown.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-        max_tokens: 2000,
+        max_tokens: 4096,
       });
       const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const parsed = JSON.parse(raw.replace(/```json?/g, '').replace(/```/g, '').trim());
