@@ -1236,8 +1236,8 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     if (cancelRef.current) { setRunning(false); return; }
 
     // ── Node 2: VPN ───────────────────────────────────────────────
-    if (!infraCfg.vpn.enabled) {
-      setLiveNode('vpn', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }] });
+    if (!infraCfg.vpn.enabled || env.vpn_mode === 'user') {
+      setLiveNode('vpn', { status: 'warning', detail: env.vpn_mode === 'user' ? 'User-managed VPN — not checked by platform' : 'Disabled in settings', log: [{ ts: ts(), msg: env.vpn_mode === 'user' ? 'VPN mode: user-managed (FortiClient/local). Platform skips VPN check.' : 'Node disabled in platform settings', level: 'warn' }] });
     } else {
     setLiveNode('vpn', { status: 'checking', detail: 'Reading VPN status from VM…', log: [] });
     addLog('vpn', 'Reading VPN status from VM…');
@@ -2123,17 +2123,40 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                           </div>
                         </div>
                         {/* Network connection selector */}
-                        <div>
+                        <div className="sm:col-span-2">
                           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Network Connection <span className="text-gray-400 font-normal">(optional — VPN or tunnel to reach this SAP)</span></label>
-                          <select value={env.connectionId ?? ''} onChange={e => updateEnvField(env.id, 'connectionId', e.target.value)} disabled={!canEdit}
-                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
-                            <option value="">— None —</option>
-                            {projectConns.map(c => (
-                              <option key={c.id} value={c.id}>
-                                {c.db_type === 'vpn' ? '🔒 VPN' : c.db_type.toUpperCase()} — {c.host}{c.port ? `:${c.port}` : ''}{c.meta?.conn_name ? ` (${c.meta.conn_name})` : ''}
-                              </option>
-                            ))}
-                          </select>
+                          {/* VPN mode toggle */}
+                          <div className="flex gap-1 mb-2">
+                            {[
+                              { value: 'platform', label: '🖥 Platform VPN', desc: 'VM manages VPN (openfortivpn)' },
+                              { value: 'user',     label: '💻 User VPN',     desc: 'FortiClient or local VPN — platform skips VPN check' },
+                            ].map(opt => {
+                              const active = (env.vpn_mode ?? 'platform') === opt.value;
+                              return (
+                                <button key={opt.value} type="button" disabled={!canEdit}
+                                  onClick={() => updateEnvField(env.id, 'vpn_mode', opt.value)}
+                                  title={opt.desc}
+                                  className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${active ? 'bg-blue-500/20 border-blue-500/40 text-blue-300' : 'bg-white/5 border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-white/10'} disabled:opacity-50`}>
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {(env.vpn_mode ?? 'platform') === 'platform' ? (
+                            <select value={env.connectionId ?? ''} onChange={e => updateEnvField(env.id, 'connectionId', e.target.value)} disabled={!canEdit}
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
+                              <option value="">— None —</option>
+                              {projectConns.map(c => (
+                                <option key={c.id} value={c.id}>
+                                  {c.db_type === 'vpn' ? '🔒 VPN' : c.db_type.toUpperCase()} — {c.host}{c.port ? `:${c.port}` : ''}{c.meta?.conn_name ? ` (${c.meta.conn_name})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <p className="text-xs text-gray-400 bg-blue-500/5 border border-blue-500/20 rounded-lg px-3 py-2">
+                              Platform VPN check skipped — connect via your local VPN client before testing SAP. MCP proxy is still used for SAP API calls.
+                            </p>
+                          )}
                         </div>
                         <div className="sm:col-span-2">
                           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
