@@ -2427,12 +2427,10 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
         if (conn?.db_type === 'vpn') vpnUrl = conn.meta?.proxy_url?.trim() || null;
       }
       // Store full config (with credentials + proxy) for the test button
-      setSapConnCfg({ ...sapCfg, ...(vpnUrl ? { _vpnProxyUrl: vpnUrl } : {}) });
-      // Restore persisted test result; default to "configured = green" on first visit
-      try {
-        const stored = localStorage.getItem(`sap_test_${caseData.id}`);
-        setSapConnTest(stored ? JSON.parse(stored) : { ok: true, seeded: true });
-      } catch { setSapConnTest({ ok: true, seeded: true }); }
+      const freshCfg = { ...sapCfg, ...(vpnUrl ? { _vpnProxyUrl: vpnUrl } : {}) };
+      setSapConnCfg(freshCfg);
+      // Auto-run live test using the same routine as the infrastructure check
+      testSapConnection(freshCfg);
       setSapConnInfo({
         host: sapCfg.host,
         username: sapCfg.username,
@@ -2449,14 +2447,15 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     }
   }
 
-  async function testSapConnection() {
-    if (!sapConnCfg || sapConnTest === 'testing') return;
+  async function testSapConnection(cfgOverride = null) {
+    const baseCfg = cfgOverride ?? sapConnCfg;
+    if (!baseCfg || sapConnTest === 'testing') return;
     setSapConnTest('testing');
     const lsKey = `sap_test_${caseData.id}`;
 
     // Auto-refresh tunnel URL from vm_tunnel_registry so a restarted cloudflared never
     // requires a manual settings update before the live check or spec generation.
-    let resolvedCfg = sapConnCfg;
+    let resolvedCfg = baseCfg;
     try {
       const { data } = await supabase
         .from('vm_tunnel_registry')
@@ -2466,9 +2465,9 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
         .maybeSingle();
       if (data?.tunnel_url) {
         const registeredUrl = data.tunnel_url.replace(/\/$/, '');
-        const currentUrl = (sapConnCfg.mcp_server_url?.trim() || sapMcpServerUrl || '').replace(/\/$/, '');
+        const currentUrl = (baseCfg.mcp_server_url?.trim() || sapMcpServerUrl || '').replace(/\/$/, '');
         if (registeredUrl && registeredUrl !== currentUrl) {
-          resolvedCfg = { ...sapConnCfg, mcp_server_url: registeredUrl };
+          resolvedCfg = { ...baseCfg, mcp_server_url: registeredUrl };
           setSapConnCfg(resolvedCfg);
         }
       }
