@@ -1236,21 +1236,26 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     if (cancelRef.current) { setRunning(false); return; }
 
     // ── Node 2: VPN ───────────────────────────────────────────────
-    if (!infraCfg.vpn.enabled || env.vpn_mode === 'user') {
-      setLiveNode('vpn', { status: 'warning', detail: env.vpn_mode === 'user' ? 'User-managed VPN — not checked by platform' : 'Disabled in settings', log: [{ ts: ts(), msg: env.vpn_mode === 'user' ? 'VPN mode: user-managed (FortiClient/local). Platform skips VPN check.' : 'Node disabled in platform settings', level: 'warn' }] });
+    if (!infraCfg.vpn.enabled) {
+      setLiveNode('vpn', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }] });
     } else {
-    setLiveNode('vpn', { status: 'checking', detail: 'Reading VPN status from VM…', log: [] });
-    addLog('vpn', 'Reading VPN status from VM…');
+    const isUserVpn = env.vpn_mode === 'user';
+    setLiveNode('vpn', { status: 'checking', detail: isUserVpn ? 'Reading VPN status (user-managed mode)…' : 'Reading VPN status from VM…', log: [] });
+    addLog('vpn', isUserVpn ? 'User-managed VPN mode — checking status (informational only)…' : 'Reading VPN status from VM…');
 
     const vpnActive = vmStatusData?.vpn;
     const vpnSvc = vmStatusData?.vpnService || '';
 
     if (vpnActive === null || vpnActive === undefined) {
-      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: 'Status unknown — update MCP server' });
-      addLog('vpn', 'VPN status unavailable (old server). Deploy latest to enable monitoring.', 'warn');
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: isUserVpn ? 'Not reported by local MCP server' : 'Status unknown — update MCP server' });
+      addLog('vpn', isUserVpn ? 'Local MCP server does not report VPN status — connect FortiClient before testing SAP.' : 'VPN status unavailable (old server). Deploy latest to enable monitoring.', 'warn');
     } else if (vpnActive === true) {
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: `Connected${vpnSvc ? ` (${vpnSvc})` : ''}` });
       addLog('vpn', `VPN active${vpnSvc ? `: ${vpnSvc}` : ''}`, 'success');
+    } else if (isUserVpn) {
+      // User VPN mode: VM openfortivpn not running is expected — warn but continue
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: 'Not active on VM — user manages VPN via FortiClient' });
+      addLog('vpn', 'VM openfortivpn not running. Expected in user-managed mode — make sure FortiClient is connected on your side.', 'warn');
     } else if (!infraCfg.vpn.autoSolve) {
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'VPN inactive — auto-solve disabled in settings' });
       addLog('vpn', 'VPN inactive. Auto-solve is off — enable it in platform settings to auto-start.', 'warn');
