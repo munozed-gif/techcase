@@ -4858,8 +4858,11 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     ? `IMPORTANT: All ${docBlocks.length} document(s) listed are already provided above as content blocks. Any email, message, or document that mentions "attached files", "see attached", or "adjunto" is referring to the other documents already included in this analysis. Do not say that documents are missing or not received — they are all here.`
                     : 'No documents attached.';
 
-                  // Use configured sections from platform settings, fall back to defaults
-                  const genCtxNow = { ...GENERATION_CONTEXT_DEFAULTS, ...(ssCtx.settings["generation_context"] ?? {}) };
+                  // Read generation_context fresh from Supabase to avoid stale cached settings
+                  const { data: freshCtxRow } = await supabase
+                    .from('system_settings').select('value').eq('key', 'generation_context').maybeSingle();
+                  const freshCtx = freshCtxRow?.value ?? {};
+                  const genCtxNow = { ...GENERATION_CONTEXT_DEFAULTS, ...freshCtx };
                   const rawSections = genCtxNow.request_summary_sections?.length
                     ? genCtxNow.request_summary_sections
                     : GENERATION_CONTEXT_DEFAULTS.request_summary_sections;
@@ -4869,7 +4872,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     .filter(s => s.enabled !== false)
                     .map(s => s.name);
 
-                  const sectionBlocks = configuredSections.map(sec => `## ${sec}\nList 3–6 bullet points relevant to this section based on the case content above. Be specific — use module names, transaction codes, field names, business process names, and actual terminology from the source material. Keep each bullet to 1–2 lines.`).join('\n\n');
+                  const sectionBlocks = configuredSections.map(sec => `## ${sec}\nList 3–6 bullet points relevant to this section based on the case content above. Be specific — use module names, transaction codes, field names, business process names, and actual terminology from the source material. Keep each bullet to 1–2 lines. Use the section heading exactly as written above — do not translate it.`).join('\n\n');
 
                   const prompt = `You are an SAP functional consultant analyzing a customer development request.
 
