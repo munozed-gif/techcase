@@ -597,10 +597,18 @@ const httpServer = http.createServer(async (req, res) => {
         const wrapper = `#!/bin/bash\nexec /usr/bin/openfortivpn -c /etc/openfortivpn/vpn.conf -p "$(sudo cat /etc/openfortivpn/.pw)"\n`;
         execSync('sudo tee /etc/openfortivpn/start.sh', { input: wrapper, timeout: 3000 });
         execSync('sudo chmod 755 /etc/openfortivpn/start.sh', { timeout: 3000 });
-        // Systemd drop-in to use wrapper script with RestartSec to avoid lockout loops
-        const dropin = `[Service]\nExecStart=\nExecStart=/etc/openfortivpn/start.sh\nRestartSec=30\n`;
+        // Systemd drop-in: use wrapper script, restart on crash but NOT on clean stop
+        const dropin = `[Service]\nExecStart=\nExecStart=/etc/openfortivpn/start.sh\nRestart=on-failure\nRestartSec=30\n`;
         execSync('sudo mkdir -p /etc/systemd/system/openfortivpn@vpn.service.d', { timeout: 3000 });
         execSync('sudo tee /etc/systemd/system/openfortivpn@vpn.service.d/override.conf', { input: dropin, timeout: 3000 });
+        execSync('sudo systemctl daemon-reload', { timeout: 5000 });
+      }
+
+      // For stop: overwrite dropin with Restart=no so systemd won't auto-restart after 30s
+      if (action === 'stop') {
+        const noRestartDropin = `[Service]\nExecStart=\nExecStart=/etc/openfortivpn/start.sh\nRestart=no\nRestartSec=30\n`;
+        execSync('sudo mkdir -p /etc/systemd/system/openfortivpn@vpn.service.d', { timeout: 3000 });
+        execSync('sudo tee /etc/systemd/system/openfortivpn@vpn.service.d/override.conf', { input: noRestartDropin, timeout: 3000 });
         execSync('sudo systemctl daemon-reload', { timeout: 5000 });
       }
 
