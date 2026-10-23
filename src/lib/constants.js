@@ -42,6 +42,7 @@ const GENERATION_CONTEXT_DEFAULTS = {
   include_related_cases: false,
   related_cases_count:   3,
   sap_live_check:        false,
+  request_summary_sections: ['Customer Request Summary', 'Key Considerations'],
 };
 
 // ============================================================

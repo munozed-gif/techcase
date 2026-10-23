@@ -983,6 +983,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [requestSummaryLoading, setRequestSummaryLoading] = useState(false);
   const [requestSummaryError, setRequestSummaryError]     = useState(null);
   const [ctxCollapsed, setCtxCollapsed]             = useState(true);
+  const [additionalCtx, setAdditionalCtx]           = useState('');
+  const [additionalCtxSaving, setAdditionalCtxSaving] = useState(false);
 
   // Share-with-customer link state
   const [shareToken, setShareToken]         = useState(null); // loaded spec_review_tokens row
@@ -2389,6 +2391,28 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     return buildContextString(caseData, genCtx, extra);
   }
 
+  // Load additional context per case from Supabase
+  useEffect(() => {
+    if (!caseData?.id) return;
+    supabase.from('system_settings').select('value').eq('key', 'case_additional_ctx').maybeSingle()
+      .then(({ data }) => {
+        const val = data?.value ?? {};
+        setAdditionalCtx(val[caseData.id] ?? '');
+      }).catch(() => {});
+  }, [caseData?.id]);
+
+  async function saveAdditionalCtx(text) {
+    if (!caseData?.id) return;
+    setAdditionalCtxSaving(true);
+    try {
+      const { data } = await supabase.from('system_settings').select('value').eq('key', 'case_additional_ctx').maybeSingle();
+      const existing = data?.value ?? {};
+      const updated = { ...existing, [caseData.id]: text };
+      await supabase.from('system_settings').upsert({ key: 'case_additional_ctx', value: updated }, { onConflict: 'key' });
+    } catch {}
+    setAdditionalCtxSaving(false);
+  }
+
   async function loadSapConnInfo() {
     if (sapConnLoading) return;
     setSapConnLoading(true);
@@ -3157,7 +3181,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const genCtxResult = await buildGenContext();
       const _baseCtx = sanitizeForJson(genCtxResult);
       const summaryCtx = requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '';
-      const contextStr = _baseCtx + summaryCtx;
+      const additionalCtxStr = additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '';
+      const contextStr = _baseCtx + summaryCtx + additionalCtxStr;
       const hasLiveSap = contextStr.includes('SAP Live System:');
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       const sysLiveNote = hasLiveSap
@@ -3324,7 +3349,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
       const _baseCtxD = sanitizeForJson(await buildGenContext());
-      const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '');
+      const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '');
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       const specD = await callSpec(
         aiSpecC
@@ -3412,7 +3437,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     };
     const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
     const _baseCtxR = sanitizeForJson(await buildGenContext());
-    const contextStr = _baseCtxR + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '');
+    const contextStr = _baseCtxR + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '');
     const abapCtx = sanitizeForJson(abap.contextText);
     const setSpecStatus = (key, status) => setSpecStatuses(p => ({ ...p, [key]: status }));
     const setSpecError  = (key, msg)    => setSpecErrors(p => ({ ...p, [key]: msg }));
@@ -3542,12 +3567,13 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const docBlocks = await buildAllDocBlocks();
       const customerCtx = analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : '';
       const summaryCtxSap = requestSummary ? `\nRequest Summary (pre-analysis):\n${requestSummary}` : '';
+      const additionalCtxSap = additionalCtx?.trim() ? `\nAdditional Considerations:\n${additionalCtx.trim()}` : '';
       const prompt = `Analyze this SAP case and determine whether STANDARD SAP functionality covers the requirement — without any custom ABAP development.${docBlocks.length > 0 ? '\n\nThe attached documents (case files, project reference docs, and ABAP standards) contain the detailed requirements.' : ''}
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? ''}
 SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}${customerCtx}${summaryCtxSap}
+Industry: ${caseData.area_industry ?? ''}${customerCtx}${summaryCtxSap}${additionalCtxSap}
 
 Respond with ONLY a valid JSON object, no markdown fences:
 {
@@ -3592,12 +3618,13 @@ coverage meanings:
       const docBlocks = await buildAllDocBlocks();
       const customerCtx2 = analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : '';
       const summaryCtxProp = requestSummary ? `\nRequest Summary (pre-analysis):\n${requestSummary}` : '';
+      const additionalCtxProp = additionalCtx?.trim() ? `\nAdditional Considerations:\n${additionalCtx.trim()}` : '';
       const prompt = `Validate the proposed custom SAP development for this case.${docBlocks.length > 0 ? '\n\nThe attached documents contain the requirements.' : ''}
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? ''}
 SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}${customerCtx2}${summaryCtxProp}
+Industry: ${caseData.area_industry ?? ''}${customerCtx2}${summaryCtxProp}${additionalCtxProp}
 
 Standard SAP coverage analysis already completed:
 - Coverage: ${sapCheck.coverage}
@@ -4822,16 +4849,6 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   // This ensures project documents like VSS_Order.pdf are also analysed
                   const docBlocks = await buildAllDocBlocks();
                   const langName = lang === 'es' ? 'Spanish' : lang === 'fr' ? 'French' : lang === 'pt' ? 'Portuguese' : lang === 'de' ? 'German' : 'English';
-                  const h_summary = lang === 'es' ? 'Resumen de la Solicitud del Cliente'
-                    : lang === 'fr' ? 'Résumé de la Demande Client'
-                    : lang === 'pt' ? 'Resumo da Solicitação do Cliente'
-                    : lang === 'de' ? 'Zusammenfassung der Kundenanfrage'
-                    : 'Customer Request Summary';
-                  const h_considerations = lang === 'es' ? 'Consideraciones Clave'
-                    : lang === 'fr' ? 'Considérations Clés'
-                    : lang === 'pt' ? 'Considerações Principais'
-                    : lang === 'de' ? 'Wichtige Überlegungen'
-                    : 'Key Considerations';
                   const h_sap_objects = lang === 'es' ? 'Objetos SAP en el Sistema'
                     : lang === 'fr' ? 'Objets SAP dans le Système'
                     : lang === 'pt' ? 'Objetos SAP no Sistema'
@@ -4840,6 +4857,15 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   const docNote = docBlocks.length > 0
                     ? `IMPORTANT: All ${docBlocks.length} document(s) listed are already provided above as content blocks. Any email, message, or document that mentions "attached files", "see attached", or "adjunto" is referring to the other documents already included in this analysis. Do not say that documents are missing or not received — they are all here.`
                     : 'No documents attached.';
+
+                  // Use configured sections from platform settings, fall back to defaults
+                  const genCtxNow = { ...GENERATION_CONTEXT_DEFAULTS, ...(ssCtx.settings["generation_context"] ?? {}) };
+                  const configuredSections = genCtxNow.request_summary_sections?.length
+                    ? genCtxNow.request_summary_sections
+                    : GENERATION_CONTEXT_DEFAULTS.request_summary_sections;
+
+                  const sectionBlocks = configuredSections.map(sec => `## ${sec}\nList 3–6 bullet points relevant to this section based on the case content above. Be specific — use module names, transaction codes, field names, business process names, and actual terminology from the source material. Keep each bullet to 1–2 lines.`).join('\n\n');
+
                   const prompt = `You are an SAP functional consultant analyzing a customer development request.
 
 Case: ${caseData.title}
@@ -4851,20 +4877,9 @@ ${customerContent || '(see attached documents)'}
 
 ${docNote}
 
-Based on ALL the information above and the document content provided, produce a structured analysis in ${langName}. Use only bullet points — do not use sub-headings (###) inside sections.
+Based on ALL the information above and the document content provided, produce a structured analysis in ${langName} with the following sections. Use only bullet points — do not use sub-headings (###) inside sections.
 
-## ${h_summary}
-List 3–6 bullet points summarizing exactly what the customer is asking to be built or configured. Be specific — use module names, transaction codes, field names, business process names, and actual terminology from the source material.
-
-## ${h_considerations}
-List each important technical or business consideration the development team must be aware of, including:
-- Existing custom solutions, tools, or systems already in place (e.g. VSS, custom Z-programs, third-party add-ons, previous enhancements — always name them explicitly)
-- Integration points with other SAP modules or external systems
-- Important constraints (volume, users, performance, timeline)
-- Out-of-scope items explicitly mentioned
-- Special requirements (language, currency, company codes, organizational units)
-
-Keep each bullet point to 1–2 lines. Base every point on actual content from the provided documents, not assumptions.`;
+${sectionBlocks}`;
 
                   const system = 'You are an SAP functional consultant. Produce a clear, structured analysis in markdown. No code blocks. No preamble. Never say documents are missing — treat all provided blocks as the complete input.';
                   const result = await callClaude({
@@ -4996,6 +5011,23 @@ ${result}`;
                         {compiledCtxPreview && (
                           <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto bg-gray-50 rounded-lg p-3 border border-gray-100">{compiledCtxPreview}</pre>
                         )}
+
+                        {/* Additional Considerations — persisted per case */}
+                        <div className="pt-1 border-t border-gray-100 mt-2">
+                          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                            Additional Considerations
+                          </label>
+                          <p className="text-xs text-gray-400 mb-2">Extra notes or constraints sent to the AI before generating specs. Saved automatically per case.</p>
+                          <textarea
+                            value={additionalCtx}
+                            onChange={e => setAdditionalCtx(e.target.value)}
+                            onBlur={e => saveAdditionalCtx(e.target.value)}
+                            rows={4}
+                            placeholder="e.g. This customer uses a custom pricing engine in SD. Do not suggest standard condition types. The Go-Live is fixed for Q1 2027…"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs resize-y focus:outline-none focus:border-indigo-400 bg-white"
+                          />
+                          {additionalCtxSaving && <p className="text-[10px] text-gray-400 mt-0.5">Saving…</p>}
+                        </div>
                       </div>
                     )}
                   </div>

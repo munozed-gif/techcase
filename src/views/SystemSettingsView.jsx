@@ -1614,6 +1614,54 @@ function SettingsGenerationTab({ ssCtx }) {
         </div>
       </div>
 
+      {/* Request Summary Sections */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <ListChecks size={16} className="text-purple-600" /> Request Summary Sections
+        </h3>
+        <p className="text-xs text-gray-400 mb-4">Configure the sections the AI generates in the Request Summary analysis. Drag to reorder — order is preserved in the output.</p>
+        <div className="space-y-2 mb-3">
+          {(form.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections).map((sec, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={sec}
+                onChange={e => setForm(p => {
+                  const secs = [...(p.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections)];
+                  secs[i] = e.target.value;
+                  return { ...p, context: { ...p.context, request_summary_sections: secs } };
+                })}
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-purple-400"
+                placeholder="Section name…"
+              />
+              <button
+                type="button"
+                onClick={() => setForm(p => {
+                  const secs = [...(p.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections)];
+                  secs.splice(i, 1);
+                  return { ...p, context: { ...p.context, request_summary_sections: secs } };
+                })}
+                className="p-1.5 text-gray-300 hover:text-red-400 transition-colors"
+                title="Remove section">
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setForm(p => ({
+            ...p,
+            context: {
+              ...p.context,
+              request_summary_sections: [...(p.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections), 'New Section'],
+            },
+          }))}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors">
+          <Plus size={12} /> Add Section
+        </button>
+      </div>
+
       {/* Generation Context */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
