@@ -613,11 +613,11 @@ const httpServer = http.createServer(async (req, res) => {
       }
 
       execSync(
-        `sudo systemctl ${action} openfortivpn@vpn 2>/dev/null || sudo systemctl ${action} openfortivpn 2>/dev/null`,
+        `sudo systemctl ${action} openfortivpn@vpn`,
         { timeout: 120000 }
       );
       const out = execSync(
-        'if systemctl is-active --quiet openfortivpn@vpn 2>/dev/null || systemctl is-active --quiet openfortivpn 2>/dev/null; then echo active; else echo inactive; fi',
+        'if systemctl is-active --quiet openfortivpn@vpn 2>/dev/null; then echo active; else echo inactive; fi',
         { timeout: 4000 }
       ).toString().trim();
       res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
