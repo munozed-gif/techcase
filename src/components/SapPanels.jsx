@@ -1044,7 +1044,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const infraCfgRaw = sysSettings['infra_check_settings'] ?? {};
   const infraCfg = {
     vm:  { enabled: infraCfgRaw.vm?.enabled  ?? true, autoSolve: infraCfgRaw.vm?.autoSolve  ?? true },
-    vpn: { enabled: infraCfgRaw.vpn?.enabled ?? true, autoSolve: infraCfgRaw.vpn?.autoSolve ?? true },
+    vpn: { enabled: infraCfgRaw.vpn?.enabled ?? true, autoSolve: infraCfgRaw.vpn?.autoSolve ?? true, vpnLoop: infraCfgRaw.vpn?.vpnLoop ?? true },
     mcp: { enabled: infraCfgRaw.mcp?.enabled ?? true, autoSolve: infraCfgRaw.mcp?.autoSolve ?? true },
     sap: { enabled: infraCfgRaw.sap?.enabled ?? true, autoSolve: infraCfgRaw.sap?.autoSolve ?? false },
   };
@@ -1242,7 +1242,21 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       setLiveNode('vpn', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }] });
     } else {
     const isUserVpn = env.vpn_mode === 'user';
-    setLiveNode('vpn', { status: 'checking', detail: isUserVpn ? 'Reading VPN status (user-managed mode)…' : 'Reading VPN status from VM…', log: [] });
+    const vpnLoopEnabled = infraCfg.vpn.vpnLoop !== false; // default true
+
+    // User VPN mode + VPN loop disabled → stop VM VPN so it doesn't conflict with laptop FortiClient
+    if (isUserVpn && !vpnLoopEnabled && currentMcpBase) {
+      setLiveNode('vpn', { status: 'fixing', detail: 'Stopping VM VPN (loop disabled — user manages VPN)…', log: [] });
+      addLog('vpn', 'VPN loop is OFF — stopping VM openfortivpn to avoid conflicting with FortiClient…', 'warn');
+      try {
+        await fetch(`${currentMcpBase}/vpn/stop`, { method: 'POST', signal: AbortSignal.timeout(10000) });
+        addLog('vpn', 'VM openfortivpn stopped.', 'success');
+      } catch (e) {
+        addLog('vpn', `Could not stop VM VPN: ${e.message?.slice(0, 60)}`, 'warn');
+      }
+    }
+
+    setLiveNode('vpn', { status: 'checking', detail: isUserVpn ? 'Reading VPN status (user-managed mode)…' : 'Reading VPN status from VM…', log: liveNodes.current.vpn.log ?? [] });
     addLog('vpn', isUserVpn ? 'User-managed VPN mode — checking status (informational only)…' : 'Reading VPN status from VM…');
 
     const vpnActive = vmStatusData?.vpn;
@@ -1251,13 +1265,18 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     if (vpnActive === null || vpnActive === undefined) {
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: isUserVpn ? 'Not reported by local MCP server' : 'Status unknown — update MCP server' });
       addLog('vpn', isUserVpn ? 'Local MCP server does not report VPN status — connect FortiClient before testing SAP.' : 'VPN status unavailable (old server). Deploy latest to enable monitoring.', 'warn');
-    } else if (vpnActive === true) {
+    } else if (vpnActive === true && !isUserVpn) {
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: `Connected${vpnSvc ? ` (${vpnSvc})` : ''}` });
       addLog('vpn', `VPN active${vpnSvc ? `: ${vpnSvc}` : ''}`, 'success');
+    } else if (vpnActive === true && isUserVpn && !vpnLoopEnabled) {
+      // VM VPN is still running after our stop attempt — warn but continue
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: 'VM VPN still active — may conflict with your FortiClient session' });
+      addLog('vpn', 'VM openfortivpn is still running. This may cause your FortiClient to disconnect. Consider stopping it manually on the VM.', 'warn');
     } else if (isUserVpn) {
       // User VPN mode: VM openfortivpn not running is expected — warn but continue
-      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: 'Not active on VM — user manages VPN via FortiClient' });
-      addLog('vpn', 'VM openfortivpn not running. Expected in user-managed mode — make sure FortiClient is connected on your side.', 'warn');
+      const detail = vpnLoopEnabled ? 'Not active on VM — user manages VPN via FortiClient' : 'VM VPN stopped — using FortiClient on laptop';
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: vpnLoopEnabled ? 'warning' : 'ok', detail });
+      addLog('vpn', vpnLoopEnabled ? 'VM openfortivpn not running. Expected in user-managed mode — make sure FortiClient is connected on your side.' : 'VM VPN is off. FortiClient on your laptop handles the VPN.', vpnLoopEnabled ? 'warn' : 'success');
     } else if (!infraCfg.vpn.autoSolve) {
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'VPN inactive — auto-solve disabled in settings' });
       addLog('vpn', 'VPN inactive. Auto-solve is off — enable it in platform settings to auto-start.', 'warn');

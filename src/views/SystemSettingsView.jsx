@@ -1269,7 +1269,7 @@ const INFRA_NODE_META = [
 
 const INFRA_CHECK_DEFAULTS = {
   vm:  { enabled: true, autoSolve: true },
-  vpn: { enabled: true, autoSolve: true },
+  vpn: { enabled: true, autoSolve: true, vpnLoop: true },
   mcp: { enabled: true, autoSolve: true },
   sap: { enabled: true, autoSolve: false },
 };
@@ -1280,7 +1280,9 @@ function InfraCheckSettingsCard({ ssCtx }) {
     Object.fromEntries(INFRA_NODE_META.map(n => [
       n.key,
       { enabled: raw[n.key]?.enabled ?? INFRA_CHECK_DEFAULTS[n.key].enabled,
-        autoSolve: raw[n.key]?.autoSolve ?? INFRA_CHECK_DEFAULTS[n.key].autoSolve },
+        autoSolve: raw[n.key]?.autoSolve ?? INFRA_CHECK_DEFAULTS[n.key].autoSolve,
+        ...(n.key === 'vpn' ? { vpnLoop: raw[n.key]?.vpnLoop ?? INFRA_CHECK_DEFAULTS.vpn.vpnLoop } : {}),
+      },
     ]))
   );
   const [expanded, setExpanded] = useState({});
@@ -1333,6 +1335,14 @@ function InfraCheckSettingsCard({ ssCtx }) {
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium text-gray-700">{label}</span>
                 </div>
+
+                {/* VPN Loop toggle — only for VPN node */}
+                {key === 'vpn' && node.enabled && (
+                  <div className="flex items-center gap-1.5 mr-3">
+                    <span className="text-xs text-gray-400" title="When off: stops VM openfortivpn so it doesn't conflict with your laptop FortiClient session">VPN loop</span>
+                    <Toggle on={node.vpnLoop ?? true} onClick={() => toggle(key, 'vpnLoop')} />
+                  </div>
+                )}
 
                 {/* Auto-solve toggle — only shown when node is enabled */}
                 {node.enabled && (
