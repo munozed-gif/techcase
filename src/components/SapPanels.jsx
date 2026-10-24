@@ -3725,8 +3725,12 @@ Output ONLY the ABAP source code, no explanations.`;
 
         if (autoImplEnabled && sapConfig?.host) {
           updateObj(obj.id, { status: 'applying' });
-          addLog(`${obj.name}: applying directly browser → ${sapConfig.host}`, 'applying');
-          const result = await sapWriteSourceDetail(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+          // Route through VM's /sap-proxy when available to avoid browser CORS errors.
+          // Fall back to direct browser call only if no VM URL is set.
+          const applyVia = freshMcpUrl ? `${freshMcpUrl}/sap-proxy` : null;
+          const applyCfg = applyVia ? { ...sapConfig, proxyUrl: applyVia } : sapConfig;
+          addLog(`${obj.name}: applying via ${applyVia ? `VM proxy → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
+          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined);
           if (result.ok) {
             updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
             addLog(`${obj.name}: ✓ applied (HTTP ${result.status}).`, 'done');
@@ -3788,11 +3792,18 @@ Output ONLY the ABAP source code, no explanations.`;
     if (!code) return;
     if (!window.confirm(`Apply ${obj.name} directly to SAP (${sapConfig.host})?`)) return;
     updateObj(obj.id, { status: 'applying', error: null });
-    const mcpUrl = ssCtx.settings['sap_mcp_server_url'];
-    const proxyInUse = sapConfig.proxyUrl?.trim() || sapConfig._vpnProxyUrl?.trim();
-    addLog(`${obj.name}: connecting directly browser → ${sapConfig.host}${proxyInUse ? ` via proxy ${proxyInUse}` : ''}`, 'applying');
-    if (mcpUrl) addLog(`MCP server (AI generation): ${mcpUrl}`, 'generated');
-    const result = await sapWriteSourceDetail(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+    // Resolve a fresh VM proxy URL to avoid browser CORS errors
+    let applyMcpUrl = ssCtx.settings['sap_mcp_server_url'] || '';
+    try {
+      const { data: regRow } = await supabase
+        .from('vm_tunnel_registry').select('tunnel_url')
+        .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+      if (regRow?.tunnel_url) applyMcpUrl = regRow.tunnel_url.replace(/\/$/, '');
+    } catch { /* best-effort */ }
+    const applyVia = applyMcpUrl ? `${applyMcpUrl}/sap-proxy` : null;
+    const applyCfg = applyVia ? { ...sapConfig, proxyUrl: applyVia } : sapConfig;
+    addLog(`${obj.name}: applying via ${applyVia ? `VM proxy → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
+    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined);
     if (result.ok) {
       updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), error: null });
       addLog(`${obj.name}: ✓ applied successfully (HTTP ${result.status}).`, 'done');
