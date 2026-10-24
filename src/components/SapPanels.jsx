@@ -307,7 +307,10 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
         }),
         signal: AbortSignal.timeout(55000),
       });
-      const data = await r.json().catch(() => ({ ok: false, error: 'Invalid response' }));
+      const rawText = await r.text();
+      let data;
+      try { data = JSON.parse(rawText); }
+      catch { data = { ok: false, error: `Invalid response from bridge (HTTP ${r.status}): ${rawText.slice(0, 200)}` }; }
       return data;
     } catch (e) {
       return { ok: false, phase: 'write', error: e.message?.slice(0, 120) || 'Bridge write failed' };
@@ -4023,7 +4026,7 @@ Output ONLY the ABAP source code, no explanations.`;
           const applyCfg = applyVia ? { ...sapConfig, proxyUrl: applyVia } : sapConfig;
           const mcpTypeLabel = sapConfig.mcp_type === 'abap-adt' ? 'mcp-abap-abap-adt-api (127 tools R+W)'
             : sapConfig.mcp_type === 'abap-adt-readonly' ? 'mcp-abap-adt (16 tools R/O)'
-            : sapConfig.mcp_type === 'abap-adt-both' ? 'abap-adt-both (143 tools)'
+            : sapConfig.mcp_type === 'abap-adt-both' ? 'mcp-abap-abap-adt-api (127 tools R+W) ← write server from abap-adt-both'
             : 'custom MCP';
           addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabel}] → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
           const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined);
@@ -4108,7 +4111,7 @@ Output ONLY the ABAP source code, no explanations.`;
     const mcpTypeLabelManual = isAdtMcpMode
       ? (sapConfig.mcp_type === 'abap-adt' ? 'mcp-abap-abap-adt-api (127 tools R+W)'
         : sapConfig.mcp_type === 'abap-adt-readonly' ? 'mcp-abap-adt (16 tools R/O)'
-        : sapConfig.mcp_type === 'abap-adt-both' ? 'abap-adt-both (143 tools)'
+        : sapConfig.mcp_type === 'abap-adt-both' ? 'mcp-abap-abap-adt-api (127 tools R+W) ← write server from abap-adt-both'
         : 'ADT')
       : 'custom MCP';
     addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabelManual}] → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
