@@ -3815,11 +3815,18 @@ Output ONLY the ABAP source code, no explanations.`;
 
         if (autoImplEnabled && sapConfig?.host) {
           updateObj(obj.id, { status: 'applying' });
-          // Route through VM's /sap-proxy when available to avoid browser CORS errors.
-          // Fall back to direct browser call only if no VM URL is set.
-          const applyVia = freshMcpUrl ? `${freshMcpUrl}/sap-proxy` : null;
+          // In ADT mode: route through ADT bridge (same chain as infrastructure check).
+          // In custom mode: route through custom server proxy (freshMcpUrl).
+          const isAdtApply = sapConfig.mcp_type === 'abap-adt' || sapConfig.mcp_type === 'abap-adt-readonly' || sapConfig.mcp_type === 'abap-adt-both';
+          let applyVia = null;
+          if (isAdtApply) {
+            const adtBase = (sapConfig.adt_mcp_url || '').trim().replace(/\/$/, '');
+            if (adtBase) applyVia = `${adtBase}/sap-proxy`;
+          } else if (freshMcpUrl) {
+            applyVia = `${freshMcpUrl}/sap-proxy`;
+          }
           const applyCfg = applyVia ? { ...sapConfig, proxyUrl: applyVia } : sapConfig;
-          addLog(`${obj.name}: applying via ${applyVia ? `VM proxy → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
+          addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
           const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined);
           if (result.ok) {
             updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
@@ -3882,17 +3889,24 @@ Output ONLY the ABAP source code, no explanations.`;
     if (!code) return;
     if (!window.confirm(`Apply ${obj.name} directly to SAP (${sapConfig.host})?`)) return;
     updateObj(obj.id, { status: 'applying', error: null });
-    // Resolve a fresh VM proxy URL to avoid browser CORS errors
-    let applyMcpUrl = ssCtx.settings['sap_mcp_server_url'] || '';
-    try {
-      const { data: regRow } = await supabase
-        .from('vm_tunnel_registry').select('tunnel_url')
-        .order('updated_at', { ascending: false }).limit(1).maybeSingle();
-      if (regRow?.tunnel_url) applyMcpUrl = regRow.tunnel_url.replace(/\/$/, '');
-    } catch { /* best-effort */ }
-    const applyVia = applyMcpUrl ? `${applyMcpUrl}/sap-proxy` : null;
+    // In ADT mode: always route through ADT bridge (same chain as infrastructure check)
+    // In custom mode: use vm_tunnel_registry (custom server proxy)
+    let applyVia = null;
+    if (isAdtMcpMode) {
+      const adtBase = (sapConfig.adt_mcp_url || '').trim().replace(/\/$/, '');
+      if (adtBase) applyVia = `${adtBase}/sap-proxy`;
+    } else {
+      let applyMcpUrl = ssCtx.settings['sap_mcp_server_url'] || '';
+      try {
+        const { data: regRow } = await supabase
+          .from('vm_tunnel_registry').select('tunnel_url')
+          .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+        if (regRow?.tunnel_url) applyMcpUrl = regRow.tunnel_url.replace(/\/$/, '');
+      } catch { /* best-effort */ }
+      if (applyMcpUrl) applyVia = `${applyMcpUrl}/sap-proxy`;
+    }
     const applyCfg = applyVia ? { ...sapConfig, proxyUrl: applyVia } : sapConfig;
-    addLog(`${obj.name}: applying via ${applyVia ? `VM proxy → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
+    addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
     const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined);
     if (result.ok) {
       updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), error: null });

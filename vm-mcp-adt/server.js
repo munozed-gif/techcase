@@ -130,6 +130,8 @@ async function getClient(creds) {
 
 // ── Express app ───────────────────────────────────────────────
 const app = express();
+// Raw body for /sap-proxy (SAP expects exact bytes); JSON for everything else
+app.use('/sap-proxy', express.raw({ type: '*/*', limit: '4mb' }));
 app.use(express.json({ limit: '4mb' }));
 
 app.use((_req, res, next) => {
@@ -223,6 +225,43 @@ app.post('/vpn/:action(start|stop|restart)', async (req, res) => {
     res.json({ ok: true, vpn: out === 'active', vpnDetail: out });
   } catch (e) {
     res.json({ ok: false, error: e.message?.slice(0, 200) });
+  }
+});
+
+// SAP CORS proxy — browser sends ADT requests here, bridge forwards to SAP
+// Same chain as infrastructure check: browser → tunnel → bridge → VM VPN → SAP
+// The browser sets X-Sap-Target to the SAP host URL; we strip it and forward.
+app.all('/sap-proxy*', async (req, res) => {
+  const sapTarget = req.headers['x-sap-target'];
+  if (!sapTarget) return res.status(400).json({ error: 'Missing X-Sap-Target header' });
+
+  const adtPath = req.path.replace(/^\/sap-proxy/, '') || '/';
+  const targetUrl = sapTarget.replace(/\/$/, '') + adtPath + (req.url.includes('?') ? '?' + req.url.split('?')[1] : '');
+
+  const SKIP_REQ = new Set(['host', 'x-sap-target', 'connection', 'transfer-encoding', 'keep-alive']);
+  const forwardHeaders = {};
+  for (const [k, v] of Object.entries(req.headers)) {
+    if (!SKIP_REQ.has(k.toLowerCase())) forwardHeaders[k] = v;
+  }
+  forwardHeaders['host'] = new URL(sapTarget).host;
+
+  try {
+    const sapRes = await fetch(targetUrl, {
+      method: req.method,
+      headers: forwardHeaders,
+      body: ['GET', 'HEAD'].includes(req.method) ? undefined : (req.body?.length ? req.body : undefined),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    const SKIP_RES = new Set(['transfer-encoding', 'connection', 'keep-alive', 'access-control-allow-origin', 'access-control-allow-headers', 'access-control-allow-methods']);
+    for (const [k, v] of sapRes.headers.entries()) {
+      if (!SKIP_RES.has(k.toLowerCase())) res.setHeader(k, v);
+    }
+    res.status(sapRes.status);
+    const buf = await sapRes.arrayBuffer();
+    res.end(Buffer.from(buf));
+  } catch (e) {
+    res.status(502).json({ error: `SAP proxy error: ${e.message?.slice(0, 120)}` });
   }
 });
 
