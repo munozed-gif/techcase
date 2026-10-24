@@ -1276,7 +1276,28 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
     // ── Node 2: VPN ───────────────────────────────────────────────
     if (runLaptopBridgeMode) {
-      // skip — VPN is managed by the user on their laptop in this mode
+      // Check FortiClient via the bridge /status endpoint (detects utun interfaces on Mac)
+      setLiveNode('vpn', { status: 'checking', detail: 'Checking FortiClient VPN…', log: [] });
+      addLog('vpn', 'Checking FortiClient VPN status via ADT bridge…');
+      try {
+        const sr = await fetch(`${currentMcpBase}/status`, { signal: AbortSignal.timeout(6000) });
+        if (sr.ok) {
+          const sd = await sr.json();
+          if (sd.vpn) {
+            setLiveNode('vpn', { status: 'ok', detail: sd.vpnDetail || 'FortiClient connected' });
+            addLog('vpn', sd.vpnDetail || 'FortiClient VPN connected', 'success');
+          } else {
+            setLiveNode('vpn', { status: 'warning', detail: sd.vpnDetail || 'FortiClient not detected — connect to ADMOSA VPN' });
+            addLog('vpn', sd.vpnDetail || 'FortiClient not detected. Connect to ADMOSA VPN before testing SAP.', 'warn');
+          }
+        } else {
+          setLiveNode('vpn', { status: 'warning', detail: 'Could not read VPN status from bridge' });
+          addLog('vpn', 'Bridge did not return VPN status', 'warn');
+        }
+      } catch (e) {
+        setLiveNode('vpn', { status: 'warning', detail: 'VPN status check failed' });
+        addLog('vpn', `VPN check error: ${e.message?.slice(0, 60)}`, 'warn');
+      }
     } else if (!infraCfg.vpn.enabled) {
       setLiveNode('vpn', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }] });
     } else {
@@ -1711,7 +1732,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
   const laptopBridgeMode = isUserVpnMode && isAdtMcpMode;
   const NODE_META = [
     !laptopBridgeMode && { key: 'vm',  label: 'Virtual Machine' },
-    !laptopBridgeMode && { key: 'vpn', label: 'VPN' },
+    { key: 'vpn', label: laptopBridgeMode ? 'FortiClient VPN' : 'VPN' },
     { key: 'mcp', label: laptopBridgeMode ? 'ADT Bridge (Laptop)' : isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP Server' },
     { key: 'sap', label: 'SAP Connection' },
   ].filter(Boolean);
