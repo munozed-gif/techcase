@@ -3682,13 +3682,32 @@ SAP Module: ${caseData.area_sap ?? 'general'}
 ${standardsBlock}
 
 Output ONLY the ABAP source code, no explanations.`;
-        const resp = await callClaude({
+        const callArgs = {
           model: genModel,
           system: 'You are an expert SAP ABAP developer. Output only clean ABAP source code.',
           messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
           max_tokens: 8000,
           mcp_servers: buildSapMcpConfig(sapConfig, freshMcpUrl),
-        });
+        };
+        let resp;
+        try {
+          resp = await callClaude(callArgs);
+        } catch (mcpErr) {
+          const isMcpError = /mcp|communicat|connection|tunnel/i.test(mcpErr.message ?? '');
+          if (isMcpError) {
+            // Refresh tunnel URL and retry once
+            try {
+              const { data: retryRow } = await supabase
+                .from('vm_tunnel_registry').select('tunnel_url')
+                .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+              if (retryRow?.tunnel_url) freshMcpUrl = retryRow.tunnel_url.replace(/\/$/, '');
+            } catch { /* ignore */ }
+            addLog(`${obj.name}: MCP error, retrying with fresh URL...`, 'generating');
+            resp = await callClaude({ ...callArgs, mcp_servers: buildSapMcpConfig(sapConfig, freshMcpUrl) });
+          } else {
+            throw mcpErr;
+          }
+        }
         const code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
         updateObj(obj.id, { status: 'generated', generatedCode: code });
         addLog(`${obj.name}: code generated.`, 'generated');
