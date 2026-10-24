@@ -1258,7 +1258,10 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     if (cancelRef.current) { setRunning(false); return; }
 
     // ── Node 2: VPN ───────────────────────────────────────────────
-    if (!infraCfg.vpn.enabled) {
+    // In ADT bridge mode the bridge doesn't manage VPN — skip this node
+    if (isAdtMcpMode) {
+      setLiveNode('vpn', { status: 'warning', detail: 'Not managed by ADT bridge — ensure VM can reach SAP', log: [{ ts: ts(), msg: 'ABAP ADT Bridge mode: VPN is not managed by the bridge. SAP must be reachable from the VM directly or via VM VPN.', level: 'warn' }] });
+    } else if (!infraCfg.vpn.enabled) {
       setLiveNode('vpn', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }] });
     } else {
     const isUserVpn = env.vpn_mode === 'user';
@@ -1563,8 +1566,13 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       }
 
       if (!sapResult) {
-        setLiveNode('sap', { ...liveNodes.current.sap, status: 'error', detail: 'SAP unreachable — network or timeout error' });
-        addLog('sap', 'SAP unreachable after 2 attempts', 'error');
+        const sapErrDetail = isAdtMcpMode
+          ? 'SAP unreachable from VM — enable VPN on VM or run bridge on laptop'
+          : 'SAP unreachable — network or timeout error';
+        setLiveNode('sap', { ...liveNodes.current.sap, status: 'error', detail: sapErrDetail });
+        addLog('sap', isAdtMcpMode
+          ? 'SAP unreachable: the ADT bridge subprocess runs on the VM which has no VPN. Enable VM VPN or run the bridge locally on your laptop.'
+          : 'SAP unreachable after 2 attempts', 'error');
       } else if (sapResult.ok) {
         const info = sapResult.systemInfo || `Connected (${env.host})`;
         setLiveNode('sap', { ...liveNodes.current.sap, status: 'ok', detail: info, extra: { systemInfo: info } });
