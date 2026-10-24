@@ -57,18 +57,16 @@ function isSocksUp() {
   });
 }
 
-// Build a fetch-compatible options object that routes through SOCKS5 when available.
-// Returns { dispatcher: SocksProxyAgent } for use with node's https/http directly,
-// or a custom fetcher wrapping https.request so native fetch isn't needed.
+// SAP fetch — always uses https.request directly so we can:
+//   1. Skip self-signed cert validation (SAP uses self-signed certs)
+//   2. Optionally route through SOCKS5 when laptop tunnel is active
 async function sapFetch(url, options = {}) {
   const useSocks = await isSocksUp();
-  if (!useSocks) {
-    return fetch(url, options);
-  }
-  // Use SocksProxyAgent with node's built-in https/http module
-  const agent = new SocksProxyAgent(SOCKS_URL);
   const parsed = new URL(url);
   const mod = parsed.protocol === 'https:' ? https : http;
+  const agent = useSocks
+    ? new SocksProxyAgent(SOCKS_URL)
+    : new https.Agent({ rejectUnauthorized: false });
   return new Promise((resolve, reject) => {
     const reqOpts = {
       hostname: parsed.hostname,
@@ -77,6 +75,7 @@ async function sapFetch(url, options = {}) {
       method: options.method || 'GET',
       headers: options.headers || {},
       agent,
+      rejectUnauthorized: false,
     };
     const req = mod.request(reqOpts, (res) => {
       const chunks = [];
@@ -178,6 +177,7 @@ async function getClient(creds) {
       SAP_PASSWORD: sapPassword,
       SAP_CLIENT:   sapClient,
       SAP_LANGUAGE: sapLanguage,
+      NODE_TLS_REJECT_UNAUTHORIZED: '0',
       ...proxyEnv,
     },
   });
