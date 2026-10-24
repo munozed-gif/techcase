@@ -1270,10 +1270,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     if (cancelRef.current) { setRunning(false); return; }
 
     // ── Node 2: VPN ───────────────────────────────────────────────
-    // In ADT bridge mode the bridge doesn't manage VPN — skip this node
-    if (isAdtMcpMode) {
-      setLiveNode('vpn', { status: 'warning', detail: 'Not managed by ADT bridge — ensure VM can reach SAP', log: [{ ts: ts(), msg: 'ABAP ADT Bridge mode: VPN is not managed by the bridge. SAP must be reachable from the VM directly or via VM VPN.', level: 'warn' }] });
-    } else if (!infraCfg.vpn.enabled) {
+    if (!infraCfg.vpn.enabled) {
       setLiveNode('vpn', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }] });
     } else {
     const isUserVpn = env.vpn_mode === 'user';
