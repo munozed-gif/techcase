@@ -140,7 +140,15 @@ app.use((_req, res, next) => {
 
 // Health endpoint (used by infrastructure check)
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'abap-adt-bridge', version: '1.0.0' });
+  res.json({
+    status: 'ok',
+    service: 'abap-adt-bridge',
+    version: '1.0.0',
+    servers: {
+      'abap-adt':          { available: existsSync(ADT_SCRIPTS['abap-adt']),          tools: 127 },
+      'abap-adt-readonly': { available: existsSync(ADT_SCRIPTS['abap-adt-readonly']), tools: 16  },
+    },
+  });
 });
 
 // SAP connectivity test — mirrors /sap-info on the custom MCP server

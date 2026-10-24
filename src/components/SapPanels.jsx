@@ -1528,6 +1528,18 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     if (verMismatch) {
       setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'warning', detail: `v${deployedVer} running — v${bundledVersion} available`, extra: mcpExtra });
       addLog('mcp', `Version mismatch: deployed v${deployedVer}, bundled v${bundledVersion} — use Deploy button to update`, 'warn');
+    } else if (isAdtMcpMode && healthData?.servers) {
+      // Show both ADT server statuses in one node
+      const rw = healthData.servers['abap-adt'];
+      const ro = healthData.servers['abap-adt-readonly'];
+      const rwOk = rw?.available !== false;
+      const roOk = ro?.available !== false;
+      const allOk = rwOk && roOk;
+      const detail = `v${deployedVer ?? '?'} · read+write (${rw?.tools ?? 127} tools) ${rwOk ? '✓' : '✗'} · read-only (${ro?.tools ?? 16} tools) ${roOk ? '✓' : '✗'}`;
+      setLiveNode('mcp', { ...liveNodes.current.mcp, status: allOk ? 'ok' : 'warning', detail, extra: mcpExtra });
+      addLog('mcp', `${mcpLabel} OK (v${deployedVer ?? '?'})`, 'success');
+      addLog('mcp', `read+write (${rw?.tools ?? 127} tools): ${rwOk ? 'found ✓' : 'NOT FOUND ✗ — clone mcp-abap-abap-adt-api into ~/techcase/'}`, rwOk ? 'success' : 'error');
+      addLog('mcp', `read-only (${ro?.tools ?? 16} tools): ${roOk ? 'found ✓' : 'NOT FOUND ✗ — clone mcp-abap-adt into ~/techcase/'}`, roOk ? 'success' : 'error');
     } else {
       setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'ok', detail: `v${deployedVer ?? '?'} running`, extra: mcpExtra });
       addLog('mcp', `${mcpLabel} OK (v${deployedVer ?? '?'})`, 'success');
