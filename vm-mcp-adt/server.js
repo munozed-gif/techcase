@@ -3,6 +3,10 @@
  * HTTP bridge: wraps mcp-abap-abap-adt-api (stdio) behind a
  * StreamableHTTP endpoint so Anthropic's MCP client can reach it.
  *
+ * Setup: clone https://github.com/mario-andreschak/mcp-abap-abap-adt-api
+ * into the SAME parent folder as this file, then build it:
+ *   cd ../mcp-abap-abap-adt-api && npm install && npm run build
+ *
  * ENV vars required:
  *   SAP_URL       e.g. https://your-sap-host:44300
  *   SAP_USER      e.g. BWDEVELOPER
@@ -10,10 +14,15 @@
  *   SAP_CLIENT    e.g. 100  (default: 100)
  *   SAP_LANGUAGE  e.g. EN   (default: EN)
  *   PORT          HTTP port  (default: 3101)
+ *
+ *   ADT_PATH      override the path to index.js if needed
  */
 
 import express from 'express';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -24,6 +33,21 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 const PORT = Number(process.env.PORT ?? 3101);
+const __dir = dirname(fileURLToPath(import.meta.url));
+
+// Resolve the ADT server entry point:
+//   1. ADT_PATH env var (explicit override)
+//   2. Sibling clone: ../mcp-abap-abap-adt-api/dist/index.js
+//   3. npm package:   ./node_modules/mcp-abap-abap-adt-api/dist/index.js
+function resolveAdtScript() {
+  if (process.env.ADT_PATH) return process.env.ADT_PATH;
+  const sibling = resolve(__dir, '..', 'mcp-abap-abap-adt-api', 'dist', 'index.js');
+  if (existsSync(sibling)) return sibling;
+  return resolve(__dir, 'node_modules', 'mcp-abap-abap-adt-api', 'dist', 'index.js');
+}
+
+const ADT_SCRIPT = resolveAdtScript();
+console.log(`[bridge] Using ADT server: ${ADT_SCRIPT}`);
 
 // ── Persistent subprocess client ─────────────────────────────
 let adtClient = null;
@@ -33,7 +57,7 @@ async function getClient() {
 
   const transport = new StdioClientTransport({
     command: 'node',
-    args: ['node_modules/mcp-abap-abap-adt-api/dist/index.js'],
+    args: [ADT_SCRIPT],
     env: {
       ...process.env,
       SAP_URL:      process.env.SAP_URL,
