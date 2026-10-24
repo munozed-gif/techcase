@@ -3748,6 +3748,11 @@ Output ONLY the ABAP source code, no explanations.`;
         addLog(`${obj.name}: ERROR — ${e.message}`, 'error');
         if (stopOnError) { addLog('Stopped on error.', 'error'); break; }
       }
+      // Brief pause between objects so the Cloudflare tunnel can close the
+      // previous MCP connection before the next one opens (avoids "Connection closed")
+      if (freshMcpUrl && sorted.indexOf(obj) < sorted.length - 1) {
+        await new Promise(r => setTimeout(r, 2000));
+      }
     }
     setRunning(false);
   }
