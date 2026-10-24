@@ -1093,7 +1093,8 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const [deployMsg, setDeployMsg] = useState('');
   const [showSetupPanel, setShowSetupPanel] = useState(false);
   const [setupCopied, setSetupCopied] = useState(null);
-
+  const [stoppingVpn, setStoppingVpn] = useState(false);
+  const [stopVpnMsg, setStopVpnMsg] = useState(null);
   const [aiDiagnosis, setAiDiagnosis] = useState(() => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s)?.aiDiagnosis ?? null : null; } catch { return null; } });
   const [diagnosing, setDiagnosing] = useState(false);
   const cancelRef = useRef(false);
@@ -1275,6 +1276,17 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     const isUserVpn = env.vpn_mode === 'user';
     const vpnLoopEnabled = infraCfg.vpn.vpnLoop !== false; // default true
 
+    // User VPN mode + VPN loop disabled → stop VM VPN so it doesn't conflict with laptop FortiClient
+    if (isUserVpn && !vpnLoopEnabled && currentMcpBase) {
+      setLiveNode('vpn', { status: 'fixing', detail: 'Stopping VM VPN (loop disabled — user manages VPN)…', log: [] });
+      addLog('vpn', 'VPN loop is OFF — stopping VM openfortivpn to avoid conflicting with FortiClient…', 'warn');
+      try {
+        await fetch(`${currentMcpBase}/vpn/stop`, { method: 'POST', signal: AbortSignal.timeout(10000) });
+        addLog('vpn', 'VM openfortivpn stopped.', 'success');
+      } catch (e) {
+        addLog('vpn', `Could not stop VM VPN: ${e.message?.slice(0, 60)}`, 'warn');
+      }
+    }
 
     setLiveNode('vpn', { status: 'checking', detail: isUserVpn ? 'Reading VPN status (user-managed mode)…' : 'Reading VPN status from VM…', log: liveNodes.current.vpn.log ?? [] });
     addLog('vpn', isUserVpn ? 'User-managed VPN mode — checking status (informational only)…' : 'Reading VPN status from VM…');
@@ -1299,9 +1311,80 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       const detail = vpnLoopEnabled ? 'Not active on VM — user manages VPN via FortiClient' : 'VM VPN stopped — using FortiClient on laptop';
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: vpnLoopEnabled ? 'warning' : 'ok', detail });
       addLog('vpn', vpnLoopEnabled ? 'VM openfortivpn not running. Expected in user-managed mode — make sure FortiClient is connected on your side.' : 'VM VPN is off. FortiClient on your laptop handles the VPN.', vpnLoopEnabled ? 'warn' : 'success');
+    } else if (!infraCfg.vpn.autoSolve) {
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'VPN inactive — auto-solve disabled in settings' });
+      addLog('vpn', 'VPN inactive. Auto-solve is off — enable it in platform settings to auto-start.', 'warn');
+      setStoppedAt('vpn');
+      setRunning(false);
+      diagnoseFailure('vpn');
+      return;
     } else {
-      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: 'VPN not active on VM — connect VPN on VM before running' });
-      addLog('vpn', 'VPN is not active on the VM. Connect it manually on the VM before running the infrastructure check.', 'warn');
+      addLog('vpn', 'VPN inactive — attempting to start…', 'warn');
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'fixing', detail: 'Starting VPN…' });
+
+      const vpnConn = projectConns?.find(c => c.db_type === 'vpn');
+      let startBody = null;
+      if (vpnConn) {
+        const rawHost = vpnConn.meta?.remote_gateway?.trim() || vpnConn.host?.trim() || '';
+        const [gHost, gPort] = rawHost.includes(':') ? rawHost.split(':') : [rawHost, String(vpnConn.port || '443')];
+        startBody = JSON.stringify({
+          host: gHost, port: gPort,
+          username: vpnConn.username || '',
+          password: vpnConn.meta?.password || '',
+          trusted_cert: vpnConn.meta?.trusted_cert || '',
+        });
+        addLog('vpn', `Using VPN connection "${vpnConn.meta?.conn_name || vpnConn.host}"…`);
+      } else {
+        addLog('vpn', 'No VPN connection configured in project — trying start without credentials', 'warn');
+      }
+
+      let startOk = false;
+      try {
+        const sr = await fetch(`${currentMcpBase}/vpn/start`, {
+          method: 'POST',
+          headers: startBody ? { 'Content-Type': 'application/json' } : {},
+          body: startBody ?? undefined,
+          signal: AbortSignal.timeout(35000),
+        });
+        const sd = await sr.json();
+        if (sd.ok === false) {
+          const errMsg = sd.error || 'Unknown error';
+          const isCredErr = /password|auth|credential|denied/i.test(errMsg);
+          addLog('vpn', `VPN start failed: ${errMsg}`, 'error');
+          if (isCredErr) addLog('vpn', 'Authentication error — check VPN credentials in project settings', 'error');
+          setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: `Cannot start: ${errMsg.slice(0, 80)}` });
+          setStoppedAt('vpn');
+          setRunning(false);
+          diagnoseFailure('vpn');
+          return;
+        }
+        if (sd.vpn === true) {
+          startOk = true;
+        } else {
+          addLog('vpn', 'Start command sent — waiting 8s for tunnel…');
+          await new Promise(r => setTimeout(r, 8000));
+          const rechk = await fetch(`${currentMcpBase}/status`, { signal: AbortSignal.timeout(8000) }).then(r => r.json()).catch(() => null);
+          startOk = rechk?.vpn === true;
+        }
+      } catch (e) {
+        addLog('vpn', `VPN start request failed: ${e.message?.slice(0, 80)}`, 'error');
+        setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: `Start failed: ${e.message?.slice(0, 60)}` });
+        setStoppedAt('vpn');
+        setRunning(false);
+        diagnoseFailure('vpn');
+        return;
+      }
+
+      if (!startOk) {
+        setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'VPN still inactive after start attempt' });
+        addLog('vpn', 'VPN failed to connect. Check credentials and gateway. Infrastructure check stopped.', 'error');
+        setStoppedAt('vpn');
+        setRunning(false);
+        diagnoseFailure('vpn');
+        return;
+      }
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: 'VPN started successfully' });
+      addLog('vpn', 'VPN connected', 'success');
     }
     } // end infraCfg.vpn.enabled
 
@@ -1586,6 +1669,25 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     { key: 'sap', label: 'SAP Connection' },
   ];
 
+  async function stopVmVpn() {
+    const base = getMcpBase();
+    if (!base || stoppingVpn) return;
+    setStoppingVpn(true);
+    setStopVpnMsg(null);
+    try {
+      const r = await fetch(`${base}/vpn/stop`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(12000),
+      }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
+      setStopVpnMsg(r.ok ? '✓ VM VPN stopped' : `✗ ${r.error?.slice(0, 60) || 'Failed'}`);
+      setTimeout(() => setStopVpnMsg(null), 4000);
+    } catch (e) {
+      setStopVpnMsg(`✗ ${e.message?.slice(0, 60)}`);
+      setTimeout(() => setStopVpnMsg(null), 4000);
+    } finally {
+      setStoppingVpn(false);
+    }
+  }
 
   const statusIcon = (status) => {
     if (status === 'checking' || status === 'fixing') return <RefreshCw size={14} className="animate-spin text-blue-400" />;
@@ -1673,6 +1775,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const hasLog = node.log?.length > 0;
           const showDeploy = key === 'mcp' && (node.extra?.needsDeploy || node.status === 'error');
           const showSetup = key === 'vm' && node.status === 'error';
+          const showStopVpn = key === 'vpn' && !!getMcpBase();
 
           return (
             <div key={key} className={`rounded-lg border transition-colors ${nodeBg(node.status)}`}>
@@ -1689,6 +1792,13 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                     <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug break-words">{node.detail}</p>
                   )}
                 </div>
+                {showStopVpn && (
+                  <button onClick={stopVmVpn} disabled={stoppingVpn}
+                    className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition-colors">
+                    {stoppingVpn ? <RefreshCw size={9} className="animate-spin" /> : <X size={9} />}
+                    {stoppingVpn ? 'Stopping…' : 'Stop VM VPN'}
+                  </button>
+                )}
                 {showSetup && (
                   <button onClick={() => setShowSetupPanel(v => !v)}
                     className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-colors ${showSetupPanel ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300' : 'bg-amber-600 hover:bg-amber-700 text-white'}`}>
@@ -1747,6 +1857,12 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                 </div>
               )}
 
+              {/* Stop VPN feedback */}
+              {showStopVpn && stopVpnMsg && (
+                <div className="px-10 pb-2">
+                  <p className={`text-[10px] ${stopVpnMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>{stopVpnMsg}</p>
+                </div>
+              )}
 
               {/* Deploy message */}
               {showDeploy && deployMsg && (

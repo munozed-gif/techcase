@@ -188,6 +188,45 @@ app.get('/status', (_req, res) => {
   res.json({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.0.0', uptime, timestamp: new Date().toISOString() });
 });
 
+// VPN control — mirrors /vpn/start and /vpn/stop on the custom MCP server
+app.post('/vpn/:action(start|stop|restart)', async (req, res) => {
+  const action = req.params.action;
+  try {
+    const vpnCfg = req.body?.host ? req.body : null;
+
+    if (action === 'start' && vpnCfg?.host) {
+      const lines = [`host = ${vpnCfg.host}`, `port = ${vpnCfg.port || '443'}`, `username = ${vpnCfg.username || ''}`];
+      if (vpnCfg.trusted_cert) lines.push(`trusted-cert = ${vpnCfg.trusted_cert}`);
+      execSync('sudo mkdir -p /etc/openfortivpn', { timeout: 3000 });
+      execSync('sudo tee /etc/openfortivpn/vpn.conf', { input: lines.join('\n') + '\n', timeout: 5000 });
+      execSync('sudo chmod 600 /etc/openfortivpn/vpn.conf', { timeout: 3000 });
+      execSync('sudo tee /etc/openfortivpn/.pw', { input: vpnCfg.password || '', timeout: 3000 });
+      execSync('sudo chmod 600 /etc/openfortivpn/.pw', { timeout: 3000 });
+      const wrapper = `#!/bin/bash\nexec /usr/bin/openfortivpn -c /etc/openfortivpn/vpn.conf -p "$(sudo cat /etc/openfortivpn/.pw)"\n`;
+      execSync('sudo tee /etc/openfortivpn/start.sh', { input: wrapper, timeout: 3000 });
+      execSync('sudo chmod 755 /etc/openfortivpn/start.sh', { timeout: 3000 });
+      const dropin = `[Service]\nExecStart=\nExecStart=/etc/openfortivpn/start.sh\nRestart=on-failure\nRestartSec=30\n`;
+      execSync('sudo mkdir -p /etc/systemd/system/openfortivpn@vpn.service.d', { timeout: 3000 });
+      execSync('sudo tee /etc/systemd/system/openfortivpn@vpn.service.d/override.conf', { input: dropin, timeout: 3000 });
+      execSync('sudo systemctl daemon-reload', { timeout: 5000 });
+    }
+
+    if (action === 'stop') {
+      const noRestart = `[Service]\nExecStart=\nExecStart=/etc/openfortivpn/start.sh\nRestart=no\nRestartSec=30\n`;
+      execSync('sudo mkdir -p /etc/systemd/system/openfortivpn@vpn.service.d', { timeout: 3000 });
+      execSync('sudo tee /etc/systemd/system/openfortivpn@vpn.service.d/override.conf', { input: noRestart, timeout: 3000 });
+      execSync('sudo systemctl daemon-reload', { timeout: 5000 });
+      execSync('sudo systemctl stop openfortivpn@vpn', { timeout: 30000 });
+      execSync('sudo systemctl disable openfortivpn@vpn 2>/dev/null || true', { timeout: 5000 });
+    } else {
+      execSync(`sudo systemctl ${action} openfortivpn@vpn`, { timeout: 120000 });
+    }
+    const out = execSync('if systemctl is-active --quiet openfortivpn@vpn 2>/dev/null; then echo active; else echo inactive; fi', { timeout: 4000 }).toString().trim();
+    res.json({ ok: true, vpn: out === 'active', vpnDetail: out });
+  } catch (e) {
+    res.json({ ok: false, error: e.message?.slice(0, 200) });
+  }
+});
 
 // SAP CORS proxy — browser sends ADT requests here, bridge forwards to SAP
 // Same chain as infrastructure check: browser → tunnel → bridge → VM VPN → SAP
