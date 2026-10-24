@@ -3640,6 +3640,15 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     const sorted = topoSort(subset);
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
 
+    // Refresh tunnel URL from vm_tunnel_registry before starting pipeline
+    let freshMcpUrl = sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url'] || '';
+    try {
+      const { data: regRow } = await supabase
+        .from('vm_tunnel_registry').select('tunnel_url')
+        .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+      if (regRow?.tunnel_url) freshMcpUrl = regRow.tunnel_url.replace(/\/$/, '');
+    } catch { /* best-effort */ }
+
     for (const obj of sorted) {
       if (stopRef.current) { addLog('Stopped by user.', 'skipped'); break; }
       if (obj.status === 'done') { addLog(`${obj.name}: already done, skipping.`, 'skipped'); continue; }
@@ -3678,7 +3687,7 @@ Output ONLY the ABAP source code, no explanations.`;
           system: 'You are an expert SAP ABAP developer. Output only clean ABAP source code.',
           messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
           max_tokens: 8000,
-          mcp_servers: buildSapMcpConfig(sapConfig, sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']),
+          mcp_servers: buildSapMcpConfig(sapConfig, freshMcpUrl),
         });
         const code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
         updateObj(obj.id, { status: 'generated', generatedCode: code });
