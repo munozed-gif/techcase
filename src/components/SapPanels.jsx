@@ -1086,8 +1086,13 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const [diagnosing, setDiagnosing] = useState(false);
   const cancelRef = useRef(false);
 
-  const getMcpBase = () =>
-    (env.mcp_server_url?.trim() || globalMcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
+  const isAdtMcpMode = env.mcp_type === 'abap-adt';
+  const getMcpBase = () => {
+    if (isAdtMcpMode) {
+      return (env.adt_mcp_url?.trim() || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
+    }
+    return (env.mcp_server_url?.trim() || globalMcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
+  };
 
   useEffect(() => {
     if (checkedAt) {
@@ -1187,15 +1192,16 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     setLiveNode('vm', { status: 'checking', detail: 'Connecting…', log: [] });
 
     if (!currentMcpBase) {
-      setLiveNode('vm', { status: 'error', detail: 'No MCP server URL configured' });
-      addLog('vm', 'No MCP server URL — configure it in SAP integration settings', 'error');
+      const urlLabel = isAdtMcpMode ? 'No ABAP ADT Bridge URL configured' : 'No MCP server URL configured';
+      setLiveNode('vm', { status: 'error', detail: urlLabel });
+      addLog('vm', isAdtMcpMode ? 'No ABAP ADT Bridge URL — configure "ADT Bridge URL" in SAP integration settings' : 'No MCP server URL — configure it in SAP integration settings', 'error');
       setStoppedAt('vm');
       setRunning(false);
       diagnoseFailure('vm');
       return;
     }
 
-    addLog('vm', `Connecting to ${currentMcpBase}…`);
+    addLog('vm', `Connecting to ${currentMcpBase}${isAdtMcpMode ? ' (ABAP ADT Bridge)' : ''}…`);
 
     const tryFetchStatus = async (base) => {
       try {
@@ -1373,8 +1379,9 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     if (!infraCfg.mcp.enabled) {
       setLiveNode('mcp', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }], extra: {} });
     } else {
-    setLiveNode('mcp', { status: 'checking', detail: 'Checking MCP server…', log: [], extra: {} });
-    addLog('mcp', 'Checking MCP server health…');
+    const mcpLabel = isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP server';
+    setLiveNode('mcp', { status: 'checking', detail: `Checking ${mcpLabel}…`, log: [], extra: {} });
+    addLog('mcp', `Checking ${mcpLabel} health…`);
 
     let healthData = null;
     let preDiag = null;
@@ -1625,7 +1632,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
   const NODE_META = [
     { key: 'vm',  label: 'Virtual Machine' },
     { key: 'vpn', label: 'VPN' },
-    { key: 'mcp', label: 'MCP Server' },
+    { key: 'mcp', label: isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP Server' },
     { key: 'sap', label: 'SAP Connection' },
   ];
 
