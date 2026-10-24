@@ -49,27 +49,54 @@ function resolveAdtScript() {
 const ADT_SCRIPT = resolveAdtScript();
 console.log(`[bridge] Using ADT server: ${ADT_SCRIPT}`);
 
-// ── Persistent subprocess client ─────────────────────────────
-let adtClient = null;
+// ── Parse SAP credentials from Authorization header ──────────
+// The app sends: Authorization: Bearer <base64(JSON)>
+// JSON shape: { host, username, password, client, type, proxyUrl }
+function parseSapCreds(authHeader) {
+  try {
+    if (!authHeader?.startsWith('Bearer ')) return null;
+    return JSON.parse(Buffer.from(authHeader.slice(7), 'base64').toString('utf8'));
+  } catch { return null; }
+}
 
-async function getClient() {
-  if (adtClient) return adtClient;
+// ── Subprocess client pool (keyed by SAP host+user) ──────────
+const clientPool = new Map();
+
+async function getClient(creds) {
+  // Prefer per-request credentials from the auth token; fall back to .env
+  const sapUrl      = creds?.host     || process.env.SAP_URL      || '';
+  const sapUser     = creds?.username || process.env.SAP_USER     || '';
+  const sapPassword = creds?.password || process.env.SAP_PASSWORD || '';
+  const sapClient   = creds?.client   || process.env.SAP_CLIENT   || '100';
+  const sapLanguage = process.env.SAP_LANGUAGE || 'EN';
+
+  const key = `${sapUrl}|${sapUser}`;
+  if (clientPool.has(key)) return clientPool.get(key);
 
   const transport = new StdioClientTransport({
     command: 'node',
     args: [ADT_SCRIPT],
     env: {
       ...process.env,
-      SAP_URL:      process.env.SAP_URL,
-      SAP_USER:     process.env.SAP_USER,
-      SAP_PASSWORD: process.env.SAP_PASSWORD,
-      SAP_CLIENT:   process.env.SAP_CLIENT   ?? '100',
-      SAP_LANGUAGE: process.env.SAP_LANGUAGE ?? 'EN',
+      SAP_URL:      sapUrl,
+      SAP_USER:     sapUser,
+      SAP_PASSWORD: sapPassword,
+      SAP_CLIENT:   sapClient,
+      SAP_LANGUAGE: sapLanguage,
     },
   });
 
   const client = new Client({ name: 'adt-http-bridge', version: '1.0.0' });
   await client.connect(transport);
+
+  transport.onclose = () => {
+    console.warn(`[bridge] Client closed for ${key} — will respawn`);
+    clientPool.delete(key);
+  };
+
+  clientPool.set(key, client);
+  console.log(`[bridge] Connected subprocess for ${sapUrl} / ${sapUser}`);
+  return client;
 
   transport.onclose = () => {
     console.warn('[bridge] ADT subprocess closed — will respawn on next request');
@@ -125,7 +152,8 @@ function buildServer(client) {
 // POST /mcp — initialize or handle request
 app.post('/mcp', async (req, res) => {
   try {
-    const client = await getClient();
+    const creds = parseSapCreds(req.headers['authorization']);
+    const client = await getClient(creds);
     const sessionId = req.headers['mcp-session-id'];
 
     if (sessionId && sessions.has(sessionId)) {
@@ -188,6 +216,6 @@ app.delete('/mcp', (req, res) => {
 app.listen(PORT, () => {
   console.log(`[bridge] ABAP ADT bridge listening on port ${PORT}`);
   console.log(`[bridge] MCP endpoint: http://localhost:${PORT}/mcp`);
-  // Warm up the subprocess connection
-  getClient().catch(err => console.error('[bridge] Subprocess warmup failed:', err.message));
+  console.log(`[bridge] SAP credentials read from Authorization header (sent by the app)`);
+  if (process.env.SAP_URL) console.log(`[bridge] .env fallback SAP_URL: ${process.env.SAP_URL}`);
 });

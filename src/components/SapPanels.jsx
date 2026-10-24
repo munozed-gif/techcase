@@ -209,11 +209,12 @@ function buildSapMcpToken(sapConfig) {
 function buildSapMcpConfig(sapConfig, mcpServerUrl) {
   if (!sapConfig?.host) return undefined;
 
-  // For ABAP ADT community server, use adt_mcp_url (no auth token needed — it reads SAP creds from its own env)
+  // For ABAP ADT community server — pass SAP credentials via the same base64 token
   if (sapConfig.mcp_type === 'abap-adt') {
     const adtUrl = sapConfig.adt_mcp_url?.trim().replace(/\/$/, '');
     if (!adtUrl) return undefined;
-    return [{ type: 'url', url: adtUrl + '/mcp', name: 'sap-tools' }];
+    const token = buildSapMcpToken(sapConfig);
+    return [{ type: 'url', url: adtUrl + '/mcp', name: 'sap-tools', ...(token ? { authorization_token: token } : {}) }];
   }
 
   // Default: custom SAP-MCP server
