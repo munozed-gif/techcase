@@ -1864,7 +1864,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const hasLog = node.log?.length > 0;
           const showDeploy = key === 'mcp' && (node.extra?.needsDeploy || node.status === 'error');
           const showSetup = key === 'vm' && node.status === 'error';
-          const showStopVpn = key === 'vpn' && !!getMcpBase();
+          const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode;
           const showLaptopTunnel = key === 'vpn' && isAdtMcpMode && !laptopBridgeMode;
 
           return (
