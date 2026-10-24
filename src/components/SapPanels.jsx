@@ -3919,13 +3919,27 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     const sorted = topoSort(subset);
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
 
-    // For ABAP ADT community modes, use the static adt_mcp_url (no registry lookup needed)
     const isAdtMode = sapConfig?.mcp_type === 'abap-adt' || sapConfig?.mcp_type === 'abap-adt-readonly' || sapConfig?.mcp_type === 'abap-adt-both';
     let freshMcpUrl = isAdtMode
       ? (sapConfig?.adt_mcp_url?.trim().replace(/\/$/, '') || '')
       : (sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url'] || '');
 
-    if (!isAdtMode) {
+    if (isAdtMode) {
+      // Refresh ADT bridge URL from Supabase system_settings in case the Cloudflare
+      // quick tunnel rotated since the user last saved their settings.
+      try {
+        const { data: sData } = await supabase
+          .from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+        if (sData?.value) {
+          const registeredUrl = sData.value.trim().replace(/\/$/, '');
+          if (registeredUrl && registeredUrl !== freshMcpUrl) {
+            addLog(`ADT bridge URL updated from registry: ${registeredUrl}`, 'info');
+            freshMcpUrl = registeredUrl;
+            if (onUpdateMcpUrl) onUpdateMcpUrl(registeredUrl);
+          }
+        }
+      } catch { /* best-effort */ }
+    } else {
       // Refresh tunnel URL from vm_tunnel_registry before starting pipeline
       try {
         const { data: regRow } = await supabase
@@ -4018,8 +4032,8 @@ Output ONLY the ABAP source code, no explanations.`;
           const isAdtApply = sapConfig.mcp_type === 'abap-adt' || sapConfig.mcp_type === 'abap-adt-readonly' || sapConfig.mcp_type === 'abap-adt-both';
           let applyVia = null;
           if (isAdtApply) {
-            const adtBase = (sapConfig.adt_mcp_url || '').trim().replace(/\/$/, '');
-            if (adtBase) applyVia = `${adtBase}/sap-proxy`;
+            // Use freshMcpUrl (already refreshed from Supabase at run start)
+            if (freshMcpUrl) applyVia = `${freshMcpUrl}/sap-proxy`;
           } else if (freshMcpUrl) {
             applyVia = `${freshMcpUrl}/sap-proxy`;
           }
@@ -4095,7 +4109,13 @@ Output ONLY the ABAP source code, no explanations.`;
     // In custom mode: use vm_tunnel_registry (custom server proxy)
     let applyVia = null;
     if (isAdtMcpMode) {
-      const adtBase = (sapConfig.adt_mcp_url || '').trim().replace(/\/$/, '');
+      // Refresh ADT bridge URL from Supabase in case tunnel rotated
+      let adtBase = (sapConfig.adt_mcp_url || '').trim().replace(/\/$/, '');
+      try {
+        const { data: sData } = await supabase
+          .from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+        if (sData?.value) adtBase = sData.value.trim().replace(/\/$/, '');
+      } catch { /* best-effort */ }
       if (adtBase) applyVia = `${adtBase}/sap-proxy`;
     } else {
       let applyMcpUrl = ssCtx.settings['sap_mcp_server_url'] || '';
