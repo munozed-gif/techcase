@@ -1,0 +1,17 @@
+[Unit]
+Description=ABAP ADT MCP Bridge
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/vm-mcp-adt
+EnvironmentFile=/opt/vm-mcp-adt/.env
+ExecStart=/usr/bin/node /opt/vm-mcp-adt/server.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

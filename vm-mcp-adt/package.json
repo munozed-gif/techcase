@@ -1,0 +1,16 @@
+{
+  "name": "vm-mcp-adt",
+  "version": "1.0.0",
+  "description": "HTTP bridge exposing mcp-abap-abap-adt-api over StreamableHTTP for Anthropic MCP client",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "install-adt": "npm install mcp-abap-abap-adt-api"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "express": "^4.19.2",
+    "mcp-abap-abap-adt-api": "latest"
+  }
+}

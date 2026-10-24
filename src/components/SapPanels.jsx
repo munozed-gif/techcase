@@ -207,7 +207,17 @@ function buildSapMcpToken(sapConfig) {
  * Returns undefined when either is missing so callClaude falls back to plain generation.
  */
 function buildSapMcpConfig(sapConfig, mcpServerUrl) {
-  if (!mcpServerUrl?.trim() || !sapConfig?.host) return undefined;
+  if (!sapConfig?.host) return undefined;
+
+  // For ABAP ADT community server, use adt_mcp_url (no auth token needed — it reads SAP creds from its own env)
+  if (sapConfig.mcp_type === 'abap-adt') {
+    const adtUrl = sapConfig.adt_mcp_url?.trim().replace(/\/$/, '');
+    if (!adtUrl) return undefined;
+    return [{ type: 'url', url: adtUrl + '/mcp', name: 'sap-tools' }];
+  }
+
+  // Default: custom SAP-MCP server
+  if (!mcpServerUrl?.trim()) return undefined;
   const token = buildSapMcpToken(sapConfig);
   if (!token) return undefined;
   return [
@@ -2296,6 +2306,38 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                             <McpRestartButton mcpUrl={env.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']} />
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5">Leave blank to use the global MCP server URL from AI Configuration settings.</p>
+                          {/* MCP server type selector */}
+                          <div className="mt-2 space-y-2">
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">MCP Server Type</label>
+                            <div className="flex gap-3">
+                              {[
+                                { value: 'custom', label: 'Custom SAP-MCP', desc: 'Your existing VM server (default)' },
+                                { value: 'abap-adt', label: 'ABAP ADT Community', desc: 'mcp-abap-abap-adt-api (127 tools, read+write)' },
+                              ].map(opt => (
+                                <label key={opt.value} className={`flex-1 flex items-start gap-2 border rounded-xl px-3 py-2 cursor-pointer transition-colors ${(env.mcp_type ?? 'custom') === opt.value ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'} ${!canEdit ? 'pointer-events-none opacity-60' : ''}`}>
+                                  <input type="radio" name={`mcp_type_${env.id}`} value={opt.value} disabled={!canEdit}
+                                    checked={(env.mcp_type ?? 'custom') === opt.value}
+                                    onChange={() => updateEnvField(env.id, 'mcp_type', opt.value)}
+                                    className="mt-0.5 accent-blue-500" />
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-700 dark:text-gray-200">{opt.label}</p>
+                                    <p className="text-xs text-gray-400">{opt.desc}</p>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                            {(env.mcp_type === 'abap-adt') && (
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                  ABAP ADT Bridge URL <span className="text-red-400">*</span>
+                                </label>
+                                <input value={env.adt_mcp_url ?? ''} onChange={e => updateEnvField(env.id, 'adt_mcp_url', e.target.value)} disabled={!canEdit}
+                                  placeholder="https://your-tunnel.trycloudflare.com (port 3101)"
+                                  className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                                <p className="text-xs text-gray-400 mt-0.5">Deploy <code className="text-blue-400">vm-mcp-adt/</code> on your VM (port 3101), expose via tunnel. See <code className="text-blue-400">vm-mcp-adt/</code> folder in the repo.</p>
+                              </div>
+                            )}
+                          </div>
                           {/* Detailed infra status check */}
                           <EnvInfraStatusCard env={env} enrichEnvWithVpn={enrichEnvWithVpn} projectConns={projectConns} globalMcpUrl={ssCtx.settings['sap_mcp_server_url']} onUpdateMcpUrl={(url) => updateEnvField(env.id, 'mcp_server_url', url)} />
                         </div>
@@ -3640,14 +3682,21 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     const sorted = topoSort(subset);
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
 
-    // Refresh tunnel URL from vm_tunnel_registry before starting pipeline
-    let freshMcpUrl = sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url'] || '';
-    try {
-      const { data: regRow } = await supabase
-        .from('vm_tunnel_registry').select('tunnel_url')
-        .order('updated_at', { ascending: false }).limit(1).maybeSingle();
-      if (regRow?.tunnel_url) freshMcpUrl = regRow.tunnel_url.replace(/\/$/, '');
-    } catch { /* best-effort */ }
+    // For ABAP ADT community mode, use the static adt_mcp_url (no registry lookup needed)
+    const isAdtMode = sapConfig?.mcp_type === 'abap-adt';
+    let freshMcpUrl = isAdtMode
+      ? (sapConfig?.adt_mcp_url?.trim().replace(/\/$/, '') || '')
+      : (sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url'] || '');
+
+    if (!isAdtMode) {
+      // Refresh tunnel URL from vm_tunnel_registry before starting pipeline
+      try {
+        const { data: regRow } = await supabase
+          .from('vm_tunnel_registry').select('tunnel_url')
+          .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+        if (regRow?.tunnel_url) freshMcpUrl = regRow.tunnel_url.replace(/\/$/, '');
+      } catch { /* best-effort */ }
+    }
 
     for (const obj of sorted) {
       if (stopRef.current) { addLog('Stopped by user.', 'skipped'); break; }
