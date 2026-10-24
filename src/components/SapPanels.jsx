@@ -192,12 +192,13 @@ function buildAbapStandardsPrompt(standards, objectType, objectName, act, caseDa
 function buildSapMcpToken(sapConfig) {
   if (!sapConfig?.host || !sapConfig?.username || !sapConfig?.password) return null;
   const payload = {
-    host:     sapConfig.host,
-    username: sapConfig.username,
-    password: sapConfig.password,
-    client:   sapConfig.client ?? '100',
-    type:     sapConfig.type ?? 's4hana',
-    proxyUrl: sapConfig.proxyUrl ?? '',
+    host:       sapConfig.host,
+    username:   sapConfig.username,
+    password:   sapConfig.password,
+    client:     sapConfig.client ?? '100',
+    type:       sapConfig.type ?? 's4hana',
+    proxyUrl:   sapConfig.proxyUrl ?? '',
+    serverType: sapConfig.mcp_type ?? '',   // tells bridge which subprocess to spawn
   };
   return btoa(JSON.stringify(payload));
 }
@@ -209,11 +210,11 @@ function buildSapMcpToken(sapConfig) {
 function buildSapMcpConfig(sapConfig, mcpServerUrl) {
   if (!sapConfig?.host) return undefined;
 
-  // For ABAP ADT community server — pass SAP credentials via the same base64 token
-  if (sapConfig.mcp_type === 'abap-adt') {
+  // For ABAP ADT bridge servers (read+write 127 tools OR read-only 16 tools)
+  if (sapConfig.mcp_type === 'abap-adt' || sapConfig.mcp_type === 'abap-adt-readonly') {
     const adtUrl = sapConfig.adt_mcp_url?.trim().replace(/\/$/, '');
     if (!adtUrl) return undefined;
-    const token = buildSapMcpToken(sapConfig);
+    const token = buildSapMcpToken(sapConfig); // includes serverType so bridge picks the right subprocess
     return [{ type: 'url', url: adtUrl + '/mcp', name: 'sap-tools', ...(token ? { authorization_token: token } : {}) }];
   }
 
@@ -1086,7 +1087,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const [diagnosing, setDiagnosing] = useState(false);
   const cancelRef = useRef(false);
 
-  const isAdtMcpMode = env.mcp_type === 'abap-adt';
+  const isAdtMcpMode = env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly';
   const getMcpBase = () => {
     if (isAdtMcpMode) {
       return (env.adt_mcp_url?.trim() || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
@@ -2321,7 +2322,8 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                             <div className="flex gap-3">
                               {[
                                 { value: 'custom', label: 'Custom SAP-MCP', desc: 'Your existing VM server (default)' },
-                                { value: 'abap-adt', label: 'ABAP ADT Community', desc: 'mcp-abap-abap-adt-api (127 tools, read+write)' },
+                                { value: 'abap-adt', label: 'ABAP ADT (read+write)', desc: 'mcp-abap-abap-adt-api · 127 tools · lock, activate, transport' },
+                                { value: 'abap-adt-readonly', label: 'ABAP ADT (read-only)', desc: 'mcp-abap-adt · 16 tools · browse source, tables, packages' },
                               ].map(opt => (
                                 <label key={opt.value} className={`flex-1 flex items-start gap-2 border rounded-xl px-3 py-2 cursor-pointer transition-colors ${(env.mcp_type ?? 'custom') === opt.value ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'} ${!canEdit ? 'pointer-events-none opacity-60' : ''}`}>
                                   <input type="radio" name={`mcp_type_${env.id}`} value={opt.value} disabled={!canEdit}
@@ -2335,7 +2337,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                                 </label>
                               ))}
                             </div>
-                            {(env.mcp_type === 'abap-adt') && (
+                            {(env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly') && (
                               <div>
                                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                                   ABAP ADT Bridge URL <span className="text-red-400">*</span>

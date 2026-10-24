@@ -35,19 +35,34 @@ import {
 const PORT = Number(process.env.PORT ?? 3101);
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-// Resolve the ADT server entry point:
-//   1. ADT_PATH env var (explicit override)
-//   2. Sibling clone: ../mcp-abap-abap-adt-api/dist/index.js
-//   3. npm package:   ./node_modules/mcp-abap-abap-adt-api/dist/index.js
-function resolveAdtScript() {
+// Resolve the ADT server entry point for each supported server type.
+//   serverType 'abap-adt-readonly'  → mcp-abap-adt          (16 tools, read-only)
+//   serverType 'abap-adt' (default) → mcp-abap-abap-adt-api (127 tools, read+write)
+//
+// Resolution order for each:
+//   1. ADT_PATH / ADT_READONLY_PATH env var (explicit override)
+//   2. Sibling git clone: ../mcp-abap-*/dist/index.js
+//   3. npm package under node_modules/
+function resolveAdtScript(serverType) {
+  if (serverType === 'abap-adt-readonly') {
+    if (process.env.ADT_READONLY_PATH) return process.env.ADT_READONLY_PATH;
+    const sibling = resolve(__dir, '..', 'mcp-abap-adt', 'dist', 'index.js');
+    if (existsSync(sibling)) return sibling;
+    return resolve(__dir, 'node_modules', 'mcp-abap-adt', 'dist', 'index.js');
+  }
+  // default: abap-adt (read+write, 127 tools)
   if (process.env.ADT_PATH) return process.env.ADT_PATH;
   const sibling = resolve(__dir, '..', 'mcp-abap-abap-adt-api', 'dist', 'index.js');
   if (existsSync(sibling)) return sibling;
   return resolve(__dir, 'node_modules', 'mcp-abap-abap-adt-api', 'dist', 'index.js');
 }
 
-const ADT_SCRIPT = resolveAdtScript();
-console.log(`[bridge] Using ADT server: ${ADT_SCRIPT}`);
+// Pre-resolve both scripts at startup so missing clones are caught early
+const ADT_SCRIPTS = {
+  'abap-adt':          resolveAdtScript('abap-adt'),
+  'abap-adt-readonly': resolveAdtScript('abap-adt-readonly'),
+};
+Object.entries(ADT_SCRIPTS).forEach(([k, v]) => console.log(`[bridge] ${k}: ${v}`));
 
 // ── Parse SAP credentials from Authorization header ──────────
 // The app sends: Authorization: Bearer <base64(JSON)>
@@ -64,18 +79,21 @@ const clientPool = new Map();
 
 async function getClient(creds) {
   // Prefer per-request credentials from the auth token; fall back to .env
-  const sapUrl      = creds?.host     || process.env.SAP_URL      || '';
-  const sapUser     = creds?.username || process.env.SAP_USER     || '';
-  const sapPassword = creds?.password || process.env.SAP_PASSWORD || '';
-  const sapClient   = creds?.client   || process.env.SAP_CLIENT   || '100';
+  const sapUrl      = creds?.host       || process.env.SAP_URL      || '';
+  const sapUser     = creds?.username   || process.env.SAP_USER     || '';
+  const sapPassword = creds?.password   || process.env.SAP_PASSWORD || '';
+  const sapClient   = creds?.client     || process.env.SAP_CLIENT   || '100';
   const sapLanguage = process.env.SAP_LANGUAGE || 'EN';
+  const serverType  = creds?.serverType || 'abap-adt';
 
-  const key = `${sapUrl}|${sapUser}`;
+  const adtScript = ADT_SCRIPTS[serverType] ?? ADT_SCRIPTS['abap-adt'];
+
+  const key = `${sapUrl}|${sapUser}|${serverType}`;
   if (clientPool.has(key)) return clientPool.get(key);
 
   const transport = new StdioClientTransport({
     command: 'node',
-    args: [ADT_SCRIPT],
+    args: [adtScript],
     env: {
       ...process.env,
       SAP_URL:      sapUrl,
@@ -95,7 +113,7 @@ async function getClient(creds) {
   };
 
   clientPool.set(key, client);
-  console.log(`[bridge] Connected subprocess for ${sapUrl} / ${sapUser}`);
+  console.log(`[bridge] Connected subprocess (${serverType}) for ${sapUrl} / ${sapUser}`);
   return client;
 
   transport.onclose = () => {
