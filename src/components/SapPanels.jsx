@@ -1293,8 +1293,25 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
     const vpnActive = vmStatusData?.vpn;
     const vpnSvc = vmStatusData?.vpnService || '';
+    const laptopTunnel = vmStatusData?.laptopTunnel;
+    const laptopTunnelDetail = vmStatusData?.laptopTunnelDetail || '';
 
-    if (vpnActive === null || vpnActive === undefined) {
+    // If laptop SOCKS5 tunnel is active, VPN connectivity is handled — show as ok regardless
+    if (isAdtMcpMode && laptopTunnel) {
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: 'Laptop SOCKS5 tunnel active — SAP routed via FortiClient' });
+      addLog('vpn', `Laptop tunnel active: SAP traffic routed through SOCKS5 proxy on VM → FortiClient on laptop`, 'success');
+    } else if (isAdtMcpMode && laptopTunnel === false && !vpnActive) {
+      // ADT mode, no native VPN, no laptop tunnel — stop and give setup instructions
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'No VPN — run laptop tunnel command to connect' });
+      addLog('vpn', 'Neither VM VPN nor laptop tunnel is active. On your laptop (with FortiClient running), execute:', 'error');
+      addLog('vpn', '  brew install microsocks   # one-time install', 'info');
+      addLog('vpn', '  microsocks -p 8888 &', 'info');
+      addLog('vpn', `  ssh -R 127.0.0.1:1080:127.0.0.1:8888 ubuntu@VM_IP -N &`, 'info');
+      addLog('vpn', 'Then re-run the infrastructure check.', 'warn');
+      setStoppedAt('vpn');
+      setRunning(false);
+      return;
+    } else if (vpnActive === null || vpnActive === undefined) {
       const vpnUnknownDetail = isAdtMcpMode ? 'VPN status not reported by ADT bridge' : (isUserVpn ? 'Not reported by local MCP server' : 'Status unknown — update MCP server');
       const vpnUnknownLog = isAdtMcpMode ? 'ADT bridge does not report VPN status. Ensure VM VPN is connected so the bridge can reach SAP.' : (isUserVpn ? 'Local MCP server does not report VPN status — connect FortiClient before testing SAP.' : 'VPN status unavailable (old server). Deploy latest to enable monitoring.');
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: vpnUnknownDetail });
@@ -1776,6 +1793,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const showDeploy = key === 'mcp' && (node.extra?.needsDeploy || node.status === 'error');
           const showSetup = key === 'vm' && node.status === 'error';
           const showStopVpn = key === 'vpn' && !!getMcpBase();
+          const showLaptopTunnel = key === 'vpn' && isAdtMcpMode;
 
           return (
             <div key={key} className={`rounded-lg border transition-colors ${nodeBg(node.status)}`}>
@@ -1861,6 +1879,42 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
               {showStopVpn && stopVpnMsg && (
                 <div className="px-10 pb-2">
                   <p className={`text-[10px] ${stopVpnMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>{stopVpnMsg}</p>
+                </div>
+              )}
+
+              {/* Laptop SOCKS5 tunnel setup (ADT mode only) */}
+              {showLaptopTunnel && (
+                <div className="border-t border-blue-200/30 dark:border-blue-800/30 px-3 pb-3 pt-2.5 space-y-2">
+                  <p className="text-[10px] font-semibold text-blue-500 dark:text-blue-400 flex items-center gap-1.5">
+                    <Terminal size={9} />
+                    Laptop tunnel — route SAP traffic via FortiClient
+                  </p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug -mt-1">
+                    openfortivpn cannot authenticate to this FortiGate (SAML/SSO).
+                    Instead, create a SOCKS5 proxy on your laptop and tunnel it to the VM.
+                    Run these commands on your <strong className="text-gray-300">laptop</strong> while FortiClient is connected:
+                  </p>
+                  {[
+                    { label: '1. Install microsocks (once, Mac)', cmd: 'brew install microsocks' },
+                    { label: '2. Start SOCKS5 proxy on laptop', cmd: 'microsocks -p 8888 &' },
+                    { label: '3. Tunnel it to VM (keep terminal open)', cmd: 'ssh -R 127.0.0.1:1080:127.0.0.1:8888 ubuntu@3.16.56.90 -N' },
+                  ].map((step, si) => (
+                    <div key={si} className="space-y-0.5">
+                      <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-semibold">{step.label}</p>
+                      <div className="flex items-center gap-1.5 bg-black/30 dark:bg-black/50 rounded px-2 py-1.5">
+                        <code className="flex-1 text-[10px] font-mono text-green-300 break-all leading-snug">{step.cmd}</code>
+                        <button
+                          onClick={() => { try { navigator.clipboard.writeText(step.cmd); } catch {} }}
+                          className="shrink-0 p-0.5 text-gray-500 hover:text-gray-300 transition-colors"
+                          title="Copy">
+                          <Copy size={10} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug pt-0.5">
+                    After running all 3 commands, click <strong className="text-gray-300">Check Infrastructure</strong> — the VPN node will show &ldquo;Laptop tunnel active&rdquo;.
+                  </p>
                 </div>
               )}
 

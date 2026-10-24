@@ -24,6 +24,10 @@ import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
+import net from 'node:net';
+import https from 'node:https';
+import http from 'node:http';
+import { SocksProxyAgent } from 'socks-proxy-agent';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -36,6 +40,68 @@ import {
 const PORT = Number(process.env.PORT ?? 3101);
 const SERVER_START = Date.now();
 const __dir = dirname(fileURLToPath(import.meta.url));
+
+// ── Laptop SOCKS5 tunnel helpers ──────────────────────────────
+// When the laptop creates a reverse SSH tunnel (ssh -R 1080:...), all SAP traffic
+// can route through the laptop's FortiClient VPN.
+const SOCKS_PORT = 1080;
+const SOCKS_URL  = `socks5://127.0.0.1:${SOCKS_PORT}`;
+
+function isSocksUp() {
+  return new Promise(resolve => {
+    const sock = net.createConnection({ host: '127.0.0.1', port: SOCKS_PORT });
+    sock.setTimeout(500);
+    sock.on('connect', () => { sock.destroy(); resolve(true); });
+    sock.on('error',   () => resolve(false));
+    sock.on('timeout', () => { sock.destroy(); resolve(false); });
+  });
+}
+
+// Build a fetch-compatible options object that routes through SOCKS5 when available.
+// Returns { dispatcher: SocksProxyAgent } for use with node's https/http directly,
+// or a custom fetcher wrapping https.request so native fetch isn't needed.
+async function sapFetch(url, options = {}) {
+  const useSocks = await isSocksUp();
+  if (!useSocks) {
+    return fetch(url, options);
+  }
+  // Use SocksProxyAgent with node's built-in https/http module
+  const agent = new SocksProxyAgent(SOCKS_URL);
+  const parsed = new URL(url);
+  const mod = parsed.protocol === 'https:' ? https : http;
+  return new Promise((resolve, reject) => {
+    const reqOpts = {
+      hostname: parsed.hostname,
+      port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+      path: parsed.pathname + parsed.search,
+      method: options.method || 'GET',
+      headers: options.headers || {},
+      agent,
+    };
+    const req = mod.request(reqOpts, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        const body = Buffer.concat(chunks);
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          headers: { get: (h) => res.headers[h.toLowerCase()] ?? null, entries: () => Object.entries(res.headers) },
+          arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength),
+          text: async () => body.toString('utf8'),
+          json: async () => JSON.parse(body.toString('utf8')),
+        });
+      });
+    });
+    req.on('error', reject);
+    if (options.signal) {
+      options.signal.addEventListener('abort', () => req.destroy(new Error('AbortError')));
+    }
+    const bodyData = options.body;
+    if (bodyData) req.write(bodyData);
+    req.end();
+  });
+}
 
 // Resolve the ADT server entry point for each supported server type.
 //   serverType 'abap-adt-readonly'  → mcp-abap-adt          (16 tools, read-only)
@@ -93,6 +159,15 @@ async function getClient(creds) {
   const key = `${sapUrl}|${sapUser}|${serverType}`;
   if (clientPool.has(key)) return clientPool.get(key);
 
+  // Pass SOCKS5 proxy env vars to subprocesses — respected by axios, undici, and some node:https uses
+  const proxyEnv = {};
+  const socksActive = await isSocksUp();
+  if (socksActive) {
+    proxyEnv.ALL_PROXY   = SOCKS_URL;
+    proxyEnv.HTTPS_PROXY = SOCKS_URL;
+    proxyEnv.HTTP_PROXY  = SOCKS_URL;
+  }
+
   const transport = new StdioClientTransport({
     command: 'node',
     args: [adtScript],
@@ -103,6 +178,7 @@ async function getClient(creds) {
       SAP_PASSWORD: sapPassword,
       SAP_CLIENT:   sapClient,
       SAP_LANGUAGE: sapLanguage,
+      ...proxyEnv,
     },
   });
 
@@ -156,7 +232,7 @@ app.get('/health', (_req, res) => {
 });
 
 // Infrastructure status — mirrors /status on the custom MCP server
-app.get('/status', (_req, res) => {
+app.get('/status', async (_req, res) => {
   let vpn = false, vpnDetail = '', vpnService = '';
   try {
     try {
@@ -184,8 +260,16 @@ app.get('/status', (_req, res) => {
       }
     } catch { vpnDetail = 'inactive'; }
   } catch (e) { vpnDetail = e.message?.slice(0, 80) ?? 'error'; }
+
+  const laptopTunnel = await isSocksUp();
+
   const uptime = Math.floor((Date.now() - SERVER_START) / 1000);
-  res.json({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.0.0', uptime, timestamp: new Date().toISOString() });
+  res.json({
+    vm: true, mcp: true, vpn, vpnDetail, vpnService,
+    laptopTunnel,
+    laptopTunnelDetail: laptopTunnel ? `SOCKS5 tunnel active (127.0.0.1:${SOCKS_PORT}) — SAP routed via laptop VPN` : `No laptop tunnel (run: microsocks + ssh -R ${SOCKS_PORT})`,
+    version: '1.0.0', uptime, timestamp: new Date().toISOString(),
+  });
 });
 
 // VPN control — mirrors /vpn/start and /vpn/stop on the custom MCP server
@@ -246,7 +330,7 @@ app.all('/sap-proxy*', async (req, res) => {
   forwardHeaders['host'] = new URL(sapTarget).host;
 
   try {
-    const sapRes = await fetch(targetUrl, {
+    const sapRes = await sapFetch(targetUrl, {
       method: req.method,
       headers: forwardHeaders,
       body: ['GET', 'HEAD'].includes(req.method) ? undefined : (req.body?.length ? req.body : undefined),
@@ -287,7 +371,7 @@ app.post('/sap-info', async (req, res) => {
     const timeout = setTimeout(() => controller.abort(), 15000);
     let r;
     try {
-      r = await fetch(url, {
+      r = await sapFetch(url, {
         headers: {
           'Authorization': `Basic ${basicAuth}`,
           'sap-client': client,
