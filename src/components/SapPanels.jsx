@@ -2354,9 +2354,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                             <div className="flex gap-3">
                               {[
                                 { value: 'custom', label: 'Custom SAP-MCP', desc: 'Your existing VM server (default)' },
-                                { value: 'abap-adt', label: 'ABAP ADT (read+write)', desc: 'mcp-abap-abap-adt-api · 127 tools · lock, activate, transport' },
-                                { value: 'abap-adt-readonly', label: 'ABAP ADT (read-only)', desc: 'mcp-abap-adt · 16 tools · browse source, tables, packages' },
-                                { value: 'abap-adt-both', label: 'ABAP ADT (both)', desc: '143 tools total · read+write + read-only servers simultaneously' },
+                                { value: 'abap-adt-both', label: 'ABAP ADT Community', desc: '143 tools · read+write + read-only · lock, activate, browse, transport' },
                               ].map(opt => (
                                 <label key={opt.value} className={`flex-1 flex items-start gap-2 border rounded-xl px-3 py-2 cursor-pointer transition-colors ${(env.mcp_type ?? 'custom') === opt.value ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'} ${!canEdit ? 'pointer-events-none opacity-60' : ''}`}>
                                   <input type="radio" name={`mcp_type_${env.id}`} value={opt.value} disabled={!canEdit}
