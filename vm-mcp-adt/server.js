@@ -174,10 +174,12 @@ async function getClient(creds) {
       ...process.env,
       SAP_URL:      sapUrl,
       SAP_USER:     sapUser,
+      SAP_USERNAME: sapUser,         // mcp-abap-adt uses SAP_USERNAME
       SAP_PASSWORD: sapPassword,
       SAP_CLIENT:   sapClient,
       SAP_LANGUAGE: sapLanguage,
       NODE_TLS_REJECT_UNAUTHORIZED: '0',
+      TLS_REJECT_UNAUTHORIZED: '0',  // mcp-abap-adt uses this var
       ...proxyEnv,
     },
   });
@@ -387,7 +389,7 @@ app.post('/sap-info', async (req, res) => {
         headers: {
           'Authorization': `Basic ${basicAuth}`,
           'sap-client': client,
-          'Accept': 'application/xml',
+          'Accept': 'application/atomsvc+xml',
         },
         signal: controller.signal,
       });
