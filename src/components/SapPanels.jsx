@@ -1295,8 +1295,10 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     const vpnSvc = vmStatusData?.vpnService || '';
 
     if (vpnActive === null || vpnActive === undefined) {
-      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: isUserVpn ? 'Not reported by local MCP server' : 'Status unknown — update MCP server' });
-      addLog('vpn', isUserVpn ? 'Local MCP server does not report VPN status — connect FortiClient before testing SAP.' : 'VPN status unavailable (old server). Deploy latest to enable monitoring.', 'warn');
+      const vpnUnknownDetail = isAdtMcpMode ? 'VPN status not reported by ADT bridge' : (isUserVpn ? 'Not reported by local MCP server' : 'Status unknown — update MCP server');
+      const vpnUnknownLog = isAdtMcpMode ? 'ADT bridge does not report VPN status. Ensure VM VPN is connected so the bridge can reach SAP.' : (isUserVpn ? 'Local MCP server does not report VPN status — connect FortiClient before testing SAP.' : 'VPN status unavailable (old server). Deploy latest to enable monitoring.');
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: vpnUnknownDetail });
+      addLog('vpn', vpnUnknownLog, 'warn');
     } else if (vpnActive === true && !isUserVpn) {
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: `Connected${vpnSvc ? ` (${vpnSvc})` : ''}` });
       addLog('vpn', `VPN active${vpnSvc ? `: ${vpnSvc}` : ''}`, 'success');
