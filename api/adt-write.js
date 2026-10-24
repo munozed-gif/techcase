@@ -47,9 +47,16 @@ export default async function handler(req, res) {
       body: JSON.stringify(writePayload),
       signal: AbortSignal.timeout(50000),
     });
-    const data = await r.json().catch(() => ({ ok: false, error: 'Invalid response from bridge' }));
+    const rawText = await r.text().catch(() => '');
+    let data;
+    try { data = JSON.parse(rawText); }
+    catch { data = { ok: false, error: `Bridge returned non-JSON (HTTP ${r.status}): ${rawText.slice(0, 200)}` }; }
     return res.status(r.ok ? 200 : 502).json(data);
   } catch (e) {
-    return res.status(502).json({ ok: false, error: e.message?.slice(0, 120) || 'Bridge unreachable' });
+    const msg = e.message?.slice(0, 200) || 'Bridge unreachable';
+    const hint = /timeout|abort/i.test(msg) ? `Timeout reaching ${targetBase} — is start-local.sh still running?`
+      : /ECONNREFUSED|ENOTFOUND|fetch failed/i.test(msg) ? `Cannot reach ${targetBase} — Cloudflare tunnel may have stopped`
+      : msg;
+    return res.status(502).json({ ok: false, error: hint, bridgeUrl: targetBase });
   }
 }

@@ -3990,14 +3990,14 @@ Output ONLY the ABAP source code, no explanations.`;
                 if (retryRow?.tunnel_url) freshMcpUrl = retryRow.tunnel_url.replace(/\/$/, '');
               } catch { /* ignore */ }
             }
-            addLog(`${obj.name}: MCP error, retrying with fresh URL...`, 'generating');
+            addLog(`${obj.name}: ADT bridge /mcp unreachable (generation context) — retrying...`, 'generating');
             try {
               resp = await callClaude({ ...callArgs, mcp_servers: buildSapMcpConfig(sapConfig, freshMcpUrl) });
             } catch (retryErr) {
               const stillMcp = /mcp|communicat|connection|tunnel/i.test(retryErr.message ?? '');
               if (stillMcp) {
                 // SAP live connection unavailable — fall back to generation without MCP
-                addLog(`${obj.name}: SAP live connection unavailable, generating without it...`, 'generating');
+                addLog(`${obj.name}: ADT bridge /mcp unavailable — generating without live SAP context (write step unaffected)...`, 'generating');
                 resp = await callClaude({ ...callArgs, mcp_servers: undefined });
               } else {
                 throw retryErr;
