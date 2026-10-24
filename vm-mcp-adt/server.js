@@ -23,6 +23,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -33,6 +34,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 const PORT = Number(process.env.PORT ?? 3101);
+const SERVER_START = Date.now();
 const __dir = dirname(fileURLToPath(import.meta.url));
 
 // Resolve the ADT server entry point for each supported server type.
@@ -149,6 +151,77 @@ app.get('/health', (_req, res) => {
       'abap-adt-readonly': { available: existsSync(ADT_SCRIPTS['abap-adt-readonly']), tools: 16  },
     },
   });
+});
+
+// Infrastructure status — mirrors /status on the custom MCP server
+app.get('/status', (_req, res) => {
+  let vpn = false, vpnDetail = '', vpnService = '';
+  try {
+    try {
+      const ifaces = execSync('ip link show up 2>/dev/null | grep -E "ppp[0-9]|tun[0-9]" | head -3', { timeout: 2000 }).toString().trim();
+      if (ifaces) {
+        const ifName = ifaces.match(/(ppp\d+|tun\d+)/)?.[1] || 'ppp/tun';
+        vpn = true; vpnService = ifName; vpnDetail = `Tunnel up (${ifName})`;
+        for (const svc of ['openfortivpn@vpn', 'openfortivpn', 'wg-quick@wg0', 'wireguard']) {
+          try {
+            const st = execSync(`systemctl is-active ${svc} 2>/dev/null`, { timeout: 1500 }).toString().trim();
+            if (st === 'active') { vpnService = svc; vpnDetail = `Connected (${svc})`; break; }
+          } catch { /* try next */ }
+        }
+      } else {
+        let svcActive = '';
+        for (const svc of ['openfortivpn@vpn', 'openfortivpn', 'wg-quick@wg0', 'wireguard']) {
+          try {
+            const st = execSync(`systemctl is-active ${svc} 2>/dev/null`, { timeout: 1500 }).toString().trim();
+            if (st === 'active') { svcActive = svc; break; }
+          } catch { /* try next */ }
+        }
+        vpn = false;
+        vpnDetail = svcActive ? `Service running (${svcActive}) but tunnel interface missing — VPN dropped` : 'No VPN service detected';
+        vpnService = svcActive;
+      }
+    } catch { vpnDetail = 'inactive'; }
+  } catch (e) { vpnDetail = e.message?.slice(0, 80) ?? 'error'; }
+  const uptime = Math.floor((Date.now() - SERVER_START) / 1000);
+  res.json({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.0.0', uptime, timestamp: new Date().toISOString() });
+});
+
+// VPN control — mirrors /vpn/start and /vpn/stop on the custom MCP server
+app.post('/vpn/:action(start|stop|restart)', async (req, res) => {
+  const action = req.params.action;
+  try {
+    const vpnCfg = req.body?.host ? req.body : null;
+
+    if (action === 'start' && vpnCfg?.host) {
+      const lines = [`host = ${vpnCfg.host}`, `port = ${vpnCfg.port || '443'}`, `username = ${vpnCfg.username || ''}`];
+      if (vpnCfg.trusted_cert) lines.push(`trusted-cert = ${vpnCfg.trusted_cert}`);
+      execSync('sudo mkdir -p /etc/openfortivpn', { timeout: 3000 });
+      execSync('sudo tee /etc/openfortivpn/vpn.conf', { input: lines.join('\n') + '\n', timeout: 5000 });
+      execSync('sudo chmod 600 /etc/openfortivpn/vpn.conf', { timeout: 3000 });
+      execSync('sudo tee /etc/openfortivpn/.pw', { input: vpnCfg.password || '', timeout: 3000 });
+      execSync('sudo chmod 600 /etc/openfortivpn/.pw', { timeout: 3000 });
+      const wrapper = `#!/bin/bash\nexec /usr/bin/openfortivpn -c /etc/openfortivpn/vpn.conf -p "$(sudo cat /etc/openfortivpn/.pw)"\n`;
+      execSync('sudo tee /etc/openfortivpn/start.sh', { input: wrapper, timeout: 3000 });
+      execSync('sudo chmod 755 /etc/openfortivpn/start.sh', { timeout: 3000 });
+      const dropin = `[Service]\nExecStart=\nExecStart=/etc/openfortivpn/start.sh\nRestart=on-failure\nRestartSec=30\n`;
+      execSync('sudo mkdir -p /etc/systemd/system/openfortivpn@vpn.service.d', { timeout: 3000 });
+      execSync('sudo tee /etc/systemd/system/openfortivpn@vpn.service.d/override.conf', { input: dropin, timeout: 3000 });
+      execSync('sudo systemctl daemon-reload', { timeout: 5000 });
+    }
+
+    if (action === 'stop') {
+      const noRestart = `[Service]\nExecStart=\nExecStart=/etc/openfortivpn/start.sh\nRestart=no\nRestartSec=30\n`;
+      execSync('sudo mkdir -p /etc/systemd/system/openfortivpn@vpn.service.d', { timeout: 3000 });
+      execSync('sudo tee /etc/systemd/system/openfortivpn@vpn.service.d/override.conf', { input: noRestart, timeout: 3000 });
+      execSync('sudo systemctl daemon-reload', { timeout: 5000 });
+    }
+
+    execSync(`sudo systemctl ${action} openfortivpn@vpn`, { timeout: 120000 });
+    const out = execSync('if systemctl is-active --quiet openfortivpn@vpn 2>/dev/null; then echo active; else echo inactive; fi', { timeout: 4000 }).toString().trim();
+    res.json({ ok: true, vpn: out === 'active', vpnDetail: out });
+  } catch (e) {
+    res.json({ ok: false, error: e.message?.slice(0, 200) });
+  }
 });
 
 // SAP connectivity test — mirrors /sap-info on the custom MCP server
