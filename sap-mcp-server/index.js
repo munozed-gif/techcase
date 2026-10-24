@@ -598,7 +598,7 @@ const httpServer = http.createServer(async (req, res) => {
         execSync('sudo tee /etc/openfortivpn/start.sh', { input: wrapper, timeout: 3000 });
         execSync('sudo chmod 755 /etc/openfortivpn/start.sh', { timeout: 3000 });
         // Systemd drop-in: use wrapper script, restart on crash but NOT on clean stop
-        const dropin = `[Service]\nExecStart=\nExecStart=/etc/openfortivpn/start.sh\nRestart=on-failure\nRestartSec=30\n`;
+        const dropin = `[Service]\nExecStart=\nExecStart=/etc/openfortivpn/start.sh\nRestart=no\n`;
         execSync('sudo mkdir -p /etc/systemd/system/openfortivpn@vpn.service.d', { timeout: 3000 });
         execSync('sudo tee /etc/systemd/system/openfortivpn@vpn.service.d/override.conf', { input: dropin, timeout: 3000 });
         execSync('sudo systemctl daemon-reload', { timeout: 5000 });
