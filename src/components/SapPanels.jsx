@@ -1296,27 +1296,21 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     const laptopTunnel = vmStatusData?.laptopTunnel;
     const laptopTunnelDetail = vmStatusData?.laptopTunnelDetail || '';
 
-    // ── ADT mode: openfortivpn cannot auth to SAML gateways, NEVER auto-start ──
-    // All ADT-mode VPN paths exit here — auto-solve runs only for custom-server mode below.
-    if (isAdtMcpMode) {
-      if (laptopTunnel) {
-        setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: 'Laptop SOCKS5 tunnel active — SAP routed via FortiClient' });
-        addLog('vpn', 'Laptop tunnel active: SAP traffic routed through SOCKS5 proxy on VM → FortiClient on laptop', 'success');
-      } else if (vpnActive) {
-        setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: `VM VPN connected${vpnSvc ? ` (${vpnSvc})` : ''}` });
-        addLog('vpn', `VM VPN active${vpnSvc ? `: ${vpnSvc}` : ''}`, 'success');
-      } else {
-        // No tunnel, no VPN — warn and stop. DO NOT attempt to start openfortivpn.
-        setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'No VPN — run laptop tunnel command to connect' });
-        addLog('vpn', 'No VPN tunnel active. On your laptop with FortiClient running, execute:', 'error');
-        addLog('vpn', '  brew install microsocks   # one-time install', 'info');
-        addLog('vpn', '  microsocks -p 8888 &', 'info');
-        addLog('vpn', '  ssh -R 127.0.0.1:1080:127.0.0.1:8888 ubuntu@3.16.56.90 -N &', 'info');
-        addLog('vpn', 'Then re-run the infrastructure check.', 'warn');
-        setStoppedAt('vpn');
-        setRunning(false);
-        return;
-      }
+    // If laptop SOCKS5 tunnel is active, VPN connectivity is handled — show as ok regardless
+    if (isAdtMcpMode && laptopTunnel) {
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: 'Laptop SOCKS5 tunnel active — SAP routed via FortiClient' });
+      addLog('vpn', `Laptop tunnel active: SAP traffic routed through SOCKS5 proxy on VM → FortiClient on laptop`, 'success');
+    } else if (isAdtMcpMode && laptopTunnel === false && !vpnActive) {
+      // ADT mode, no native VPN, no laptop tunnel — stop and give setup instructions
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'No VPN — run laptop tunnel command to connect' });
+      addLog('vpn', 'Neither VM VPN nor laptop tunnel is active. On your laptop (with FortiClient running), execute:', 'error');
+      addLog('vpn', '  brew install microsocks   # one-time install', 'info');
+      addLog('vpn', '  microsocks -p 8888 &', 'info');
+      addLog('vpn', `  ssh -R 127.0.0.1:1080:127.0.0.1:8888 ubuntu@VM_IP -N &`, 'info');
+      addLog('vpn', 'Then re-run the infrastructure check.', 'warn');
+      setStoppedAt('vpn');
+      setRunning(false);
+      return;
     } else if (vpnActive === null || vpnActive === undefined) {
       const vpnUnknownDetail = isAdtMcpMode ? 'VPN status not reported by ADT bridge' : (isUserVpn ? 'Not reported by local MCP server' : 'Status unknown — update MCP server');
       const vpnUnknownLog = isAdtMcpMode ? 'ADT bridge does not report VPN status. Ensure VM VPN is connected so the bridge can reach SAP.' : (isUserVpn ? 'Local MCP server does not report VPN status — connect FortiClient before testing SAP.' : 'VPN status unavailable (old server). Deploy latest to enable monitoring.');
