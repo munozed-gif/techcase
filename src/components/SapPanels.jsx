@@ -189,7 +189,7 @@ function buildAbapStandardsPrompt(standards, objectType, objectName, act, caseDa
  * Encode SAP env credentials as a base64 Bearer token for the MCP server.
  * The MCP server decodes this to make ADT calls server-side.
  */
-function buildSapMcpToken(sapConfig) {
+function buildSapMcpToken(sapConfig, serverTypeOverride) {
   if (!sapConfig?.host || !sapConfig?.username || !sapConfig?.password) return null;
   const payload = {
     host:       sapConfig.host,
@@ -198,7 +198,7 @@ function buildSapMcpToken(sapConfig) {
     client:     sapConfig.client ?? '100',
     type:       sapConfig.type ?? 's4hana',
     proxyUrl:   sapConfig.proxyUrl ?? '',
-    serverType: sapConfig.mcp_type ?? '',   // tells bridge which subprocess to spawn
+    serverType: serverTypeOverride ?? sapConfig.mcp_type ?? '',
   };
   return btoa(JSON.stringify(payload));
 }
@@ -210,11 +210,23 @@ function buildSapMcpToken(sapConfig) {
 function buildSapMcpConfig(sapConfig, mcpServerUrl) {
   if (!sapConfig?.host) return undefined;
 
-  // For ABAP ADT bridge servers (read+write 127 tools OR read-only 16 tools)
+  // Both ADT servers simultaneously — two entries, one per subprocess
+  if (sapConfig.mcp_type === 'abap-adt-both') {
+    const adtUrl = sapConfig.adt_mcp_url?.trim().replace(/\/$/, '');
+    if (!adtUrl) return undefined;
+    const tokenRW = buildSapMcpToken(sapConfig, 'abap-adt');
+    const tokenRO = buildSapMcpToken(sapConfig, 'abap-adt-readonly');
+    return [
+      { type: 'url', url: adtUrl + '/mcp', name: 'sap-adt-rw', ...(tokenRW ? { authorization_token: tokenRW } : {}) },
+      { type: 'url', url: adtUrl + '/mcp', name: 'sap-adt-ro', ...(tokenRO ? { authorization_token: tokenRO } : {}) },
+    ];
+  }
+
+  // Single ADT server (read+write OR read-only)
   if (sapConfig.mcp_type === 'abap-adt' || sapConfig.mcp_type === 'abap-adt-readonly') {
     const adtUrl = sapConfig.adt_mcp_url?.trim().replace(/\/$/, '');
     if (!adtUrl) return undefined;
-    const token = buildSapMcpToken(sapConfig); // includes serverType so bridge picks the right subprocess
+    const token = buildSapMcpToken(sapConfig);
     return [{ type: 'url', url: adtUrl + '/mcp', name: 'sap-tools', ...(token ? { authorization_token: token } : {}) }];
   }
 
@@ -1087,7 +1099,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const [diagnosing, setDiagnosing] = useState(false);
   const cancelRef = useRef(false);
 
-  const isAdtMcpMode = env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly';
+  const isAdtMcpMode = env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly' || env.mcp_type === 'abap-adt-both';
   const getMcpBase = () => {
     if (isAdtMcpMode) {
       return (env.adt_mcp_url?.trim() || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
@@ -2344,6 +2356,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                                 { value: 'custom', label: 'Custom SAP-MCP', desc: 'Your existing VM server (default)' },
                                 { value: 'abap-adt', label: 'ABAP ADT (read+write)', desc: 'mcp-abap-abap-adt-api · 127 tools · lock, activate, transport' },
                                 { value: 'abap-adt-readonly', label: 'ABAP ADT (read-only)', desc: 'mcp-abap-adt · 16 tools · browse source, tables, packages' },
+                                { value: 'abap-adt-both', label: 'ABAP ADT (both)', desc: '143 tools total · read+write + read-only servers simultaneously' },
                               ].map(opt => (
                                 <label key={opt.value} className={`flex-1 flex items-start gap-2 border rounded-xl px-3 py-2 cursor-pointer transition-colors ${(env.mcp_type ?? 'custom') === opt.value ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'} ${!canEdit ? 'pointer-events-none opacity-60' : ''}`}>
                                   <input type="radio" name={`mcp_type_${env.id}`} value={opt.value} disabled={!canEdit}
@@ -2357,7 +2370,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                                 </label>
                               ))}
                             </div>
-                            {(env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly') && (
+                            {(env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly' || env.mcp_type === 'abap-adt-both') && (
                               <div>
                                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                                   ABAP ADT Bridge URL <span className="text-red-400">*</span>
@@ -3713,8 +3726,8 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     const sorted = topoSort(subset);
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
 
-    // For ABAP ADT community mode, use the static adt_mcp_url (no registry lookup needed)
-    const isAdtMode = sapConfig?.mcp_type === 'abap-adt';
+    // For ABAP ADT community modes, use the static adt_mcp_url (no registry lookup needed)
+    const isAdtMode = sapConfig?.mcp_type === 'abap-adt' || sapConfig?.mcp_type === 'abap-adt-readonly' || sapConfig?.mcp_type === 'abap-adt-both';
     let freshMcpUrl = isAdtMode
       ? (sapConfig?.adt_mcp_url?.trim().replace(/\/$/, '') || '')
       : (sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url'] || '');
