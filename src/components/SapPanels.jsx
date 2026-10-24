@@ -4568,7 +4568,6 @@ Output ONLY the ABAP source code, no explanations.`;
                 { key: 'a', label: 'Spec A — ABAP Custom Development', desc: 'Technical objects, programs, classes, BAdIs' },
                 { key: 'b', label: 'Spec B — Standard SAP', desc: 'Standard config and SPRO approach' },
                 { key: 'c', label: 'Spec C — Customer Proposal', desc: 'Customer-facing functional proposal' },
-                { key: 'd', label: 'Spec D — Client Specification', desc: 'Client specification document' },
               ].map(({ key, label, desc }) => (
                 <label key={key}
                   className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${bpSpecChoice === key ? 'border-violet-400 bg-violet-50 dark:bg-violet-900/20' : 'border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
