@@ -1198,8 +1198,13 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     let currentMcpBase = getMcpBase();
     let vmStatusData = null;
 
+    // User VPN + ADT: bridge runs on laptop — VM and VPN nodes don't apply
+    const runLaptopBridgeMode = env.vpn_mode === 'user' && isAdtMcpMode;
+
     // ── Node 1: VM ────────────────────────────────────────────────
-    if (!infraCfg.vm.enabled) {
+    if (runLaptopBridgeMode) {
+      // skip — no VM involved in this mode
+    } else if (!infraCfg.vm.enabled) {
       setLiveNode('vm', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }] });
     } else {
     setLiveNode('vm', { status: 'checking', detail: 'Connecting…', log: [] });
@@ -1270,7 +1275,9 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     if (cancelRef.current) { setRunning(false); return; }
 
     // ── Node 2: VPN ───────────────────────────────────────────────
-    if (!infraCfg.vpn.enabled) {
+    if (runLaptopBridgeMode) {
+      // skip — VPN is managed by the user on their laptop in this mode
+    } else if (!infraCfg.vpn.enabled) {
       setLiveNode('vpn', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }] });
     } else {
     const isUserVpn = env.vpn_mode === 'user';
@@ -1700,12 +1707,14 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     setTimeout(() => setSetupCopied(s => s === idx ? null : s), 1800);
   };
 
+  // User VPN + ADT = bridge runs on laptop; VM and VPN nodes don't apply
+  const laptopBridgeMode = isUserVpnMode && isAdtMcpMode;
   const NODE_META = [
-    { key: 'vm',  label: 'Virtual Machine' },
-    { key: 'vpn', label: 'VPN' },
-    { key: 'mcp', label: isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP Server' },
+    !laptopBridgeMode && { key: 'vm',  label: 'Virtual Machine' },
+    !laptopBridgeMode && { key: 'vpn', label: 'VPN' },
+    { key: 'mcp', label: laptopBridgeMode ? 'ADT Bridge (Laptop)' : isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP Server' },
     { key: 'sap', label: 'SAP Connection' },
-  ];
+  ].filter(Boolean);
 
   async function stopVmVpn() {
     const base = getMcpBase();
