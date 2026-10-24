@@ -4021,7 +4021,11 @@ Output ONLY the ABAP source code, no explanations.`;
             applyVia = `${freshMcpUrl}/sap-proxy`;
           }
           const applyCfg = applyVia ? { ...sapConfig, proxyUrl: applyVia } : sapConfig;
-          addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
+          const mcpTypeLabel = sapConfig.mcp_type === 'abap-adt' ? 'mcp-abap-abap-adt-api (127 tools R+W)'
+            : sapConfig.mcp_type === 'abap-adt-readonly' ? 'mcp-abap-adt (16 tools R/O)'
+            : sapConfig.mcp_type === 'abap-adt-both' ? 'abap-adt-both (143 tools)'
+            : 'custom MCP';
+          addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabel}] → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
           const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined);
           if (result.ok) {
             updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
@@ -4101,7 +4105,13 @@ Output ONLY the ABAP source code, no explanations.`;
       if (applyMcpUrl) applyVia = `${applyMcpUrl}/sap-proxy`;
     }
     const applyCfg = applyVia ? { ...sapConfig, proxyUrl: applyVia } : sapConfig;
-    addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
+    const mcpTypeLabelManual = isAdtMcpMode
+      ? (sapConfig.mcp_type === 'abap-adt' ? 'mcp-abap-abap-adt-api (127 tools R+W)'
+        : sapConfig.mcp_type === 'abap-adt-readonly' ? 'mcp-abap-adt (16 tools R/O)'
+        : sapConfig.mcp_type === 'abap-adt-both' ? 'abap-adt-both (143 tools)'
+        : 'ADT')
+      : 'custom MCP';
+    addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabelManual}] → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
     const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined);
     if (result.ok) {
       updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), error: null });
