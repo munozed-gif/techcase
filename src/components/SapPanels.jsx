@@ -1844,7 +1844,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const showDeploy = key === 'mcp' && (node.extra?.needsDeploy || node.status === 'error');
           const showSetup = key === 'vm' && node.status === 'error';
           const showStopVpn = key === 'vpn' && !!getMcpBase();
-          const showLaptopTunnel = key === 'vpn' && isAdtMcpMode;
+          const showLaptopTunnel = key === 'vpn' && isAdtMcpMode && !laptopBridgeMode;
 
           return (
             <div key={key} className={`rounded-lg border transition-colors ${nodeBg(node.status)}`}>
