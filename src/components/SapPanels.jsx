@@ -1660,7 +1660,14 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
   }
 
   const isUserVpnMode = env.vpn_mode === 'user';
-  const SETUP_STEPS = isUserVpnMode
+  const SETUP_STEPS = isUserVpnMode && isAdtMcpMode
+    ? [
+        { label: '1. Clone repo on your laptop (once)', cmd: 'git clone https://github.com/munozed-gif/techcase.git' },
+        { label: '2. Install cloudflared (once)', cmd: 'brew install cloudflared' },
+        { label: '3. Start ADT bridge + tunnel (FortiClient must be connected)', cmd: 'cd techcase/vm-mcp-adt && ./start-local.sh' },
+        { label: '4. Copy the tunnel URL into SAP Config → ADT Bridge URL', cmd: '' },
+      ]
+    : isUserVpnMode
     ? [
         { label: '1. Clone repo on your laptop (once)', cmd: 'git clone https://github.com/munozed-gif/techcase.git' },
         { label: '2. Start MCP server + tunnel', cmd: 'cd techcase/sap-mcp-server && ./start-local.sh' },
@@ -1848,9 +1855,14 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                       ? 'Run these commands in your laptop terminal:'
                       : 'Run these commands on the VM (via SSH):'}
                   </p>
-                  {isUserVpnMode && (
+                  {isUserVpnMode && !isAdtMcpMode && (
                     <p className="text-[10px] text-blue-400/80 leading-snug -mt-1">
                       <code className="font-mono">start-local.sh</code> auto-registers the tunnel URL — the platform will find it automatically.
+                    </p>
+                  )}
+                  {isUserVpnMode && isAdtMcpMode && (
+                    <p className="text-[10px] text-blue-400/80 leading-snug -mt-1">
+                      Run on your laptop while <strong className="text-white">FortiClient is connected</strong>. The ADT bridge talks to SAP directly via your VPN.
                     </p>
                   )}
                   {SETUP_STEPS.map((step, si) => (
