@@ -213,7 +213,8 @@ async function getClient(creds) {
 async function registerTunnelUrl() {
   const publicUrl   = process.env.PUBLIC_URL?.trim();
   const supabaseUrl = process.env.SUPABASE_URL?.trim();
-  const supabaseKey = process.env.SUPABASE_ANON_KEY?.trim();
+  // Strip any non-printable / non-ASCII chars that could corrupt the HTTP header
+  const supabaseKey = process.env.SUPABASE_ANON_KEY?.trim().replace(/[^\x21-\x7E]/g, '');
   if (!publicUrl || !supabaseUrl || !supabaseKey) return;
 
   try {
