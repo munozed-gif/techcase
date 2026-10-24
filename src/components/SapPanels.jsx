@@ -3703,7 +3703,18 @@ Output ONLY the ABAP source code, no explanations.`;
               if (retryRow?.tunnel_url) freshMcpUrl = retryRow.tunnel_url.replace(/\/$/, '');
             } catch { /* ignore */ }
             addLog(`${obj.name}: MCP error, retrying with fresh URL...`, 'generating');
-            resp = await callClaude({ ...callArgs, mcp_servers: buildSapMcpConfig(sapConfig, freshMcpUrl) });
+            try {
+              resp = await callClaude({ ...callArgs, mcp_servers: buildSapMcpConfig(sapConfig, freshMcpUrl) });
+            } catch (retryErr) {
+              const stillMcp = /mcp|communicat|connection|tunnel/i.test(retryErr.message ?? '');
+              if (stillMcp) {
+                // SAP live connection unavailable — fall back to generation without MCP
+                addLog(`${obj.name}: SAP live connection unavailable, generating without it...`, 'generating');
+                resp = await callClaude({ ...callArgs, mcp_servers: undefined });
+              } else {
+                throw retryErr;
+              }
+            }
           } else {
             throw mcpErr;
           }
