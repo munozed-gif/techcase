@@ -5117,15 +5117,18 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
     setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), applyingScript: true, scriptLog: [], appliedScript: false, scriptApplyError: null } }));
     try {
       // Route through the MCP server proxy (VM has VPN access to SAP; direct browser→SAP is blocked by CORS)
-      let mcpBase = (enrichedSapConfig.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']?.trim() || '')
-        .replace(/\/mcp\/?$/, '').replace(/\/$/, '');
-      if (mcpBase) {
+      const _isAdtScript = enrichedSapConfig?.mcp_type === 'abap-adt' || enrichedSapConfig?.mcp_type === 'abap-adt-readonly' || enrichedSapConfig?.mcp_type === 'abap-adt-both';
+      let mcpBase = _isAdtScript
+        ? (enrichedSapConfig.adt_mcp_url?.trim().replace(/\/$/, '') || '')
+        : (enrichedSapConfig.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']?.trim() || '');
+      mcpBase = mcpBase.replace(/\/mcp\/?$/, '').replace(/\/$/, '');
+      if (mcpBase && !_isAdtScript) {
         try {
           const { data } = await supabase.from('vm_tunnel_registry').select('tunnel_url').order('updated_at', { ascending: false }).limit(1).maybeSingle();
           if (data?.tunnel_url) mcpBase = data.tunnel_url.replace(/\/$/, '');
         } catch {}
-        addLog(`Using MCP proxy: ${mcpBase}/sap-proxy`);
       }
+      if (mcpBase) addLog(`Using MCP proxy: ${mcpBase}/sap-proxy`);
       const effectiveCfg = mcpBase
         ? { ...enrichedSapConfig, proxyUrl: `${mcpBase}/sap-proxy` }
         : enrichedSapConfig;
@@ -5162,9 +5165,12 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
     if (!programName) return;
     setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), runningScript: true, runError: null } }));
     try {
-      let mcpBase = (enrichedSapConfig.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']?.trim() || '')
-        .replace(/\/mcp\/?$/, '').replace(/\/$/, '');
-      if (mcpBase) {
+      const _isAdtRun = enrichedSapConfig?.mcp_type === 'abap-adt' || enrichedSapConfig?.mcp_type === 'abap-adt-readonly' || enrichedSapConfig?.mcp_type === 'abap-adt-both';
+      let mcpBase = _isAdtRun
+        ? (enrichedSapConfig.adt_mcp_url?.trim().replace(/\/$/, '') || '')
+        : (enrichedSapConfig.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']?.trim() || '');
+      mcpBase = mcpBase.replace(/\/mcp\/?$/, '').replace(/\/$/, '');
+      if (mcpBase && !_isAdtRun) {
         try {
           const { data } = await supabase.from('vm_tunnel_registry').select('tunnel_url').order('updated_at', { ascending: false }).limit(1).maybeSingle();
           if (data?.tunnel_url) mcpBase = data.tunnel_url.replace(/\/$/, '');
