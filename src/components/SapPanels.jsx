@@ -2426,16 +2426,20 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                           )}
                         </div>
                         <div className="sm:col-span-2">
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            SAP MCP Server URL <span className="text-gray-400 font-normal">(optional — overrides global setting)</span>
-                          </label>
-                          <div className="flex gap-2 items-center">
-                            <input value={env.mcp_server_url ?? ''} onChange={e => updateEnvField(env.id, 'mcp_server_url', e.target.value)} disabled={!canEdit}
-                              placeholder={ssCtx.settings['sap_mcp_server_url'] ? `Global: ${ssCtx.settings['sap_mcp_server_url']}` : 'https://your-mcp-server.trycloudflare.com'}
-                              className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
-                            <McpRestartButton mcpUrl={env.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']} />
-                          </div>
-                          <p className="text-xs text-gray-400 mt-0.5">Leave blank to use the global MCP server URL from AI Configuration settings.</p>
+                          {!(env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly' || env.mcp_type === 'abap-adt-both') && (
+                            <>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                SAP MCP Server URL <span className="text-gray-400 font-normal">(optional — overrides global setting)</span>
+                              </label>
+                              <div className="flex gap-2 items-center">
+                                <input value={env.mcp_server_url ?? ''} onChange={e => updateEnvField(env.id, 'mcp_server_url', e.target.value)} disabled={!canEdit}
+                                  placeholder={ssCtx.settings['sap_mcp_server_url'] ? `Global: ${ssCtx.settings['sap_mcp_server_url']}` : 'https://your-mcp-server.trycloudflare.com'}
+                                  className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                                <McpRestartButton mcpUrl={env.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']} />
+                              </div>
+                              <p className="text-xs text-gray-400 mt-0.5">Leave blank to use the global MCP server URL from AI Configuration settings.</p>
+                            </>
+                          )}
                           {/* MCP server type selector */}
                           <div className="mt-2 space-y-2">
                             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">MCP Server Type</label>
@@ -2464,7 +2468,12 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                                 <input value={env.adt_mcp_url ?? ''} onChange={e => updateEnvField(env.id, 'adt_mcp_url', e.target.value)} disabled={!canEdit}
                                   placeholder="https://your-tunnel.trycloudflare.com (port 3101)"
                                   className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
-                                <p className="text-xs text-gray-400 mt-0.5">Deploy <code className="text-blue-400">vm-mcp-adt/</code> on your VM (port 3101), expose via tunnel. See <code className="text-blue-400">vm-mcp-adt/</code> folder in the repo.</p>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  {env.vpn_mode === 'user'
+                                    ? <>Run <code className="text-blue-400">vm-mcp-adt/start-local.sh</code> on your laptop (FortiClient must be connected) — the tunnel URL is printed on startup.</>
+                                    : <>Deploy <code className="text-blue-400">vm-mcp-adt/</code> on your VM (port 3101), expose via tunnel. See <code className="text-blue-400">vm-mcp-adt/</code> folder in the repo.</>
+                                  }
+                                </p>
                               </div>
                             )}
                           </div>
