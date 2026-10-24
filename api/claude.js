@@ -26,11 +26,10 @@ function decryptApiKey(enc) {
 
 // ── Usage check (does NOT increment yet) ────────────────────
 async function checkUsage(userId) {
-  const { data: user } = await db()
-    .from("users")
-    .select("is_pro, anthropic_api_key_enc, role")
-    .eq("id", userId)
-    .single();
+  const [{ data: user }, { data: planRow }] = await Promise.all([
+    db().from("users").select("is_pro, anthropic_api_key_enc, role").eq("id", userId).single(),
+    db().from("system_settings").select("value").eq("key", "user_plans").maybeSingle(),
+  ]);
 
   if (!user) return { allowed: true, apiKey: null, isPro: false, isByok: false, used: 0, usageId: null };
 
@@ -43,8 +42,10 @@ async function checkUsage(userId) {
     if (apiKey) return { allowed: true, apiKey, isPro: false, isByok: true, used: 0, usageId: null };
   }
 
-  // Pro — unlimited via master key
-  if (user.is_pro) return { allowed: true, apiKey: null, isPro: true, isByok: false, used: 0, usageId: null };
+  // Pro — either is_pro flag OR plan set to non-free via admin plan dropdown
+  const userPlans = planRow?.value ?? {};
+  const assignedPlan = userPlans[userId]?.plan ?? 'free';
+  if (user.is_pro || assignedPlan !== 'free') return { allowed: true, apiKey: null, isPro: true, isByok: false, used: 0, usageId: null };
 
   // Free tier — check monthly count
   const month = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
