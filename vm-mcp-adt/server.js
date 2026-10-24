@@ -234,25 +234,37 @@ app.get('/health', (_req, res) => {
 // Infrastructure status — mirrors /status on the custom MCP server
 app.get('/status', async (_req, res) => {
   let vpn = false, vpnDetail = '', vpnService = '';
+  const isMac = process.platform === 'darwin';
   try {
     try {
-      const ifaces = execSync('ip link show up 2>/dev/null | grep -E "ppp[0-9]|tun[0-9]" | head -3', { timeout: 2000 }).toString().trim();
+      // Mac (FortiClient uses utun*): use ifconfig; Linux: use ip link
+      let ifaces = '';
+      if (isMac) {
+        ifaces = execSync('ifconfig 2>/dev/null | grep -oE "^(ppp|tun|utun)[0-9]+" | head -3', { timeout: 2000 }).toString().trim();
+      } else {
+        ifaces = execSync('ip link show up 2>/dev/null | grep -oE "(ppp|tun)[0-9]+" | head -3', { timeout: 2000 }).toString().trim();
+      }
       if (ifaces) {
-        const ifName = ifaces.match(/(ppp\d+|tun\d+)/)?.[1] || 'ppp/tun';
-        vpn = true; vpnService = ifName; vpnDetail = `Tunnel up (${ifName})`;
-        for (const svc of ['openfortivpn@vpn', 'openfortivpn', 'wg-quick@wg0', 'wireguard']) {
-          try {
-            const st = execSync(`systemctl is-active ${svc} 2>/dev/null`, { timeout: 1500 }).toString().trim();
-            if (st === 'active') { vpnService = svc; vpnDetail = `Connected (${svc})`; break; }
-          } catch { /* try next */ }
+        const ifName = ifaces.split('\n')[0].trim();
+        vpn = true; vpnService = ifName;
+        vpnDetail = isMac ? `FortiClient connected (${ifName})` : `Tunnel up (${ifName})`;
+        if (!isMac) {
+          for (const svc of ['openfortivpn@vpn', 'openfortivpn', 'wg-quick@wg0', 'wireguard']) {
+            try {
+              const st = execSync(`systemctl is-active ${svc} 2>/dev/null`, { timeout: 1500 }).toString().trim();
+              if (st === 'active') { vpnService = svc; vpnDetail = `Connected (${svc})`; break; }
+            } catch { /* try next */ }
+          }
         }
       } else {
         let svcActive = '';
-        for (const svc of ['openfortivpn@vpn', 'openfortivpn', 'wg-quick@wg0', 'wireguard']) {
-          try {
-            const st = execSync(`systemctl is-active ${svc} 2>/dev/null`, { timeout: 1500 }).toString().trim();
-            if (st === 'active') { svcActive = svc; break; }
-          } catch { /* try next */ }
+        if (!isMac) {
+          for (const svc of ['openfortivpn@vpn', 'openfortivpn', 'wg-quick@wg0', 'wireguard']) {
+            try {
+              const st = execSync(`systemctl is-active ${svc} 2>/dev/null`, { timeout: 1500 }).toString().trim();
+              if (st === 'active') { svcActive = svc; break; }
+            } catch { /* try next */ }
+          }
         }
         vpn = false;
         vpnDetail = svcActive ? `Service running (${svcActive}) but tunnel interface missing — VPN dropped` : 'No VPN service detected';
