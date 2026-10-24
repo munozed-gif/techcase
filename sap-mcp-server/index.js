@@ -610,12 +610,14 @@ const httpServer = http.createServer(async (req, res) => {
         execSync('sudo mkdir -p /etc/systemd/system/openfortivpn@vpn.service.d', { timeout: 3000 });
         execSync('sudo tee /etc/systemd/system/openfortivpn@vpn.service.d/override.conf', { input: noRestartDropin, timeout: 3000 });
         execSync('sudo systemctl daemon-reload', { timeout: 5000 });
+        execSync('sudo systemctl stop openfortivpn@vpn', { timeout: 30000 });
+        execSync('sudo systemctl disable openfortivpn@vpn 2>/dev/null || true', { timeout: 5000 });
+      } else {
+        execSync(
+          `sudo systemctl ${action} openfortivpn@vpn`,
+          { timeout: 120000 }
+        );
       }
-
-      execSync(
-        `sudo systemctl ${action} openfortivpn@vpn`,
-        { timeout: 120000 }
-      );
       const out = execSync(
         'if systemctl is-active --quiet openfortivpn@vpn 2>/dev/null; then echo active; else echo inactive; fi',
         { timeout: 4000 }
