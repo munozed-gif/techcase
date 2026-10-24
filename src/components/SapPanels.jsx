@@ -289,22 +289,23 @@ async function sapGetCsrfToken(config) {
 async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest) {
   const path = sapObjectPath(objectType, objectName);
 
-  // When an ADT bridge proxy is set, use the bridge's /sap-write endpoint which
-  // handles CSRF fetch + PUT in one server-side session, avoiding cross-domain
-  // cookie loss that causes 403 when split across two browser requests.
+  // When an ADT bridge proxy is set, route the write through Vercel's /api/adt-write
+  // (same origin → no CORS) which proxies to the bridge server-side.
+  // This avoids Cloudflare quick tunnel CORS restrictions on direct browser fetch.
   const proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
   const adtWriteBase = proxyUrl?.replace(/\/sap-proxy\/?$/, '');
   if (adtWriteBase && !adtWriteBase.includes('/api/sap-proxy')) {
     try {
-      const r = await fetch(`${adtWriteBase}/sap-write`, {
+      const r = await fetch('/api/adt-write', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          bridgeUrl: adtWriteBase,
           host: config.host, username: config.username,
           password: config.password, client: config.client || '100',
           path, source, transport: transportRequest,
         }),
-        signal: AbortSignal.timeout(45000),
+        signal: AbortSignal.timeout(55000),
       });
       const data = await r.json().catch(() => ({ ok: false, error: 'Invalid response' }));
       return data;
