@@ -1301,9 +1301,34 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       setLiveNode('vpn', { status: 'checking', detail: 'Checking FortiClient VPN…', log: [] });
       addLog('vpn', 'Checking FortiClient VPN status via ADT bridge…');
       try {
-        const sr = await fetch(`${currentMcpBase}/status`, { signal: AbortSignal.timeout(6000) });
-        if (sr.ok) {
-          const sd = await sr.json();
+        let statusRes = await fetch(`${currentMcpBase}/status`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+
+        // If bridge unreachable, try auto-detecting a new tunnel URL from system_settings
+        if (!statusRes?.ok) {
+          addLog('vpn', 'Bridge unreachable — checking registry for updated tunnel URL…', 'warn');
+          try {
+            const { data: sData } = await supabase
+              .from('system_settings')
+              .select('value, updated_at')
+              .eq('key', 'adt_bridge_tunnel_url')
+              .maybeSingle();
+            if (sData?.value) {
+              const freshUrl = sData.value.replace(/\/$/, '');
+              const ageMins = Math.round((Date.now() - new Date(sData.updated_at).getTime()) / 60000);
+              if (freshUrl !== currentMcpBase) {
+                addLog('vpn', `Found new bridge URL (${ageMins}m ago): ${freshUrl}`);
+                currentMcpBase = freshUrl;
+                if (onUpdateMcpUrl) onUpdateMcpUrl(freshUrl);
+                statusRes = await fetch(`${currentMcpBase}/status`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+              }
+            } else {
+              addLog('vpn', 'No URL in registry. Configure ~/.adt-bridge.env with Supabase creds so start-local.sh auto-registers.', 'warn');
+            }
+          } catch {}
+        }
+
+        if (statusRes?.ok) {
+          const sd = await statusRes.json();
           if (sd.vpn) {
             setLiveNode('vpn', { status: 'ok', detail: sd.vpnDetail || 'FortiClient connected' });
             addLog('vpn', sd.vpnDetail || 'FortiClient VPN connected', 'success');
@@ -1312,8 +1337,11 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
             addLog('vpn', sd.vpnDetail || 'FortiClient not detected. Connect to ADMOSA VPN before testing SAP.', 'warn');
           }
         } else {
-          setLiveNode('vpn', { status: 'warning', detail: 'Could not read VPN status from bridge' });
-          addLog('vpn', 'Bridge did not return VPN status', 'warn');
+          setLiveNode('vpn', { status: 'error', detail: 'ADT bridge unreachable — is start-local.sh running?' });
+          addLog('vpn', 'Cannot reach ADT bridge. Run vm-mcp-adt/start-local.sh on your laptop and update ADT Bridge URL in settings.', 'error');
+          setStoppedAt('vpn');
+          setRunning(false);
+          return;
         }
       } catch (e) {
         setLiveNode('vpn', { status: 'warning', detail: 'VPN status check failed' });
@@ -1528,19 +1556,43 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       if (!healthData) {
         addLog('mcp', 'MCP still unreachable — checking if tunnel URL changed…', 'warn');
         try {
-          const { data: tData } = await supabase
-            .from('vm_tunnel_registry')
-            .select('tunnel_url, updated_at')
-            .order('updated_at', { ascending: false })
-            .limit(1).maybeSingle();
-          if (tData?.tunnel_url) {
-            const freshUrl = tData.tunnel_url.replace(/\/$/, '');
-            if (freshUrl !== currentMcpBase) {
-              addLog('mcp', `New tunnel URL: ${freshUrl} — retrying…`);
-              currentMcpBase = freshUrl;
-              if (onUpdateMcpUrl) onUpdateMcpUrl(freshUrl);
-              const rhr2 = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
-              if (rhr2?.ok) { healthData = await rhr2.json(); addLog('mcp', 'MCP reached via new tunnel URL', 'success'); }
+          if (isAdtMcpMode) {
+            // ADT mode: bridge registers its URL in system_settings on startup
+            const { data: sData } = await supabase
+              .from('system_settings')
+              .select('value, updated_at')
+              .eq('key', 'adt_bridge_tunnel_url')
+              .maybeSingle();
+            if (sData?.value) {
+              const freshUrl = sData.value.replace(/\/$/, '');
+              const ageMins = Math.round((Date.now() - new Date(sData.updated_at).getTime()) / 60000);
+              if (freshUrl !== currentMcpBase) {
+                addLog('mcp', `New ADT bridge URL (${ageMins}m ago): ${freshUrl} — retrying…`);
+                currentMcpBase = freshUrl;
+                if (onUpdateMcpUrl) onUpdateMcpUrl(freshUrl);
+                const rhr2 = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+                if (rhr2?.ok) { healthData = await rhr2.json(); addLog('mcp', 'ADT bridge reached via updated tunnel URL ✓', 'success'); }
+              } else {
+                addLog('mcp', 'Registered URL matches current — bridge may be down or not running', 'warn');
+              }
+            } else {
+              addLog('mcp', 'No URL in registry — start-local.sh may not have Supabase creds configured', 'warn');
+            }
+          } else {
+            const { data: tData } = await supabase
+              .from('vm_tunnel_registry')
+              .select('tunnel_url, updated_at')
+              .order('updated_at', { ascending: false })
+              .limit(1).maybeSingle();
+            if (tData?.tunnel_url) {
+              const freshUrl = tData.tunnel_url.replace(/\/$/, '');
+              if (freshUrl !== currentMcpBase) {
+                addLog('mcp', `New tunnel URL: ${freshUrl} — retrying…`);
+                currentMcpBase = freshUrl;
+                if (onUpdateMcpUrl) onUpdateMcpUrl(freshUrl);
+                const rhr2 = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+                if (rhr2?.ok) { healthData = await rhr2.json(); addLog('mcp', 'MCP reached via new tunnel URL', 'success'); }
+              }
             }
           }
         } catch {}

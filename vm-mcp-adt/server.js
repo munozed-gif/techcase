@@ -206,6 +206,42 @@ async function getClient(creds) {
   return client;
 }
 
+// ── Auto-register tunnel URL in Supabase system_settings ─────
+// When PUBLIC_URL + SUPABASE_URL + SUPABASE_ANON_KEY are set (via start-local.sh),
+// upsert { key: 'adt_bridge_tunnel_url', value: PUBLIC_URL } so the platform can
+// auto-detect the new URL without manual copy-paste after each restart.
+async function registerTunnelUrl() {
+  const publicUrl   = process.env.PUBLIC_URL?.trim();
+  const supabaseUrl = process.env.SUPABASE_URL?.trim();
+  const supabaseKey = process.env.SUPABASE_ANON_KEY?.trim();
+  if (!publicUrl || !supabaseUrl || !supabaseKey) return;
+
+  try {
+    const endpoint = `${supabaseUrl}/rest/v1/system_settings`;
+    const payload  = JSON.stringify({ key: 'adt_bridge_tunnel_url', value: publicUrl });
+    const res = await new Promise((resolve, reject) => {
+      const u = new URL(endpoint);
+      const req = https.request({
+        hostname: u.hostname,
+        path: u.pathname + '?on_conflict=key',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Prefer': 'resolution=merge-duplicates',
+        },
+      }, (r) => { r.resume(); resolve(r.statusCode); });
+      req.on('error', reject);
+      req.write(payload);
+      req.end();
+    });
+    console.log(`[bridge] Registered tunnel URL in Supabase (HTTP ${res}): ${publicUrl}`);
+  } catch (e) {
+    console.warn(`[bridge] Could not register tunnel URL: ${e.message}`);
+  }
+}
+
 // ── Express app ───────────────────────────────────────────────
 const app = express();
 // Raw body for /sap-proxy (SAP expects exact bytes); JSON for everything else
@@ -573,4 +609,5 @@ app.listen(PORT, () => {
   console.log(`[bridge] MCP endpoint: http://localhost:${PORT}/mcp`);
   console.log(`[bridge] SAP credentials read from Authorization header (sent by the app)`);
   if (process.env.SAP_URL) console.log(`[bridge] .env fallback SAP_URL: ${process.env.SAP_URL}`);
+  registerTunnelUrl();
 });

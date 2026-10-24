@@ -109,5 +109,26 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# ── Load Supabase credentials (for auto-registering tunnel URL) ─
+# Create ~/.adt-bridge.env with:
+#   SUPABASE_URL=https://your-project.supabase.co
+#   SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_URL=""
+SUPABASE_ANON_KEY=""
+if [ -f "$HOME/.adt-bridge.env" ]; then
+  # shellcheck disable=SC1090
+  source "$HOME/.adt-bridge.env"
+  echo "[config] Loaded Supabase credentials from ~/.adt-bridge.env"
+elif [ -f "$SCRIPT_DIR/.env" ]; then
+  source "$SCRIPT_DIR/.env"
+  echo "[config] Loaded Supabase credentials from .env"
+fi
+if [ -n "$SUPABASE_URL" ]; then
+  echo "[config] Will auto-register tunnel URL in Supabase on startup"
+else
+  echo "[config] No Supabase creds found — tunnel URL won't auto-register"
+  echo "         (Create ~/.adt-bridge.env with SUPABASE_URL and SUPABASE_ANON_KEY to enable)"
+fi
+
 # ── Start the ADT bridge ───────────────────────────────────────
-PORT=$PORT node server.js
+PORT=$PORT PUBLIC_URL="$TUNNEL_URL" SUPABASE_URL="$SUPABASE_URL" SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" node server.js
