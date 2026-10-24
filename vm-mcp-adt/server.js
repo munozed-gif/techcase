@@ -125,6 +125,56 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'abap-adt-bridge', version: '1.0.0' });
 });
 
+// SAP connectivity test — mirrors /sap-info on the custom MCP server
+// Accepts SAP creds from Authorization header (same base64 JSON token as /mcp)
+// OR from request body { host, username, password, client }
+app.post('/sap-info', async (req, res) => {
+  try {
+    const creds = parseSapCreds(req.headers['authorization']) || {};
+    const host     = (creds.host     || req.body?.host     || process.env.SAP_URL      || '').replace(/\/$/, '');
+    const username = creds.username  || req.body?.username || process.env.SAP_USER     || '';
+    const password = creds.password  || req.body?.password || process.env.SAP_PASSWORD || '';
+    const client   = creds.client    || req.body?.client   || process.env.SAP_CLIENT   || '100';
+
+    if (!host || !username || !password) {
+      return res.json({ ok: false, error: 'Missing SAP credentials' });
+    }
+
+    const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
+    const url = `${host}/sap/bc/adt/discovery`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    let r;
+    try {
+      r = await fetch(url, {
+        headers: {
+          'Authorization': `Basic ${basicAuth}`,
+          'sap-client': client,
+          'Accept': 'application/xml',
+        },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (r.ok || r.status === 401 || r.status === 403) {
+      // 401/403 means SAP is reachable, just wrong creds/perms
+      if (r.ok) {
+        res.json({ ok: true, status: r.status, systemInfo: `${host} (ADT reachable)` });
+      } else {
+        res.json({ ok: false, status: r.status, error: r.status === 401 ? 'Invalid credentials' : 'No ADT authorization' });
+      }
+    } else {
+      res.json({ ok: false, status: r.status, error: `HTTP ${r.status}` });
+    }
+  } catch (err) {
+    const msg = err.name === 'AbortError' ? 'SAP request timed out' : (err.message?.slice(0, 80) || 'Connection failed');
+    res.json({ ok: false, error: msg });
+  }
+});
+
 // ── MCP endpoint ─────────────────────────────────────────────
 // Session store: sessionId → { server, transport }
 const sessions = new Map();

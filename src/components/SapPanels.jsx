@@ -1517,7 +1517,8 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     }
 
     const deployedVer = healthData?.version ?? serverVer ?? null;
-    const verMismatch = deployedVer && bundledVersion && bundledVersion !== '?' && deployedVer !== bundledVersion;
+    // In ADT mode there's no "bundled version" to compare against — skip mismatch check
+    const verMismatch = !isAdtMcpMode && deployedVer && bundledVersion && bundledVersion !== '?' && deployedVer !== bundledVersion;
     const mcpExtra = { deployedVersion: deployedVer, bundledVersion, needsDeploy: verMismatch };
 
     if (verMismatch) {
@@ -1525,7 +1526,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       addLog('mcp', `Version mismatch: deployed v${deployedVer}, bundled v${bundledVersion} — use Deploy button to update`, 'warn');
     } else {
       setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'ok', detail: `v${deployedVer ?? '?'} running`, extra: mcpExtra });
-      addLog('mcp', `MCP server OK (v${deployedVer ?? '?'})`, 'success');
+      addLog('mcp', `${mcpLabel} OK (v${deployedVer ?? '?'})`, 'success');
     }
     } // end infraCfg.mcp.enabled
 
