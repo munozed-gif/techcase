@@ -289,15 +289,37 @@ async function sapGetCsrfToken(config) {
 async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest) {
   const path = sapObjectPath(objectType, objectName);
 
-  // Try to get CSRF token; if it fails (e.g. CORS blocks X-CSRF-Token header),
-  // attempt the PUT without a token — some SAP systems don't enforce it.
+  // When an ADT bridge proxy is set, use the bridge's /sap-write endpoint which
+  // handles CSRF fetch + PUT in one server-side session, avoiding cross-domain
+  // cookie loss that causes 403 when split across two browser requests.
+  const proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
+  const adtWriteBase = proxyUrl?.replace(/\/sap-proxy\/?$/, '');
+  if (adtWriteBase && !adtWriteBase.includes('/api/sap-proxy')) {
+    try {
+      const r = await fetch(`${adtWriteBase}/sap-write`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          host: config.host, username: config.username,
+          password: config.password, client: config.client || '100',
+          path, source, transport: transportRequest,
+        }),
+        signal: AbortSignal.timeout(45000),
+      });
+      const data = await r.json().catch(() => ({ ok: false, error: 'Invalid response' }));
+      return data;
+    } catch (e) {
+      return { ok: false, phase: 'write', error: e.message?.slice(0, 120) || 'Bridge write failed' };
+    }
+  }
+
+  // Fallback: direct or Vercel-proxy path (original CSRF + PUT flow)
   let csrfToken = '';
   let csrfError = null;
   try {
     csrfToken = await sapGetCsrfToken(config);
   } catch (e) {
     csrfError = e.message;
-    // Continue without token — will fail with 403 if SAP requires it
   }
 
   let res;
@@ -313,7 +335,6 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
       body: source,
     });
   } catch (e) {
-    // Network/CORS error on the PUT itself
     const corsHint = `Load failed — SAP needs CORS configured for PUT requests from ${typeof window !== 'undefined' ? window.location.origin : 'this domain'}. ` +
       `Ask your SAP basis team to allow PUT, X-CSRF-Token, corrNbr in SICF CORS settings.` +
       (csrfError ? ` (CSRF fetch also failed: ${csrfError})` : '');
@@ -3904,13 +3925,15 @@ Output ONLY the ABAP source code, no explanations.`;
         } catch (mcpErr) {
           const isMcpError = /mcp|communicat|connection|tunnel/i.test(mcpErr.message ?? '');
           if (isMcpError) {
-            // Refresh tunnel URL and retry once
-            try {
-              const { data: retryRow } = await supabase
-                .from('vm_tunnel_registry').select('tunnel_url')
-                .order('updated_at', { ascending: false }).limit(1).maybeSingle();
-              if (retryRow?.tunnel_url) freshMcpUrl = retryRow.tunnel_url.replace(/\/$/, '');
-            } catch { /* ignore */ }
+            // Refresh tunnel URL and retry once (registry only for custom MCP, not ADT mode)
+            if (!isAdtMode) {
+              try {
+                const { data: retryRow } = await supabase
+                  .from('vm_tunnel_registry').select('tunnel_url')
+                  .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+                if (retryRow?.tunnel_url) freshMcpUrl = retryRow.tunnel_url.replace(/\/$/, '');
+              } catch { /* ignore */ }
+            }
             addLog(`${obj.name}: MCP error, retrying with fresh URL...`, 'generating');
             try {
               resp = await callClaude({ ...callArgs, mcp_servers: buildSapMcpConfig(sapConfig, freshMcpUrl) });

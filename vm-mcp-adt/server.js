@@ -413,6 +413,73 @@ app.post('/sap-info', async (req, res) => {
   }
 });
 
+// SAP write endpoint — does the full CSRF-fetch + PUT in one server-side session
+// so SAP session cookies are maintained and the CSRF token is always valid.
+// Body: { host, username, password, client, path, source, transport? }
+app.post('/sap-write', async (req, res) => {
+  try {
+    const creds = parseSapCreds(req.headers['authorization']) || {};
+    const host      = (creds.host     || req.body?.host     || process.env.SAP_URL      || '').replace(/\/$/, '');
+    const username  = creds.username  || req.body?.username || process.env.SAP_USER     || '';
+    const password  = creds.password  || req.body?.password || process.env.SAP_PASSWORD || '';
+    const client    = creds.client    || req.body?.client   || process.env.SAP_CLIENT   || '100';
+    const adtPath   = req.body?.path;
+    const source    = req.body?.source;
+    const transport = req.body?.transport;
+
+    if (!host || !username || !password || !adtPath || source === undefined) {
+      return res.status(400).json({ ok: false, error: 'Missing required fields: host, username, password, path, source' });
+    }
+
+    const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
+    const baseHeaders = {
+      'Authorization': `Basic ${basicAuth}`,
+      'sap-client': client,
+    };
+
+    // Step 1: fetch CSRF token (server-side — session cookie stays in https.Agent)
+    const csrfRes = await sapFetch(`${host}/sap/bc/adt/discovery`, {
+      headers: { ...baseHeaders, 'X-CSRF-Token': 'Fetch', Accept: 'application/atomsvc+xml' },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const csrfToken = csrfRes.headers.get('x-csrf-token') || '';
+    // Capture SAP session cookies to forward on the PUT
+    const setCookie = csrfRes.headers.get('set-cookie') || '';
+    const cookieHeader = setCookie
+      ? setCookie.split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ')
+      : '';
+
+    if (!csrfRes.ok && csrfRes.status !== 200) {
+      return res.json({ ok: false, status: csrfRes.status, phase: 'csrf', error: `CSRF fetch failed HTTP ${csrfRes.status}` });
+    }
+
+    // Step 2: PUT the source code with the CSRF token and session cookie
+    const putHeaders = {
+      ...baseHeaders,
+      'Content-Type': 'text/plain; charset=utf-8',
+      Accept: 'application/xml',
+      ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      ...(transport ? { corrNbr: transport } : {}),
+    };
+
+    const putUrl = `${host}${adtPath}`;
+    const putRes = await sapFetch(putUrl, {
+      method: 'PUT',
+      headers: putHeaders,
+      body: source,
+      signal: AbortSignal.timeout(30000),
+    });
+
+    const body = await putRes.text().catch(() => '');
+    res.json({ ok: putRes.ok, status: putRes.status, phase: 'write', body: body.slice(0, 400) });
+  } catch (err) {
+    const msg = err.name === 'AbortError' ? 'Request timed out' : (err.message?.slice(0, 120) || 'Write failed');
+    res.status(502).json({ ok: false, error: msg });
+  }
+});
+
 // ── MCP endpoint ─────────────────────────────────────────────
 // Session store: sessionId → { server, transport }
 const sessions = new Map();
