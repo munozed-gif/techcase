@@ -1462,7 +1462,8 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       const detail = vpnLoopEnabled ? 'Not active on VM — user manages VPN via FortiClient' : 'VM VPN stopped — using FortiClient on laptop';
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: vpnLoopEnabled ? 'warning' : 'ok', detail });
       addLog('vpn', vpnLoopEnabled ? 'VM openfortivpn not running. Expected in user-managed mode — make sure FortiClient is connected on your side.' : 'VM VPN is off. FortiClient on your laptop handles the VPN.', vpnLoopEnabled ? 'warn' : 'success');
-    } else if (!infraCfg.vpn.autoSolve) {
+    } else if (!infraCfg.vpn.autoSolve && !isPlatformAdtMode) {
+      // Non-Platform ADT: respect autoSolve setting
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'VPN inactive — auto-solve disabled in settings' });
       addLog('vpn', 'VPN inactive. Auto-solve is off — enable it in platform settings to auto-start.', 'warn');
       setStoppedAt('vpn');
