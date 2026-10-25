@@ -699,16 +699,20 @@ async function processSapWriteJob(job) {
     method: 'PUT', headers: putHeaders, body: job.source, signal: AbortSignal.timeout(30000),
   });
 
-  // Step 3: If 404, auto-create the object then retry PUT
+  // Step 3: If 404, auto-create the object in $TMP then retry PUT
+  // After creating in $TMP (local package), corrNbr must NOT be sent — SAP returns 400
+  // if a transport is assigned to a local-package object.
   if (putRes.status === 404) {
     const parsed = parseAdtPath(job.path);
     if (parsed) {
-      console.log(`[queue] 404 — creating ${parsed.type} ${parsed.name || parsed.fg} in SAP...`);
-      const created = await createAdtObject(host, baseHeaders, csrfToken, cookieHeader, parsed, job.transport);
+      console.log(`[queue] 404 — creating ${parsed.type} ${parsed.name || parsed.fg} in SAP ($TMP)...`);
+      const created = await createAdtObject(host, baseHeaders, csrfToken, cookieHeader, parsed, null);
       if (created.ok) {
-        console.log(`[queue] Created ${parsed.name || parsed.fg} (HTTP ${created.status}) — retrying PUT...`);
+        console.log(`[queue] Created ${parsed.name || parsed.fg} (HTTP ${created.status}) — retrying PUT (no transport for $TMP)...`);
+        // Strip corrNbr — object lives in $TMP (local), transport not applicable
+        const { corrNbr: _dropped, ...putHeadersNoTransport } = putHeaders;
         putRes = await sapFetch(`${host}${job.path}`, {
-          method: 'PUT', headers: putHeaders, body: job.source, signal: AbortSignal.timeout(30000),
+          method: 'PUT', headers: putHeadersNoTransport, body: job.source, signal: AbortSignal.timeout(30000),
         });
       } else {
         return { ok: false, sap_status: created.status, error: `Auto-create failed (HTTP ${created.status}): ${created.body}` };
@@ -717,7 +721,8 @@ async function processSapWriteJob(job) {
   }
 
   const body = await putRes.text().catch(() => '');
-  return { ok: putRes.ok, sap_status: putRes.status, body: body.slice(0, 400) };
+  const bodySnip = body.slice(0, 400);
+  return { ok: putRes.ok, sap_status: putRes.status, body: bodySnip, error: putRes.ok ? null : `HTTP ${putRes.status}` };
 }
 
 async function pollWriteQueue() {

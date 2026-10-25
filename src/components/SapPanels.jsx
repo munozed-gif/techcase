@@ -309,7 +309,7 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
         const { data: row } = await supabase.from('sap_write_queue')
           .select('status, ok, sap_status, error, body').eq('id', job.id).single();
         if (row?.status === 'done') return { ok: true, status: row.sap_status, body: row.body };
-        if (row?.status === 'error') return { ok: false, status: row.sap_status, error: row.error || 'SAP write failed' };
+        if (row?.status === 'error') return { ok: false, status: row.sap_status, error: row.error || 'SAP write failed', body: row.body };
       }
       return { ok: false, error: 'Write job timed out (90s) — check the bridge is running and has Supabase credentials' };
     } catch (e) {
@@ -4048,7 +4048,8 @@ Output ONLY the ABAP source code, no explanations.`;
             updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
             addLog(`${obj.name}: ✓ applied (HTTP ${result.status}).`, 'done');
           } else {
-            const detail = result.status ? `HTTP ${result.status}` : result.error;
+            const sapBody = result.body ? ` — ${result.body.slice(0, 120)}` : '';
+            const detail = result.error ? `${result.error}${sapBody}` : (result.status ? `HTTP ${result.status}${sapBody}` : 'write failed');
             throw new Error(
               result.phase === 'csrf' ? `CSRF fetch failed — ${result.error}`
               : result.status === 401 ? `HTTP 401 — wrong credentials`
