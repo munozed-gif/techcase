@@ -1225,6 +1225,12 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
     // User VPN + ADT: bridge runs on laptop — VM and VPN nodes don't apply
     const runLaptopBridgeMode = env.vpn_mode === 'user' && isAdtMcpMode;
+    // Platform VPN + ADT: VM runs the ADT bridge; VPN managed by VM MCP server (port 3100)
+    // vmMcpBase = VM MCP server URL (for VPN/status); currentMcpBase = ADT bridge URL (for ABAP ops)
+    const isPlatformAdtMode = isAdtMcpMode && !runLaptopBridgeMode;
+    let vmMcpBase = isPlatformAdtMode
+      ? (env.mcp_server_url?.trim() || globalMcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim()
+      : currentMcpBase;
 
     // ── Node 1: VM ────────────────────────────────────────────────
     if (runLaptopBridgeMode) {
@@ -1234,17 +1240,26 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     } else {
     setLiveNode('vm', { status: 'checking', detail: 'Connecting…', log: [] });
 
+    // Platform ADT: check VM MCP server URL first, then ADT bridge URL separately
+    if (isPlatformAdtMode && !vmMcpBase) {
+      setLiveNode('vm', { status: 'error', detail: 'No VM MCP Server URL configured' });
+      addLog('vm', 'No VM MCP Server URL — configure it in SAP integration settings (shown when Platform VPN + ADT Community is selected)', 'error');
+      setStoppedAt('vm');
+      setRunning(false);
+      diagnoseFailure('vm');
+      return;
+    }
     if (!currentMcpBase) {
-      const urlLabel = isAdtMcpMode ? 'No ABAP ADT Bridge URL configured' : 'No MCP server URL configured';
+      const urlLabel = isPlatformAdtMode ? 'No ABAP ADT Bridge URL configured' : (isAdtMcpMode ? 'No ABAP ADT Bridge URL configured' : 'No MCP server URL configured');
       setLiveNode('vm', { status: 'error', detail: urlLabel });
-      addLog('vm', isAdtMcpMode ? 'No ABAP ADT Bridge URL — configure "ADT Bridge URL" in SAP integration settings' : 'No MCP server URL — configure it in SAP integration settings', 'error');
+      addLog('vm', isPlatformAdtMode ? 'No ABAP ADT Bridge URL — configure it in SAP integration settings' : (isAdtMcpMode ? 'No ABAP ADT Bridge URL — configure "ADT Bridge URL" in SAP integration settings' : 'No MCP server URL — configure it in SAP integration settings'), 'error');
       setStoppedAt('vm');
       setRunning(false);
       diagnoseFailure('vm');
       return;
     }
 
-    addLog('vm', `Connecting to ${currentMcpBase}${isAdtMcpMode ? ' (ABAP ADT Bridge)' : ''}…`);
+    addLog('vm', `Connecting to ${vmMcpBase}${isPlatformAdtMode ? ' (VM MCP server)' : (isAdtMcpMode ? ' (ABAP ADT Bridge)' : '')}…`);
 
     const tryFetchStatus = async (base) => {
       try {
@@ -1256,7 +1271,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       } catch { return null; }
     };
 
-    vmStatusData = await tryFetchStatus(currentMcpBase);
+    vmStatusData = await tryFetchStatus(vmMcpBase);
 
     if (!vmStatusData && infraCfg.vm.autoSolve) {
       setLiveNode('vm', { ...liveNodes.current.vm, status: 'fixing', detail: 'Refreshing tunnel URL…' });
@@ -1272,9 +1287,9 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const freshUrl = data.tunnel_url.replace(/\/$/, '');
           const ageMins = Math.round((Date.now() - new Date(data.updated_at).getTime()) / 60000);
           addLog('vm', `Found URL in registry (${ageMins}m ago): ${freshUrl} — retrying…`);
-          currentMcpBase = freshUrl;
-          if (onUpdateMcpUrl) onUpdateMcpUrl(freshUrl);
-          vmStatusData = await tryFetchStatus(currentMcpBase);
+          vmMcpBase = freshUrl;
+          if (!isPlatformAdtMode) { currentMcpBase = freshUrl; if (onUpdateMcpUrl) onUpdateMcpUrl(freshUrl); }
+          vmStatusData = await tryFetchStatus(vmMcpBase);
         } else {
           addLog('vm', 'No URL in registry — cloudflared may not be running on VM', 'error');
         }
@@ -1358,11 +1373,11 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     const vpnLoopEnabled = infraCfg.vpn.vpnLoop !== false; // default true
 
     // User VPN mode + VPN loop disabled → stop VM VPN so it doesn't conflict with laptop FortiClient
-    if (isUserVpn && !vpnLoopEnabled && currentMcpBase) {
+    if (isUserVpn && !vpnLoopEnabled && vmMcpBase) {
       setLiveNode('vpn', { status: 'fixing', detail: 'Stopping VM VPN (loop disabled — user manages VPN)…', log: [] });
       addLog('vpn', 'VPN loop is OFF — stopping VM openfortivpn to avoid conflicting with FortiClient…', 'warn');
       try {
-        await fetch(`${currentMcpBase}/vpn/stop`, { method: 'POST', signal: AbortSignal.timeout(10000) });
+        await fetch(`${vmMcpBase}/vpn/stop`, { method: 'POST', signal: AbortSignal.timeout(10000) });
         addLog('vpn', 'VM openfortivpn stopped.', 'success');
       } catch (e) {
         addLog('vpn', `Could not stop VM VPN: ${e.message?.slice(0, 60)}`, 'warn');
@@ -1452,7 +1467,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
       let startOk = false;
       try {
-        const sr = await fetch(`${currentMcpBase}/vpn/start`, {
+        const sr = await fetch(`${vmMcpBase}/vpn/start`, {
           method: 'POST',
           headers: startBody ? { 'Content-Type': 'application/json' } : {},
           body: startBody ?? undefined,
@@ -1475,7 +1490,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         } else {
           addLog('vpn', 'Start command sent — waiting 8s for tunnel…');
           await new Promise(r => setTimeout(r, 8000));
-          const rechk = await fetch(`${currentMcpBase}/status`, { signal: AbortSignal.timeout(8000) }).then(r => r.json()).catch(() => null);
+          const rechk = await fetch(`${vmMcpBase}/status`, { signal: AbortSignal.timeout(8000) }).then(r => r.json()).catch(() => null);
           startOk = rechk?.vpn === true;
         }
       } catch (e) {
@@ -1506,7 +1521,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     if (!infraCfg.mcp.enabled) {
       setLiveNode('mcp', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }], extra: {} });
     } else {
-    const mcpLabel = isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP server';
+    const mcpLabel = isPlatformAdtMode ? 'ABAP ADT Bridge (VM)' : (isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP server');
     setLiveNode('mcp', { status: 'checking', detail: `Checking ${mcpLabel}…`, log: [], extra: {} });
     addLog('mcp', `Checking ${mcpLabel} health…`);
 
@@ -1580,7 +1595,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                 addLog('mcp', 'Registered URL matches current — bridge may be down or not running', 'warn');
               }
             } else {
-              addLog('mcp', 'No URL in registry — start-local.sh may not have Supabase creds configured', 'warn');
+              addLog('mcp', isPlatformAdtMode ? 'No URL in registry — run vm-mcp-adt/start-vm.sh on the VM and add SUPABASE_URL + SUPABASE_SERVICE_KEY to its .env' : 'No URL in registry — start-local.sh may not have Supabase creds configured', 'warn');
             }
           } else {
             const { data: tData } = await supabase
@@ -2524,20 +2539,33 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                           )}
                         </div>
                         <div className="sm:col-span-2">
-                          {!(env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly' || env.mcp_type === 'abap-adt-both') && (
-                            <>
-                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                SAP MCP Server URL <span className="text-gray-400 font-normal">(optional — overrides global setting)</span>
-                              </label>
-                              <div className="flex gap-2 items-center">
-                                <input value={env.mcp_server_url ?? ''} onChange={e => updateEnvField(env.id, 'mcp_server_url', e.target.value)} disabled={!canEdit}
-                                  placeholder={ssCtx.settings['sap_mcp_server_url'] ? `Global: ${ssCtx.settings['sap_mcp_server_url']}` : 'https://your-mcp-server.trycloudflare.com'}
-                                  className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
-                                <McpRestartButton mcpUrl={env.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']} />
-                              </div>
-                              <p className="text-xs text-gray-400 mt-0.5">Leave blank to use the global MCP server URL from AI Configuration settings.</p>
-                            </>
-                          )}
+                          {(() => {
+                            const isAdtEnv = env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly' || env.mcp_type === 'abap-adt-both';
+                            const isPlatformAdtEnv = isAdtEnv && (env.vpn_mode ?? 'platform') === 'platform';
+                            if (isAdtEnv && !isPlatformAdtEnv) return null; // User VPN + ADT: no VM MCP URL needed
+                            return (
+                              <>
+                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                  {isPlatformAdtEnv
+                                    ? <>VM MCP Server URL <span className="text-gray-400 font-normal">(port 3100 — for VPN management)</span></>
+                                    : <>SAP MCP Server URL <span className="text-gray-400 font-normal">(optional — overrides global setting)</span></>
+                                  }
+                                </label>
+                                <div className="flex gap-2 items-center">
+                                  <input value={env.mcp_server_url ?? ''} onChange={e => updateEnvField(env.id, 'mcp_server_url', e.target.value)} disabled={!canEdit}
+                                    placeholder={ssCtx.settings['sap_mcp_server_url'] ? `Global: ${ssCtx.settings['sap_mcp_server_url']}` : 'https://your-mcp-server.trycloudflare.com'}
+                                    className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                                  <McpRestartButton mcpUrl={env.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']} />
+                                </div>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  {isPlatformAdtEnv
+                                    ? 'Your existing VM MCP server URL (sap-mcp-server, port 3100). Used for VPN management during infra check.'
+                                    : 'Leave blank to use the global MCP server URL from AI Configuration settings.'
+                                  }
+                                </p>
+                              </>
+                            );
+                          })()}
                           {/* MCP server type selector */}
                           <div className="mt-2 space-y-2">
                             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">MCP Server Type</label>
@@ -2568,8 +2596,8 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                                   className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
                                 <p className="text-xs text-gray-400 mt-0.5">
                                   {env.vpn_mode === 'user'
-                                    ? <>Run <code className="text-blue-400">vm-mcp-adt/start-local.sh</code> on your laptop (FortiClient must be connected) — the tunnel URL is printed on startup.</>
-                                    : <>Deploy <code className="text-blue-400">vm-mcp-adt/</code> on your VM (port 3101), expose via tunnel. See <code className="text-blue-400">vm-mcp-adt/</code> folder in the repo.</>
+                                    ? <>Run <code className="text-blue-400">vm-mcp-adt/start-local.sh</code> on your laptop (FortiClient must be connected) — the tunnel URL is printed on startup and auto-registered.</>
+                                    : <>Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port 3101, opens a Cloudflare tunnel and registers the URL in Supabase automatically.</>
                                   }
                                 </p>
                               </div>
