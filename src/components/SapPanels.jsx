@@ -288,6 +288,9 @@ async function sapGetCsrfToken(config) {
 
 async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest) {
   const path = sapObjectPath(objectType, objectName);
+  if (!path) {
+    return { ok: false, error: `Object type '${objectType}' (${objectName}) has no ABAP source — create it manually in SE11` };
+  }
 
   // When an ADT bridge proxy is set, route the write through Vercel's /api/adt-write
   // (same origin → no CORS) which proxies to the bridge server-side.
@@ -448,14 +451,26 @@ async function sapLiveCheck(config) {
 function sapObjectPath(objectType, objectName) {
   const n = (objectName ?? '').toUpperCase();
   switch (objectType) {
-    case 'program':     return `/sap/bc/adt/programs/programs/${n}/source/main`;
+    case 'program':
+    case 'report':      return `/sap/bc/adt/programs/programs/${n}/source/main`;
+    case 'include':     return `/sap/bc/adt/programs/includes/${n}/source/main`;
     case 'class':       return `/sap/bc/adt/oo/classes/${n}/source/main`;
-    case 'function_module': {
+    case 'function_module':
+    case 'bapi': {
       const [fg, fm] = n.includes('/') ? n.split('/') : [n, n];
       return `/sap/bc/adt/functions/groups/${fg}/fmodules/${fm}/source/main`;
     }
     case 'table':       return `/sap/bc/adt/ddic/dbtables/${n}/source/main`;
+    case 'structure':   return `/sap/bc/adt/ddic/structures/${n}/source/main`;
     case 'enhancement': return `/sap/bc/adt/enhancements/${n}/source/main`;
+    case 'badi':        return `/sap/bc/adt/enhancements/badi_impl/${n}/source/main`;
+    // Dictionary objects without ABAP source: must be created manually via SE11
+    case 'domain':
+    case 'data_element':
+    case 'message_class':
+    case 'smartform':
+    case 'odata':
+    case 'config':      return null;
     default:            return `/sap/bc/adt/programs/programs/${n}/source/main`;
   }
 }
