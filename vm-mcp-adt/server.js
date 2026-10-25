@@ -613,6 +613,59 @@ app.delete('/mcp', (req, res) => {
 const SB_URL = (process.env.SUPABASE_URL || '').trim();
 const SB_KEY = (process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || '').trim().replace(/[^\x21-\x7E]/g, '');
 
+// Derive ADT object type and name from the source path.
+function parseAdtPath(adtPath) {
+  const p = adtPath || '';
+  let m;
+  if ((m = p.match(/\/sap\/bc\/adt\/programs\/programs\/([^/]+)\/source\/main/)))
+    return { type: 'program', name: m[1] };
+  if ((m = p.match(/\/sap\/bc\/adt\/oo\/classes\/([^/]+)\/source\/main/)))
+    return { type: 'class', name: m[1] };
+  if ((m = p.match(/\/sap\/bc\/adt\/functions\/groups\/([^/]+)\/fmodules\/([^/]+)\/source\/main/)))
+    return { type: 'function_module', fg: m[1], name: m[2] };
+  if ((m = p.match(/\/sap\/bc\/adt\/ddic\/dbtables\/([^/]+)\/source\/main/)))
+    return { type: 'table', name: m[1] };
+  return null;
+}
+
+// Create an ABAP object in SAP via ADT POST when PUT returns 404 (object not found).
+async function createAdtObject(host, baseHeaders, csrfToken, cookieHeader, parsed, transport) {
+  const sharedHeaders = {
+    ...baseHeaders,
+    ...(csrfToken    ? { 'X-CSRF-Token': csrfToken }  : {}),
+    ...(cookieHeader ? { Cookie: cookieHeader }         : {}),
+    ...(transport    ? { corrNbr: transport }           : {}),
+  };
+  const pkg = '$TMP'; // default local package; object can be moved to a transport later
+  let createUrl, contentType, xmlBody;
+
+  if (parsed.type === 'program') {
+    createUrl = `${host}/sap/bc/adt/programs/programs`;
+    contentType = 'application/vnd.sap.adt.programs.programs.v2+xml; charset=utf-8';
+    xmlBody = `<?xml version="1.0" encoding="UTF-8"?><programs:programProperties xmlns:programs="http://www.sap.com/adt/programs/programs" xmlns:adtcore="http://www.sap.com/adt/core" adtcore:description="${parsed.name}" adtcore:language="EN" adtcore:name="${parsed.name}" programs:programType="1"><adtcore:packageRef adtcore:name="${pkg}"/></programs:programProperties>`;
+  } else if (parsed.type === 'class') {
+    createUrl = `${host}/sap/bc/adt/oo/classes`;
+    contentType = 'application/vnd.sap.adt.oo.classincludes.v2+xml; charset=utf-8';
+    xmlBody = `<?xml version="1.0" encoding="UTF-8"?><oo:classDefinition xmlns:oo="http://www.sap.com/adt/oo/classdefinition" xmlns:adtcore="http://www.sap.com/adt/core" adtcore:description="${parsed.name}" adtcore:language="EN" adtcore:name="${parsed.name}"><adtcore:packageRef adtcore:name="${pkg}"/></oo:classDefinition>`;
+  } else if (parsed.type === 'function_module') {
+    // Function modules require the function group to exist; attempt creation of FM only
+    createUrl = `${host}/sap/bc/adt/functions/groups/${parsed.fg}/fmodules`;
+    contentType = 'application/vnd.sap.adt.functions.fmodules.v3+xml; charset=utf-8';
+    xmlBody = `<?xml version="1.0" encoding="UTF-8"?><fmodules:functionModule xmlns:fmodules="http://www.sap.com/adt/functions/fmodules" xmlns:adtcore="http://www.sap.com/adt/core" adtcore:description="${parsed.name}" adtcore:language="EN" adtcore:name="${parsed.name}"/>`;
+  } else {
+    return { ok: false, error: `Auto-create not supported for type: ${parsed.type}` };
+  }
+
+  const res = await sapFetch(createUrl, {
+    method: 'POST',
+    headers: { ...sharedHeaders, 'Content-Type': contentType, Accept: 'application/json, */*' },
+    body: xmlBody,
+    signal: AbortSignal.timeout(15000),
+  });
+  const txt = await res.text().catch(() => '');
+  return { ok: res.ok || res.status === 201, status: res.status, body: txt.slice(0, 200) };
+}
+
 async function processSapWriteJob(job) {
   const host = (job.host || '').replace(/\/$/, '');
   const basicAuth = Buffer.from(`${job.username}:${job.password}`).toString('base64');
@@ -632,20 +685,37 @@ async function processSapWriteJob(job) {
     return { ok: false, sap_status: csrfRes.status, error: `CSRF fetch failed HTTP ${csrfRes.status}` };
   }
 
+  const putHeaders = {
+    ...baseHeaders,
+    'Content-Type': 'text/plain; charset=utf-8',
+    Accept: 'application/xml',
+    ...(csrfToken    ? { 'X-CSRF-Token': csrfToken }  : {}),
+    ...(cookieHeader ? { Cookie: cookieHeader }         : {}),
+    ...(job.transport ? { corrNbr: job.transport }      : {}),
+  };
+
   // Step 2: PUT source
-  const putRes = await sapFetch(`${host}${job.path}`, {
-    method: 'PUT',
-    headers: {
-      ...baseHeaders,
-      'Content-Type': 'text/plain; charset=utf-8',
-      Accept: 'application/xml',
-      ...(csrfToken   ? { 'X-CSRF-Token': csrfToken }   : {}),
-      ...(cookieHeader ? { Cookie: cookieHeader }         : {}),
-      ...(job.transport ? { corrNbr: job.transport }      : {}),
-    },
-    body: job.source,
-    signal: AbortSignal.timeout(30000),
+  let putRes = await sapFetch(`${host}${job.path}`, {
+    method: 'PUT', headers: putHeaders, body: job.source, signal: AbortSignal.timeout(30000),
   });
+
+  // Step 3: If 404, auto-create the object then retry PUT
+  if (putRes.status === 404) {
+    const parsed = parseAdtPath(job.path);
+    if (parsed) {
+      console.log(`[queue] 404 — creating ${parsed.type} ${parsed.name || parsed.fg} in SAP...`);
+      const created = await createAdtObject(host, baseHeaders, csrfToken, cookieHeader, parsed, job.transport);
+      if (created.ok) {
+        console.log(`[queue] Created ${parsed.name || parsed.fg} (HTTP ${created.status}) — retrying PUT...`);
+        putRes = await sapFetch(`${host}${job.path}`, {
+          method: 'PUT', headers: putHeaders, body: job.source, signal: AbortSignal.timeout(30000),
+        });
+      } else {
+        return { ok: false, sap_status: created.status, error: `Auto-create failed (HTTP ${created.status}): ${created.body}` };
+      }
+    }
+  }
+
   const body = await putRes.text().catch(() => '');
   return { ok: putRes.ok, sap_status: putRes.status, body: body.slice(0, 400) };
 }
