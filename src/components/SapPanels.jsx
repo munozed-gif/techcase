@@ -1384,6 +1384,24 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       }
     }
 
+    // Platform VPN + ADT: check ADT bridge health BEFORE starting VPN
+    if (isPlatformAdtMode && infraCfg.mcp.enabled) {
+      setLiveNode('mcp', { status: 'checking', detail: 'Checking ABAP ADT Bridge…', log: [], extra: {} });
+      addLog('mcp', 'Checking ABAP ADT Bridge health before VPN start…');
+      const adtHealth = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) })
+        .then(r => r.ok ? r.json() : null).catch(() => null);
+      if (!adtHealth) {
+        setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'error', detail: 'ADT bridge not responding — run start-vm.sh on the VM first' });
+        addLog('mcp', 'ABAP ADT Bridge is not responding. Run vm-mcp-adt/start-vm.sh on the VM.', 'error');
+        setStoppedAt('mcp');
+        setRunning(false);
+        diagnoseFailure('mcp');
+        return;
+      }
+      setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'ok', detail: `ADT bridge running${adtHealth.version ? ` v${adtHealth.version}` : ''}`, log: liveNodes.current.mcp.log ?? [] });
+      addLog('mcp', `ADT bridge healthy${adtHealth.version ? ` (v${adtHealth.version})` : ''}`, 'success');
+    }
+
     setLiveNode('vpn', { status: 'checking', detail: isUserVpn ? 'Reading VPN status (user-managed mode)…' : 'Reading VPN status from VM…', log: liveNodes.current.vpn.log ?? [] });
     addLog('vpn', isUserVpn ? 'User-managed VPN mode — checking status (informational only)…' : 'Reading VPN status from VM…');
 
@@ -1428,14 +1446,6 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       const detail = vpnLoopEnabled ? 'Not active on VM — user manages VPN via FortiClient' : 'VM VPN stopped — using FortiClient on laptop';
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: vpnLoopEnabled ? 'warning' : 'ok', detail });
       addLog('vpn', vpnLoopEnabled ? 'VM openfortivpn not running. Expected in user-managed mode — make sure FortiClient is connected on your side.' : 'VM VPN is off. FortiClient on your laptop handles the VPN.', vpnLoopEnabled ? 'warn' : 'success');
-    } else if (isPlatformAdtMode) {
-      // Platform VPN + ADT: VPN inactive — report error, don't auto-start
-      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'VPN inactive — start openfortivpn on the VM first' });
-      addLog('vpn', 'VM VPN (openfortivpn) is not running. Start it manually on the VM, then click Check Infrastructure again.', 'error');
-      setStoppedAt('vpn');
-      setRunning(false);
-      diagnoseFailure('vpn');
-      return;
     } else if (!infraCfg.vpn.autoSolve) {
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: 'VPN inactive — auto-solve disabled in settings' });
       addLog('vpn', 'VPN inactive. Auto-solve is off — enable it in platform settings to auto-start.', 'warn');
@@ -1516,10 +1526,13 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     if (cancelRef.current) { setRunning(false); return; }
 
     // ── Node 3: MCP ───────────────────────────────────────────────
-    if (!infraCfg.mcp.enabled) {
+    // Platform ADT: ADT bridge already checked before VPN — skip
+    if (isPlatformAdtMode) {
+      // already done
+    } else if (!infraCfg.mcp.enabled) {
       setLiveNode('mcp', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }], extra: {} });
     } else {
-    const mcpLabel = isPlatformAdtMode ? 'ABAP ADT Bridge (VM)' : (isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP server');
+    const mcpLabel = isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP server';
     setLiveNode('mcp', { status: 'checking', detail: `Checking ${mcpLabel}…`, log: [], extra: {} });
     addLog('mcp', `Checking ${mcpLabel} health…`);
 
@@ -1820,12 +1833,21 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
   // User VPN + ADT = bridge runs on laptop; VM and VPN nodes don't apply
   const laptopBridgeMode = isUserVpnMode && isAdtMcpMode;
-  const NODE_META = [
-    !laptopBridgeMode && { key: 'vm',  label: 'Virtual Machine' },
-    { key: 'vpn', label: laptopBridgeMode ? 'FortiClient VPN' : 'VPN' },
-    { key: 'mcp', label: laptopBridgeMode ? 'ADT Bridge (Laptop)' : isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP Server' },
-    { key: 'sap', label: 'SAP Connection' },
-  ].filter(Boolean);
+  // Platform VPN + ADT: ADT bridge is checked before VPN — show it first in the UI
+  const isPlatformAdtDisplay = isAdtMcpMode && !laptopBridgeMode;
+  const NODE_META = isPlatformAdtDisplay
+    ? [
+        { key: 'vm',  label: 'Virtual Machine' },
+        { key: 'mcp', label: 'ABAP ADT Bridge' },
+        { key: 'vpn', label: 'VPN' },
+        { key: 'sap', label: 'SAP Connection' },
+      ]
+    : [
+        !laptopBridgeMode && { key: 'vm', label: 'Virtual Machine' },
+        { key: 'vpn', label: laptopBridgeMode ? 'FortiClient VPN' : 'VPN' },
+        { key: 'mcp', label: laptopBridgeMode ? 'ADT Bridge (Laptop)' : isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP Server' },
+        { key: 'sap', label: 'SAP Connection' },
+      ].filter(Boolean);
 
   async function stopVmVpn() {
     const base = getMcpBase();
