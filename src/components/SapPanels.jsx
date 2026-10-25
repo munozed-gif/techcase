@@ -1953,7 +1953,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const node = nodes[key];
           const isExpandedLog = !!expanded[key];
           const hasLog = node.log?.length > 0;
-          const showDeploy = key === 'mcp' && (node.extra?.needsDeploy || node.status === 'error');
+          const showDeploy = key === 'mcp' && !isPlatformAdtDisplay && (node.extra?.needsDeploy || node.status === 'error');
           const showSetup = key === 'vm' && node.status === 'error';
           const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode && node.status === 'ok';
           // Laptop SOCKS5 tunnel guide only for non-platform-ADT: Platform VPN + ADT uses VM openfortivpn, no SOCKS5 needed
