@@ -483,11 +483,10 @@ app.post('/sap-write', async (req, res) => {
     });
 
     const csrfToken = csrfRes.headers.get('x-csrf-token') || '';
-    // Capture SAP session cookies to forward on the PUT
-    const setCookie = csrfRes.headers.get('set-cookie') || '';
-    const cookieHeader = setCookie
-      ? setCookie.split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ')
-      : '';
+    // Node's http module returns set-cookie as an array; handle both array and string
+    const setCookieRaw = csrfRes.headers.get('set-cookie');
+    const setCookieArr = Array.isArray(setCookieRaw) ? setCookieRaw : (setCookieRaw ? [setCookieRaw] : []);
+    const cookieHeader = setCookieArr.map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
 
     if (!csrfRes.ok && csrfRes.status !== 200) {
       return res.json({ ok: false, status: csrfRes.status, phase: 'csrf', error: `CSRF fetch failed HTTP ${csrfRes.status}` });
@@ -625,8 +624,9 @@ async function processSapWriteJob(job) {
     signal: AbortSignal.timeout(15000),
   });
   const csrfToken = csrfRes.headers.get('x-csrf-token') || '';
-  const setCookie = csrfRes.headers.get('set-cookie') || '';
-  const cookieHeader = setCookie ? setCookie.split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ') : '';
+  const setCookieRaw2 = csrfRes.headers.get('set-cookie');
+  const setCookieArr2 = Array.isArray(setCookieRaw2) ? setCookieRaw2 : (setCookieRaw2 ? [setCookieRaw2] : []);
+  const cookieHeader = setCookieArr2.map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
 
   if (!csrfRes.ok && csrfRes.status !== 200) {
     return { ok: false, sap_status: csrfRes.status, error: `CSRF fetch failed HTTP ${csrfRes.status}` };
