@@ -289,31 +289,31 @@ async function sapGetCsrfToken(config) {
 async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest) {
   const path = sapObjectPath(objectType, objectName);
 
-  // When an ADT bridge proxy is set, route the write through Vercel's /api/adt-write
-  // (same origin → no CORS) which proxies to the bridge server-side.
-  // This avoids Cloudflare quick tunnel CORS restrictions on direct browser fetch.
+  // ADT bridge mode: enqueue the write job in Supabase.
+  // The bridge polls every 3s, applies the write to SAP server-side, and writes back the result.
+  // This bypasses the Cloudflare quick tunnel entirely for writes (Vercel IPs get 502 from Cloudflare).
   const proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
   const adtWriteBase = proxyUrl?.replace(/\/sap-proxy\/?$/, '');
   if (adtWriteBase && !adtWriteBase.includes('/api/sap-proxy')) {
     try {
-      const r = await fetch('/api/adt-write', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bridgeUrl: adtWriteBase,
-          host: config.host, username: config.username,
-          password: config.password, client: config.client || '100',
-          path, source, transport: transportRequest,
-        }),
-        signal: AbortSignal.timeout(55000),
-      });
-      const rawText = await r.text();
-      let data;
-      try { data = JSON.parse(rawText); }
-      catch { data = { ok: false, error: `Invalid response from bridge (HTTP ${r.status}): ${rawText.slice(0, 200)}` }; }
-      return data;
+      const { data: job, error: insertErr } = await supabase.from('sap_write_queue').insert({
+        host: config.host, username: config.username, password: config.password,
+        client: config.client || '100', path, source,
+        transport: transportRequest || null,
+      }).select('id').single();
+      if (insertErr) return { ok: false, error: `Queue insert failed: ${insertErr.message}` };
+
+      // Poll up to 90s (30 × 3s) for the bridge to process the job
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        const { data: row } = await supabase.from('sap_write_queue')
+          .select('status, ok, sap_status, error, body').eq('id', job.id).single();
+        if (row?.status === 'done') return { ok: true, status: row.sap_status, body: row.body };
+        if (row?.status === 'error') return { ok: false, status: row.sap_status, error: row.error || 'SAP write failed' };
+      }
+      return { ok: false, error: 'Write job timed out (90s) — check the bridge is running and has Supabase credentials' };
     } catch (e) {
-      return { ok: false, phase: 'write', error: e.message?.slice(0, 120) || 'Bridge write failed' };
+      return { ok: false, phase: 'write', error: e.message?.slice(0, 120) || 'Queue write failed' };
     }
   }
 

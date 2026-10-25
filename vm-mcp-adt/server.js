@@ -607,10 +607,100 @@ app.delete('/mcp', (req, res) => {
   res.sendStatus(204);
 });
 
+// ── Supabase write-queue poller ──────────────────────────────────────────────
+// Cloudflare quick tunnels block inbound requests from Vercel's datacenter IPs.
+// Instead of tunneling write requests, the platform enqueues jobs in Supabase
+// and the bridge polls every 3s, applies the write to SAP, and writes back the result.
+const SB_URL = (process.env.SUPABASE_URL || '').trim();
+const SB_KEY = (process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || '').trim().replace(/[^\x21-\x7E]/g, '');
+
+async function processSapWriteJob(job) {
+  const host = (job.host || '').replace(/\/$/, '');
+  const basicAuth = Buffer.from(`${job.username}:${job.password}`).toString('base64');
+  const baseHeaders = { Authorization: `Basic ${basicAuth}`, 'sap-client': job.client || '100' };
+
+  // Step 1: CSRF token
+  const csrfRes = await sapFetch(`${host}/sap/bc/adt/discovery`, {
+    headers: { ...baseHeaders, 'X-CSRF-Token': 'Fetch', Accept: 'application/atomsvc+xml' },
+    signal: AbortSignal.timeout(15000),
+  });
+  const csrfToken = csrfRes.headers.get('x-csrf-token') || '';
+  const setCookie = csrfRes.headers.get('set-cookie') || '';
+  const cookieHeader = setCookie ? setCookie.split(',').map(c => c.split(';')[0].trim()).filter(Boolean).join('; ') : '';
+
+  if (!csrfRes.ok && csrfRes.status !== 200) {
+    return { ok: false, sap_status: csrfRes.status, error: `CSRF fetch failed HTTP ${csrfRes.status}` };
+  }
+
+  // Step 2: PUT source
+  const putRes = await sapFetch(`${host}${job.path}`, {
+    method: 'PUT',
+    headers: {
+      ...baseHeaders,
+      'Content-Type': 'text/plain; charset=utf-8',
+      Accept: 'application/xml',
+      ...(csrfToken   ? { 'X-CSRF-Token': csrfToken }   : {}),
+      ...(cookieHeader ? { Cookie: cookieHeader }         : {}),
+      ...(job.transport ? { corrNbr: job.transport }      : {}),
+    },
+    body: job.source,
+    signal: AbortSignal.timeout(30000),
+  });
+  const body = await putRes.text().catch(() => '');
+  return { ok: putRes.ok, sap_status: putRes.status, body: body.slice(0, 400) };
+}
+
+async function pollWriteQueue() {
+  if (!SB_URL || !SB_KEY) return;
+  try {
+    const headers = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
+    // Fetch up to 3 pending jobs
+    const listRes = await fetch(
+      `${SB_URL}/rest/v1/sap_write_queue?status=eq.pending&order=created_at.asc&limit=3`,
+      { headers, signal: AbortSignal.timeout(5000) }
+    );
+    if (!listRes.ok) return;
+    const jobs = await listRes.json().catch(() => []);
+    if (!Array.isArray(jobs) || jobs.length === 0) return;
+
+    for (const job of jobs) {
+      // Claim the job
+      await fetch(`${SB_URL}/rest/v1/sap_write_queue?id=eq.${job.id}`, {
+        method: 'PATCH', headers: { ...headers, Prefer: 'return=minimal' },
+        body: JSON.stringify({ status: 'processing', updated_at: new Date().toISOString() }),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      let patch;
+      try {
+        const r = await processSapWriteJob(job);
+        patch = { status: r.ok ? 'done' : 'error', ok: r.ok, sap_status: r.sap_status, body: r.body || null, error: r.error || null, updated_at: new Date().toISOString() };
+        console.log(`[queue] ${r.ok ? '✓' : '✗'} ${job.path?.split('/').pop() || job.path} → HTTP ${r.sap_status}`);
+      } catch (e) {
+        const msg = e.name === 'AbortError' ? 'Request timed out' : (e.message?.slice(0, 200) || 'Write failed');
+        patch = { status: 'error', ok: false, error: msg, updated_at: new Date().toISOString() };
+        console.error(`[queue] ✗ ${job.path?.split('/').pop() || job.path}: ${msg}`);
+      }
+
+      await fetch(`${SB_URL}/rest/v1/sap_write_queue?id=eq.${job.id}`, {
+        method: 'PATCH', headers: { ...headers, Prefer: 'return=minimal' },
+        body: JSON.stringify(patch),
+        signal: AbortSignal.timeout(5000),
+      });
+    }
+  } catch { /* best-effort */ }
+}
+
 app.listen(PORT, () => {
   console.log(`[bridge] ABAP ADT bridge listening on port ${PORT}`);
   console.log(`[bridge] MCP endpoint: http://localhost:${PORT}/mcp`);
   console.log(`[bridge] SAP credentials read from Authorization header (sent by the app)`);
   if (process.env.SAP_URL) console.log(`[bridge] .env fallback SAP_URL: ${process.env.SAP_URL}`);
   registerTunnelUrl();
+  if (SB_URL && SB_KEY) {
+    setInterval(pollWriteQueue, 3000);
+    console.log('[bridge] Write queue poller active — polling Supabase every 3s');
+  } else {
+    console.log('[bridge] Write queue poller DISABLED — no Supabase credentials');
+  }
 });
