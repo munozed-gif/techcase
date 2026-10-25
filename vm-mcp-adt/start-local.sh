@@ -152,4 +152,7 @@ else
 fi
 
 # ── Start the ADT bridge ───────────────────────────────────────
+# Export Supabase vars so server.js can use them for the write queue poller
+export SUPABASE_URL
+export SUPABASE_SERVICE_KEY
 PORT=$PORT node server.js
