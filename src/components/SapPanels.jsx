@@ -1926,7 +1926,9 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const showDeploy = key === 'mcp' && (node.extra?.needsDeploy || node.status === 'error');
           const showSetup = key === 'vm' && node.status === 'error';
           const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode;
-          const showLaptopTunnel = key === 'vpn' && isAdtMcpMode && !laptopBridgeMode;
+          // Laptop SOCKS5 tunnel guide only for non-platform-ADT: Platform VPN + ADT uses VM openfortivpn, no SOCKS5 needed
+          const isPlatformAdtRender = isAdtMcpMode && (env.vpn_mode ?? 'platform') === 'platform';
+          const showLaptopTunnel = key === 'vpn' && isAdtMcpMode && !laptopBridgeMode && !isPlatformAdtRender;
 
           return (
             <div key={key} className={`rounded-lg border transition-colors ${nodeBg(node.status)}`}>
