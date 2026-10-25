@@ -1085,7 +1085,7 @@ function McpRestartButton({ mcpUrl }) {
   );
 }
 
-function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl, onUpdateMcpUrl }) {
+function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl, onUpdateMcpUrl, onUpdateAdtUrl }) {
   const STORAGE_KEY = `infra_v2_${env.id}`;
   const bundledVersion = mcpScript.match(/version:\s*'([^']+)'/)?.[1] ?? '?';
   const { settings: sysSettings } = useSystemSettings();
@@ -1388,8 +1388,24 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     if (isPlatformAdtMode && infraCfg.mcp.enabled) {
       setLiveNode('mcp', { status: 'checking', detail: 'Checking ABAP ADT Bridge…', log: [], extra: {} });
       addLog('mcp', 'Checking ABAP ADT Bridge health before VPN start…');
-      const adtHealth = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) })
+      let adtHealth = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) })
         .then(r => r.ok ? r.json() : null).catch(() => null);
+      // If health failed, try Supabase-registered URL (bridge may have restarted with a new tunnel URL)
+      if (!adtHealth) {
+        try {
+          const { data: sData } = await supabase.from('system_settings').select('value, updated_at').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+          if (sData?.value) {
+            const freshUrl = sData.value.replace(/\/$/, '');
+            const ageMins = Math.round((Date.now() - new Date(sData.updated_at).getTime()) / 60000);
+            if (freshUrl && freshUrl !== currentMcpBase) {
+              addLog('mcp', `Trying registered URL (${ageMins}m ago): ${freshUrl}…`);
+              currentMcpBase = freshUrl;
+              if (onUpdateAdtUrl) onUpdateAdtUrl(freshUrl);
+              adtHealth = await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(6000) }).then(r => r.ok ? r.json() : null).catch(() => null);
+            }
+          }
+        } catch {}
+      }
       if (!adtHealth) {
         setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'error', detail: 'ADT bridge not responding — run start-vm.sh on the VM first' });
         addLog('mcp', 'ABAP ADT Bridge is not responding. Run vm-mcp-adt/start-vm.sh on the VM.', 'error');
@@ -2613,9 +2629,21 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                                   ABAP ADT Bridge URL <span className="text-red-400">*</span>
                                 </label>
-                                <input value={env.adt_mcp_url ?? ''} onChange={e => updateEnvField(env.id, 'adt_mcp_url', e.target.value)} disabled={!canEdit}
-                                  placeholder="https://your-tunnel.trycloudflare.com (port 3101)"
-                                  className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                                <div className="flex gap-2 items-center">
+                                  <input value={env.adt_mcp_url ?? ''} onChange={e => updateEnvField(env.id, 'adt_mcp_url', e.target.value)} disabled={!canEdit}
+                                    placeholder="https://your-tunnel.trycloudflare.com (port 3101)"
+                                    className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                                  <button title="Fetch latest URL from Supabase registry"
+                                    onClick={async () => {
+                                      try {
+                                        const { data } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+                                        if (data?.value) updateEnvField(env.id, 'adt_mcp_url', data.value.trim().replace(/\/$/, ''));
+                                      } catch {}
+                                    }}
+                                    className="shrink-0 p-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">
+                                    <RefreshCw size={13} />
+                                  </button>
+                                </div>
                                 <p className="text-xs text-gray-400 mt-0.5">
                                   {env.vpn_mode === 'user'
                                     ? <>Run <code className="text-blue-400">vm-mcp-adt/start-local.sh</code> on your laptop (FortiClient must be connected) — the tunnel URL is printed on startup and auto-registered.</>
@@ -2626,7 +2654,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                             )}
                           </div>
                           {/* Detailed infra status check */}
-                          <EnvInfraStatusCard env={env} enrichEnvWithVpn={enrichEnvWithVpn} projectConns={projectConns} globalMcpUrl={ssCtx.settings['sap_mcp_server_url']} onUpdateMcpUrl={(url) => updateEnvField(env.id, 'mcp_server_url', url)} />
+                          <EnvInfraStatusCard env={env} enrichEnvWithVpn={enrichEnvWithVpn} projectConns={projectConns} globalMcpUrl={ssCtx.settings['sap_mcp_server_url']} onUpdateMcpUrl={(url) => updateEnvField(env.id, 'mcp_server_url', url)} onUpdateAdtUrl={(url) => updateEnvField(env.id, 'adt_mcp_url', url)} />
                         </div>
                       </div>
 
