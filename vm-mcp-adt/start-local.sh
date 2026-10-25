@@ -123,20 +123,28 @@ elif [ -f "$SCRIPT_DIR/.env" ]; then
   echo "[config] Loaded Supabase credentials from .env"
 fi
 
-# ── Register tunnel URL via curl (more reliable than Node https.request) ──
+# ── Register tunnel URL via curl (PATCH first, INSERT if new) ──────────────
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_KEY" ]; then
   echo "[config] Registering tunnel URL in Supabase..."
+  AUTH_HEADERS=(-H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" -H "Content-Type: application/json")
+  # Try PATCH first (update existing row — avoids 409 on duplicate key)
   HTTP_STATUS=$(curl -s -o /tmp/supabase-reg.json -w "%{http_code}" \
-    -X POST "${SUPABASE_URL}/rest/v1/system_settings" \
-    -H "apikey: ${SUPABASE_SERVICE_KEY}" \
-    -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
-    -H "Content-Type: application/json" \
-    -H "Prefer: resolution=merge-duplicates" \
-    -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${TUNNEL_URL}\"}")
-  if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
-    echo "[config] Tunnel URL registered in Supabase ✓ (HTTP $HTTP_STATUS)"
+    -X PATCH "${SUPABASE_URL}/rest/v1/system_settings?key=eq.adt_bridge_tunnel_url" \
+    "${AUTH_HEADERS[@]}" \
+    -d "{\"value\":\"${TUNNEL_URL}\"}")
+  if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "204" ]; then
+    echo "[config] Tunnel URL updated in Supabase ✓ (HTTP $HTTP_STATUS)"
   else
-    echo "[config] Supabase registration failed (HTTP $HTTP_STATUS): $(cat /tmp/supabase-reg.json 2>/dev/null)"
+    # Row doesn't exist yet — INSERT
+    HTTP_STATUS=$(curl -s -o /tmp/supabase-reg.json -w "%{http_code}" \
+      -X POST "${SUPABASE_URL}/rest/v1/system_settings" \
+      "${AUTH_HEADERS[@]}" \
+      -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${TUNNEL_URL}\"}")
+    if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
+      echo "[config] Tunnel URL registered in Supabase ✓ (HTTP $HTTP_STATUS)"
+    else
+      echo "[config] Supabase registration failed (HTTP $HTTP_STATUS): $(cat /tmp/supabase-reg.json 2>/dev/null)"
+    fi
   fi
 else
   echo "[config] No Supabase creds found — tunnel URL won't auto-register"
