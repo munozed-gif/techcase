@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(writePayload),
-      signal: AbortSignal.timeout(50000),
+      signal: AbortSignal.timeout(55000),
     });
     const rawText = await r.text().catch(() => '');
     let data;
@@ -54,7 +54,7 @@ export default async function handler(req, res) {
     return res.status(r.ok ? 200 : 502).json(data);
   } catch (e) {
     const msg = e.message?.slice(0, 200) || 'Bridge unreachable';
-    const hint = /timeout|abort/i.test(msg) ? `Timeout reaching ${targetBase} — is start-local.sh still running?`
+    const hint = /timeout|abort/i.test(msg) ? `Timeout reaching ${targetBase} — is start-vm.sh still running on the VM?`
       : /ECONNREFUSED|ENOTFOUND|fetch failed/i.test(msg) ? `Cannot reach ${targetBase} — Cloudflare tunnel may have stopped`
       : msg;
     return res.status(502).json({ ok: false, error: hint, bridgeUrl: targetBase });
