@@ -307,6 +307,9 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
           host: config.host, username: config.username,
           password: config.password, client: config.client || '100',
           path, source, transport: transportRequest,
+          name: objectName.toUpperCase(),
+          objtype: sapAdtObjtype(objectType),
+          autoCreate: !!(sapAdtObjtype(objectType)),
         }),
         signal: AbortSignal.timeout(55000),
       });
@@ -472,6 +475,39 @@ function sapObjectPath(objectType, objectName) {
     case 'odata':
     case 'config':      return null;
     default:            return `/sap/bc/adt/programs/programs/${n}/source/main`;
+  }
+}
+
+function sapObjectUrl(objectType, objectName) {
+  const n = (objectName ?? '').toUpperCase();
+  switch (objectType) {
+    case 'program':
+    case 'report':      return `/sap/bc/adt/programs/programs/${n}`;
+    case 'include':     return `/sap/bc/adt/programs/includes/${n}`;
+    case 'class':       return `/sap/bc/adt/oo/classes/${n}`;
+    case 'function_module':
+    case 'bapi': {
+      const [fg] = n.includes('/') ? n.split('/') : [n];
+      return `/sap/bc/adt/functions/groups/${fg}`;
+    }
+    case 'table':       return `/sap/bc/adt/ddic/dbtables/${n}`;
+    case 'structure':   return `/sap/bc/adt/ddic/structures/${n}`;
+    case 'enhancement': return `/sap/bc/adt/enhancements/${n}`;
+    case 'badi':        return `/sap/bc/adt/enhancements/badi_impl/${n}`;
+    default:            return `/sap/bc/adt/programs/programs/${n}`;
+  }
+}
+
+function sapAdtObjtype(objectType) {
+  switch (objectType) {
+    case 'program':
+    case 'report':      return 'PROG/P';
+    case 'include':     return 'PROG/I';
+    case 'class':       return 'CLAS/OC';
+    case 'function_module':
+    case 'bapi':        return 'FUGR/FF';
+    case 'enhancement': return 'ENHO';
+    default:            return null;
   }
 }
 

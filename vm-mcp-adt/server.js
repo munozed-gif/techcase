@@ -519,6 +519,115 @@ app.post('/sap-write', async (req, res) => {
   }
 });
 
+// POST /sap-write-mcp — uses the mcp-abap-abap-adt-api MCP tools:
+// lock → setObjectSource → unLock → activateByName (+ optional createObject)
+// Body: { host, username, password, client, path, source, transport?,
+//         autoCreate?, objtype?, name?, parentName?, description?, parentPath? }
+app.post('/sap-write-mcp', async (req, res) => {
+  try {
+    const creds      = parseSapCreds(req.headers['authorization']) || {};
+    const host       = (creds.host     || req.body?.host     || process.env.SAP_URL      || '').replace(/\/$/, '');
+    const username   = creds.username  || req.body?.username || process.env.SAP_USER     || '';
+    const password   = creds.password  || req.body?.password || process.env.SAP_PASSWORD || '';
+    const sapClient  = creds.client    || req.body?.client   || process.env.SAP_CLIENT   || '100';
+    const adtPath    = req.body?.path;
+    const source     = req.body?.source;
+    const transport  = req.body?.transport;
+    const autoCreate = !!req.body?.autoCreate;
+    const objtype    = req.body?.objtype;
+    const objName    = req.body?.name;
+    const parentName = req.body?.parentName  || '$TMP';
+    const description= req.body?.description || '';
+    const parentPath = req.body?.parentPath  || `/sap/bc/adt/packages/${(req.body?.parentName || '$TMP')}`;
+
+    if (!host || !username || !password || !adtPath || source === undefined) {
+      return res.status(400).json({ ok: false, error: 'Missing required fields: host, username, password, path, source' });
+    }
+
+    const objectUrl       = adtPath.replace(/\/source\/main$/, '');
+    const objectSourceUrl = adtPath;
+    const resolvedName    = objName || objectUrl.split('/').pop()?.toUpperCase() || '';
+
+    const mcpClient = await getClient({ host, username, password, client: sapClient, serverType: 'abap-adt' });
+    const callTool  = (name, args) => mcpClient.callTool({ name, arguments: args });
+
+    const parseMcpText = (result) => {
+      try { return JSON.parse(result?.content?.[0]?.text ?? '{}'); }
+      catch { return { raw: result?.content?.[0]?.text }; }
+    };
+
+    async function doLock() {
+      const r = parseMcpText(await callTool('lock', { objectUrl }));
+      const handle = r.lockHandle || r.lock_handle || r.handle;
+      if (!handle) throw new Error(`Lock returned no handle: ${JSON.stringify(r).slice(0, 200)}`);
+      return handle;
+    }
+
+    // 1. Auto-create if requested
+    if (autoCreate && objtype && resolvedName) {
+      try {
+        await callTool('createObject', {
+          objtype, name: resolvedName, parentName, description, parentPath,
+          ...(transport ? { transport } : {}),
+        });
+      } catch (e) {
+        const msg = e.message ?? '';
+        if (!/already exist|duplicate|409/i.test(msg)) {
+          return res.json({ ok: false, step: 'create', error: msg.slice(0, 300) });
+        }
+      }
+    }
+
+    // 2. Lock (retry with createObject on 404)
+    let lockHandle;
+    try {
+      lockHandle = await doLock();
+    } catch (lockErr) {
+      const msg = lockErr.message ?? '';
+      if (/404|not found|does not exist/i.test(msg) && objtype && resolvedName) {
+        try {
+          await callTool('createObject', {
+            objtype, name: resolvedName, parentName, description, parentPath,
+            ...(transport ? { transport } : {}),
+          });
+          lockHandle = await doLock();
+        } catch (e2) {
+          return res.json({ ok: false, step: 'lock_after_create', error: e2.message?.slice(0, 300) });
+        }
+      } else {
+        return res.json({ ok: false, step: 'lock', error: msg.slice(0, 300) });
+      }
+    }
+
+    // 3. setObjectSource
+    try {
+      await callTool('setObjectSource', {
+        objectSourceUrl, source, lockHandle,
+        ...(transport ? { transport } : {}),
+      });
+    } catch (e) {
+      try { await callTool('unLock', { objectUrl, lockHandle }); } catch {}
+      return res.json({ ok: false, step: 'setObjectSource', error: e.message?.slice(0, 300) });
+    }
+
+    // 4. unLock (best-effort)
+    try { await callTool('unLock', { objectUrl, lockHandle }); } catch {}
+
+    // 5. activateByName (non-fatal)
+    let activateError = null;
+    try {
+      await callTool('activateByName', { objectName: resolvedName, objectUrl });
+    } catch (e) {
+      activateError = e.message?.slice(0, 150);
+    }
+
+    res.json({ ok: true, status: 200, ...(activateError ? { activateError } : {}) });
+  } catch (err) {
+    console.error('[bridge] /sap-write-mcp error:', err);
+    res.status(500).json({ ok: false, error: err.message?.slice(0, 200) || 'Internal error' });
+  }
+});
+
 // ── MCP endpoint ─────────────────────────────────────────────
 // Session store: sessionId → { server, transport }
 const sessions = new Map();

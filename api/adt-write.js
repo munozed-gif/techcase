@@ -41,7 +41,7 @@ export default async function handler(req, res) {
   if (!targetBase) return res.status(503).json({ ok: false, error: 'ADT bridge URL not found — update it in SAP Config or ensure start-local.sh is running' });
 
   try {
-    const r = await fetch(`${targetBase}/sap-write`, {
+    const r = await fetch(`${targetBase}/sap-write-mcp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(writePayload),
