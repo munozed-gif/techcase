@@ -1843,63 +1843,69 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         return r.json();
       };
 
+      // ── Step 1: direct HTTP connectivity check (informational) ──────────────────
       let sapResult = null;
+      let sapDirectErr = null;
       try {
         sapResult = await doSapCheck();
       } catch (e) {
-        addLog('sap', `Attempt 1 failed (${e.message?.slice(0, 50)}) — retrying…`, 'warn');
-        try { await new Promise(r => setTimeout(r, 2000)); sapResult = await doSapCheck(); } catch {}
+        sapDirectErr = e.message?.slice(0, 60);
+        addLog('sap', `Direct HTTP check attempt 1 failed (${sapDirectErr}) — retrying…`, 'warn');
+        try { await new Promise(r => setTimeout(r, 2000)); sapResult = await doSapCheck(); sapDirectErr = null; } catch (e2) { sapDirectErr = e2.message?.slice(0, 60); }
       }
 
-      if (!sapResult) {
+      // ── Step 2: MCP tool chain test (ADT mode) — always run regardless of direct check ─
+      let mcpTest = null;
+      if (isAdtMcpMode && currentMcpBase) {
+        addLog('sap', 'Testing MCP subprocess tool chain (R+W + R/O)…');
+        setLiveNode('sap', { ...liveNodes.current.sap, status: 'checking', detail: 'Testing MCP tool chain…' });
+        try {
+          const tr = await fetch(`${currentMcpBase}/mcp-test`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ host: env.host, username: env.username, password: env.password, client: env.client || '100' }),
+            signal: AbortSignal.timeout(45000),
+          });
+          if (tr.ok) {
+            mcpTest = await tr.json();
+          } else if (tr.status === 404) {
+            addLog('sap', 'MCP test endpoint not found — restart bridge (start-vm.sh) to pick up latest server.js', 'warn');
+          } else {
+            addLog('sap', `MCP test: bridge returned HTTP ${tr.status}`, 'warn');
+          }
+        } catch (e) {
+          addLog('sap', `MCP tool chain test failed: ${e.message?.slice(0, 100)}`, 'error');
+        }
+      }
+
+      // ── Decide overall SAP node status ────────────────────────────────────────
+      const directOk  = sapResult?.ok === true;
+      const directErr = !sapResult || sapResult.ok === false;
+      const rwOk = mcpTest?.rw?.ok;
+      const roOk = mcpTest?.ro?.ok;
+      const mcpOk = rwOk || roOk;
+
+      if (mcpTest) {
+        const directLabel = directOk ? `ADT ✓` : (sapDirectErr ? `ADT ✗ (${sapDirectErr})` : `ADT ✗ HTTP ${sapResult?.status || 'err'}`);
+        const detail = `${directLabel} · R+W ${rwOk ? `✓ ${mcpTest.rw.tools}t` : '✗'} · R/O ${roOk ? `✓ ${mcpTest.ro.tools}t` : '✗'}`;
+        addLog('sap', `Direct HTTP to SAP: ${directOk ? 'OK ✓' : `FAILED (${sapDirectErr || sapResult?.error || `HTTP ${sapResult?.status}`})`}`, directOk ? 'success' : 'warn');
+        addLog('sap', `MCP R+W (mcp-abap-abap-adt-api): ${rwOk ? `✓ ${mcpTest.rw.tools} tools` : `✗ ${mcpTest.rw?.error || 'failed'}`}`, rwOk ? 'success' : 'error');
+        addLog('sap', `MCP R/O (mcp-abap-adt):           ${roOk ? `✓ ${mcpTest.ro.tools} tools` : `✗ ${mcpTest.ro?.error || 'failed'}`}`, roOk ? 'success' : 'error');
+        const overallStatus = mcpOk ? (directOk ? 'ok' : 'warning') : (directOk ? 'warning' : 'error');
+        if (!directOk && mcpOk) addLog('sap', 'Direct HTTP to SAP timed out but MCP subprocesses can reach SAP — implementation will work normally.', 'warn');
+        setLiveNode('sap', { ...liveNodes.current.sap, status: overallStatus, detail, extra: { rwTools: mcpTest.rw?.tools, roTools: mcpTest.ro?.tools } });
+      } else if (directOk) {
+        const info = sapResult.systemInfo || `Connected (${env.host})`;
+        addLog('sap', `SAP ADT reachable: ${info}`, 'success');
+        setLiveNode('sap', { ...liveNodes.current.sap, status: 'ok', detail: info, extra: { systemInfo: info } });
+      } else if (!sapResult) {
         const sapErrDetail = isAdtMcpMode
-          ? 'SAP unreachable from VM — enable VPN on VM or run bridge on laptop'
+          ? 'SAP unreachable from VM — check VPN and SAP host'
           : 'SAP unreachable — network or timeout error';
         setLiveNode('sap', { ...liveNodes.current.sap, status: 'error', detail: sapErrDetail });
         addLog('sap', isAdtMcpMode
-          ? 'SAP unreachable: the ADT bridge subprocess runs on the VM which has no VPN. Enable VM VPN or run the bridge locally on your laptop.'
+          ? `SAP unreachable via both direct HTTP and MCP. VPN active but SAP host may be wrong or refusing connections. Detail: ${sapDirectErr || 'timeout'}`
           : 'SAP unreachable after 2 attempts', 'error');
-      } else if (sapResult.ok) {
-        const info = sapResult.systemInfo || `Connected (${env.host})`;
-        addLog('sap', `SAP ADT reachable: ${info}`, 'success');
-
-        // ── MCP tool chain test (only in ADT bridge mode) ────────────────────────
-        if (isAdtMcpMode && currentMcpBase) {
-          addLog('sap', 'Testing MCP subprocess read/write tool chain…');
-          setLiveNode('sap', { ...liveNodes.current.sap, status: 'checking', detail: 'Testing MCP tool chain…' });
-          let mcpTest = null;
-          try {
-            const tr = await fetch(`${currentMcpBase}/mcp-test`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ host: env.host, username: env.username, password: env.password, client: env.client || '100' }),
-              signal: AbortSignal.timeout(30000),
-            });
-            if (tr.ok) {
-              mcpTest = await tr.json();
-            } else if (tr.status === 404) {
-              addLog('sap', `MCP tool chain test: endpoint not found (bridge running old code) — restart start-vm.sh on the VM to pick up latest server.js`, 'warn');
-            } else {
-              addLog('sap', `MCP tool chain test: bridge returned HTTP ${tr.status}`, 'warn');
-            }
-          } catch (e) {
-            addLog('sap', `MCP tool chain test failed: ${e.message?.slice(0, 120)} — ensure bridge is running latest code`, 'error');
-          }
-
-          if (mcpTest) {
-            const rwOk = mcpTest.rw?.ok;
-            const roOk = mcpTest.ro?.ok;
-            addLog('sap', `MCP R+W (mcp-abap-abap-adt-api): ${rwOk ? `✓ ${mcpTest.rw.tools} tools ready` : `✗ ${mcpTest.rw?.error || 'failed'}`}`, rwOk ? 'success' : 'error');
-            addLog('sap', `MCP R/O (mcp-abap-adt):           ${roOk ? `✓ ${mcpTest.ro.tools} tools ready` : `✗ ${mcpTest.ro?.error || 'failed'}`}`, roOk ? 'success' : 'error');
-            const allOk = rwOk && roOk;
-            const detail = `${info} · R+W ${rwOk ? `✓ ${mcpTest.rw.tools}t` : '✗'} · R/O ${roOk ? `✓ ${mcpTest.ro.tools}t` : '✗'}`;
-            setLiveNode('sap', { ...liveNodes.current.sap, status: allOk ? 'ok' : (rwOk || roOk ? 'warning' : 'error'), detail, extra: { systemInfo: info, rwTools: mcpTest.rw?.tools, roTools: mcpTest.ro?.tools } });
-          } else {
-            setLiveNode('sap', { ...liveNodes.current.sap, status: 'warning', detail: `${info} · MCP test unavailable`, extra: { systemInfo: info } });
-          }
-        } else {
-          setLiveNode('sap', { ...liveNodes.current.sap, status: 'ok', detail: info, extra: { systemInfo: info } });
-        }
       } else {
         const code = sapResult.status;
         const errMsg = sapResult.error || `HTTP ${code || 'error'}`;
