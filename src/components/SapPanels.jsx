@@ -1858,12 +1858,21 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
   // User VPN + ADT = bridge runs on laptop; VM and VPN nodes don't apply
   const laptopBridgeMode = isUserVpnMode && isAdtMcpMode;
-  const NODE_META = [
-    !laptopBridgeMode && { key: 'vm',  label: 'Virtual Machine' },
-    { key: 'vpn', label: laptopBridgeMode ? 'FortiClient VPN' : 'VPN' },
-    { key: 'mcp', label: laptopBridgeMode ? 'ADT Bridge (Laptop)' : isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP Server' },
-    { key: 'sap', label: 'SAP Connection' },
-  ].filter(Boolean);
+  // Platform VPN + ADT = VM runs both bridge and VPN; check ADT bridge before starting VPN
+  const isPlatformAdtMode = isAdtMcpMode && !laptopBridgeMode;
+  const NODE_META = isPlatformAdtMode
+    ? [
+        { key: 'vm',  label: 'Virtual Machine' },
+        { key: 'mcp', label: 'ABAP ADT Bridge' },
+        { key: 'vpn', label: 'VPN' },
+        { key: 'sap', label: 'SAP Connection' },
+      ]
+    : [
+        !laptopBridgeMode && { key: 'vm',  label: 'Virtual Machine' },
+        { key: 'vpn', label: laptopBridgeMode ? 'FortiClient VPN' : 'VPN' },
+        { key: 'mcp', label: laptopBridgeMode ? 'ADT Bridge (Laptop)' : 'MCP Server' },
+        { key: 'sap', label: 'SAP Connection' },
+      ].filter(Boolean);
 
   async function stopVmVpn() {
     const base = getMcpBase();
@@ -1969,10 +1978,10 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const node = nodes[key];
           const isExpandedLog = !!expanded[key];
           const hasLog = node.log?.length > 0;
-          const showDeploy = key === 'mcp' && (node.extra?.needsDeploy || node.status === 'error');
+          const showDeploy = key === 'mcp' && !isPlatformAdtMode && (node.extra?.needsDeploy || node.status === 'error');
           const showSetup = key === 'vm' && node.status === 'error';
           const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode;
-          const showLaptopTunnel = key === 'vpn' && isAdtMcpMode && !laptopBridgeMode;
+          const showLaptopTunnel = key === 'vpn' && laptopBridgeMode;
 
           return (
             <div key={key} className={`rounded-lg border transition-colors ${nodeBg(node.status)}`}>
