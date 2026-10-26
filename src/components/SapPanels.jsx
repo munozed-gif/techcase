@@ -1874,9 +1874,15 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
               body: JSON.stringify({ host: env.host, username: env.username, password: env.password, client: env.client || '100' }),
               signal: AbortSignal.timeout(30000),
             });
-            mcpTest = await tr.json();
+            if (tr.ok) {
+              mcpTest = await tr.json();
+            } else if (tr.status === 404) {
+              addLog('sap', `MCP tool chain test: endpoint not found (bridge running old code) — restart start-vm.sh on the VM to pick up latest server.js`, 'warn');
+            } else {
+              addLog('sap', `MCP tool chain test: bridge returned HTTP ${tr.status}`, 'warn');
+            }
           } catch (e) {
-            addLog('sap', `MCP tool chain test failed: ${e.message?.slice(0, 80)}`, 'error');
+            addLog('sap', `MCP tool chain test failed: ${e.message?.slice(0, 120)} — ensure bridge is running latest code`, 'error');
           }
 
           if (mcpTest) {
