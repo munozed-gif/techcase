@@ -288,6 +288,9 @@ async function sapGetCsrfToken(config) {
 
 async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest) {
   const path = sapObjectPath(objectType, objectName);
+  if (!path) {
+    return { ok: false, error: `Object type '${objectType}' (${objectName}) has no ABAP source — create it manually in SE11` };
+  }
 
   // ADT bridge mode: enqueue the write job in Supabase.
   // The bridge polls every 3s, applies the write to SAP server-side, and writes back the result.
@@ -296,22 +299,25 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
   const adtWriteBase = proxyUrl?.replace(/\/sap-proxy\/?$/, '');
   if (adtWriteBase && !adtWriteBase.includes('/api/sap-proxy')) {
     try {
-      const { data: job, error: insertErr } = await supabase.from('sap_write_queue').insert({
-        host: config.host, username: config.username, password: config.password,
-        client: config.client || '100', path, source,
-        transport: transportRequest || null,
-      }).select('id').single();
-      if (insertErr) return { ok: false, error: `Queue insert failed: ${insertErr.message}` };
-
-      // Poll up to 90s (30 × 3s) for the bridge to process the job
-      for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 3000));
-        const { data: row } = await supabase.from('sap_write_queue')
-          .select('status, ok, sap_status, error, body').eq('id', job.id).single();
-        if (row?.status === 'done') return { ok: true, status: row.sap_status, body: row.body };
-        if (row?.status === 'error') return { ok: false, status: row.sap_status, error: row.error || 'SAP write failed', body: row.body };
-      }
-      return { ok: false, error: 'Write job timed out (90s) — check the bridge is running and has Supabase credentials' };
+      const r = await fetch('/api/adt-write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bridgeUrl: adtWriteBase,
+          host: config.host, username: config.username,
+          password: config.password, client: config.client || '100',
+          path, source, transport: transportRequest,
+          name: objectName.toUpperCase(),
+          objtype: sapAdtObjtype(objectType),
+          autoCreate: !!(sapAdtObjtype(objectType)),
+        }),
+        signal: AbortSignal.timeout(55000),
+      });
+      const rawText = await r.text();
+      let data;
+      try { data = JSON.parse(rawText); }
+      catch { data = { ok: false, error: `Invalid response from bridge (HTTP ${r.status}): ${rawText.slice(0, 200)}` }; }
+      return data;
     } catch (e) {
       return { ok: false, phase: 'write', error: e.message?.slice(0, 120) || 'Queue write failed' };
     }
@@ -448,15 +454,60 @@ async function sapLiveCheck(config) {
 function sapObjectPath(objectType, objectName) {
   const n = (objectName ?? '').toUpperCase();
   switch (objectType) {
-    case 'program':     return `/sap/bc/adt/programs/programs/${n}/source/main`;
+    case 'program':
+    case 'report':      return `/sap/bc/adt/programs/programs/${n}/source/main`;
+    case 'include':     return `/sap/bc/adt/programs/includes/${n}/source/main`;
     case 'class':       return `/sap/bc/adt/oo/classes/${n}/source/main`;
-    case 'function_module': {
+    case 'function_module':
+    case 'bapi': {
       const [fg, fm] = n.includes('/') ? n.split('/') : [n, n];
       return `/sap/bc/adt/functions/groups/${fg}/fmodules/${fm}/source/main`;
     }
     case 'table':       return `/sap/bc/adt/ddic/dbtables/${n}/source/main`;
+    case 'structure':   return `/sap/bc/adt/ddic/structures/${n}/source/main`;
     case 'enhancement': return `/sap/bc/adt/enhancements/${n}/source/main`;
+    case 'badi':        return `/sap/bc/adt/enhancements/badi_impl/${n}/source/main`;
+    // Dictionary objects without ABAP source: must be created manually via SE11
+    case 'domain':
+    case 'data_element':
+    case 'message_class':
+    case 'smartform':
+    case 'odata':
+    case 'config':      return null;
     default:            return `/sap/bc/adt/programs/programs/${n}/source/main`;
+  }
+}
+
+function sapObjectUrl(objectType, objectName) {
+  const n = (objectName ?? '').toUpperCase();
+  switch (objectType) {
+    case 'program':
+    case 'report':      return `/sap/bc/adt/programs/programs/${n}`;
+    case 'include':     return `/sap/bc/adt/programs/includes/${n}`;
+    case 'class':       return `/sap/bc/adt/oo/classes/${n}`;
+    case 'function_module':
+    case 'bapi': {
+      const [fg] = n.includes('/') ? n.split('/') : [n];
+      return `/sap/bc/adt/functions/groups/${fg}`;
+    }
+    case 'table':       return `/sap/bc/adt/ddic/dbtables/${n}`;
+    case 'structure':   return `/sap/bc/adt/ddic/structures/${n}`;
+    case 'enhancement': return `/sap/bc/adt/enhancements/${n}`;
+    case 'badi':        return `/sap/bc/adt/enhancements/badi_impl/${n}`;
+    default:            return `/sap/bc/adt/programs/programs/${n}`;
+  }
+}
+
+function sapAdtObjtype(objectType) {
+  switch (objectType) {
+    case 'program':
+    case 'report':      return 'PROG/P';
+    case 'include':     return 'PROG/I';
+    case 'class':       return 'CLAS/OC';
+    case 'function_module':
+    case 'bapi':        return 'FUGR/FF';
+    case 'enhancement': return 'ENHO';
+    default:            return null;
   }
 }
 
@@ -1850,9 +1901,9 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
   // User VPN + ADT = bridge runs on laptop; VM and VPN nodes don't apply
   const laptopBridgeMode = isUserVpnMode && isAdtMcpMode;
-  // Platform VPN + ADT: ADT bridge is checked before VPN — show it first in the UI
-  const isPlatformAdtDisplay = isAdtMcpMode && !laptopBridgeMode;
-  const NODE_META = isPlatformAdtDisplay
+  // Platform VPN + ADT = VM runs both bridge and VPN; check ADT bridge before starting VPN
+  const isPlatformAdtMode = isAdtMcpMode && !laptopBridgeMode;
+  const NODE_META = isPlatformAdtMode
     ? [
         { key: 'vm',  label: 'Virtual Machine' },
         { key: 'mcp', label: 'ABAP ADT Bridge' },
@@ -1860,9 +1911,9 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         { key: 'sap', label: 'SAP Connection' },
       ]
     : [
-        !laptopBridgeMode && { key: 'vm', label: 'Virtual Machine' },
+        !laptopBridgeMode && { key: 'vm',  label: 'Virtual Machine' },
         { key: 'vpn', label: laptopBridgeMode ? 'FortiClient VPN' : 'VPN' },
-        { key: 'mcp', label: laptopBridgeMode ? 'ADT Bridge (Laptop)' : isAdtMcpMode ? 'ABAP ADT Bridge' : 'MCP Server' },
+        { key: 'mcp', label: laptopBridgeMode ? 'ADT Bridge (Laptop)' : 'MCP Server' },
         { key: 'sap', label: 'SAP Connection' },
       ].filter(Boolean);
 
@@ -1970,12 +2021,10 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const node = nodes[key];
           const isExpandedLog = !!expanded[key];
           const hasLog = node.log?.length > 0;
-          const showDeploy = key === 'mcp' && !isPlatformAdtDisplay && (node.extra?.needsDeploy || node.status === 'error');
+          const showDeploy = key === 'mcp' && !isPlatformAdtMode && (node.extra?.needsDeploy || node.status === 'error');
           const showSetup = key === 'vm' && node.status === 'error';
           const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode && node.status === 'ok';
-          // Laptop SOCKS5 tunnel guide only for non-platform-ADT: Platform VPN + ADT uses VM openfortivpn, no SOCKS5 needed
-          const isPlatformAdtRender = isAdtMcpMode && (env.vpn_mode ?? 'platform') === 'platform';
-          const showLaptopTunnel = key === 'vpn' && isAdtMcpMode && !laptopBridgeMode && !isPlatformAdtRender;
+          const showLaptopTunnel = key === 'vpn' && laptopBridgeMode;
 
           return (
             <div key={key} className={`rounded-lg border transition-colors ${nodeBg(node.status)}`}>
