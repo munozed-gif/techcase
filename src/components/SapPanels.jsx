@@ -288,8 +288,12 @@ async function sapGetCsrfToken(config) {
 
 async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest) {
   const path = sapObjectPath(objectType, objectName);
-  if (!path) {
-    return { ok: false, error: `Object type '${objectType}' (${objectName}) has no ABAP source — create it manually in SE11` };
+  const createOnly = sapIsCreateOnly(objectType);
+
+  // For types with no ABAP source but that CAN be created via ADT (domain, data_element, message_class):
+  // send createOnly request — bridge runs createObject + activateByName, user fills properties in SE11
+  if (!path && !createOnly) {
+    return { ok: false, error: `Object type '${objectType}' (${objectName}) has no ABAP source — create it manually` };
   }
 
   // ADT bridge mode: enqueue the write job in Supabase.
@@ -306,10 +310,13 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
           bridgeUrl: adtWriteBase,
           host: config.host, username: config.username,
           password: config.password, client: config.client || '100',
-          path, source, transport: transportRequest,
+          path: path || sapObjectUrl(objectType, objectName),
+          source: createOnly ? '' : source,
+          transport: transportRequest,
           name: objectName.toUpperCase(),
           objtype: sapAdtObjtype(objectType),
           autoCreate: !!(sapAdtObjtype(objectType)),
+          createOnly,
         }),
         signal: AbortSignal.timeout(55000),
       });
@@ -467,10 +474,11 @@ function sapObjectPath(objectType, objectName) {
     case 'structure':   return `/sap/bc/adt/ddic/structures/${n}/source/main`;
     case 'enhancement': return `/sap/bc/adt/enhancements/${n}/source/main`;
     case 'badi':        return `/sap/bc/adt/enhancements/badi_impl/${n}/source/main`;
-    // Dictionary objects without ABAP source: must be created manually via SE11
+    // Dictionary objects without ABAP source (properties set via ADT metadata, not source/main)
     case 'domain':
     case 'data_element':
-    case 'message_class':
+    case 'message_class': return null;
+    // Non-ADT objects: must be created manually
     case 'smartform':
     case 'odata':
     case 'config':      return null;
@@ -494,6 +502,9 @@ function sapObjectUrl(objectType, objectName) {
     case 'structure':   return `/sap/bc/adt/ddic/structures/${n}`;
     case 'enhancement': return `/sap/bc/adt/enhancements/${n}`;
     case 'badi':        return `/sap/bc/adt/enhancements/badi_impl/${n}`;
+    case 'domain':      return `/sap/bc/adt/ddic/domains/${n}`;
+    case 'data_element':return `/sap/bc/adt/ddic/dataelements/${n}`;
+    case 'message_class':return `/sap/bc/adt/messageclass/${n}`;
     default:            return `/sap/bc/adt/programs/programs/${n}`;
   }
 }
@@ -507,8 +518,16 @@ function sapAdtObjtype(objectType) {
     case 'function_module':
     case 'bapi':        return 'FUGR/FF';
     case 'enhancement': return 'ENHO';
+    case 'domain':      return 'DOMA/DD';
+    case 'data_element':return 'DTEL/DE';
+    case 'message_class':return 'MSAG/N';
     default:            return null;
   }
+}
+
+// Types that are created via ADT metadata (no ABAP source/main), just createObject + activate
+function sapIsCreateOnly(objectType) {
+  return objectType === 'domain' || objectType === 'data_element' || objectType === 'message_class';
 }
 
 async function sapFetchSource(config, objectType, objectName) {

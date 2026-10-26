@@ -519,9 +519,10 @@ app.post('/sap-write', async (req, res) => {
 });
 
 // POST /sap-write-mcp — uses the mcp-abap-abap-adt-api MCP tools:
-// lock → setObjectSource → unLock → activateByName (+ optional createObject)
+// Normal:      lock → setObjectSource → unLock → activateByName (+ optional createObject)
+// createOnly:  createObject → activateByName  (domain / data_element / message_class — no source)
 // Body: { host, username, password, client, path, source, transport?,
-//         autoCreate?, objtype?, name?, parentName?, description?, parentPath? }
+//         autoCreate?, createOnly?, objtype?, name?, parentName?, description?, parentPath? }
 app.post('/sap-write-mcp', async (req, res) => {
   try {
     const creds      = parseSapCreds(req.headers['authorization']) || {};
@@ -533,14 +534,18 @@ app.post('/sap-write-mcp', async (req, res) => {
     const source     = req.body?.source;
     const transport  = req.body?.transport;
     const autoCreate = !!req.body?.autoCreate;
+    const createOnly = !!req.body?.createOnly;
     const objtype    = req.body?.objtype;
     const objName    = req.body?.name;
     const parentName = req.body?.parentName  || '$TMP';
     const description= req.body?.description || '';
     const parentPath = req.body?.parentPath  || `/sap/bc/adt/packages/${(req.body?.parentName || '$TMP')}`;
 
-    if (!host || !username || !password || !adtPath || source === undefined) {
-      return res.status(400).json({ ok: false, error: 'Missing required fields: host, username, password, path, source' });
+    if (!host || !username || !password || !adtPath) {
+      return res.status(400).json({ ok: false, error: 'Missing required fields: host, username, password, path' });
+    }
+    if (!createOnly && source === undefined) {
+      return res.status(400).json({ ok: false, error: 'Missing required field: source' });
     }
 
     const objectUrl       = adtPath.replace(/\/source\/main$/, '');
@@ -561,6 +566,43 @@ app.post('/sap-write-mcp', async (req, res) => {
       if (!handle) throw new Error(`Lock returned no handle: ${JSON.stringify(r).slice(0, 200)}`);
       return handle;
     }
+
+    // ── createOnly path: domain / data_element / message_class ──────────────
+    // These have no ABAP source/main. We create the skeleton and activate it;
+    // the user fills in properties (data type, length, labels) in SE11/SE91.
+    if (createOnly) {
+      if (!objtype || !resolvedName) {
+        return res.status(400).json({ ok: false, error: 'createOnly requires objtype and name' });
+      }
+      let created = false;
+      try {
+        await callTool('createObject', {
+          objtype, name: resolvedName, parentName, description, parentPath,
+          ...(transport ? { transport } : {}),
+        });
+        created = true;
+      } catch (e) {
+        const msg = e.message ?? '';
+        if (/already exist|duplicate|409/i.test(msg)) {
+          created = true; // already exists — that's fine
+        } else {
+          return res.json({ ok: false, step: 'create', error: msg.slice(0, 300) });
+        }
+      }
+      let activateError = null;
+      try {
+        await callTool('activateByName', { objectName: resolvedName, objectUrl });
+      } catch (e) {
+        activateError = e.message?.slice(0, 150);
+      }
+      return res.json({
+        ok: true, status: 200, createOnly: true, created,
+        note: `Object created in SAP. Set properties manually in SE11/SE91 (data type, length, labels).`,
+        ...(activateError ? { activateError } : {}),
+      });
+    }
+
+    // ── Normal path: source-based objects ───────────────────────────────────
 
     // 1. Auto-create if requested
     if (autoCreate && objtype && resolvedName) {
