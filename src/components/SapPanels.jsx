@@ -1860,8 +1860,39 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           : 'SAP unreachable after 2 attempts', 'error');
       } else if (sapResult.ok) {
         const info = sapResult.systemInfo || `Connected (${env.host})`;
-        setLiveNode('sap', { ...liveNodes.current.sap, status: 'ok', detail: info, extra: { systemInfo: info } });
-        addLog('sap', `SAP connected: ${info}`, 'success');
+        addLog('sap', `SAP ADT reachable: ${info}`, 'success');
+
+        // ── MCP tool chain test (only in ADT bridge mode) ────────────────────────
+        if (isAdtMcpMode && currentMcpBase) {
+          addLog('sap', 'Testing MCP subprocess read/write tool chain…');
+          setLiveNode('sap', { ...liveNodes.current.sap, status: 'checking', detail: 'Testing MCP tool chain…' });
+          let mcpTest = null;
+          try {
+            const tr = await fetch(`${currentMcpBase}/mcp-test`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ host: env.host, username: env.username, password: env.password, client: env.client || '100' }),
+              signal: AbortSignal.timeout(30000),
+            });
+            mcpTest = await tr.json();
+          } catch (e) {
+            addLog('sap', `MCP tool chain test failed: ${e.message?.slice(0, 80)}`, 'error');
+          }
+
+          if (mcpTest) {
+            const rwOk = mcpTest.rw?.ok;
+            const roOk = mcpTest.ro?.ok;
+            addLog('sap', `MCP R+W (mcp-abap-abap-adt-api): ${rwOk ? `✓ ${mcpTest.rw.tools} tools ready` : `✗ ${mcpTest.rw?.error || 'failed'}`}`, rwOk ? 'success' : 'error');
+            addLog('sap', `MCP R/O (mcp-abap-adt):           ${roOk ? `✓ ${mcpTest.ro.tools} tools ready` : `✗ ${mcpTest.ro?.error || 'failed'}`}`, roOk ? 'success' : 'error');
+            const allOk = rwOk && roOk;
+            const detail = `${info} · R+W ${rwOk ? `✓ ${mcpTest.rw.tools}t` : '✗'} · R/O ${roOk ? `✓ ${mcpTest.ro.tools}t` : '✗'}`;
+            setLiveNode('sap', { ...liveNodes.current.sap, status: allOk ? 'ok' : (rwOk || roOk ? 'warning' : 'error'), detail, extra: { systemInfo: info, rwTools: mcpTest.rw?.tools, roTools: mcpTest.ro?.tools } });
+          } else {
+            setLiveNode('sap', { ...liveNodes.current.sap, status: 'warning', detail: `${info} · MCP test unavailable`, extra: { systemInfo: info } });
+          }
+        } else {
+          setLiveNode('sap', { ...liveNodes.current.sap, status: 'ok', detail: info, extra: { systemInfo: info } });
+        }
       } else {
         const code = sapResult.status;
         const errMsg = sapResult.error || `HTTP ${code || 'error'}`;

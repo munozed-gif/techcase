@@ -468,6 +468,46 @@ app.post('/sap-info', async (req, res) => {
   }
 });
 
+// MCP connectivity test — spawns both subprocesses and calls listTools (no SAP call)
+// Proves subprocess can start and speak MCP protocol. Use for infra check "MCP read/write" step.
+// Body: { host, username, password, client }
+app.post('/mcp-test', async (req, res) => {
+  const creds     = parseSapCreds(req.headers['authorization']) || {};
+  const host      = (creds.host     || req.body?.host     || '').replace(/\/$/, '');
+  const username  =  creds.username || req.body?.username || '';
+  const password  =  creds.password || req.body?.password || '';
+  const sapClient =  creds.client   || req.body?.client   || '100';
+
+  if (!host || !username || !password) {
+    return res.status(400).json({ ok: false, error: 'Missing SAP credentials' });
+  }
+
+  const rw = { ok: false, tools: 0, error: null };
+  const ro = { ok: false, tools: 0, error: null };
+
+  // R+W: mcp-abap-abap-adt-api (127 tools)
+  try {
+    const rwClient = await getClient({ host, username, password, client: sapClient, serverType: 'abap-adt' });
+    const list = await rwClient.listTools();
+    rw.ok = true;
+    rw.tools = list?.tools?.length ?? 0;
+  } catch (e) {
+    rw.error = e.message?.slice(0, 150) ?? 'spawn failed';
+  }
+
+  // R/O: mcp-abap-adt (16 tools)
+  try {
+    const roClient = await getClient({ host, username, password, client: sapClient, serverType: 'abap-adt-readonly' });
+    const list = await roClient.listTools();
+    ro.ok = true;
+    ro.tools = list?.tools?.length ?? 0;
+  } catch (e) {
+    ro.error = e.message?.slice(0, 150) ?? 'spawn failed';
+  }
+
+  res.json({ ok: rw.ok || ro.ok, rw, ro });
+});
+
 // SAP write endpoint — does the full CSRF-fetch + PUT in one server-side session
 // so SAP session cookies are maintained and the CSRF token is always valid.
 // Body: { host, username, password, client, path, source, transport? }
