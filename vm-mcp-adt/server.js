@@ -552,13 +552,30 @@ app.post('/sap-write-mcp', async (req, res) => {
     const objectSourceUrl = adtPath;
     const resolvedName    = objName || objectUrl.split('/').pop()?.toUpperCase() || '';
 
-    const mcpClient = await getClient({ host, username, password, client: sapClient, serverType: 'abap-adt' });
-    const callTool  = (name, args) => mcpClient.callTool({ name, arguments: args });
+    const creds4Pool = { host, username, password, client: sapClient, serverType: 'abap-adt' };
 
     const parseMcpText = (result) => {
       try { return JSON.parse(result?.content?.[0]?.text ?? '{}'); }
       catch { return { raw: result?.content?.[0]?.text }; }
     };
+
+    // callTool with automatic respawn on -32000 (subprocess crash): delete pool entry
+    // and retry once with a fresh subprocess.
+    async function callTool(name, args) {
+      let client = await getClient(creds4Pool);
+      try {
+        return await client.callTool({ name, arguments: args });
+      } catch (e) {
+        const isCrash = e?.code === -32000 || /connection closed|-32000/i.test(e?.message ?? '');
+        if (!isCrash) throw e;
+        console.warn(`[bridge] MCP subprocess crashed on '${name}' (-32000) — respawning...`);
+        // onclose already removed it from pool; delete explicitly in case timing differs
+        const key = `${host}|${username}|abap-adt`;
+        clientPool.delete(key);
+        client = await getClient(creds4Pool);
+        return await client.callTool({ name, arguments: args });
+      }
+    }
 
     async function doLock() {
       const r = parseMcpText(await callTool('lock', { objectUrl }));
@@ -568,44 +585,35 @@ app.post('/sap-write-mcp', async (req, res) => {
     }
 
     // ── createOnly path: domain / data_element / message_class ──────────────
-    // These crash the MCP subprocess when created via callTool('createObject').
-    // Bypass MCP entirely: fetch CSRF token then POST the ADT XML directly.
-    // User fills in properties (data type, length, labels) in SE11/SE91 afterwards.
+    // These have no ABAP source/main. Create via MCP createObject + activate.
     if (createOnly) {
       if (!objtype || !resolvedName) {
         return res.status(400).json({ ok: false, error: 'createOnly requires objtype and name' });
       }
-
-      const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
-      const baseHdrs  = { Authorization: `Basic ${basicAuth}`, 'sap-client': sapClient };
-
-      // Get CSRF token
-      const csrfRes = await sapFetch(`${host}/sap/bc/adt/discovery`, {
-        headers: { ...baseHdrs, 'X-CSRF-Token': 'Fetch', Accept: 'application/atomsvc+xml' },
-        signal: AbortSignal.timeout(15000),
-      });
-      const csrfToken2   = csrfRes.headers.get('x-csrf-token') || '';
-      const rawCookie    = csrfRes.headers.get('set-cookie');
-      const cookieArr    = Array.isArray(rawCookie) ? rawCookie : (rawCookie ? [rawCookie] : []);
-      const cookieHeader = cookieArr.map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
-
-      const result = await createDdicObject(host, baseHdrs, csrfToken2, cookieHeader, objtype, resolvedName, parentName, transport);
-      if (!result.ok) {
-        return res.json({ ok: false, step: 'create', error: result.error || `HTTP ${result.status}: ${result.body}` });
+      let created = false;
+      try {
+        await callTool('createObject', {
+          objtype, name: resolvedName, parentName, description, parentPath,
+          ...(transport ? { transport } : {}),
+        });
+        created = true;
+      } catch (e) {
+        const msg = e.message ?? '';
+        if (/already exist|duplicate|409/i.test(msg)) {
+          created = true;
+        } else {
+          return res.json({ ok: false, step: 'create', error: msg.slice(0, 300) });
+        }
       }
-
-      // Try activation via MCP (non-fatal — subprocess may not handle DDIC activation)
       let activateError = null;
       try {
         await callTool('activateByName', { objectName: resolvedName, objectUrl });
       } catch (e) {
         activateError = e.message?.slice(0, 150);
       }
-
       return res.json({
-        ok: true, status: result.status, createOnly: true,
-        alreadyExisted: !!result.alreadyExists,
-        note: `${objtype} object ${resolvedName} created in SAP. Set properties (data type, length, labels) in SE11/SE91.`,
+        ok: true, status: 200, createOnly: true, created,
+        note: `${objtype} ${resolvedName} created in SAP. Set properties (data type, length, labels) in SE11/SE91.`,
         ...(activateError ? { activateError } : {}),
       });
     }
@@ -825,56 +833,6 @@ async function createAdtObject(host, baseHeaders, csrfToken, cookieHeader, parse
   return { ok: res.ok || res.status === 201, status: res.status, body: txt.slice(0, 200) };
 }
 
-// Create a DDIC object (domain / data element / message class) via direct ADT HTTP.
-// These crash the MCP subprocess when created through it, so we bypass MCP entirely.
-async function createDdicObject(host, baseHeaders, csrfToken, cookieHeader, objtype, name, pkg, transport) {
-  const enc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const sharedHeaders = {
-    ...baseHeaders,
-    ...(csrfToken    ? { 'X-CSRF-Token': csrfToken } : {}),
-    ...(cookieHeader ? { Cookie: cookieHeader }        : {}),
-  };
-  const qs = transport ? `?corrNr=${encodeURIComponent(transport)}` : '';
-
-  let createUrl, contentType, xmlBody;
-  if (objtype === 'DOMA/DD') {
-    createUrl   = `${host}/sap/bc/adt/ddic/domains${qs}`;
-    contentType = 'application/vnd.sap.adt.ddic.domain.v2+xml; charset=utf-8';
-    xmlBody = `<?xml version="1.0" encoding="UTF-8"?>`
-      + `<domain:domain xmlns:domain="http://www.sap.com/dictionary/domain" xmlns:adtcore="http://www.sap.com/adt/core"`
-      + ` adtcore:description="${enc(name)}" adtcore:language="EN" adtcore:masterLanguage="EN"`
-      + ` adtcore:name="${enc(name)}" adtcore:type="DOMA/DD">`
-      + `<adtcore:packageRef adtcore:name="${enc(pkg)}"/></domain:domain>`;
-  } else if (objtype === 'DTEL/DE') {
-    createUrl   = `${host}/sap/bc/adt/ddic/dataelements${qs}`;
-    contentType = 'application/vnd.sap.adt.ddic.dataelement.v2+xml; charset=utf-8';
-    xmlBody = `<?xml version="1.0" encoding="UTF-8"?>`
-      + `<blue:wbobj xmlns:blue="http://www.sap.com/wbobj/dictionary/dtel" xmlns:adtcore="http://www.sap.com/adt/core"`
-      + ` adtcore:description="${enc(name)}" adtcore:language="EN" adtcore:masterLanguage="EN"`
-      + ` adtcore:name="${enc(name)}" adtcore:type="DTEL/DE">`
-      + `<adtcore:packageRef adtcore:name="${enc(pkg)}"/></blue:wbobj>`;
-  } else if (objtype === 'MSAG/N') {
-    createUrl   = `${host}/sap/bc/adt/messageclass${qs}`;
-    contentType = 'application/vnd.sap.adt.msgclass.v2+xml; charset=utf-8';
-    xmlBody = `<?xml version="1.0" encoding="UTF-8"?>`
-      + `<msgclass:messageClass xmlns:msgclass="http://www.sap.com/adt/msgclass" xmlns:adtcore="http://www.sap.com/adt/core"`
-      + ` adtcore:description="${enc(name)}" adtcore:language="EN" adtcore:masterLanguage="EN"`
-      + ` adtcore:name="${enc(name)}" adtcore:type="MSAG/N">`
-      + `<adtcore:packageRef adtcore:name="${enc(pkg)}"/></msgclass:messageClass>`;
-  } else {
-    return { ok: false, error: `createDdicObject: unsupported type ${objtype}` };
-  }
-
-  const res = await sapFetch(createUrl, {
-    method: 'POST',
-    headers: { ...sharedHeaders, 'Content-Type': contentType, Accept: 'application/json, */*' },
-    body: xmlBody,
-    signal: AbortSignal.timeout(20000),
-  });
-  const txt = await res.text().catch(() => '');
-  const alreadyExists = res.status === 409 || /already exist/i.test(txt);
-  return { ok: res.ok || res.status === 201 || alreadyExists, alreadyExists, status: res.status, body: txt.slice(0, 300) };
-}
 
 async function processSapWriteJob(job) {
   const host = (job.host || '').replace(/\/$/, '');
