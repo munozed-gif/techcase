@@ -269,6 +269,22 @@ app.get('/health', (_req, res) => {
       'abap-adt':          { available: existsSync(ADT_SCRIPTS['abap-adt']),          tools: 127 },
       'abap-adt-readonly': { available: existsSync(ADT_SCRIPTS['abap-adt-readonly']), tools: 16  },
     },
+    // runtime state — helps infra check show full MCP chain
+    activeSessions: null, // filled after sessions Map is defined (see /mcp-probe)
+    poolClients: null,
+  });
+});
+
+// MCP probe — reports runtime subprocess pool + session state
+// Handler runs only after full module init so clientPool and sessions are always defined
+app.get('/mcp-probe', (_req, res) => {
+  res.json({
+    ok: true,
+    activeSessions: sessions.size,
+    poolClients:    clientPool.size,
+    poolKeys:       [...clientPool.keys()],
+    rw: { path: ADT_SCRIPTS['abap-adt'],         exists: existsSync(ADT_SCRIPTS['abap-adt']) },
+    ro: { path: ADT_SCRIPTS['abap-adt-readonly'], exists: existsSync(ADT_SCRIPTS['abap-adt-readonly']) },
   });
 });
 

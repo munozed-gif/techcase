@@ -1484,8 +1484,21 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         diagnoseFailure('mcp');
         return;
       }
-      setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'ok', detail: `ADT bridge running${adtHealth.version ? ` v${adtHealth.version}` : ''}`, log: liveNodes.current.mcp.log ?? [] });
-      addLog('mcp', `ADT bridge healthy${adtHealth.version ? ` (v${adtHealth.version})` : ''}`, 'success');
+      addLog('mcp', `Bridge URL: ${currentMcpBase}`, 'info');
+      const rwOk = adtHealth.servers?.['abap-adt']?.available !== false;
+      const roOk = adtHealth.servers?.['abap-adt-readonly']?.available !== false;
+      addLog('mcp', `MCP R+W subprocess (127 tools): ${rwOk ? 'binary found ✓' : 'NOT FOUND ✗ — clone mcp-abap-abap-adt-api into ~/techcase/'}`, rwOk ? 'success' : 'error');
+      addLog('mcp', `MCP R/O subprocess (16 tools):  ${roOk ? 'binary found ✓' : 'NOT FOUND ✗ — clone mcp-abap-adt into ~/techcase/'}`, roOk ? 'success' : 'error');
+      // Probe runtime pool state (sessions + spawned clients)
+      try {
+        const probeData = await fetch(`${currentMcpBase}/mcp-probe`, { signal: AbortSignal.timeout(5000) }).then(r => r.ok ? r.json() : null).catch(() => null);
+        if (probeData) {
+          addLog('mcp', `Active MCP sessions: ${probeData.activeSessions ?? 0} | Pool clients: ${probeData.poolClients ?? 0}${probeData.activeSessions > 0 ? ' ← live context available ✓' : ' ← will spawn on first use'}`, probeData.activeSessions > 0 ? 'success' : 'info');
+          if (probeData.poolKeys?.length) addLog('mcp', `Pool: ${probeData.poolKeys.join(', ')}`, 'info');
+        }
+      } catch {}
+      setLiveNode('mcp', { ...liveNodes.current.mcp, status: (rwOk && roOk) ? 'ok' : 'warning', detail: `ADT bridge ${adtHealth.version ? `v${adtHealth.version}` : 'running'} · R+W ${rwOk ? '✓' : '✗'} · R/O ${roOk ? '✓' : '✗'}`, log: liveNodes.current.mcp.log ?? [] });
+      addLog('mcp', `ADT bridge OK${adtHealth.version ? ` (v${adtHealth.version})` : ''}`, 'success');
     }
 
     setLiveNode('vpn', { status: 'checking', detail: isUserVpn ? 'Reading VPN status (user-managed mode)…' : 'Reading VPN status from VM…', log: liveNodes.current.vpn.log ?? [] });
@@ -1813,7 +1826,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       setLiveNode('sap', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }], extra: {} });
     } else {
     setLiveNode('sap', { status: 'checking', detail: 'Testing SAP ADT connection…', log: [], extra: {} });
-    addLog('sap', `Connecting to SAP at ${env.host || '(no host configured)'}…`);
+    addLog('sap', `Chain: ${currentMcpBase} → /sap-info (MCP subprocess) → ${env.host || '(no host)'}…`);
 
     if (!env.host || !env.username || !env.password) {
       setLiveNode('sap', { ...liveNodes.current.sap, status: 'warning', detail: 'No SAP credentials configured' });
