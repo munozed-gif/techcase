@@ -4189,7 +4189,7 @@ Output ONLY the ABAP source code, no explanations.`;
             : sapConfig.mcp_type === 'abap-adt-readonly' ? 'mcp-abap-adt (16 tools R/O)'
             : sapConfig.mcp_type === 'abap-adt-both' ? 'mcp-abap-abap-adt-api (127 tools R+W) ← write server from abap-adt-both'
             : 'custom MCP';
-          addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabel}] → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
+          addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabel}] | tunnel: ${adtBase} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
           const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined);
           if (result.ok) {
             updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
@@ -4282,7 +4282,7 @@ Output ONLY the ABAP source code, no explanations.`;
         : sapConfig.mcp_type === 'abap-adt-both' ? 'mcp-abap-abap-adt-api (127 tools R+W) ← write server from abap-adt-both'
         : 'ADT')
       : 'custom MCP';
-    addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabelManual}] → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
+    addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabelManual}] | tunnel: ${adtBase} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
     const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined);
     if (result.ok) {
       updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), error: null });
