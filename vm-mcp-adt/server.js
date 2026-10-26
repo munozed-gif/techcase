@@ -683,7 +683,9 @@ app.post('/sap-write-mcp', async (req, res) => {
       }
       return res.json({
         ok: true, status: 200, createOnly: true, created,
-        note: `${objtype} ${resolvedName} created in SAP. Set properties (data type, length, labels) in SE11/SE91.`,
+        package: parentName,
+        transport: transport || null,
+        note: `${objtype} ${resolvedName} ${created ? 'created' : 'already existed'} in SAP (pkg: ${parentName}). Set properties (data type, length, labels) in SE11/SE91.`,
         ...(activateError ? { activateError } : {}),
       });
     }

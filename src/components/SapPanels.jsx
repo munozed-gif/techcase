@@ -286,7 +286,7 @@ async function sapGetCsrfToken(config) {
   return res.headers.get('X-CSRF-Token') ?? '';
 }
 
-async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest) {
+async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg) {
   const path = sapObjectPath(objectType, objectName);
   const createOnly = sapIsCreateOnly(objectType);
 
@@ -313,6 +313,7 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
           path: path || sapObjectUrl(objectType, objectName),
           source: createOnly ? '' : source,
           transport: transportRequest,
+          parentName: pkg || '$TMP',
           name: objectName.toUpperCase(),
           objtype: sapAdtObjtype(objectType),
           autoCreate: !!(sapAdtObjtype(objectType)),
@@ -3619,7 +3620,7 @@ function AddEditBlueprintObjectModal({ existing, allObjects, onSave, onClose }) 
   );
 }
 
-function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEnabled, genModel, transportReq, ssCtx, configOps }) {
+function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEnabled, genModel, transportReq, packageReq, ssCtx, configOps }) {
   const { settings } = ssCtx;
   const caseId = caseData.id;
   const bpKey = 'sap_blueprint';
@@ -4240,10 +4241,18 @@ Output ONLY the ABAP source code, no explanations.`;
             : sapConfig.mcp_type === 'abap-adt-both' ? 'mcp-abap-abap-adt-api (127 tools R+W) ← write server from abap-adt-both'
             : 'custom MCP';
           addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabel}] | tunnel: ${freshMcpUrl} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
-          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined);
           if (result.ok) {
-            updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
-            addLog(`${obj.name}: ✓ applied (HTTP ${result.status}).`, 'done');
+            const usedTransport = result.transport || obj.transport || transportReq || null;
+            const usedPackage   = result.package   || obj.package   || packageReq   || null;
+            updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
+            if (result.createOnly) {
+              addLog(`${obj.name}: ✓ skeleton created in SAP (pkg: ${usedPackage || '$TMP'}${usedTransport ? `, tr: ${usedTransport}` : ''}).`, 'done');
+              addLog(`${obj.name}: ⚠ Set data type, length and labels in SE11/SE91 — object has no properties yet.`, 'warn');
+              if (result.activateError) addLog(`${obj.name}: activation warning: ${result.activateError}`, 'warn');
+            } else {
+              addLog(`${obj.name}: ✓ applied (HTTP ${result.status}${usedTransport ? `, tr: ${usedTransport}` : ''}${usedPackage ? `, pkg: ${usedPackage}` : ''}).`, 'done');
+            }
           } else {
             const sapBody = result.body ? ` — ${result.body.slice(0, 120)}` : '';
             const detail = result.error ? `${result.error}${sapBody}` : (result.status ? `HTTP ${result.status}${sapBody}` : 'write failed');
@@ -4333,10 +4342,18 @@ Output ONLY the ABAP source code, no explanations.`;
         : 'ADT')
       : 'custom MCP';
     addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabelManual}] | tunnel: ${adtBase} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
-    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined);
     if (result.ok) {
-      updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), error: null });
-      addLog(`${obj.name}: ✓ applied successfully (HTTP ${result.status}).`, 'done');
+      const usedTransport = result.transport || obj.transport || transportReq || null;
+      const usedPackage   = result.package   || obj.package   || packageReq   || null;
+      updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), error: null, appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
+      if (result.createOnly) {
+        addLog(`${obj.name}: ✓ skeleton created in SAP (pkg: ${usedPackage || '$TMP'}${usedTransport ? `, tr: ${usedTransport}` : ''}).`, 'done');
+        addLog(`${obj.name}: ⚠ Set data type, length and labels in SE11/SE91 — object has no properties yet.`, 'warn');
+        if (result.activateError) addLog(`${obj.name}: activation warning: ${result.activateError}`, 'warn');
+      } else {
+        addLog(`${obj.name}: ✓ applied successfully (HTTP ${result.status}${usedTransport ? `, tr: ${usedTransport}` : ''}${usedPackage ? `, pkg: ${usedPackage}` : ''}).`, 'done');
+      }
     } else {
       const detail = result.status ? `HTTP ${result.status}` : result.error;
       const hint = result.status === 401 ? 'HTTP 401 — wrong username or password'
@@ -4721,7 +4738,24 @@ Output ONLY the ABAP source code, no explanations.`;
                     </p>
                   )}
                   {selectedObj.appliedAt && (
-                    <p className="text-xs text-green-600 mt-1">Applied: {new Date(selectedObj.appliedAt).toLocaleString()}</p>
+                    <div className="mt-1 space-y-0.5">
+                      <p className="text-xs text-green-600">Applied: {new Date(selectedObj.appliedAt).toLocaleString()}</p>
+                      {selectedObj.appliedPackage && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">Package: {selectedObj.appliedPackage}</p>
+                      )}
+                      {selectedObj.appliedTransport && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">Transport: {selectedObj.appliedTransport}</p>
+                      )}
+                      {selectedObj.appliedCreated === false && (
+                        <p className="text-xs text-amber-600">⚠ Object already existed in SAP (not re-created)</p>
+                      )}
+                      {selectedObj.appliedNote && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400">{selectedObj.appliedNote}</p>
+                      )}
+                      {selectedObj.appliedActivateError && (
+                        <p className="text-xs text-amber-600">Activation warning: {selectedObj.appliedActivateError}</p>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
@@ -5280,6 +5314,8 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [checkedActIds, setCheckedActIds] = useState(new Set());
   const [transportReq, setTransportReq] = useState(settings['sap_impl_transport']?.[caseData.id] ?? '');
   const [savingTransport, setSavingTransport] = useState(false);
+  const [packageReq, setPackageReq] = useState(settings['sap_impl_package']?.[caseData.id] ?? '');
+  const [savingPackage, setSavingPackage] = useState(false);
   const genModel = settings["ai_model"] ?? 'claude-haiku-5-5';
 
   const implActivities = activities.filter(a =>
@@ -5317,6 +5353,12 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     const cur = settings['sap_impl_transport'] ?? {};
     await ssCtx.setSetting('sap_impl_transport', { ...cur, [caseData.id]: val });
     setSavingTransport(false);
+  }
+  async function savePackage(val) {
+    setSavingPackage(true);
+    const cur = settings['sap_impl_package'] ?? {};
+    await ssCtx.setSetting('sap_impl_package', { ...cur, [caseData.id]: val });
+    setSavingPackage(false);
   }
   async function saveSpecs(newSpecs) {
     const cur = settings['sap_impl_specs'] ?? {};
@@ -6045,7 +6087,7 @@ FALLBACK:
       <SapBlueprintCanvas
         caseData={caseData} auth={auth} activities={implActivities}
         sapConfig={enrichedSapConfig} autoImplEnabled={autoImplEnabled}
-        genModel={genModel} transportReq={transportReq} ssCtx={ssCtx}
+        genModel={genModel} transportReq={transportReq} packageReq={packageReq} ssCtx={ssCtx}
         configOps={{
           manualSpecs, setManualSpecs, saveSpecs,
           bcsetSysType, setBcsetSysType,
@@ -6109,6 +6151,14 @@ FALLBACK:
                 onChange={e => setTransportReq(e.target.value)}
                 onBlur={() => saveTransport(transportReq)}
                 placeholder={t('sap.ph_transport_req')}
+                className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1">SAP Package</label>
+              <input value={packageReq}
+                onChange={e => setPackageReq(e.target.value)}
+                onBlur={() => savePackage(packageReq)}
+                placeholder="e.g. ZDEV or $TMP"
                 className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
           </div>
