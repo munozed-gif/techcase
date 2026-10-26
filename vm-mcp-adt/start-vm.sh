@@ -163,6 +163,32 @@ else
   echo "         Create .env in this folder with SUPABASE_URL and SUPABASE_SERVICE_KEY"
 fi
 
+# ── SAP CA cert (required by mcp-abap-abap-adt-api) ──────────
+# mcp-abap-abap-adt-api blocks NODE_TLS_REJECT_UNAUTHORIZED=0 and
+# requires NODE_EXTRA_CA_CERTS pointing to the SAP server's CA cert.
+SAP_CA_CERT="$SCRIPT_DIR/sap-ca.pem"
+SAP_HOST_ENV=$(grep '^SAP_HOST=' "$SCRIPT_DIR/.env" 2>/dev/null | head -1 | cut -d'=' -f2- | sed 's|https://||' | sed 's|/.*||')
+if [ -s "$SAP_CA_CERT" ]; then
+  export NODE_EXTRA_CA_CERTS="$SAP_CA_CERT"
+  echo "[config] SAP CA cert loaded: $SAP_CA_CERT"
+elif [ -n "$SAP_HOST_ENV" ]; then
+  echo "[setup] Extracting SAP CA cert from $SAP_HOST_ENV ..."
+  openssl s_client -connect "$SAP_HOST_ENV" -showcerts </dev/null 2>/dev/null \
+    | openssl x509 -outform PEM > "$SAP_CA_CERT" 2>/dev/null || true
+  if [ -s "$SAP_CA_CERT" ]; then
+    export NODE_EXTRA_CA_CERTS="$SAP_CA_CERT"
+    echo "[config] SAP CA cert extracted and saved: $SAP_CA_CERT"
+  else
+    echo "[warn] Could not extract SAP CA cert from $SAP_HOST_ENV"
+    echo "       Add SAP_HOST=<host:port> to .env or manually save cert to $SAP_CA_CERT"
+  fi
+else
+  echo "[warn] No SAP CA cert found ($SAP_CA_CERT) and SAP_HOST not set in .env"
+  echo "       mcp-abap-abap-adt-api (R+W, 127 tools) may fail with TLS error."
+  echo "       Fix: add SAP_HOST=vhxaads4ci.sap.admosa.com:44300 to .env"
+  echo "       or:  openssl s_client -connect <host:port> -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > $SAP_CA_CERT"
+fi
+
 # ── Start the ADT bridge ───────────────────────────────────────
 export SUPABASE_URL
 export SUPABASE_SERVICE_KEY

@@ -167,6 +167,21 @@ async function getClient(creds) {
     proxyEnv.HTTP_PROXY  = SOCKS_URL;
   }
 
+  // mcp-abap-abap-adt-api (R+W) throws if NODE_TLS_REJECT_UNAUTHORIZED=0 is set —
+  // it explicitly blocks that flag and requires NODE_EXTRA_CA_CERTS instead.
+  // mcp-abap-adt (R/O) uses TLS_REJECT_UNAUTHORIZED (a different var) — keep as-is.
+  const tlsEnv = serverType === 'abap-adt'
+    ? {
+        // Provide CA cert via env if available; if blank the subprocess uses system trust store
+        ...(process.env.NODE_EXTRA_CA_CERTS
+          ? { NODE_EXTRA_CA_CERTS: process.env.NODE_EXTRA_CA_CERTS }
+          : {}),
+      }
+    : {
+        NODE_TLS_REJECT_UNAUTHORIZED: '0',
+        TLS_REJECT_UNAUTHORIZED: '0',
+      };
+
   const transport = new StdioClientTransport({
     command: 'node',
     args: [adtScript],
@@ -178,8 +193,7 @@ async function getClient(creds) {
       SAP_PASSWORD: sapPassword,
       SAP_CLIENT:   sapClient,
       SAP_LANGUAGE: sapLanguage,
-      NODE_TLS_REJECT_UNAUTHORIZED: '0',
-      TLS_REJECT_UNAUTHORIZED: '0',  // mcp-abap-adt uses this var
+      ...tlsEnv,
       ...proxyEnv,
     },
   });
