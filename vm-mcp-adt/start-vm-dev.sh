@@ -158,6 +158,42 @@ elif [ -n "$SAP_HOST_ENV" ]; then
   fi
 fi
 
+# ── Restart command monitor ────────────────────────────────────
+_MONITOR_START_EPOCH=$(date -u +%s)
+(
+  _last_handled=$_MONITOR_START_EPOCH
+  while true; do
+    sleep 30
+    _raw=$(curl -sf "${SUPABASE_URL}/rest/v1/system_settings?key=eq.adt_bridge_restart_requested&select=value" \
+      -H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" 2>/dev/null || echo "")
+    _req_ts=$(echo "$_raw" | grep -o '"ts":[0-9]*' | grep -o '[0-9]*' | head -1)
+    if [ -n "$_req_ts" ] && [ "$(( _req_ts / 1000 ))" -gt "$_last_handled" ] 2>/dev/null; then
+      echo "[restart] Remote restart command received — restarting cloudflared tunnel..."
+      kill $CF_PID 2>/dev/null || true
+      sleep 2
+      rm -f "$CF_LOG"
+      cloudflared tunnel --url "http://localhost:$PORT" > "$CF_LOG" 2>&1 &
+      CF_PID=$!
+      _new_url=""
+      for _i in $(seq 1 15); do
+        _new_url=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$CF_LOG" 2>/dev/null | head -1)
+        [ -n "$_new_url" ] && break
+        sleep 2
+      done
+      if [ -n "$_new_url" ]; then
+        curl -s -X POST "${SUPABASE_URL}/rest/v1/system_settings" \
+          -H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+          -H "Content-Type: application/json" -H "Prefer: resolution=merge-duplicates" \
+          -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${_new_url}\"}" >/dev/null 2>&1
+        echo "[restart] Tunnel restarted: $_new_url"
+      fi
+      _last_handled=$(date -u +%s)
+    fi
+  done
+) &
+_MONITOR_PID=$!
+trap "cleanup; kill $_MONITOR_PID 2>/dev/null || true" EXIT INT TERM
+
 # ── Start the ADT bridge on port 3102 ─────────────────────────
 export SUPABASE_URL
 export SUPABASE_SERVICE_KEY

@@ -1352,6 +1352,9 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const [restartingVm, setRestartingVm] = useState(false);
   const [restartVmMsg, setRestartVmMsg] = useState('');
   const restartVmPollRef = useRef(null);
+  const [restartingAdt, setRestartingAdt] = useState(false);
+  const [restartAdtMsg, setRestartAdtMsg] = useState('');
+  const restartAdtPollRef = useRef(null);
   const [aiDiagnosis, setAiDiagnosis] = useState(() => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s)?.aiDiagnosis ?? null : null; } catch { return null; } });
   const [diagnosing, setDiagnosing] = useState(false);
   const cancelRef = useRef(false);
@@ -2170,6 +2173,50 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     restartVmPollRef.current = setTimeout(poll, pollInterval);
   }
 
+  async function restartAdtBridge() {
+    if (restartingAdt) return;
+    clearTimeout(restartAdtPollRef.current);
+    setRestartingAdt(true);
+    const requestTs = Date.now();
+    setRestartAdtMsg('Sending restart command…');
+    try {
+      await supabase.from('system_settings').upsert(
+        { key: 'adt_bridge_restart_requested', value: { ts: requestTs } },
+        { onConflict: 'key' }
+      );
+    } catch (e) {
+      setRestartAdtMsg(`Could not send restart command: ${e.message?.slice(0, 60)}`);
+      setRestartingAdt(false);
+      return;
+    }
+    setRestartAdtMsg('Restart requested — waiting for bridge to reconnect…');
+    const prevUrl = (await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle().catch(() => ({ data: null }))).data?.value ?? '';
+    let elapsed = 0;
+    const maxWait = 120000;
+    const poll = async () => {
+      try {
+        const { data } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+        const newUrl = data?.value ?? '';
+        if (newUrl && newUrl !== prevUrl) {
+          if (onUpdateAdtUrl) onUpdateAdtUrl(newUrl);
+          setRestartAdtMsg('');
+          setRestartingAdt(false);
+          run();
+          return;
+        }
+      } catch { /* ignore */ }
+      elapsed += 10000;
+      if (elapsed >= maxWait) {
+        setRestartAdtMsg('ADT bridge did not reconnect within 2 min — run start-vm.sh on VM');
+        setRestartingAdt(false);
+        return;
+      }
+      setRestartAdtMsg(`Waiting for bridge to reconnect… (${Math.round((maxWait - elapsed) / 1000)}s)`);
+      restartAdtPollRef.current = setTimeout(poll, 10000);
+    };
+    restartAdtPollRef.current = setTimeout(poll, 10000);
+  }
+
   const isUserVpnMode = env.vpn_mode === 'user';
   const SETUP_STEPS = isUserVpnMode && isAdtMcpMode
     ? [
@@ -2320,6 +2367,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const isExpandedLog = !!expanded[key];
           const hasLog = node.log?.length > 0;
           const showDeploy = key === 'mcp' && !isPlatformAdtMode && (node.extra?.needsDeploy || node.status === 'error');
+          const showRestartAdt = key === 'mcp' && isPlatformAdtMode && node.status === 'error';
           const showSetup = key === 'vm' && node.status === 'error';
           const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode && node.status === 'ok';
           const showLaptopTunnel = key === 'vpn' && laptopBridgeMode;
@@ -2344,6 +2392,13 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                     className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition-colors">
                     {stoppingVpn ? <RefreshCw size={9} className="animate-spin" /> : <X size={9} />}
                     {stoppingVpn ? 'Stopping…' : 'Stop VM VPN'}
+                  </button>
+                )}
+                {showRestartAdt && (
+                  <button onClick={restartAdtBridge} disabled={restartingAdt || running}
+                    className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors">
+                    <RefreshCw size={9} className={restartingAdt ? 'animate-spin' : ''} />
+                    {restartingAdt ? 'Restarting…' : 'Restart Bridge'}
                   </button>
                 )}
                 {showSetup && !isUserVpnMode && (
@@ -2420,6 +2475,16 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
               {showStopVpn && stopVpnMsg && (
                 <div className="px-10 pb-2">
                   <p className={`text-[10px] ${stopVpnMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>{stopVpnMsg}</p>
+                </div>
+              )}
+
+              {/* Restart ADT bridge feedback */}
+              {key === 'mcp' && restartAdtMsg && (
+                <div className="px-10 pb-2">
+                  <p className="text-[10px] text-blue-400 flex items-center gap-1">
+                    {restartingAdt && <RefreshCw size={8} className="animate-spin shrink-0" />}
+                    {restartAdtMsg}
+                  </p>
                 </div>
               )}
 
