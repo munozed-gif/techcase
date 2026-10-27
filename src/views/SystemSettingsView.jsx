@@ -1357,20 +1357,20 @@ function InfraCheckSettingsCard({ ssCtx }) {
     <div className="mt-6 pt-5 border-t border-gray-100">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+          <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
             <Activity size={14} className="text-blue-500" /> Infrastructure Check
           </h4>
-          <p className="text-xs text-gray-400 mt-0.5">Configure which nodes to check and whether auto-solve is allowed per connection type.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Configure which nodes to check and whether auto-solve is allowed per connection type.</p>
         </div>
         {saving && <RefreshCw size={12} className="animate-spin text-gray-400" />}
         {saved && !saving && <span className="text-xs text-green-500 flex items-center gap-1"><Check size={11} /> Saved</span>}
       </div>
 
       {/* Type tabs */}
-      <div className="flex gap-1 mb-3 p-0.5 bg-gray-100 rounded-lg w-fit">
+      <div className="flex gap-1 mb-3 p-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg w-fit">
         {[['platform_vpn', 'Platform VPN'], ['user_vpn', 'User VPN']].map(([key, label]) => (
           <button key={key} onClick={() => setActiveType(key)}
-            className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${activeType === key ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${activeType === key ? 'bg-white dark:bg-gray-600 shadow text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
             {label}
           </button>
         ))}
@@ -1382,30 +1382,30 @@ function InfraCheckSettingsCard({ ssCtx }) {
           const node = typeCfg[key];
           const isExpanded = !!expanded[`${activeType}_${key}`];
           return (
-            <div key={key} className={`rounded-xl border transition-colors ${node.enabled ? 'border-gray-200 bg-gray-50' : 'border-gray-100 bg-gray-50/50 opacity-60'}`}>
+            <div key={key} className={`rounded-xl border transition-colors ${node.enabled ? 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50' : 'border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30'}`}>
               <div className="flex items-center gap-3 px-3 py-2.5">
-                <Icon size={14} className={color} />
+                <Icon size={14} className={node.enabled ? color : 'text-gray-400 dark:text-gray-500'} />
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-gray-700">{label}</span>
+                  <span className={`text-sm font-medium ${node.enabled ? 'text-gray-700 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500'}`}>{label}</span>
                 </div>
 
                 {/* VPN Loop toggle — only for VPN node in platform mode */}
                 {key === 'vpn' && node.enabled && activeType === 'platform_vpn' && (
                   <div className="flex items-center gap-1.5 mr-3">
-                    <span className="text-xs text-gray-400" title="When off: stops VM openfortivpn so it doesn't conflict with your laptop FortiClient session">VPN loop</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-400" title="When off: stops VM openfortivpn so it doesn't conflict with your laptop FortiClient session">VPN loop</span>
                     <Toggle on={node.vpnLoop ?? true} onClick={() => toggle(key, 'vpnLoop')} />
                   </div>
                 )}
 
                 {node.enabled && (
                   <div className="flex items-center gap-1.5 mr-3">
-                    <span className="text-xs text-gray-400">Auto-solve</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Auto-solve</span>
                     <Toggle on={node.autoSolve} onClick={() => toggle(key, 'autoSolve')} />
                   </div>
                 )}
 
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-gray-400">Check</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Check</span>
                   <Toggle on={node.enabled} onClick={() => toggle(key, 'enabled')} />
                 </div>
 
