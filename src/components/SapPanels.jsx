@@ -1223,30 +1223,90 @@ function AbapTemplateSection({ projectId, canEdit }) {
 }
 
 function McpRestartButton({ mcpUrl }) {
-  const [state, setState] = useState('idle'); // idle | restarting | done | error
+  const [state, setState] = useState('idle'); // idle | restarting | queued | done | error
+  const [msg, setMsg] = useState('');
+  const pollRef = useRef(null);
   const base = (mcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
   if (!base) return null;
 
   async function restart() {
+    if (state === 'restarting' || state === 'queued') return;
+    clearTimeout(pollRef.current);
     setState('restarting');
+    setMsg('');
+
+    // 1. Try direct restart if the server is reachable
     try {
-      await fetch(`${base}/restart`, { method: 'POST', signal: AbortSignal.timeout(5000) }).catch(() => {});
-      setState('done');
+      const r = await fetch(`${base}/restart`, { method: 'POST', signal: AbortSignal.timeout(5000) });
+      if (r.ok) { setState('done'); setMsg(''); setTimeout(() => setState('idle'), 3000); return; }
+    } catch { /* tunnel is down — fall through to queue */ }
+
+    // 2. Fallback: write restart request to Supabase queue
+    const requestTs = Date.now();
+    try {
+      await supabase.from('system_settings').upsert(
+        { key: 'vm_restart_requested', value: { ts: requestTs } },
+        { onConflict: 'key' }
+      );
     } catch {
-      setState('error');
+      setState('error'); setMsg('Could not reach server or Supabase');
+      setTimeout(() => { setState('idle'); setMsg(''); }, 4000);
+      return;
     }
-    setTimeout(() => setState('idle'), 4000);
+
+    setState('queued');
+    setMsg('Restart requested — waiting for VM…');
+    let elapsed = 0;
+    const maxWait = 120000;
+    const poll = async () => {
+      try {
+        const { data } = await supabase
+          .from('vm_tunnel_registry')
+          .select('tunnel_url, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(1).maybeSingle();
+        if (data?.updated_at && new Date(data.updated_at).getTime() > requestTs) {
+          setState('done'); setMsg('Reconnected ✓');
+          setTimeout(() => { setState('idle'); setMsg(''); }, 4000);
+          return;
+        }
+      } catch { /* ignore */ }
+      elapsed += 10000;
+      if (elapsed >= maxWait) {
+        setState('error'); setMsg('Timed out — check VM');
+        setTimeout(() => { setState('idle'); setMsg(''); }, 5000);
+        return;
+      }
+      setMsg(`Waiting for VM… (${Math.round((maxWait - elapsed) / 1000)}s)`);
+      pollRef.current = setTimeout(poll, 10000);
+    };
+    pollRef.current = setTimeout(poll, 10000);
   }
 
+  const label = state === 'restarting' ? 'Restarting…'
+    : state === 'queued' ? 'Queued…'
+    : state === 'done' ? (msg || 'Done ✓')
+    : state === 'error' ? 'Failed'
+    : 'Restart VM';
+
   return (
-    <button onClick={restart} disabled={state === 'restarting'} title="Restart MCP server"
-      className={`shrink-0 flex items-center gap-1 px-2.5 py-2 rounded-xl border text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed
-        ${state === 'done' ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-900/20 dark:border-green-700'
-        : state === 'error' ? 'border-orange-300 text-orange-500 bg-orange-50 dark:bg-orange-900/20'
-        : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:border-blue-300 bg-white dark:bg-gray-700'}`}>
-      <RefreshCw size={13} className={state === 'restarting' ? 'animate-spin' : ''} />
-      <span className="hidden sm:inline">{state === 'restarting' ? 'Restarting…' : state === 'done' ? 'Sent' : state === 'error' ? 'Unreachable' : 'Restart MCP'}</span>
-    </button>
+    <div className="shrink-0 flex flex-col items-end gap-0.5">
+      <button onClick={restart} disabled={state === 'restarting' || state === 'queued'} title="Restart VM MCP server tunnel"
+        className={`flex items-center gap-1 px-2.5 py-2 rounded-xl border text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed
+          ${state === 'done' ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-900/20 dark:border-green-700'
+          : state === 'error' ? 'border-orange-300 text-orange-500 bg-orange-50 dark:bg-orange-900/20'
+          : state === 'queued' ? 'border-blue-300 text-blue-600 bg-blue-50 dark:bg-blue-900/20'
+          : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:border-blue-300 bg-white dark:bg-gray-700'}`}>
+        <RefreshCw size={13} className={(state === 'restarting' || state === 'queued') ? 'animate-spin' : ''} />
+        <span className="hidden sm:inline">{label}</span>
+      </button>
+      {msg && state === 'queued' && (
+        <span className="text-[10px] text-blue-500 dark:text-blue-400 max-w-[180px] text-right leading-tight">{msg}</span>
+      )}
+      {msg && state === 'error' && (
+        <span className="text-[10px] text-orange-500 max-w-[180px] text-right leading-tight">{msg}</span>
+      )}
+    </div>
   );
 }
 
