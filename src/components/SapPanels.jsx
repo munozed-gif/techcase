@@ -4256,6 +4256,12 @@ Output ONLY the ABAP source code, no explanations.`;
             } else {
               addLog(`${obj.name}: ✓ applied (HTTP ${result.status}${usedTransport ? `, tr: ${usedTransport}` : ''}${usedPackage ? `, pkg: ${usedPackage}` : ''}).`, 'done');
             }
+            // Show R/O verification result
+            if (result.verify?.ok) {
+              addLog(`${obj.name}: R/O verify [${result.verify.tool}] → ${result.verify.excerpt || 'object found in SAP ✓'}`, 'info');
+            } else if (result.verify && !result.verify.skipped) {
+              addLog(`${obj.name}: R/O verify failed — ${result.verify.error || result.verify.reason}`, 'warn');
+            }
           } else {
             const sapBody = result.body ? ` — ${result.body.slice(0, 120)}` : '';
             const detail = result.error ? `${result.error}${sapBody}` : (result.status ? `HTTP ${result.status}${sapBody}` : 'write failed');
@@ -4356,6 +4362,12 @@ Output ONLY the ABAP source code, no explanations.`;
         if (result.activateError) addLog(`${obj.name}: activation warning: ${result.activateError}`, 'warn');
       } else {
         addLog(`${obj.name}: ✓ applied successfully (HTTP ${result.status}${usedTransport ? `, tr: ${usedTransport}` : ''}${usedPackage ? `, pkg: ${usedPackage}` : ''}).`, 'done');
+      }
+      // R/O verification
+      if (result.verify?.ok) {
+        addLog(`${obj.name}: R/O verify [${result.verify.tool}] → ${result.verify.excerpt || 'object found in SAP ✓'}`, 'info');
+      } else if (result.verify && !result.verify.skipped) {
+        addLog(`${obj.name}: R/O verify failed — ${result.verify.error || result.verify.reason}`, 'warn');
       }
     } else {
       const detail = result.status ? `HTTP ${result.status}` : result.error;

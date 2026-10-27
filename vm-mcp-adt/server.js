@@ -588,6 +588,56 @@ app.post('/sap-write', async (req, res) => {
   }
 });
 
+// ── R/O object verification via mcp-abap-adt ─────────────────
+// After a write, reads back the object using the read-only subprocess and
+// returns a short summary so the platform can show it in the implementation log.
+async function verifyWithRO(host, username, password, client, objtype, resolvedName) {
+  try {
+    const roClient = await getClient({ host, username, password, client, serverType: 'abap-adt-readonly' });
+
+    // Discover available tools so we can pick the right one without hardcoding names.
+    const listed = await roClient.listTools();
+    const toolList = listed?.tools ?? [];
+
+    // Object-type → ordered list of tool name fragments to look for (case-insensitive).
+    const hints = {
+      'PROG/P': ['getprogram', 'readprogram', 'program'],
+      'PROG/I': ['getinclude', 'include', 'getprogram'],
+      'CLAS/OC': ['getclass', 'readclass', 'class'],
+      'FUGR/FF': ['getfunctiongroup', 'functiongroup', 'getfunction'],
+      'DOMA/DD': ['getdomain', 'domain'],
+      'DTEL/DE': ['getdataelement', 'dataelement', 'element'],
+      'MSAG/N':  ['getmessageclass', 'messageclass', 'message'],
+      'TABL/DT': ['gettable', 'table'],
+      'STRU/DS': ['getstructure', 'structure'],
+    };
+    const candidates = hints[objtype] ?? ['getobject', 'readobject', 'get', 'read'];
+    const matched = toolList.find(t =>
+      candidates.some(h => t.name.toLowerCase().includes(h))
+    ) ?? toolList.find(t => /^get|^read/i.test(t.name));
+
+    if (!matched) {
+      return { ok: false, skipped: true, reason: `No read tool found for ${objtype} in R/O server (${toolList.length} tools available)` };
+    }
+
+    // Determine argument key from the tool's input schema (first required property).
+    const schema = matched.inputSchema ?? matched.input_schema ?? {};
+    const props   = schema.properties ?? {};
+    const required = schema.required ?? [];
+    const argKey  = required[0] ?? Object.keys(props)[0] ?? 'name';
+
+    const vr    = await roClient.callTool({ name: matched.name, arguments: { [argKey]: resolvedName } });
+    if (vr?.isError) throw new Error(vr.content?.[0]?.text ?? 'R/O tool isError');
+    const text  = vr?.content?.[0]?.text ?? '';
+    // Trim to a one-paragraph summary: first 400 chars, then a JSON preview of the whole result
+    const excerpt = text.slice(0, 400).replace(/\s+/g, ' ').trim();
+
+    return { ok: true, tool: matched.tool ?? matched.name, excerpt };
+  } catch (e) {
+    return { ok: false, error: e.message?.slice(0, 150) };
+  }
+}
+
 // ── Transport auto-creation via ADT CTS API ───────────────────
 async function createTransportViaAdt(host, username, password, client, description) {
   const auth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
@@ -694,21 +744,32 @@ app.post('/sap-write-mcp', async (req, res) => {
       catch { return { raw: result?.content?.[0]?.text }; }
     };
 
-    // callTool with automatic respawn on -32000 (subprocess crash): delete pool entry
-    // and retry once with a fresh subprocess.
+    // callTool: wraps client.callTool with two layers of protection:
+    //   1. isError: true in the result → convert to thrown Error (SAP rejected the call)
+    //   2. -32000 crash code → delete pool entry and retry once with a fresh subprocess
     async function callTool(name, args) {
+      async function rawCall(c) {
+        const result = await c.callTool({ name, arguments: args });
+        // MCP tools signal SAP-level errors via isError:true instead of throwing.
+        // Surfacing it here means all callers see real errors from SAP.
+        if (result?.isError) {
+          const errText = result.content?.[0]?.text ?? 'tool returned isError';
+          console.error(`[bridge] ${name} isError — ${errText.slice(0, 200)}`);
+          throw new Error(errText.slice(0, 300));
+        }
+        return result;
+      }
       let client = await getClient(creds4Pool);
       try {
-        return await client.callTool({ name, arguments: args });
+        return await rawCall(client);
       } catch (e) {
         const isCrash = e?.code === -32000 || /connection closed|-32000/i.test(e?.message ?? '');
         if (!isCrash) throw e;
         console.warn(`[bridge] MCP subprocess crashed on '${name}' (-32000) — respawning...`);
-        // onclose already removed it from pool; delete explicitly in case timing differs
         const key = `${host}|${username}|abap-adt`;
         clientPool.delete(key);
         client = await getClient(creds4Pool);
-        return await client.callTool({ name, arguments: args });
+        return await rawCall(client);
       }
     }
 
@@ -746,11 +807,13 @@ app.post('/sap-write-mcp', async (req, res) => {
       } catch (e) {
         activateError = e.message?.slice(0, 150);
       }
+      const verify = await verifyWithRO(host, username, password, sapClient, objtype, resolvedName);
       return res.json({
         ok: true, status: 200, createOnly: true, created,
         package: parentName,
         transport: transport || null,
         note: `${objtype} ${resolvedName} ${created ? 'created' : 'already existed'} in SAP (pkg: ${parentName}). Set properties (data type, length, labels) in SE11/SE91.`,
+        verify,
         ...(activateError ? { activateError } : {}),
       });
     }
@@ -815,7 +878,8 @@ app.post('/sap-write-mcp', async (req, res) => {
       activateError = e.message?.slice(0, 150);
     }
 
-    res.json({ ok: true, status: 200, transport: transport || null, ...(activateError ? { activateError } : {}) });
+    const verify = await verifyWithRO(host, username, password, sapClient, objtype, resolvedName);
+    res.json({ ok: true, status: 200, transport: transport || null, verify, ...(activateError ? { activateError } : {}) });
   } catch (err) {
     console.error('[bridge] /sap-write-mcp error:', err);
     res.status(500).json({ ok: false, error: err.message?.slice(0, 200) || 'Internal error' });
