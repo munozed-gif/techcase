@@ -1397,6 +1397,18 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       ? (env.mcp_server_url?.trim() || globalMcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim()
       : currentMcpBase;
 
+    // Auto-discover ADT bridge URL from Supabase registry when not manually configured
+    if (isAdtMcpMode && !currentMcpBase) {
+      try {
+        const { data: regRow } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+        if (regRow?.value?.trim()) {
+          currentMcpBase = regRow.value.trim().replace(/\/$/, '');
+          addLog('vm', `Auto-discovered ADT bridge URL from registry: ${currentMcpBase}`, 'info');
+          if (onUpdateAdtUrl) onUpdateAdtUrl(currentMcpBase);
+        }
+      } catch {}
+    }
+
     // ── Node 1: VM ────────────────────────────────────────────────
     if (runLaptopBridgeMode) {
       // skip — no VM involved in this mode
