@@ -893,6 +893,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const genModel       = ssCtx.settings["ai_model"]        ?? 'claude-haiku-5-5';
   const analysisModel  = ssCtx.settings["analysis_model"]  ?? 'claude-haiku-5-5';
   const sapMcpServerUrl = (ssCtx.settings["sap_mcp_server_url"] ?? '').trim();
+  const sapMcpRules = (ssCtx.settings["sap_mcp_rules"] ?? '').trim();
   const _protoRaw  = ssCtx.settings["prototype_model"];
   const _SAFE      = 'claude-haiku-5-5';
   const _ALIASES   = { 'claude-haiku-4-5': _SAFE, 'claude-haiku-4-5-20251001': _SAFE, 'claude-haiku-5-5': _SAFE, 'claude-sonnet-4-5': _SAFE, 'claude-sonnet-4-6': _SAFE, 'claude-sonnet-5': _SAFE, 'claude-sonnet-5-5': _SAFE, 'claude-opus-5-5': _SAFE, 'claude-fable-5-1': _SAFE };
@@ -3202,9 +3203,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       } catch { /* best-effort */ }
       const mcpServers = buildMcpConfig(freshMcpUrl);
       const mcpNote = mcpServers.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
+      const mcpRulesNote = mcpServers.length && sapMcpRules ? `\n\n${sapMcpRules}` : '';
       const callSpec = async (rawPrompt, extraBlocks = []) => {
         const prompt = sanitizeForJson(rawPrompt);
-        const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${sysLiveNote}${mcpNote}`;
+        const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${sysLiveNote}${mcpNote}${mcpRulesNote}`;
         const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
         try {
           const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
@@ -3352,7 +3354,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
       const mcpServersD = buildMcpConfig();
       const mcpNoteD = mcpServersD.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
-      const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${mcpNoteD}`;
+      const mcpRulesNoteD = mcpServersD.length && sapMcpRules ? `\n\n${sapMcpRules}` : '';
+      const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${mcpNoteD}${mcpRulesNoteD}`;
       const callSpec = async (rawPrompt) => {
         const prompt = sanitizeForJson(rawPrompt);
         try {
@@ -3439,9 +3442,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
     const mcpServersR = buildMcpConfig();
     const mcpNoteR = mcpServersR.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
+    const mcpRulesNoteR = mcpServersR.length && sapMcpRules ? `\n\n${sapMcpRules}` : '';
     const callSpec = async (rawPrompt, extraBlocks = []) => {
       const prompt = sanitizeForJson(rawPrompt);
-      const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${mcpNoteR}`;
+      const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${mcpNoteR}${mcpRulesNoteR}`;
       const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
       try {
         const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
