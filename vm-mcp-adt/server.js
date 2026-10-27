@@ -588,11 +588,64 @@ app.post('/sap-write', async (req, res) => {
   }
 });
 
+// ── Transport auto-creation via ADT CTS API ───────────────────
+async function createTransportViaAdt(host, username, password, client, description) {
+  const auth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
+  const baseHeaders = { Authorization: auth, 'sap-client': client };
+
+  // 1. Fetch CSRF token
+  const csrfRes = await sapFetch(`${host}/sap/bc/adt/cts/transportrequests`, {
+    method: 'GET',
+    headers: { ...baseHeaders, 'X-CSRF-Token': 'Fetch', Accept: 'application/xml' },
+    signal: AbortSignal.timeout(15000),
+  });
+  const csrfToken = csrfRes.headers.get('x-csrf-token') || '';
+  const setCookieRaw = csrfRes.headers.get('set-cookie');
+  const setCookieArr = Array.isArray(setCookieRaw) ? setCookieRaw : (setCookieRaw ? [setCookieRaw] : []);
+  const cookieHeader = setCookieArr.map(c => c.split(';')[0].trim()).filter(Boolean).join('; ');
+  if (!csrfToken || csrfToken === 'Required') {
+    throw new Error(`CSRF fetch for TR creation failed HTTP ${csrfRes.status}`);
+  }
+
+  // 2. Create workbench transport request
+  const safeDesc = description.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const xmlBody = `<?xml version="1.0" encoding="UTF-8"?>\n<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" tm:category="Workbench" tm:description="${safeDesc}"/>`;
+
+  const createRes = await sapFetch(`${host}/sap/bc/adt/cts/transportrequests`, {
+    method: 'POST',
+    headers: {
+      ...baseHeaders,
+      'X-CSRF-Token': csrfToken,
+      'Content-Type': 'application/vnd.sap.cts.transport.request+xml',
+      Accept: 'text/plain',
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+    },
+    body: xmlBody,
+    signal: AbortSignal.timeout(20000),
+  });
+
+  const respText = await createRes.text().catch(() => '');
+  if (!createRes.ok && createRes.status !== 201) {
+    throw new Error(`TR creation failed HTTP ${createRes.status}: ${respText.slice(0, 120)}`);
+  }
+
+  // TR number from Location header (preferred) or response body
+  const location = createRes.headers.get('location') || '';
+  const trPattern = /[A-Z]{1,4}K\d{6}/i;
+  const fromLoc = location.match(trPattern);
+  if (fromLoc) return fromLoc[0].toUpperCase();
+  const fromBody = respText.match(trPattern);
+  if (fromBody) return fromBody[0].toUpperCase();
+
+  throw new Error(`TR created but could not parse TR number (Location: ${location || 'none'}, body: ${respText.slice(0, 80)})`);
+}
+
 // POST /sap-write-mcp — uses the mcp-abap-abap-adt-api MCP tools:
 // Normal:      lock → setObjectSource → unLock → activateByName (+ optional createObject)
 // createOnly:  createObject → activateByName  (domain / data_element / message_class — no source)
 // Body: { host, username, password, client, path, source, transport?,
-//         autoCreate?, createOnly?, objtype?, name?, parentName?, description?, parentPath? }
+//         autoCreate?, createOnly?, objtype?, name?, parentName?, description?,
+//         parentPath?, objectSpec? }
 app.post('/sap-write-mcp', async (req, res) => {
   try {
     const creds      = parseSapCreds(req.headers['authorization']) || {};
@@ -602,7 +655,7 @@ app.post('/sap-write-mcp', async (req, res) => {
     const sapClient  = creds.client    || req.body?.client   || process.env.SAP_CLIENT   || '100';
     const adtPath    = req.body?.path;
     const source     = req.body?.source;
-    const transport  = req.body?.transport;
+    let   transport  = req.body?.transport || null;
     const autoCreate = !!req.body?.autoCreate;
     const createOnly = !!req.body?.createOnly;
     const objtype    = req.body?.objtype;
@@ -621,6 +674,18 @@ app.post('/sap-write-mcp', async (req, res) => {
     const objectUrl       = adtPath.replace(/\/source\/main$/, '');
     const objectSourceUrl = adtPath;
     const resolvedName    = objName || objectUrl.split('/').pop()?.toUpperCase() || '';
+
+    // Auto-create transport request when none provided and package is not $TMP
+    if (!transport && parentName && parentName !== '$TMP') {
+      try {
+        const trDesc = `Techcase: ${resolvedName}${description ? ' - ' + description.slice(0, 40) : ''}`;
+        transport = await createTransportViaAdt(host, username, password, sapClient, trDesc);
+        console.log(`[bridge] Auto-created transport: ${transport} for ${resolvedName}`);
+      } catch (trErr) {
+        console.warn(`[bridge] Could not auto-create transport: ${trErr.message}`);
+        // Non-fatal: proceed without TR (object goes into package's default handling)
+      }
+    }
 
     const creds4Pool = { host, username, password, client: sapClient, serverType: 'abap-adt' };
 
@@ -750,7 +815,7 @@ app.post('/sap-write-mcp', async (req, res) => {
       activateError = e.message?.slice(0, 150);
     }
 
-    res.json({ ok: true, status: 200, ...(activateError ? { activateError } : {}) });
+    res.json({ ok: true, status: 200, transport: transport || null, ...(activateError ? { activateError } : {}) });
   } catch (err) {
     console.error('[bridge] /sap-write-mcp error:', err);
     res.status(500).json({ ok: false, error: err.message?.slice(0, 200) || 'Internal error' });

@@ -286,7 +286,7 @@ async function sapGetCsrfToken(config) {
   return res.headers.get('X-CSRF-Token') ?? '';
 }
 
-async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg) {
+async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg, description) {
   const path = sapObjectPath(objectType, objectName);
   const createOnly = sapIsCreateOnly(objectType);
 
@@ -315,6 +315,7 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
           transport: transportRequest,
           parentName: pkg || '$TMP',
           name: objectName.toUpperCase(),
+          description: description || '',
           objtype: sapAdtObjtype(objectType),
           autoCreate: !!(sapAdtObjtype(objectType)),
           createOnly,
@@ -4153,6 +4154,11 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       } catch { /* best-effort */ }
     }
 
+    // Warn once if no package configured (objects will land in $TMP)
+    if (autoImplEnabled && sapConfig?.host && !packageReq) {
+      addLog('⚠ No SAP package configured — objects will be created in $TMP (local, not transportable). Enter a package in the settings above to assign them to a transport.', 'warn');
+    }
+
     for (const obj of sorted) {
       if (stopRef.current) { addLog('Stopped by user.', 'skipped'); break; }
       if (obj.status === 'done') { addLog(`${obj.name}: already done, skipping.`, 'skipped'); continue; }
@@ -4186,41 +4192,32 @@ SAP Module: ${caseData.area_sap ?? 'general'}
 ${standardsBlock}
 
 Output ONLY the ABAP source code, no explanations.`;
+        // In ADT mode, Cloudflare quick tunnels block SSE from Anthropic's servers,
+        // so MCP for generation never works. Skip it — generation goes directly.
+        // The write step uses the bridge's own MCP subprocess pool (not SSE).
+        const genMcpServers = isAdtMode ? undefined : buildSapMcpConfig(sapConfig, freshMcpUrl);
         const callArgs = {
           model: genModel,
           system: 'You are an expert SAP ABAP developer. Output only clean ABAP source code.',
           messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
           max_tokens: 8000,
-          mcp_servers: buildSapMcpConfig(sapConfig, freshMcpUrl),
+          mcp_servers: genMcpServers,
         };
         let resp;
         try {
           resp = await callClaude(callArgs);
         } catch (mcpErr) {
-          const isMcpError = /mcp|communicat|connection|tunnel/i.test(mcpErr.message ?? '');
+          // For non-ADT mode: retry with fresh URL on MCP errors
+          const isMcpError = !isAdtMode && /mcp|communicat|connection|tunnel/i.test(mcpErr.message ?? '');
           if (isMcpError) {
-            // Refresh tunnel URL and retry once (registry only for custom MCP, not ADT mode)
-            if (!isAdtMode) {
-              try {
-                const { data: retryRow } = await supabase
-                  .from('vm_tunnel_registry').select('tunnel_url')
-                  .order('updated_at', { ascending: false }).limit(1).maybeSingle();
-                if (retryRow?.tunnel_url) freshMcpUrl = retryRow.tunnel_url.replace(/\/$/, '');
-              } catch { /* ignore */ }
-            }
-            addLog(`${obj.name}: ADT bridge /mcp unreachable (generation context) — retrying...`, 'generating');
             try {
-              resp = await callClaude({ ...callArgs, mcp_servers: buildSapMcpConfig(sapConfig, freshMcpUrl) });
-            } catch (retryErr) {
-              const stillMcp = /mcp|communicat|connection|tunnel/i.test(retryErr.message ?? '');
-              if (stillMcp) {
-                // SAP live connection unavailable — fall back to generation without MCP
-                addLog(`${obj.name}: ADT bridge /mcp unavailable — generating without live SAP context (write step unaffected)...`, 'generating');
-                resp = await callClaude({ ...callArgs, mcp_servers: undefined });
-              } else {
-                throw retryErr;
-              }
-            }
+              const { data: retryRow } = await supabase
+                .from('vm_tunnel_registry').select('tunnel_url')
+                .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+              if (retryRow?.tunnel_url) freshMcpUrl = retryRow.tunnel_url.replace(/\/$/, '');
+            } catch { /* ignore */ }
+            addLog(`${obj.name}: MCP unreachable — retrying without live SAP context...`, 'generating');
+            resp = await callClaude({ ...callArgs, mcp_servers: undefined });
           } else {
             throw mcpErr;
           }
@@ -4247,7 +4244,7 @@ Output ONLY the ABAP source code, no explanations.`;
             : sapConfig.mcp_type === 'abap-adt-both' ? 'mcp-abap-abap-adt-api (127 tools R+W) ← write server from abap-adt-both'
             : 'custom MCP';
           addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabel}] | tunnel: ${freshMcpUrl} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
-          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined);
+          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined);
           if (result.ok) {
             const usedTransport = result.transport || obj.transport || transportReq || null;
             const usedPackage   = result.package   || obj.package   || packageReq   || null;
@@ -4348,7 +4345,7 @@ Output ONLY the ABAP source code, no explanations.`;
         : 'ADT')
       : 'custom MCP';
     addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabelManual}] | tunnel: ${adtBase} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
-    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined);
+    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined);
     if (result.ok) {
       const usedTransport = result.transport || obj.transport || transportReq || null;
       const usedPackage   = result.package   || obj.package   || packageReq   || null;
