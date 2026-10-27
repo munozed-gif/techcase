@@ -127,26 +127,18 @@ SUPABASE_URL=$(grep '^SUPABASE_URL=' "$ENV_FILE" | head -1 | cut -d'=' -f2-)
 SUPABASE_SERVICE_KEY=$(grep '^SUPABASE_SERVICE_KEY=' "$ENV_FILE" | head -1 | cut -d'=' -f2-)
 echo "[config] Loaded dev Supabase credentials from .env.dev"
 
-# ── Register tunnel URL in dev Supabase ───────────────────────
+# ── Register tunnel URL in dev Supabase (upsert) ──────────────
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_KEY" ]; then
   echo "[config] Registering tunnel URL in dev Supabase..."
-  AUTH_HEADERS=(-H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" -H "Content-Type: application/json")
+  AUTH_HEADERS=(-H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" -H "Content-Type: application/json" -H "Prefer: resolution=merge-duplicates")
   HTTP_STATUS=$(curl -s -o /tmp/supabase-reg-dev.json -w "%{http_code}" \
-    -X PATCH "${SUPABASE_URL}/rest/v1/system_settings?key=eq.adt_bridge_tunnel_url" \
+    -X POST "${SUPABASE_URL}/rest/v1/system_settings" \
     "${AUTH_HEADERS[@]}" \
-    -d "{\"value\":\"${TUNNEL_URL}\"}")
-  if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "204" ]; then
-    echo "[config] Tunnel URL updated in dev Supabase ✓ (HTTP $HTTP_STATUS)"
+    -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${TUNNEL_URL}\"}")
+  if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ] || [ "$HTTP_STATUS" = "204" ]; then
+    echo "[config] Tunnel URL registered in dev Supabase ✓ (HTTP $HTTP_STATUS)"
   else
-    HTTP_STATUS=$(curl -s -o /tmp/supabase-reg-dev.json -w "%{http_code}" \
-      -X POST "${SUPABASE_URL}/rest/v1/system_settings" \
-      "${AUTH_HEADERS[@]}" \
-      -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${TUNNEL_URL}\"}")
-    if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
-      echo "[config] Tunnel URL registered in dev Supabase ✓ (HTTP $HTTP_STATUS)"
-    else
-      echo "[config] Dev Supabase registration failed (HTTP $HTTP_STATUS): $(cat /tmp/supabase-reg-dev.json 2>/dev/null)"
-    fi
+    echo "[config] Dev Supabase registration failed (HTTP $HTTP_STATUS): $(cat /tmp/supabase-reg-dev.json 2>/dev/null)"
   fi
 fi
 
