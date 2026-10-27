@@ -1289,6 +1289,9 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const [setupCopied, setSetupCopied] = useState(null);
   const [stoppingVpn, setStoppingVpn] = useState(false);
   const [stopVpnMsg, setStopVpnMsg] = useState(null);
+  const [restartingVm, setRestartingVm] = useState(false);
+  const [restartVmMsg, setRestartVmMsg] = useState('');
+  const restartVmPollRef = useRef(null);
   const [aiDiagnosis, setAiDiagnosis] = useState(() => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s)?.aiDiagnosis ?? null : null; } catch { return null; } });
   const [diagnosing, setDiagnosing] = useState(false);
   const cancelRef = useRef(false);
@@ -2058,6 +2061,55 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     }
   }
 
+  async function restartVmBridge() {
+    if (restartingVm) return;
+    clearTimeout(restartVmPollRef.current);
+    setRestartingVm(true);
+    const requestTs = Date.now();
+    setRestartVmMsg('Sending restart command…');
+    try {
+      await supabase.from('system_settings').upsert(
+        { key: 'vm_restart_requested', value: { ts: requestTs } },
+        { onConflict: 'key' }
+      );
+    } catch (e) {
+      setRestartVmMsg(`Could not send restart command: ${e.message?.slice(0, 60)}`);
+      setRestartingVm(false);
+      return;
+    }
+    setRestartVmMsg('Restart requested — waiting for VM to reconnect…');
+    let elapsed = 0;
+    const maxWait = 120000;
+    const pollInterval = 10000;
+    const poll = async () => {
+      try {
+        const { data } = await supabase
+          .from('vm_tunnel_registry')
+          .select('tunnel_url, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data?.updated_at && new Date(data.updated_at).getTime() > requestTs) {
+          if (onUpdateMcpUrl) onUpdateMcpUrl(data.tunnel_url);
+          setRestartVmMsg('');
+          setRestartingVm(false);
+          run();
+          return;
+        }
+      } catch { /* best-effort */ }
+      elapsed += pollInterval;
+      if (elapsed >= maxWait) {
+        setRestartVmMsg('VM did not reconnect within 2 min — check AWS console or start-sap-mcp-tunnel.sh on VM');
+        setRestartingVm(false);
+        return;
+      }
+      const rem = Math.round((maxWait - elapsed) / 1000);
+      setRestartVmMsg(`Waiting for VM to reconnect… (${rem}s)`);
+      restartVmPollRef.current = setTimeout(poll, pollInterval);
+    };
+    restartVmPollRef.current = setTimeout(poll, pollInterval);
+  }
+
   const isUserVpnMode = env.vpn_mode === 'user';
   const SETUP_STEPS = isUserVpnMode && isAdtMcpMode
     ? [
@@ -2234,6 +2286,13 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                     {stoppingVpn ? 'Stopping…' : 'Stop VM VPN'}
                   </button>
                 )}
+                {showSetup && !isUserVpnMode && (
+                  <button onClick={restartVmBridge} disabled={restartingVm || running}
+                    className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors">
+                    <RefreshCw size={9} className={restartingVm ? 'animate-spin' : ''} />
+                    {restartingVm ? 'Restarting…' : 'Restart VM'}
+                  </button>
+                )}
                 {showSetup && (
                   <button onClick={() => setShowSetupPanel(v => !v)}
                     className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-colors ${showSetupPanel ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300' : 'bg-amber-600 hover:bg-amber-700 text-white'}`}>
@@ -2301,6 +2360,16 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
               {showStopVpn && stopVpnMsg && (
                 <div className="px-10 pb-2">
                   <p className={`text-[10px] ${stopVpnMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>{stopVpnMsg}</p>
+                </div>
+              )}
+
+              {/* Restart VM feedback */}
+              {key === 'vm' && restartVmMsg && (
+                <div className="px-10 pb-2">
+                  <p className="text-[10px] text-blue-400 flex items-center gap-1">
+                    {restartingVm && <RefreshCw size={8} className="animate-spin shrink-0" />}
+                    {restartVmMsg}
+                  </p>
                 </div>
               )}
 
