@@ -1268,26 +1268,60 @@ const INFRA_NODE_META = [
 ];
 
 const INFRA_CHECK_DEFAULTS = {
-  vm:  { enabled: true, autoSolve: true },
-  vpn: { enabled: true, autoSolve: true, vpnLoop: true },
-  mcp: { enabled: true, autoSolve: true },
-  sap: { enabled: true, autoSolve: false },
+  vm:  { enabled: true,  autoSolve: true },
+  vpn: { enabled: true,  autoSolve: true, vpnLoop: true },
+  mcp: { enabled: true,  autoSolve: true },
+  sap: { enabled: true,  autoSolve: false },
+};
+
+// Defaults differ per VPN type:
+// Platform VPN — VM + managed VPN + ADT Bridge all apply
+// User VPN — no VM, no managed VPN; user's FortiClient + laptop bridge
+const INFRA_CHECK_TYPE_DEFAULTS = {
+  platform_vpn: {
+    vm:  { enabled: true,  autoSolve: true },
+    vpn: { enabled: true,  autoSolve: true, vpnLoop: true },
+    mcp: { enabled: true,  autoSolve: true },
+    sap: { enabled: true,  autoSolve: false },
+  },
+  user_vpn: {
+    vm:  { enabled: false, autoSolve: false },
+    vpn: { enabled: false, autoSolve: false, vpnLoop: false },
+    mcp: { enabled: true,  autoSolve: true },
+    sap: { enabled: true,  autoSolve: false },
+  },
+};
+
+const INFRA_TYPE_HINTS = {
+  platform_vpn: 'VM runs on AWS; VPN and ADT bridge are managed by the platform.',
+  user_vpn:     'VPN managed by your FortiClient; ADT bridge runs on your laptop.',
 };
 
 function InfraCheckSettingsCard({ ssCtx }) {
   const raw = ssCtx.settings['infra_check_settings'] ?? {};
-  const [cfg, setCfg] = useState(() =>
-    Object.fromEntries(INFRA_NODE_META.map(n => [
-      n.key,
-      { enabled: raw[n.key]?.enabled ?? INFRA_CHECK_DEFAULTS[n.key].enabled,
-        autoSolve: raw[n.key]?.autoSolve ?? INFRA_CHECK_DEFAULTS[n.key].autoSolve,
-        ...(n.key === 'vpn' ? { vpnLoop: raw[n.key]?.vpnLoop ?? INFRA_CHECK_DEFAULTS.vpn.vpnLoop } : {}),
-      },
-    ]))
-  );
+  const [activeType, setActiveType] = useState('platform_vpn');
   const [expanded, setExpanded] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Normalise stored value: support both old flat format and new per-type format
+  function initType(typeKey) {
+    const stored = raw[typeKey] ?? (typeKey === 'platform_vpn' && !raw.platform_vpn ? raw : null);
+    const defs = INFRA_CHECK_TYPE_DEFAULTS[typeKey];
+    return Object.fromEntries(INFRA_NODE_META.map(n => [
+      n.key,
+      {
+        enabled:   stored?.[n.key]?.enabled   ?? defs[n.key].enabled,
+        autoSolve: stored?.[n.key]?.autoSolve ?? defs[n.key].autoSolve,
+        ...(n.key === 'vpn' ? { vpnLoop: stored?.[n.key]?.vpnLoop ?? defs.vpn.vpnLoop } : {}),
+      },
+    ]));
+  }
+
+  const [cfg, setCfg] = useState(() => ({
+    platform_vpn: initType('platform_vpn'),
+    user_vpn:     initType('user_vpn'),
+  }));
 
   async function save(next) {
     setCfg(next);
@@ -1300,7 +1334,13 @@ function InfraCheckSettingsCard({ ssCtx }) {
   }
 
   function toggle(nodeKey, field) {
-    const next = { ...cfg, [nodeKey]: { ...cfg[nodeKey], [field]: !cfg[nodeKey][field] } };
+    const next = {
+      ...cfg,
+      [activeType]: {
+        ...cfg[activeType],
+        [nodeKey]: { ...cfg[activeType][nodeKey], [field]: !cfg[activeType][nodeKey][field] },
+      },
+    };
     save(next);
   }
 
@@ -1311,6 +1351,8 @@ function InfraCheckSettingsCard({ ssCtx }) {
     </button>
   );
 
+  const typeCfg = cfg[activeType];
+
   return (
     <div className="mt-6 pt-5 border-t border-gray-100">
       <div className="flex items-center justify-between mb-3">
@@ -1318,16 +1360,27 @@ function InfraCheckSettingsCard({ ssCtx }) {
           <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
             <Activity size={14} className="text-blue-500" /> Infrastructure Check
           </h4>
-          <p className="text-xs text-gray-400 mt-0.5">Configure which nodes to check and whether auto-solve is allowed per node.</p>
+          <p className="text-xs text-gray-400 mt-0.5">Configure which nodes to check and whether auto-solve is allowed per connection type.</p>
         </div>
         {saving && <RefreshCw size={12} className="animate-spin text-gray-400" />}
         {saved && !saving && <span className="text-xs text-green-500 flex items-center gap-1"><Check size={11} /> Saved</span>}
       </div>
 
+      {/* Type tabs */}
+      <div className="flex gap-1 mb-3 p-0.5 bg-gray-100 rounded-lg w-fit">
+        {[['platform_vpn', 'Platform VPN'], ['user_vpn', 'User VPN']].map(([key, label]) => (
+          <button key={key} onClick={() => setActiveType(key)}
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${activeType === key ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-gray-400 mb-3">{INFRA_TYPE_HINTS[activeType]}</p>
+
       <div className="space-y-2">
         {INFRA_NODE_META.map(({ key, label, icon: Icon, color, autoSolveActions, cannotSolve }) => {
-          const node = cfg[key];
-          const isExpanded = !!expanded[key];
+          const node = typeCfg[key];
+          const isExpanded = !!expanded[`${activeType}_${key}`];
           return (
             <div key={key} className={`rounded-xl border transition-colors ${node.enabled ? 'border-gray-200 bg-gray-50' : 'border-gray-100 bg-gray-50/50 opacity-60'}`}>
               <div className="flex items-center gap-3 px-3 py-2.5">
@@ -1336,15 +1389,14 @@ function InfraCheckSettingsCard({ ssCtx }) {
                   <span className="text-sm font-medium text-gray-700">{label}</span>
                 </div>
 
-                {/* VPN Loop toggle — only for VPN node */}
-                {key === 'vpn' && node.enabled && (
+                {/* VPN Loop toggle — only for VPN node in platform mode */}
+                {key === 'vpn' && node.enabled && activeType === 'platform_vpn' && (
                   <div className="flex items-center gap-1.5 mr-3">
                     <span className="text-xs text-gray-400" title="When off: stops VM openfortivpn so it doesn't conflict with your laptop FortiClient session">VPN loop</span>
                     <Toggle on={node.vpnLoop ?? true} onClick={() => toggle(key, 'vpnLoop')} />
                   </div>
                 )}
 
-                {/* Auto-solve toggle — only shown when node is enabled */}
                 {node.enabled && (
                   <div className="flex items-center gap-1.5 mr-3">
                     <span className="text-xs text-gray-400">Auto-solve</span>
@@ -1352,14 +1404,12 @@ function InfraCheckSettingsCard({ ssCtx }) {
                   </div>
                 )}
 
-                {/* Enable toggle */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-gray-400">Check</span>
                   <Toggle on={node.enabled} onClick={() => toggle(key, 'enabled')} />
                 </div>
 
-                {/* Expand actions */}
-                <button onClick={() => setExpanded(e => ({ ...e, [key]: !e[key] }))}
+                <button onClick={() => setExpanded(e => ({ ...e, [`${activeType}_${key}`]: !e[`${activeType}_${key}`] }))}
                   className="p-1 text-gray-300 hover:text-gray-500 transition-colors">
                   {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </button>
@@ -1524,6 +1574,9 @@ function SettingsGenerationTab({ ssCtx }) {
           </select>
           <p className="text-xs text-gray-400 mt-1">{t("sys.prototype_model_hint")}</p>
         </div>
+
+        {/* ── Infrastructure Check Settings ─────────────────────── */}
+        <InfraCheckSettingsCard ssCtx={ssCtx} />
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
