@@ -1257,14 +1257,14 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const diagnosisModel = sysSettings['analysis_model'] ?? sysSettings['ai_model'] ?? 'claude-haiku-5-5';
   const infraCfgRaw = sysSettings['infra_check_settings'] ?? {};
   // Pick the correct per-type sub-key; fall back to flat format for backwards compat
-  const isUserVpnMode = env.vpn_mode === 'user';
-  const infraTypeKey  = isUserVpnMode ? 'user_vpn' : 'platform_vpn';
-  const infraTyped    = infraCfgRaw[infraTypeKey] ?? (infraCfgRaw.vm ? infraCfgRaw : null);
+  const infraIsUserVpn = env.vpn_mode === 'user';
+  const infraTypeKey   = infraIsUserVpn ? 'user_vpn' : 'platform_vpn';
+  const infraTyped     = infraCfgRaw[infraTypeKey] ?? (infraCfgRaw.vm ? infraCfgRaw : null);
   const infraCfg = {
-    vm:  { enabled: infraTyped?.vm?.enabled  ?? (!isUserVpnMode),        autoSolve: infraTyped?.vm?.autoSolve  ?? true },
-    vpn: { enabled: infraTyped?.vpn?.enabled ?? (!isUserVpnMode),        autoSolve: infraTyped?.vpn?.autoSolve ?? true, vpnLoop: infraTyped?.vpn?.vpnLoop ?? true },
-    mcp: { enabled: infraTyped?.mcp?.enabled ?? true,                    autoSolve: infraTyped?.mcp?.autoSolve ?? true },
-    sap: { enabled: infraTyped?.sap?.enabled ?? true,                    autoSolve: infraTyped?.sap?.autoSolve ?? false },
+    vm:  { enabled: infraTyped?.vm?.enabled  ?? (!infraIsUserVpn), autoSolve: infraTyped?.vm?.autoSolve  ?? true },
+    vpn: { enabled: infraTyped?.vpn?.enabled ?? (!infraIsUserVpn), autoSolve: infraTyped?.vpn?.autoSolve ?? true, vpnLoop: infraTyped?.vpn?.vpnLoop ?? true },
+    mcp: { enabled: infraTyped?.mcp?.enabled ?? true,              autoSolve: infraTyped?.mcp?.autoSolve ?? true },
+    sap: { enabled: infraTyped?.sap?.enabled ?? true,              autoSolve: infraTyped?.sap?.autoSolve ?? false },
   };
 
   const emptyNodes = () => ({
