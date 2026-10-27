@@ -87,6 +87,97 @@ const ABAP_STANDARDS_DEFAULTS = {
   additionalInstructions: '',
 };
 
+// ============================================================
+// SAP ADT POLICY — 4-layer configuration system
+// ============================================================
+
+// Layer 1: MCP operation rules injected into the generation prompt
+const SAP_MCP_RULES_DEFAULTS = `== SAP MCP OPERATION RULES (follow exactly) ==
+
+READ RULES:
+- Always call GetProgram/GetClass/GetInterface etc. BEFORE writing to check if the object exists and what it contains.
+- Use SearchObject to discover related objects you may need to reference.
+- Prefer reading the full object source before modifying any part of it.
+- Use pagination (startLine/maxLines) for objects larger than 40KB.
+
+WRITE RULES:
+- Never use $TMP package for objects that will be transported — always assign to the correct development package.
+- Always provide a meaningful description when creating objects.
+- For function modules, always check if the function group exists first; create it if not.
+- For classes, create the class first, then add methods — never write a method without the class existing.
+- For includes, the include name must follow SAP naming conventions (e.g. ZProgramname_INC).
+- After writing, verify the object was created successfully by reading it back.
+
+TRANSPORT RULES:
+- Every object assigned to a package other than $TMP MUST have a transport request.
+- Group logically related objects into the same transport request.
+- Do not mix development and customizing objects in the same transport request.
+- Always use Workbench transport requests for ABAP code objects.
+
+NAMING RULES:
+- Customer objects start with Z or Y (or the configured namespace prefix).
+- Do not use SAP-reserved prefixes (no leading spaces, no / unless in a proper namespace).
+- Function group names are limited to 26 characters.
+- Message class names are limited to 20 characters.
+- Data elements and domains follow the ZDE_/ZD_ convention unless configured otherwise.
+
+== END SAP MCP OPERATION RULES ==`;
+
+// Layer 2: Object type → ADT path/URL/metadata configuration
+// Templates: {N}=object name uppercase, {FG}=function group, {FM}=function module name
+const SAP_ADT_OBJECT_MAP_DEFAULTS = {
+  program:       { pathTpl: '/sap/bc/adt/programs/programs/{N}/source/main', urlTpl: '/sap/bc/adt/programs/programs/{N}', objtype: 'PROG/P', createOnly: false, roToolHint: 'getprogram' },
+  report:        { pathTpl: '/sap/bc/adt/programs/programs/{N}/source/main', urlTpl: '/sap/bc/adt/programs/programs/{N}', objtype: 'PROG/P', createOnly: false, roToolHint: 'getprogram' },
+  include:       { pathTpl: '/sap/bc/adt/programs/includes/{N}/source/main', urlTpl: '/sap/bc/adt/programs/includes/{N}', objtype: 'PROG/I', createOnly: false, roToolHint: 'getinclude' },
+  class:         { pathTpl: '/sap/bc/adt/oo/classes/{N}/source/main', urlTpl: '/sap/bc/adt/oo/classes/{N}', objtype: 'CLAS/OC', createOnly: false, roToolHint: 'getclass' },
+  function_module: { pathTpl: '/sap/bc/adt/functions/groups/{FG}/fmodules/{FM}/source/main', urlTpl: '/sap/bc/adt/functions/groups/{FG}', objtype: 'FUGR/FF', createOnly: false, roToolHint: 'getfunctiongroup' },
+  bapi:          { pathTpl: '/sap/bc/adt/functions/groups/{FG}/fmodules/{FM}/source/main', urlTpl: '/sap/bc/adt/functions/groups/{FG}', objtype: 'FUGR/FF', createOnly: false, roToolHint: 'getfunctiongroup' },
+  table:         { pathTpl: '/sap/bc/adt/ddic/dbtables/{N}/source/main', urlTpl: '/sap/bc/adt/ddic/dbtables/{N}', objtype: 'TABL/DT', createOnly: false, roToolHint: 'gettable' },
+  structure:     { pathTpl: '/sap/bc/adt/ddic/structures/{N}/source/main', urlTpl: '/sap/bc/adt/ddic/structures/{N}', objtype: null, createOnly: false, roToolHint: 'getstructure' },
+  enhancement:   { pathTpl: '/sap/bc/adt/enhancements/{N}/source/main', urlTpl: '/sap/bc/adt/enhancements/{N}', objtype: 'ENHO', createOnly: false, roToolHint: null },
+  badi:          { pathTpl: '/sap/bc/adt/enhancements/badi_impl/{N}/source/main', urlTpl: '/sap/bc/adt/enhancements/badi_impl/{N}', objtype: null, createOnly: false, roToolHint: null },
+  domain:        { pathTpl: null, urlTpl: '/sap/bc/adt/ddic/domains/{N}', objtype: 'DOMA/DD', createOnly: true, roToolHint: 'getdomain' },
+  data_element:  { pathTpl: null, urlTpl: '/sap/bc/adt/ddic/dataelements/{N}', objtype: 'DTEL/DE', createOnly: true, roToolHint: 'getdataelement' },
+  message_class: { pathTpl: null, urlTpl: '/sap/bc/adt/messageclass/{N}', objtype: 'MSAG/N', createOnly: true, roToolHint: 'getmessageclass' },
+  smartform:     { pathTpl: null, urlTpl: null, objtype: null, createOnly: false, roToolHint: null },
+  odata:         { pathTpl: null, urlTpl: null, objtype: null, createOnly: false, roToolHint: null },
+  config:        { pathTpl: null, urlTpl: null, objtype: null, createOnly: false, roToolHint: null },
+};
+
+// Resolves full object type config with path templates substituted.
+// settingsObjectMap = settings['sap_adt_object_map'] from Supabase (stored overrides).
+function resolveObjectTypeConfig(objectType, objectName, settingsObjectMap) {
+  const n  = (objectName ?? '').toUpperCase();
+  const fg = n.includes('/') ? n.split('/')[0] : n;
+  const fm = n.includes('/') ? n.split('/')[1] : n;
+  const stored = (settingsObjectMap ?? {})[objectType] ?? {};
+  const dflt   = SAP_ADT_OBJECT_MAP_DEFAULTS[objectType] ?? {};
+  const merged = { ...dflt, ...stored };
+  const res = (tpl) => tpl?.replace(/\{N\}/g, n).replace(/\{FG\}/g, fg).replace(/\{FM\}/g, fm) ?? null;
+  return { ...merged, path: res(merged.pathTpl), url: res(merged.urlTpl) };
+}
+
+// Layer 3: Write policy toggles (sent with every write request to the bridge)
+const SAP_ADT_WRITE_POLICY_DEFAULTS = {
+  requirePackage:          false, // Block write if no package configured (objects would go to $TMP)
+  syntaxCheckBeforeWrite:  false, // Run syntaxCheckCode before setObjectSource
+  stopOnSyntaxError:       true,  // Abort write if syntax check returns errors
+  activateAfterWrite:      true,  // Call activateByName after setObjectSource
+  verifyAfterWrite:        true,  // Call verifyWithRO after write to confirm object exists in SAP
+  autoCreateTransport:     true,  // Auto-create workbench TR when package ≠ $TMP and no TR provided
+};
+
+// Layer 4: SAP system capability flags (control which ADT features are available)
+const SAP_ADT_CAPABILITIES_DEFAULTS = {
+  hasCts:         true,   // Can create transport requests via ADT CTS API
+  hasRwMcp:       true,   // R+W MCP server available (mcp-abap-abap-adt-api, 127 tools)
+  hasRoMcp:       true,   // R/O MCP server available (mcp-abap-adt, 16 tools)
+  hasSyntaxCheck: true,   // syntaxCheckCode tool available in R+W MCP server
+  hasActivation:  true,   // activateByName tool available
+  netWeaver754:   false,  // SAP NW 7.54+ (enables CDS view and BTP integration tools)
+  isS4Hana:       false,  // S/4HANA (enables Behavior definition, Service definition tools)
+};
+
 function resolveAbapStandards(settings, clientId, projectId, caseId) {
   const clientStd  = (settings['abap_standards_client']  ?? {})[clientId]  ?? {};
   const projectStd = (settings['abap_standards_project'] ?? {})[projectId] ?? {};
@@ -286,7 +377,7 @@ async function sapGetCsrfToken(config) {
   return res.headers.get('X-CSRF-Token') ?? '';
 }
 
-async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg, description) {
+async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg, description, policy, capabilities) {
   const path = sapObjectPath(objectType, objectName);
   const createOnly = sapIsCreateOnly(objectType);
 
@@ -319,6 +410,8 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
           objtype: sapAdtObjtype(objectType),
           autoCreate: !!(sapAdtObjtype(objectType)),
           createOnly,
+          policy: policy ?? SAP_ADT_WRITE_POLICY_DEFAULTS,
+          capabilities: capabilities ?? SAP_ADT_CAPABILITIES_DEFAULTS,
         }),
         signal: AbortSignal.timeout(55000),
       });
@@ -4123,6 +4216,8 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     setRunLog([]);
     const sorted = topoSort(subset);
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
+    const writePolicy = { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(settings['sap_adt_write_policy'] ?? {}) };
+    const sapCaps    = { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(settings['sap_adt_capabilities'] ?? {}) };
 
     const isAdtMode = sapConfig?.mcp_type === 'abap-adt' || sapConfig?.mcp_type === 'abap-adt-readonly' || sapConfig?.mcp_type === 'abap-adt-both';
     let freshMcpUrl = isAdtMode
@@ -4154,8 +4249,13 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       } catch { /* best-effort */ }
     }
 
-    // Warn once if no package configured (objects will land in $TMP)
+    // Warn or block based on package requirement policy
     if (autoImplEnabled && sapConfig?.host && !packageReq) {
+      if (writePolicy.requirePackage) {
+        addLog('⛔ Write policy requires a SAP package — configure one before running. Disable "Require Package" in SAP MCP Policy settings to allow $TMP.', 'error');
+        setRunning(false);
+        return;
+      }
       addLog('⚠ No SAP package configured — objects will be created in $TMP (local, not transportable). Enter a package in the settings above to assign them to a transport.', 'warn');
     }
 
@@ -4244,7 +4344,7 @@ Output ONLY the ABAP source code, no explanations.`;
             : sapConfig.mcp_type === 'abap-adt-both' ? 'mcp-abap-abap-adt-api (127 tools R+W) ← write server from abap-adt-both'
             : 'custom MCP';
           addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabel}] | tunnel: ${freshMcpUrl} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
-          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined);
+          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined, writePolicy, sapCaps);
           if (result.ok) {
             const usedTransport = result.transport || obj.transport || transportReq || null;
             const usedPackage   = result.package   || obj.package   || packageReq   || null;
@@ -4351,7 +4451,9 @@ Output ONLY the ABAP source code, no explanations.`;
         : 'ADT')
       : 'custom MCP';
     addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabelManual}] | tunnel: ${adtBase} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
-    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined);
+    const applyPolicy = { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(ssCtx.settings['sap_adt_write_policy'] ?? {}) };
+    const applyCaps   = { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(ssCtx.settings['sap_adt_capabilities'] ?? {}) };
+    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined, applyPolicy, applyCaps);
     if (result.ok) {
       const usedTransport = result.transport || obj.transport || transportReq || null;
       const usedPackage   = result.package   || obj.package   || packageReq   || null;
@@ -6592,4 +6694,205 @@ FALLBACK:
   );
 }
 
-export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource, detectSapObjectType };
+// ============================================================
+// SAP MCP POLICY PANEL (System Settings — 4-layer config UI)
+// ============================================================
+function SapMcpPolicyPanel({ auth }) {
+  const ssCtx = useSystemSettings();
+  const { settings } = ssCtx;
+  const canEdit = auth.isAdmin || auth.isManager;
+
+  const [activeLayer, setActiveLayer] = useState('rules');
+  const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
+
+  const [rulesText, setRulesText] = useState(() => settings['sap_mcp_rules'] ?? SAP_MCP_RULES_DEFAULTS);
+  useEffect(() => { setRulesText(settings['sap_mcp_rules'] ?? SAP_MCP_RULES_DEFAULTS); }, [settings]);
+
+  const [objectMap, setObjectMap] = useState(() => settings['sap_adt_object_map'] ?? {});
+  useEffect(() => { setObjectMap(settings['sap_adt_object_map'] ?? {}); }, [settings]);
+
+  const [policy, setPolicy] = useState(() => ({ ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(settings['sap_adt_write_policy'] ?? {}) }));
+  useEffect(() => { setPolicy({ ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(settings['sap_adt_write_policy'] ?? {}) }); }, [settings]);
+
+  const [caps, setCaps] = useState(() => ({ ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(settings['sap_adt_capabilities'] ?? {}) }));
+  useEffect(() => { setCaps({ ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(settings['sap_adt_capabilities'] ?? {}) }); }, [settings]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      if (activeLayer === 'rules')   await ssCtx.setSetting('sap_mcp_rules', rulesText);
+      if (activeLayer === 'objects') await ssCtx.setSetting('sap_adt_object_map', objectMap);
+      if (activeLayer === 'policy')  await ssCtx.setSetting('sap_adt_write_policy', policy);
+      if (activeLayer === 'caps')    await ssCtx.setSetting('sap_adt_capabilities', caps);
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+    } catch (e) { alert('Save failed: ' + e.message); }
+    finally { setSaving(false); }
+  }
+
+  async function handleReset() {
+    if (!window.confirm('Reset this layer to defaults?')) return;
+    setSaving(true);
+    try {
+      if (activeLayer === 'rules')   { setRulesText(SAP_MCP_RULES_DEFAULTS); await ssCtx.setSetting('sap_mcp_rules', SAP_MCP_RULES_DEFAULTS); }
+      if (activeLayer === 'objects') { setObjectMap({}); await ssCtx.setSetting('sap_adt_object_map', {}); }
+      if (activeLayer === 'policy')  { setPolicy({ ...SAP_ADT_WRITE_POLICY_DEFAULTS }); await ssCtx.setSetting('sap_adt_write_policy', {}); }
+      if (activeLayer === 'caps')    { setCaps({ ...SAP_ADT_CAPABILITIES_DEFAULTS }); await ssCtx.setSetting('sap_adt_capabilities', {}); }
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+    } catch (e) { alert('Reset failed: ' + e.message); }
+    finally { setSaving(false); }
+  }
+
+  const LAYERS = [
+    { id: 'rules',   label: 'MCP Rules',    desc: 'Prompt rules for generation' },
+    { id: 'objects', label: 'Object Types', desc: 'ADT path templates' },
+    { id: 'policy',  label: 'Write Policy', desc: 'Syntax check, activate, verify' },
+    { id: 'caps',    label: 'Capabilities', desc: 'SAP feature flags' },
+  ];
+
+  const OBJECT_TYPE_ROWS = Object.keys(SAP_ADT_OBJECT_MAP_DEFAULTS);
+
+  function Toggle({ value, onChange, label, desc, disabled }) {
+    return (
+      <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-b-0">
+        <button
+          type="button"
+          onClick={() => onChange(!value)}
+          disabled={disabled}
+          className={`mt-0.5 w-9 h-5 rounded-full transition-colors flex-shrink-0 ${value ? 'bg-blue-500' : 'bg-gray-300'} disabled:opacity-50`}
+        >
+          <span className={`block w-4 h-4 rounded-full bg-white shadow transition-transform mx-0.5 ${value ? 'translate-x-4' : 'translate-x-0'}`} />
+        </button>
+        <div>
+          <div className="text-sm font-medium text-gray-800">{label}</div>
+          {desc && <div className="text-xs text-gray-500 mt-0.5">{desc}</div>}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100">
+        <h3 className="text-sm font-semibold text-gray-800">SAP MCP ADT Policy</h3>
+        <p className="text-xs text-gray-500 mt-0.5">4-layer configuration for SAP MCP operations — rules, object type mapping, write policy and system capabilities.</p>
+      </div>
+
+      <div className="flex gap-0 border-b border-gray-100 overflow-x-auto">
+        {LAYERS.map(l => (
+          <button
+            key={l.id}
+            type="button"
+            onClick={() => setActiveLayer(l.id)}
+            className={`px-4 py-3 text-xs font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${activeLayer === l.id ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            <div>{l.label}</div>
+            <div className="text-gray-400 font-normal hidden sm:block">{l.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      <div className="p-6 space-y-4">
+
+        {activeLayer === 'rules' && (
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">MCP Operation Rules (injected into generation prompt for non-ADT mode)</label>
+            <textarea
+              value={rulesText}
+              onChange={e => setRulesText(e.target.value)}
+              disabled={!canEdit}
+              rows={20}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white resize-y"
+            />
+            <p className="text-xs text-gray-400 mt-1">These rules are appended to the generation prompt so the LLM follows your SAP conventions when using MCP tools.</p>
+          </div>
+        )}
+
+        {activeLayer === 'objects' && (
+          <div>
+            <p className="text-xs text-gray-500 mb-3">Override ADT path templates per object type. Leave blank to use built-in defaults. Only fill rows you need to customise.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left py-2 pr-3 text-gray-600 font-medium w-28">Type</th>
+                    <th className="text-left py-2 pr-2 text-gray-600 font-medium">Path template (override)</th>
+                    <th className="text-left py-2 pr-2 text-gray-600 font-medium">URL template (override)</th>
+                    <th className="text-left py-2 text-gray-600 font-medium w-28">Objtype</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {OBJECT_TYPE_ROWS.map(ot => {
+                    const dflt = SAP_ADT_OBJECT_MAP_DEFAULTS[ot];
+                    const override = objectMap[ot] ?? {};
+                    const inpCls = "w-full border border-gray-200 rounded-lg px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 bg-white placeholder:text-gray-300";
+                    return (
+                      <tr key={ot} className="border-b border-gray-50">
+                        <td className="py-1.5 pr-3 font-mono text-gray-700 align-top">{ot}</td>
+                        <td className="py-1.5 pr-2 align-top">
+                          <input value={override.pathTpl ?? ''} disabled={!canEdit} placeholder={dflt.pathTpl ?? '(no source)'} className={inpCls}
+                            onChange={e => setObjectMap(p => { const v = e.target.value; const cur = p[ot] ?? {}; return { ...p, [ot]: v ? { ...cur, pathTpl: v } : (({ pathTpl: _, ...r }) => r)(cur) }; })} />
+                        </td>
+                        <td className="py-1.5 pr-2 align-top">
+                          <input value={override.urlTpl ?? ''} disabled={!canEdit} placeholder={dflt.urlTpl ?? '(no URL)'} className={inpCls}
+                            onChange={e => setObjectMap(p => { const v = e.target.value; const cur = p[ot] ?? {}; return { ...p, [ot]: v ? { ...cur, urlTpl: v } : (({ urlTpl: _, ...r }) => r)(cur) }; })} />
+                        </td>
+                        <td className="py-1.5 align-top">
+                          <input value={override.objtype ?? ''} disabled={!canEdit} placeholder={dflt.objtype ?? ''} className={inpCls}
+                            onChange={e => setObjectMap(p => { const v = e.target.value; const cur = p[ot] ?? {}; return { ...p, [ot]: v ? { ...cur, objtype: v } : (({ objtype: _, ...r }) => r)(cur) }; })} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Placeholders: <code className="bg-gray-100 px-1 rounded">{'{N}'}</code> object name, <code className="bg-gray-100 px-1 rounded">{'{FG}'}</code> function group, <code className="bg-gray-100 px-1 rounded">{'{FM}'}</code> function module.</p>
+          </div>
+        )}
+
+        {activeLayer === 'policy' && (
+          <div>
+            <p className="text-xs text-gray-500 mb-1">These toggles control what the bridge does on each write operation. Changes take effect immediately on the next run.</p>
+            <Toggle value={policy.requirePackage}         onChange={v => setPolicy(p => ({ ...p, requirePackage: v }))}         disabled={!canEdit} label="Require Package"          desc="Block write if no SAP package is configured. Objects would otherwise land in $TMP (non-transportable)." />
+            <Toggle value={policy.autoCreateTransport}    onChange={v => setPolicy(p => ({ ...p, autoCreateTransport: v }))}    disabled={!canEdit} label="Auto-create Transport"     desc="Automatically create a Workbench transport request when package ≠ $TMP and no TR is provided." />
+            <Toggle value={policy.syntaxCheckBeforeWrite} onChange={v => setPolicy(p => ({ ...p, syntaxCheckBeforeWrite: v }))} disabled={!canEdit} label="Syntax Check Before Write" desc="Run syntaxCheckCode via R+W MCP before saving. Requires the syntaxCheckCode tool." />
+            <Toggle value={policy.stopOnSyntaxError}      onChange={v => setPolicy(p => ({ ...p, stopOnSyntaxError: v }))}      disabled={!canEdit} label="Stop on Syntax Error"      desc="Abort the write if syntax check returns errors. Only relevant when Syntax Check is enabled." />
+            <Toggle value={policy.activateAfterWrite}     onChange={v => setPolicy(p => ({ ...p, activateAfterWrite: v }))}     disabled={!canEdit} label="Activate After Write"      desc="Call activateByName after setObjectSource to make the object active in SAP." />
+            <Toggle value={policy.verifyAfterWrite}       onChange={v => setPolicy(p => ({ ...p, verifyAfterWrite: v }))}       disabled={!canEdit} label="Verify After Write (R/O)"  desc="Read back the object with the R/O MCP server after write to confirm it exists in SAP." />
+          </div>
+        )}
+
+        {activeLayer === 'caps' && (
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Mark which features your SAP system supports. The bridge skips unavailable operations automatically.</p>
+            <Toggle value={caps.hasCts}        onChange={v => setCaps(p => ({ ...p, hasCts: v }))}        disabled={!canEdit} label="CTS API (transport creation)"    desc="SAP supports ADT CTS REST API for creating transport requests (/sap/bc/adt/cts/transportrequests)." />
+            <Toggle value={caps.hasRwMcp}      onChange={v => setCaps(p => ({ ...p, hasRwMcp: v }))}      disabled={!canEdit} label="R+W MCP (mcp-abap-abap-adt-api)" desc="The 127-tool read+write MCP server is installed and running on the VM alongside the bridge." />
+            <Toggle value={caps.hasRoMcp}      onChange={v => setCaps(p => ({ ...p, hasRoMcp: v }))}      disabled={!canEdit} label="R/O MCP (mcp-abap-adt)"          desc="The 16-tool read-only MCP server is installed and running on the VM alongside the bridge." />
+            <Toggle value={caps.hasSyntaxCheck} onChange={v => setCaps(p => ({ ...p, hasSyntaxCheck: v }))} disabled={!canEdit} label="Syntax Check tool"              desc="The syntaxCheckCode tool is available in the R+W MCP server." />
+            <Toggle value={caps.hasActivation} onChange={v => setCaps(p => ({ ...p, hasActivation: v }))} disabled={!canEdit} label="Activation tool"                  desc="The activateByName tool is available in the R+W MCP server." />
+            <Toggle value={caps.netWeaver754}  onChange={v => setCaps(p => ({ ...p, netWeaver754: v }))}  disabled={!canEdit} label="NetWeaver 7.54+"                  desc="Enables CDS view tools, BTP integration, and other NW 7.54+ features." />
+            <Toggle value={caps.isS4Hana}      onChange={v => setCaps(p => ({ ...p, isS4Hana: v }))}      disabled={!canEdit} label="S/4HANA"                          desc="Enables Behavior Definition, Service Definition, and other S/4HANA-specific tools." />
+          </div>
+        )}
+
+      </div>
+
+      {canEdit && (
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center gap-3">
+          <button type="button" onClick={handleSave} disabled={saving}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button type="button" onClick={handleReset} disabled={saving}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            Reset to defaults
+          </button>
+          {saved && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={12} />Saved</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource, detectSapObjectType, SapMcpPolicyPanel, SAP_ADT_WRITE_POLICY_DEFAULTS, SAP_ADT_CAPABILITIES_DEFAULTS, SAP_MCP_RULES_DEFAULTS, SAP_ADT_OBJECT_MAP_DEFAULTS, resolveObjectTypeConfig };

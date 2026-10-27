@@ -31,7 +31,7 @@ import {
 import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS, WIZARD_MODE_DEFAULTS } from "../lib/constants.js";
 import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel, TransitionGatesPanel } from "./SettingsSubViews.jsx";
 import { PersonAvatar } from "./Projects.jsx";
-import { AbapTemplatesSection } from "../components/SapPanels.jsx";
+import { AbapTemplatesSection, SapMcpPolicyPanel } from "../components/SapPanels.jsx";
 import { SlaClientView } from "./OperationsViews.jsx";
 import { ConsultantProfilePanel } from "./ArenaView.jsx";
 
@@ -5154,6 +5154,7 @@ function SystemSettingsView({ auth, onNavigate }) {
     { id: "catalog",     label: "Catalog",          Icon: Tag },
     { id: "generation",  label: "AI & Generation",  Icon: Zap },
     { id: "abap",        label: "ABAP Templates",   Icon: FileCode2 },
+    { id: "sap_policy",  label: "SAP MCP Policy",   Icon: FileCode2 },
     { id: "area_leaders", label: "Area Leaders",     Icon: UserCog },
     { id: "headhunter",  label: "Headhunter",       Icon: Crosshair },
     { id: "platform",    label: "Platform",         Icon: Sparkles },
@@ -5188,6 +5189,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       {activeTab === "catalog"     && <SettingsCatalogTab ssCtx={ssCtx} />}
       {activeTab === "generation"  && <SettingsGenerationTab ssCtx={ssCtx} />}
       {activeTab === "abap"        && <AbapTemplatesSection auth={auth} />}
+      {activeTab === "sap_policy"  && <div className="p-6"><SapMcpPolicyPanel auth={auth} /></div>}
       {activeTab === "area_leaders" && <SettingsAreaLeadersTab ssCtx={ssCtx} />}
       {activeTab === "headhunter"  && <SettingsHeadhunterTab ssCtx={ssCtx} />}
       {activeTab === "platform"    && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}
