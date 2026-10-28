@@ -5661,13 +5661,14 @@ Output ONLY the ABAP source code, no explanations.`;
 
           {/* Run log */}
           {runLog.length > 0 && (
-            <div className="border-t border-gray-100 p-3 max-h-36 overflow-y-auto bg-gray-950">
+            <div className="border-t border-gray-100 p-3 max-h-64 overflow-y-auto bg-gray-950"
+              ref={el => { if (el) el.scrollTop = el.scrollHeight; }}>
               <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Run Log</p>
               <div className="space-y-0.5">
                 {runLog.map((entry, i) => (
                   <div key={i} className="flex items-start gap-2 text-[10px]">
                     <span className="text-gray-600 flex-shrink-0 font-mono">{entry.ts}</span>
-                    <span className={`${entry.status === 'error' ? 'text-red-400' : entry.status === 'done' ? 'text-green-400' : entry.status === 'blocked' ? 'text-gray-500' : 'text-gray-300'}`}>
+                    <span className={`break-words min-w-0 ${entry.status === 'error' ? 'text-red-400' : entry.status === 'done' ? 'text-green-400' : entry.status === 'blocked' ? 'text-gray-500' : 'text-gray-300'}`}>
                       {entry.msg}
                     </span>
                   </div>
