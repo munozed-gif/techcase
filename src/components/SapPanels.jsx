@@ -1104,6 +1104,7 @@ function SapIntegrationPanel({ clientId, auth }) {
 function ProjectSapEnvPanel({ projectId, clientId, auth }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
+  const [standardsOpen, setStandardsOpen] = useState(false);
   const { settings } = ssCtx;
   const clientSapData = (settings['sap_integration'] ?? {})[clientId] ?? {};
   const rawEnvs = clientSapData.environments ?? (clientSapData.host ? [{ id: 'default', name: 'Default', envType: 'dev', ...clientSapData }] : []);
@@ -1193,7 +1194,20 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
         </div>
       </div>
 
-      <AbapStandardsPanel level="project" entityId={projectId} clientId={clientId} auth={auth} />
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <button
+          onClick={() => setStandardsOpen(p => !p)}
+          className="flex items-center gap-2 w-full px-6 py-4 text-left hover:bg-gray-50 transition-colors">
+          <FileCode2 size={15} className="text-amber-600 flex-shrink-0" />
+          <span className="font-bold text-gray-900 text-sm flex-1">{t('abap.tab_title')}</span>
+          <ChevronRight size={14} className={`text-gray-400 transition-transform ${standardsOpen ? 'rotate-90' : ''}`} />
+        </button>
+        {standardsOpen && (
+          <div className="border-t border-gray-100">
+            <AbapStandardsPanel level="project" entityId={projectId} clientId={clientId} auth={auth} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
