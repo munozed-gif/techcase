@@ -18,9 +18,10 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod';
 import http from 'http';
 import https from 'https';
-import { execSync } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import { writeFileSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
+import path from 'path';
 
 const SERVER_START = Date.now();
 const PORT = Number(process.env.PORT ?? 3100);
@@ -638,6 +639,20 @@ const httpServer = http.createServer(async (req, res) => {
     setTimeout(() => {
       try { execSync('sudo systemctl restart sap-mcp 2>/dev/null', { timeout: 8000 }); } catch { process.exit(0); }
     }, 200);
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/adt-bridge/start-dev') {
+    const scriptDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'vm-mcp-adt');
+    try {
+      const proc = spawn('bash', ['start-vm-dev.sh'], { cwd: scriptDir, detached: true, stdio: 'ignore' });
+      proc.unref();
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, message: 'Dev ADT bridge starting on port 3102…' }));
+    } catch (e) {
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message?.slice(0, 200) }));
+    }
     return;
   }
 
