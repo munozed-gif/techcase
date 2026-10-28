@@ -5905,6 +5905,18 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [savingPackage, setSavingPackage] = useState(false);
   const genModel = settings["ai_model"] ?? 'claude-haiku-5-5';
 
+  // Re-sync local state once settings finish loading (avoids stale-init on async load)
+  const { loading: settingsLoading } = ssCtx;
+  useEffect(() => {
+    if (settingsLoading) return;
+    setTransportReq(settings['sap_impl_transport']?.[caseData.id] ?? '');
+    setPackageReq(settings['sap_impl_package']?.[caseData.id] ?? '');
+    const saved = settings['sap_impl_setup']?.[caseData.id] ?? {};
+    if (saved.implMode         !== undefined) setImplModeRaw(saved.implMode);
+    if (saved.includeViewer    !== undefined) setIncludeViewerRaw(saved.includeViewer);
+    if (saved.notifyOnComplete !== undefined) setNotifyRaw(saved.notifyOnComplete);
+  }, [settingsLoading, caseData.id]);
+
   const implActivities = activities.filter(a =>
     !['completed'].includes(a.phase) &&
     (a.phase === 'development' || a.phase === 'design' || !a.phase || a.progress_pct < 100)
