@@ -676,7 +676,7 @@ async function createTransportViaAdt(host, username, password, client, descripti
 
   const respText = await createRes.text().catch(() => '');
   if (!createRes.ok && createRes.status !== 201) {
-    throw new Error(`TR creation failed HTTP ${createRes.status}: ${respText.slice(0, 120)}`);
+    throw new Error(`TR creation failed HTTP ${createRes.status}: ${respText.slice(0, 400)}`);
   }
 
   // TR number from Location header (preferred) or response body
