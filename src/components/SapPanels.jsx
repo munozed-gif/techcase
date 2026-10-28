@@ -5366,6 +5366,10 @@ Output ONLY the ABAP source code, no explanations.`;
                     <button onClick={() => updateObj(selectedObj.id, { status: 'planned', error: null })}
                       className="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">Retry</button>
                   )}
+                  {selectedObj.status === 'done' && canDevelop && (
+                    <button onClick={() => updateObj(selectedObj.id, { status: 'planned', appliedAt: null, error: null, appliedTransport: null, appliedPackage: null, appliedActivateError: null })}
+                      className="px-2.5 py-1 text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">Reset</button>
+                  )}
                   {autoImplEnabled && selectedObj.generatedCode && selectedObj.status !== 'done' && selectedObj.status !== 'applying' && (
                     <button onClick={() => handleApplyOne(selectedObj)}
                       className="px-2.5 py-1 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors">
