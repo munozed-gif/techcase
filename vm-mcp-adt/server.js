@@ -692,7 +692,7 @@ async function createTransportViaAdt(host, username, password, client, descripti
 
 // POST /sap-write-mcp — uses the mcp-abap-abap-adt-api MCP tools:
 // Normal:      lock → setObjectSource → unLock → activateByName (+ optional createObject)
-// createOnly:  createObject → activateByName  (domain / data_element / message_class — no source)
+// createOnly:  createObject → lock → unLock → activateByName  (domain / data_element / message_class — no source)
 // Body: { host, username, password, client, path, source, transport?,
 //         autoCreate?, createOnly?, objtype?, name?, parentName?, description?,
 //         parentPath?, objectSpec? }
@@ -812,11 +812,20 @@ app.post('/sap-write-mcp', async (req, res) => {
           return res.json({ ok: false, step: 'create', error: msg.slice(0, 300) });
         }
       }
-      let activateError = null;
+      // createObject implicitly locks the object in SAP. Unlock before activating,
+      // otherwise activateByName sees a lock conflict from the same user.
       try {
-        await callTool('activateByName', { objectName: resolvedName, objectUrl });
-      } catch (e) {
-        activateError = e.message?.slice(0, 150);
+        const createLockHandle = await doLock();
+        await callTool('unLock', { objectUrl, lockHandle: createLockHandle });
+      } catch { /* best-effort — activation may still succeed */ }
+
+      let activateError = null;
+      if (effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false) {
+        try {
+          await callTool('activateByName', { objectName: resolvedName, objectUrl });
+        } catch (e) {
+          activateError = e.message?.slice(0, 150);
+        }
       }
       const verify = (effectivePolicy.verifyAfterWrite !== false && effectiveCaps.hasRoMcp !== false)
         ? await verifyWithRO(host, username, password, sapClient, objtype, resolvedName)
