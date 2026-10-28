@@ -2823,6 +2823,8 @@ function ProjectOwnSapPanel({ projectId, auth }) {
   const [saved, setSaved] = useState(false);
   const [showPasswords, setShowPasswords] = useState({});
   const [infraChecks, setInfraChecks] = useState({}); // { [envId]: { checking, vm, vpn, sap } }
+  const [expandedAdtPaths, setExpandedAdtPaths] = useState({});
+  const [standardsOpen, setStandardsOpen] = useState(false);
 
   const sapProjectEnv = ssCtx.settings['sap_project_env'] ?? {};
   const selectedEnvId = sapProjectEnv[projectId] ?? '';
@@ -3288,6 +3290,78 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                         ))}
                       </div>
 
+                      {/* ADT Object Paths — per-environment overrides */}
+                      <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
+                        <button
+                          onClick={() => setExpandedAdtPaths(p => ({ ...p, [env.id]: !p[env.id] }))}
+                          className="flex items-center gap-2 w-full text-left group">
+                          <ChevronRight size={12} className={`text-gray-400 transition-transform ${expandedAdtPaths[env.id] ? 'rotate-90' : ''}`} />
+                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide group-hover:text-gray-600 dark:group-hover:text-gray-300">ADT Object Paths</span>
+                          {Object.keys(env.adt_object_map ?? {}).length > 0 && (
+                            <span className="ml-auto text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                              {Object.keys(env.adt_object_map ?? {}).length} override{Object.keys(env.adt_object_map ?? {}).length !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </button>
+
+                        {expandedAdtPaths[env.id] && (
+                          <div className="mt-3 space-y-3">
+                            <p className="text-xs text-gray-400 leading-snug">
+                              Override ADT paths for this environment only. ABAP Cloud (BTP) uses CDS DDL paths for DDIC types.
+                            </p>
+                            {canEdit && (
+                              <button
+                                onClick={() => updateEnvField(env.id, 'adt_object_map', { ...(env.adt_object_map ?? {}), ...ABAP_CLOUD_ADT_OBJECT_MAP_PRESET })}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/20 rounded-xl transition-colors">
+                                <Sparkles size={11} />Apply ABAP Cloud (BTP) preset
+                              </button>
+                            )}
+                            <div className="space-y-1.5">
+                              {Object.entries({ ...ABAP_CLOUD_ADT_OBJECT_MAP_PRESET, ...(env.adt_object_map ?? {}) }).map(([type]) => {
+                                const envEntry = (env.adt_object_map ?? {})[type] ?? {};
+                                const dflt = SAP_ADT_OBJECT_MAP_DEFAULTS[type] ?? {};
+                                const globalEntry = (ssCtx.settings['sap_adt_object_map'] ?? {})[type] ?? {};
+                                const effective = { ...dflt, ...globalEntry, ...envEntry };
+                                const hasOverride = Object.keys(envEntry).length > 0;
+                                return (
+                                  <div key={type} className={`rounded-lg border px-3 py-2 ${hasOverride ? 'border-blue-200 bg-blue-50/40 dark:bg-blue-900/10 dark:border-blue-800' : 'border-gray-100 dark:border-gray-700'}`}>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{type}</span>
+                                      {hasOverride && canEdit && (
+                                        <button
+                                          onClick={() => {
+                                            const newMap = { ...(env.adt_object_map ?? {}) };
+                                            delete newMap[type];
+                                            updateEnvField(env.id, 'adt_object_map', newMap);
+                                          }}
+                                          className="text-[10px] text-red-400 hover:text-red-600">reset</button>
+                                      )}
+                                    </div>
+                                    <input
+                                      value={envEntry.pathTpl ?? ''}
+                                      placeholder={effective.pathTpl ?? 'default path'}
+                                      disabled={!canEdit}
+                                      onChange={e => {
+                                        const val = e.target.value.trim();
+                                        const cur = { ...(env.adt_object_map ?? {})[type] ?? {} };
+                                        if (val) cur.pathTpl = val; else delete cur.pathTpl;
+                                        updateEnvField(env.id, 'adt_object_map', { ...(env.adt_object_map ?? {}), [type]: cur });
+                                      }}
+                                      className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {Object.keys(env.adt_object_map ?? {}).length > 0 && canEdit && (
+                              <button onClick={() => updateEnvField(env.id, 'adt_object_map', {})} className="text-xs text-red-400 hover:text-red-600">
+                                Clear all overrides for this environment
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
                       {canEdit && (
                         <div className="flex items-center gap-3">
                           <button onClick={() => saveEnvironments(environments)} disabled={saving}
@@ -3307,7 +3381,21 @@ function ProjectOwnSapPanel({ projectId, auth }) {
       </div>
 
       <AbapTemplateSection projectId={projectId} canEdit={canEdit} />
-      <AbapStandardsPanel level="project" entityId={projectId} clientId={null} auth={auth} />
+
+      {/* ABAP Standards — collapsible */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+        <button
+          onClick={() => setStandardsOpen(p => !p)}
+          className="flex items-center gap-2 w-full px-5 py-3.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <ChevronRight size={14} className={`text-gray-400 transition-transform flex-shrink-0 ${standardsOpen ? 'rotate-90' : ''}`} />
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">ABAP Standards Documents</span>
+        </button>
+        {standardsOpen && (
+          <div className="border-t border-gray-100 dark:border-gray-700">
+            <AbapStandardsPanel level="project" entityId={projectId} clientId={null} auth={auth} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
