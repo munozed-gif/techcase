@@ -2190,7 +2190,8 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       return;
     }
     setRestartAdtMsg('Restart requested — waiting for bridge to reconnect…');
-    const prevUrl = (await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle().catch(() => ({ data: null }))).data?.value ?? '';
+    let prevUrl = '';
+    try { const { data: _pd } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle(); prevUrl = _pd?.value ?? ''; } catch { prevUrl = ''; }
     let elapsed = 0;
     const maxWait = 120000;
     const poll = async () => {
