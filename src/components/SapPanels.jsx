@@ -3380,18 +3380,17 @@ function ProjectOwnSapPanel({ projectId, auth }) {
         )}
       </div>
 
-      <AbapTemplateSection projectId={projectId} canEdit={canEdit} />
-
-      {/* ABAP Standards — collapsible */}
+      {/* ABAP Standards — collapsible (documents + coding standards) */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
         <button
           onClick={() => setStandardsOpen(p => !p)}
           className="flex items-center gap-2 w-full px-5 py-3.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
           <ChevronRight size={14} className={`text-gray-400 transition-transform flex-shrink-0 ${standardsOpen ? 'rotate-90' : ''}`} />
-          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">ABAP Standards Documents</span>
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">ABAP Standards</span>
         </button>
         {standardsOpen && (
-          <div className="border-t border-gray-100 dark:border-gray-700">
+          <div className="border-t border-gray-100 dark:border-gray-700 space-y-0">
+            <AbapTemplateSection projectId={projectId} canEdit={canEdit} />
             <AbapStandardsPanel level="project" entityId={projectId} clientId={null} auth={auth} />
           </div>
         )}
