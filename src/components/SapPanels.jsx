@@ -1485,9 +1485,6 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const [restartingAdt, setRestartingAdt] = useState(false);
   const [restartAdtMsg, setRestartAdtMsg] = useState('');
   const restartAdtPollRef = useRef(null);
-  const [startingDevBridge, setStartingDevBridge] = useState(false);
-  const [startDevBridgeMsg, setStartDevBridgeMsg] = useState('');
-  const startDevBridgePollRef = useRef(null);
   const [aiDiagnosis, setAiDiagnosis] = useState(() => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s)?.aiDiagnosis ?? null : null; } catch { return null; } });
   const [diagnosing, setDiagnosing] = useState(false);
   const cancelRef = useRef(false);
@@ -2312,6 +2309,10 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     setRestartingAdt(true);
     const requestTs = Date.now();
     setRestartAdtMsg('Sending restart command…');
+
+    // Write restart signal to Supabase — the bridge process (dev or prod)
+    // polls whichever Supabase instance this frontend is connected to,
+    // so the right bridge picks it up automatically.
     try {
       await supabase.from('system_settings').upsert(
         { key: 'adt_bridge_restart_requested', value: { ts: requestTs } },
@@ -2322,6 +2323,15 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       setRestartingAdt(false);
       return;
     }
+
+    // Also call the VM MCP endpoint to start the bridge if it isn't running yet
+    // (handles cold-start without needing SSH). Runs in parallel — errors are silent
+    // since the Supabase signal is the primary mechanism.
+    const base = getMcpBase();
+    if (base) {
+      fetch(`${base}/adt-bridge/start-dev`, { method: 'POST' }).catch(() => {});
+    }
+
     setRestartAdtMsg('Restart requested — waiting for bridge to reconnect…');
     let prevUrl = '';
     try { const { data: _pd } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle(); prevUrl = _pd?.value ?? ''; } catch { prevUrl = ''; }
@@ -2341,7 +2351,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       } catch { /* ignore */ }
       elapsed += 10000;
       if (elapsed >= maxWait) {
-        setRestartAdtMsg('ADT bridge did not reconnect within 2 min — run start-vm.sh on VM');
+        setRestartAdtMsg('ADT bridge did not reconnect within 2 min — check VM');
         setRestartingAdt(false);
         return;
       }
@@ -2349,52 +2359,6 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       restartAdtPollRef.current = setTimeout(poll, 10000);
     };
     restartAdtPollRef.current = setTimeout(poll, 10000);
-  }
-
-  async function startDevBridge() {
-    if (startingDevBridge) return;
-    const base = getMcpBase();
-    if (!base) { setStartDevBridgeMsg('VM MCP URL not configured'); return; }
-    clearTimeout(startDevBridgePollRef.current);
-    setStartingDevBridge(true);
-    const prevTs = Date.now();
-    setStartDevBridgeMsg('Starting dev bridge…');
-    try {
-      const res = await fetch(`${base}/adt-bridge/start-dev`, { method: 'POST' });
-      const data = await res.json().catch(() => ({}));
-      if (!data.ok) throw new Error(data.error ?? 'Start failed');
-    } catch (e) {
-      setStartDevBridgeMsg(`Could not start dev bridge: ${e.message?.slice(0, 80)}`);
-      setStartingDevBridge(false);
-      return;
-    }
-    setStartDevBridgeMsg('Dev bridge starting — waiting for tunnel URL…');
-    let prevUrl = '';
-    try { const { data: _pd } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle(); prevUrl = _pd?.value ?? ''; } catch { prevUrl = ''; }
-    let elapsed = 0;
-    const maxWait = 120000;
-    const poll = async () => {
-      try {
-        const { data } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
-        const newUrl = data?.value ?? '';
-        if (newUrl && newUrl !== prevUrl) {
-          if (onUpdateAdtUrl) onUpdateAdtUrl(newUrl);
-          setStartDevBridgeMsg('Dev bridge started ✓');
-          setStartingDevBridge(false);
-          run();
-          return;
-        }
-      } catch { /* ignore */ }
-      elapsed += 10000;
-      if (elapsed >= maxWait) {
-        setStartDevBridgeMsg('Dev bridge started but tunnel URL not updated yet — check VM');
-        setStartingDevBridge(false);
-        return;
-      }
-      setStartDevBridgeMsg(`Waiting for tunnel URL… (${Math.round((maxWait - elapsed) / 1000)}s)`);
-      startDevBridgePollRef.current = setTimeout(poll, 10000);
-    };
-    startDevBridgePollRef.current = setTimeout(poll, 10000);
   }
 
   const isUserVpnMode = env.vpn_mode === 'user';
@@ -2548,7 +2512,6 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const hasLog = node.log?.length > 0;
           const showDeploy = key === 'mcp' && !isPlatformAdtMode && (node.extra?.needsDeploy || node.status === 'error');
           const showRestartAdt = key === 'mcp' && isPlatformAdtMode && node.status === 'error';
-          const showStartDevBridge = key === 'mcp' && isPlatformAdtMode;
           const showSetup = key === 'vm' && node.status === 'error';
           const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode && node.status === 'ok';
           const showLaptopTunnel = key === 'vpn' && laptopBridgeMode;
@@ -2580,13 +2543,6 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                     className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors">
                     <RefreshCw size={9} className={restartingAdt ? 'animate-spin' : ''} />
                     {restartingAdt ? 'Restarting…' : 'Restart Bridge'}
-                  </button>
-                )}
-                {showStartDevBridge && (
-                  <button onClick={startDevBridge} disabled={startingDevBridge || running}
-                    className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 transition-colors">
-                    <RefreshCw size={9} className={startingDevBridge ? 'animate-spin' : ''} />
-                    {startingDevBridge ? 'Starting…' : 'Start Dev Bridge'}
                   </button>
                 )}
                 {showSetup && !isUserVpnMode && (
@@ -2676,15 +2632,6 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                 </div>
               )}
 
-              {/* Start dev bridge feedback */}
-              {key === 'mcp' && startDevBridgeMsg && (
-                <div className="px-10 pb-2">
-                  <p className={`text-[10px] flex items-center gap-1 ${startDevBridgeMsg.includes('✓') ? 'text-emerald-400' : startDevBridgeMsg.startsWith('Could not') ? 'text-red-400' : 'text-emerald-400/70'}`}>
-                    {startingDevBridge && <RefreshCw size={8} className="animate-spin shrink-0" />}
-                    {startDevBridgeMsg}
-                  </p>
-                </div>
-              )}
 
               {/* Restart VM feedback */}
               {key === 'vm' && restartVmMsg && (
