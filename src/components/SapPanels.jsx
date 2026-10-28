@@ -178,6 +178,40 @@ const SAP_ADT_CAPABILITIES_DEFAULTS = {
   isS4Hana:       false,  // S/4HANA (enables Behavior definition, Service definition tools)
 };
 
+// Layer 5: Pipeline MCP/ADT policy — controls when and how MCP/ADT is used at each pipeline stage
+const MCP_ADT_PIPELINE_POLICY_DEFAULTS = {
+  // Per-stage options (all stages also honour the MCP server connectivity gate)
+  stages: {
+    analyze:   { use_mcp: true,  include_mcp_rules: false },
+    specs:     { use_mcp: true,  include_mcp_rules: true,  include_capabilities: false },
+    blueprint: { use_mcp: false, include_mcp_rules: false, include_capabilities: false },
+    implement: { use_mcp: true,  include_mcp_rules: false, include_capabilities: false },
+  },
+  // Per-object-type mode for blueprint + implement phases
+  // 'manual'          → skip entirely (user configures in SAP manually)
+  // 'adt-create-only' → create ADT skeleton (no ABAP source); user sets props in SE11/SE91
+  // 'adt-write'       → AI generates ABAP, writes via ADT bridge
+  // 'ai-generate'     → AI generates ABAP, writes via ADT bridge (same as adt-write; kept for clarity)
+  object_types: {
+    config:          'manual',
+    table:           'adt-create-only',
+    structure:       'adt-create-only',
+    domain:          'adt-create-only',
+    data_element:    'adt-create-only',
+    message_class:   'adt-create-only',
+    program:         'ai-generate',
+    include:         'ai-generate',
+    class:           'ai-generate',
+    function_module: 'ai-generate',
+    bapi:            'ai-generate',
+    odata:           'manual',
+    badi:            'ai-generate',
+    enhancement:     'ai-generate',
+    report:          'ai-generate',
+    smartform:       'manual',
+  },
+};
+
 function resolveAbapStandards(settings, clientId, projectId, caseId) {
   const clientStd  = (settings['abap_standards_client']  ?? {})[clientId]  ?? {};
   const projectStd = (settings['abap_standards_project'] ?? {})[projectId] ?? {};
@@ -4316,17 +4350,21 @@ Suggest 5-15 objects covering the full scope.`;
       });
       const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const parsed = JSON.parse(raw.replace(/```json?/g, '').replace(/```/g, '').trim());
+      const _bpStoredPP = settings['mcp_adt_pipeline_policy'] ?? {};
+      const _bpObjTypes = { ...MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types, ...(_bpStoredPP.object_types ?? {}) };
       const nameToId = {};
       const newObjs = parsed.map((item, i) => {
         const id = crypto.randomUUID();
         nameToId[item.name] = id;
+        const _resolvedType = BP_TYPES[item.type] ? item.type : 'program';
+        const _objMode = _bpObjTypes[_resolvedType] ?? (item.aiCapable ? 'ai-generate' : 'manual');
         return {
           id,
           name: item.name,
-          type: BP_TYPES[item.type] ? item.type : 'program',
-          phase: (item.phase && BP_PHASES.some(p => p.id === item.phase)) ? item.phase : (BP_TYPES[item.type]?.phase ?? 'development'),
+          type: _resolvedType,
+          phase: (item.phase && BP_PHASES.some(p => p.id === item.phase)) ? item.phase : (BP_TYPES[_resolvedType]?.phase ?? 'development'),
           description: item.description ?? '',
-          aiCapable: item.aiCapable ?? (BP_TYPES[item.type]?.ai ?? true),
+          aiCapable: _objMode !== 'manual',
           dependsOn: [],
           order: i + 1,
           status: 'planned',
@@ -4380,17 +4418,21 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       });
       const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const parsed = JSON.parse(raw.replace(/```json?/g, '').replace(/```/g, '').trim());
+      const _nlStoredPP = settings['mcp_adt_pipeline_policy'] ?? {};
+      const _nlObjTypes = { ...MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types, ...(_nlStoredPP.object_types ?? {}) };
       const nameToId = {};
       const newObjs = parsed.map((item, i) => {
         const id = crypto.randomUUID();
         nameToId[item.name] = id;
+        const _resolvedType = BP_TYPES[item.type] ? item.type : 'program';
+        const _objMode = _nlObjTypes[_resolvedType] ?? (item.aiCapable ? 'ai-generate' : 'manual');
         return {
           id,
           name: item.name,
-          type: BP_TYPES[item.type] ? item.type : 'program',
-          phase: (item.phase && BP_PHASES.some(p => p.id === item.phase)) ? item.phase : (BP_TYPES[item.type]?.phase ?? 'development'),
+          type: _resolvedType,
+          phase: (item.phase && BP_PHASES.some(p => p.id === item.phase)) ? item.phase : (BP_TYPES[_resolvedType]?.phase ?? 'development'),
           description: item.description ?? '',
-          aiCapable: item.aiCapable ?? (BP_TYPES[item.type]?.ai ?? true),
+          aiCapable: _objMode !== 'manual',
           dependsOn: [],
           order: i + 1,
           status: 'planned',
@@ -4429,6 +4471,8 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
     const writePolicy = { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(settings['sap_adt_write_policy'] ?? {}) };
     const sapCaps    = { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(settings['sap_adt_capabilities'] ?? {}) };
+    const _storedPP  = settings['mcp_adt_pipeline_policy'] ?? {};
+    const pipelineObjTypes = { ...MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types, ...(_storedPP.object_types ?? {}) };
 
     const isAdtMode = sapConfig?.mcp_type === 'abap-adt' || sapConfig?.mcp_type === 'abap-adt-readonly' || sapConfig?.mcp_type === 'abap-adt-both';
     let freshMcpUrl = isAdtMode
@@ -4485,9 +4529,41 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
         continue;
       }
 
-      if (!obj.aiCapable) {
+      const objMode = pipelineObjTypes[obj.type] ?? (obj.aiCapable ? 'ai-generate' : 'manual');
+      if (objMode === 'manual') {
         updateObj(obj.id, { status: 'manual' });
-        addLog(`${obj.name}: manual (not AI-capable).`, 'manual');
+        addLog(`${obj.name}: manual (policy: ${obj.type} → manual).`, 'manual');
+        continue;
+      }
+      if (objMode === 'adt-create-only') {
+        if (autoImplEnabled && sapConfig?.host) {
+          try {
+            updateObj(obj.id, { status: 'applying', error: null });
+            addLog(`${obj.name}: creating ADT skeleton (policy: adt-create-only)...`, 'applying');
+            const _applyVia   = freshMcpUrl ? `${freshMcpUrl}/sap-proxy` : null;
+            const _applyCfg   = _applyVia ? { ...sapConfig, proxyUrl: _applyVia } : sapConfig;
+            const _r = await sapWriteSourceDetail(_applyCfg, obj.type, obj.name, null,
+              obj.transport || transportReq || undefined,
+              obj.package || packageReq || undefined,
+              obj.description || undefined, writePolicy, sapCaps);
+            if (_r.ok) {
+              const _ut = _r.transport || obj.transport || transportReq || null;
+              const _up = _r.package   || obj.package   || packageReq   || null;
+              updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), appliedCreated: true, appliedTransport: _ut, appliedPackage: _up });
+              addLog(`${obj.name}: ✓ ADT skeleton created (pkg: ${_up || '$TMP'}${_ut ? `, tr: ${_ut}` : ''}). Set properties in SE11/SE91.`, 'done');
+              if (_r.activateError) addLog(`${obj.name}: activation warning: ${_r.activateError}`, 'warn');
+            } else {
+              throw new Error(_r.error || `HTTP ${_r.status}`);
+            }
+          } catch (_e) {
+            updateObj(obj.id, { status: 'error', error: _e.message });
+            addLog(`${obj.name}: ERROR creating ADT skeleton — ${_e.message}`, 'error');
+            if (stopOnError) { addLog('Stopped on error.', 'error'); break; }
+          }
+        } else {
+          updateObj(obj.id, { status: 'manual' });
+          addLog(`${obj.name}: adt-create-only — create in SE11/SE91 when ready.`, 'manual');
+        }
         continue;
       }
 
@@ -6929,13 +7005,24 @@ function SapMcpPolicyPanel({ auth }) {
   const [caps, setCaps] = useState(() => ({ ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(settings['sap_adt_capabilities'] ?? {}) }));
   useEffect(() => { setCaps({ ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(settings['sap_adt_capabilities'] ?? {}) }); }, [settings]);
 
+  const _buildPP = (s) => {
+    const stored = s['mcp_adt_pipeline_policy'] ?? {};
+    return {
+      stages:       { ...MCP_ADT_PIPELINE_POLICY_DEFAULTS.stages,       ...(stored.stages       ?? {}) },
+      object_types: { ...MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types, ...(stored.object_types ?? {}) },
+    };
+  };
+  const [pipelinePolicy, setPipelinePolicy] = useState(() => _buildPP(settings));
+  useEffect(() => { setPipelinePolicy(_buildPP(settings)); }, [settings]);
+
   async function handleSave() {
     setSaving(true);
     try {
-      if (activeLayer === 'rules')   await ssCtx.setSetting('sap_mcp_rules', rulesText);
-      if (activeLayer === 'objects') await ssCtx.setSetting('sap_adt_object_map', objectMap);
-      if (activeLayer === 'policy')  await ssCtx.setSetting('sap_adt_write_policy', policy);
-      if (activeLayer === 'caps')    await ssCtx.setSetting('sap_adt_capabilities', caps);
+      if (activeLayer === 'rules')    await ssCtx.setSetting('sap_mcp_rules', rulesText);
+      if (activeLayer === 'objects')  await ssCtx.setSetting('sap_adt_object_map', objectMap);
+      if (activeLayer === 'policy')   await ssCtx.setSetting('sap_adt_write_policy', policy);
+      if (activeLayer === 'caps')     await ssCtx.setSetting('sap_adt_capabilities', caps);
+      if (activeLayer === 'pipeline') await ssCtx.setSetting('mcp_adt_pipeline_policy', pipelinePolicy);
       setSaved(true); setTimeout(() => setSaved(false), 2500);
     } catch (e) { alert('Save failed: ' + e.message); }
     finally { setSaving(false); }
@@ -6945,20 +7032,22 @@ function SapMcpPolicyPanel({ auth }) {
     if (!window.confirm('Reset this layer to defaults?')) return;
     setSaving(true);
     try {
-      if (activeLayer === 'rules')   { setRulesText(SAP_MCP_RULES_DEFAULTS); await ssCtx.setSetting('sap_mcp_rules', SAP_MCP_RULES_DEFAULTS); }
-      if (activeLayer === 'objects') { setObjectMap({}); await ssCtx.setSetting('sap_adt_object_map', {}); }
-      if (activeLayer === 'policy')  { setPolicy({ ...SAP_ADT_WRITE_POLICY_DEFAULTS }); await ssCtx.setSetting('sap_adt_write_policy', {}); }
-      if (activeLayer === 'caps')    { setCaps({ ...SAP_ADT_CAPABILITIES_DEFAULTS }); await ssCtx.setSetting('sap_adt_capabilities', {}); }
+      if (activeLayer === 'rules')    { setRulesText(SAP_MCP_RULES_DEFAULTS); await ssCtx.setSetting('sap_mcp_rules', SAP_MCP_RULES_DEFAULTS); }
+      if (activeLayer === 'objects')  { setObjectMap({}); await ssCtx.setSetting('sap_adt_object_map', {}); }
+      if (activeLayer === 'policy')   { setPolicy({ ...SAP_ADT_WRITE_POLICY_DEFAULTS }); await ssCtx.setSetting('sap_adt_write_policy', {}); }
+      if (activeLayer === 'caps')     { setCaps({ ...SAP_ADT_CAPABILITIES_DEFAULTS }); await ssCtx.setSetting('sap_adt_capabilities', {}); }
+      if (activeLayer === 'pipeline') { setPipelinePolicy(_buildPP({})); await ssCtx.setSetting('mcp_adt_pipeline_policy', {}); }
       setSaved(true); setTimeout(() => setSaved(false), 2500);
     } catch (e) { alert('Reset failed: ' + e.message); }
     finally { setSaving(false); }
   }
 
   const LAYERS = [
-    { id: 'rules',   label: 'MCP Rules',    desc: 'Prompt rules for generation' },
-    { id: 'objects', label: 'Object Types', desc: 'ADT path templates' },
-    { id: 'policy',  label: 'Write Policy', desc: 'Syntax check, activate, verify' },
-    { id: 'caps',    label: 'Capabilities', desc: 'SAP feature flags' },
+    { id: 'rules',    label: 'MCP Rules',       desc: 'Prompt rules for generation' },
+    { id: 'objects',  label: 'Object Types',    desc: 'ADT path templates' },
+    { id: 'policy',   label: 'Write Policy',    desc: 'Syntax check, activate, verify' },
+    { id: 'caps',     label: 'Capabilities',    desc: 'SAP feature flags' },
+    { id: 'pipeline', label: 'Pipeline Policy', desc: 'Per-stage MCP control' },
   ];
 
   const OBJECT_TYPE_ROWS = Object.keys(SAP_ADT_OBJECT_MAP_DEFAULTS);
@@ -7087,6 +7176,101 @@ function SapMcpPolicyPanel({ auth }) {
           </div>
         )}
 
+        {activeLayer === 'pipeline' && (
+          <div className="space-y-5">
+            <p className="text-xs text-gray-500">Control which pipeline stages use MCP/ADT and what context they include. Changes apply immediately on the next run.</p>
+
+            {/* Stage controls */}
+            {[
+              { key: 'analyze',   label: 'Analyze Context',   toggles: [
+                { field: 'use_mcp',           label: 'Use MCP for SAP object verification',        desc: 'Pass MCP servers when verifying SAP object existence during the Analyze stage.' },
+                { field: 'include_mcp_rules', label: 'Include MCP Rules in analyze prompt',        desc: 'Append sap_mcp_rules text to the analyze system prompt.' },
+              ]},
+              { key: 'specs',     label: 'Generate Specs',    toggles: [
+                { field: 'use_mcp',              label: 'Use MCP for spec generation',             desc: 'Pass MCP servers to Claude when generating specifications.' },
+                { field: 'include_mcp_rules',    label: 'Include MCP Rules in spec generation',   desc: 'Append sap_mcp_rules text to the spec generation system prompt.' },
+                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',    desc: 'Add sap_adt_capabilities flags to the context block sent with spec prompts.' },
+              ]},
+              { key: 'blueprint', label: 'Generate Blueprint', toggles: [
+                { field: 'use_mcp',              label: 'Use MCP for blueprint generation',       desc: 'Pass MCP servers when generating the blueprint object list.' },
+                { field: 'include_mcp_rules',    label: 'Include MCP Rules',                     desc: 'Append sap_mcp_rules text to the blueprint generation prompt.' },
+                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',   desc: 'Add sap_adt_capabilities flags to the context sent with blueprint prompts.' },
+              ]},
+              { key: 'implement', label: 'Implement Objects', toggles: [
+                { field: 'use_mcp',              label: 'Use MCP (non-ADT mode)',                 desc: 'Pass MCP servers during ABAP code generation in non-ADT mode.' },
+                { field: 'include_mcp_rules',    label: 'Include MCP Rules in generation prompt', desc: 'Append sap_mcp_rules text to the ABAP code generation prompt.' },
+                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',   desc: 'Add sap_adt_capabilities flags to the context sent with implement prompts.' },
+              ]},
+            ].map(({ key, label, toggles }) => {
+              const dflt = MCP_ADT_PIPELINE_POLICY_DEFAULTS.stages[key] ?? {};
+              const cur  = { ...dflt, ...(pipelinePolicy.stages?.[key] ?? {}) };
+              return (
+                <div key={key} className="border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                    <span className="text-xs font-semibold text-gray-700">{label}</span>
+                  </div>
+                  <div className="px-4">
+                    {toggles.map(t => (
+                      <Toggle key={t.field}
+                        value={cur[t.field] ?? false}
+                        onChange={v => setPipelinePolicy(p => ({
+                          ...p,
+                          stages: { ...p.stages, [key]: { ...(p.stages?.[key] ?? dflt), [t.field]: v } },
+                        }))}
+                        disabled={!canEdit}
+                        label={t.label}
+                        desc={t.desc}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Object type mode table */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-2">Object Type Modes</p>
+              <p className="text-xs text-gray-400 mb-3">Controls how each SAP object type is handled during blueprint generation and implementation.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left py-2 pr-4 text-gray-600 font-medium w-36">Object Type</th>
+                      <th className="text-left py-2 text-gray-600 font-medium">Mode</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.keys(MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types).map(ot => {
+                      const cur = pipelinePolicy.object_types?.[ot] ?? MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types[ot];
+                      return (
+                        <tr key={ot} className="border-b border-gray-50">
+                          <td className="py-1.5 pr-4 font-mono text-gray-700 align-middle">{ot}</td>
+                          <td className="py-1.5 align-middle">
+                            <select
+                              value={cur}
+                              disabled={!canEdit}
+                              onChange={e => setPipelinePolicy(p => ({
+                                ...p,
+                                object_types: { ...p.object_types, [ot]: e.target.value },
+                              }))}
+                              className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            >
+                              <option value="manual">manual — configure in SAP</option>
+                              <option value="adt-create-only">adt-create-only — ADT skeleton, set props in SE11/SE91</option>
+                              <option value="adt-write">adt-write — AI generate + write via ADT</option>
+                              <option value="ai-generate">ai-generate — AI generate + write via ADT</option>
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
 
       {canEdit && (
@@ -7106,4 +7290,4 @@ function SapMcpPolicyPanel({ auth }) {
   );
 }
 
-export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource, detectSapObjectType, SapMcpPolicyPanel, SAP_ADT_WRITE_POLICY_DEFAULTS, SAP_ADT_CAPABILITIES_DEFAULTS, SAP_MCP_RULES_DEFAULTS, SAP_ADT_OBJECT_MAP_DEFAULTS, resolveObjectTypeConfig };
+export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource, detectSapObjectType, SapMcpPolicyPanel, SAP_ADT_WRITE_POLICY_DEFAULTS, SAP_ADT_CAPABILITIES_DEFAULTS, SAP_MCP_RULES_DEFAULTS, SAP_ADT_OBJECT_MAP_DEFAULTS, resolveObjectTypeConfig, MCP_ADT_PIPELINE_POLICY_DEFAULTS };

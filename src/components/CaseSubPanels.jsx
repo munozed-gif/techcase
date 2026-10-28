@@ -3201,9 +3201,12 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           setSapConnCfg(prev => prev ? { ...prev, mcp_server_url: freshMcpUrl } : prev);
         }
       } catch { /* best-effort */ }
-      const mcpServers = buildMcpConfig(freshMcpUrl);
+      const _specsStoredPP     = ssCtx.settings['mcp_adt_pipeline_policy'] ?? {};
+      const _specsStage        = { use_mcp: true, include_mcp_rules: true, include_capabilities: false, ...(_specsStoredPP.stages?.specs ?? {}) };
+      const _allMcpServers     = buildMcpConfig(freshMcpUrl);
+      const mcpServers         = _specsStage.use_mcp ? _allMcpServers : [];
       const mcpNote = mcpServers.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
-      const mcpRulesNote = mcpServers.length && sapMcpRules ? `\n\n${sapMcpRules}` : '';
+      const mcpRulesNote = (mcpServers.length && _specsStage.include_mcp_rules && sapMcpRules) ? `\n\n${sapMcpRules}` : '';
       const callSpec = async (rawPrompt, extraBlocks = []) => {
         const prompt = sanitizeForJson(rawPrompt);
         const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${sysLiveNote}${mcpNote}${mcpRulesNote}`;
@@ -3474,7 +3477,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     const newSpecs = { a: aiSpecA, b: aiSpecB, c: aiSpecC, d: aiSpecD };
 
     const specKeys = failedKeys.filter(k => k !== 'proto');
-    if (mcpServers.length > 0) {
+    if (mcpServersR.length > 0) {
       // Serialize MCP-backed specs to avoid concurrent tunnel connection failures
       for (const key of specKeys) {
         setSpecStatus(key, 'generating');
@@ -4937,7 +4940,12 @@ ${sectionBlocks}`;
                   }).catch(_ => callClaude({ model: analysisModel, system, messages: [{ role: 'user', content: prompt }], max_tokens: 3000 }));
 
                   // SAP object verification — only when a live SAP MCP connection is available
-                  const mcpServers = buildMcpConfig();
+                  // and pipeline policy allows MCP at the analyze stage
+                  const _analyzeStoredPP  = ssCtx.settings['mcp_adt_pipeline_policy'] ?? {};
+                  const _analyzeStage     = { use_mcp: true, include_mcp_rules: false, ...(_analyzeStoredPP.stages?.analyze ?? {}) };
+                  const _mcpForAnalyze    = buildMcpConfig();
+                  const mcpServers        = _analyzeStage.use_mcp ? _mcpForAnalyze : [];
+                  const _analyzeRulesNote = _analyzeStage.include_mcp_rules && sapMcpRules ? `\n\n${sapMcpRules}` : '';
                   let fullResult = result;
                   if (mcpServers.length > 0 && result) {
                     try {
@@ -4953,7 +4961,7 @@ With a table or bullet list showing:
 - ✓ Exists / ✗ Not found
 - Brief note if relevant (e.g. "enhancement spot already contains 3 implementations")
 
-Only include objects you actually checked. If no technical objects are named in the analysis, write "No named SAP objects found in documents."
+Only include objects you actually checked. If no technical objects are named in the analysis, write "No named SAP objects found in documents."${_analyzeRulesNote}
 
 Analysis to process:
 ${result}`;
