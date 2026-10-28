@@ -780,7 +780,8 @@ app.post('/sap-write-mcp', async (req, res) => {
     // Auto-create transport via direct SAP ADT call (CSRF + XML POST to /sap/bc/adt/cts/transportrequests)
     if (!transport && parentName && parentName !== '$TMP' && effectivePolicy.autoCreateTransport && effectiveCaps.hasCts) {
       try {
-        const trDesc = `Techcase: ${resolvedName}${description ? ' - ' + description.slice(0, 40) : ''}`;
+        // SAP transport description max is 60 characters
+        const trDesc = `Techcase: ${resolvedName}${description ? ' - ' + description : ''}`.slice(0, 60);
         transport = await createTransportViaAdt(host, username, password, sapClient, trDesc);
         console.log(`[bridge] Auto-created transport: ${transport} for ${resolvedName}`);
       } catch (trErr) {
