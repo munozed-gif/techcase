@@ -84,22 +84,25 @@ const LANDING_STRINGS = {
     hero_badge:"Arena · Consultant Marketplace · 2026",
     hero_name:"Solutions Platform",
     hero_h1a:"Connect. Engage.", hero_h1b:"Deliver.",
-    hero_sub:"Arena is the orbital marketplace at the heart of our platform — connecting clients with vetted SAP consultants through a visual, intelligent, team-based workflow. From first contact to final delivery.",
+    hero_sub:"Arena is the AI-powered SAP delivery platform — from structured case intake to AI-generated ABAP code written directly to your SAP system via ADT. Backed by an orbital consultant marketplace connecting clients with vetted SAP specialists.",
     hero_trial:"Start free trial →", hero_demo:"▶ Watch demo",
     hero_trust:"1,200+ consultants matched across 340+ companies",
     stats_cases:"Cases managed to date", stats_cos:"Companies onboarded", stats_sla:"% SLA compliance rate",
     feat_tag:"Platform Features",
     feat_h2a:"Everything a consulting team needs.", feat_h2b:"Nothing it doesn't.",
-    feat_sub:"From the first support ticket to final delivery — Arena orchestrates every step with structured lifecycles, role-based access, and full auditability.",
+    feat_sub:"From the first support ticket to ABAP code deployed in SAP — Arena orchestrates every step with AI-driven blueprints, direct ADT write-back, structured lifecycles, and full auditability.",
     f1t:"Structured Case Lifecycles", f1d:"Every ticket follows a governed pipeline. Transition gates block premature moves; role permissions control who can advance each stage.",
     f2t:"Consultant Marketplace", f2d:"Browse verified SAP consultants by skill, rate, and availability. Apply, shortlist, compare, and assign — all in one place.",
     f3t:"Project Management", f3d:"Group cases under client projects with budgets, milestones, and inherited lifecycle templates. Full visibility from kickoff to closure.",
     f4t:"Time Logging & Approval", f4d:"Consultants log hours per case. Managers approve or query. Billing reports export instantly, reconciled with SLA thresholds.",
-    f5t:"AI-Powered Specifications", f5d:"Claude generates functional specs from case context. Clients approve, consultants build to them. Full traceability from requirement to resolution.",
+    f5t:"AI Delivery Pipeline", f5d:"One unified flow: analyze the SAP system live, generate functional specs, build a Blueprint Canvas of all ABAP objects, then have AI write code directly to SAP via ADT bridge — fully configurable per object type and pipeline stage.",
     f6t:"Transition Gates & SLA", f6d:"Block or warn on stage transitions until conditions are met. SLA timers run per lifecycle phase. Never miss a commitment again.",
     f7t:"Migration Hub", f7d:"SAP Activate-aligned migration management. Track phases from Discover to Run, assign deliverables, log fit-gap decisions, and gate transitions by readiness criteria.",
-    f8t:"AI Document Generation", f8d:"Claude drafts functional specs, dev plans, and fit-gap reports directly from case context. Teams review, comment, and approve in-platform — no copy-paste.",
-    f9t:"SAP Tooling Suite", f9d:"Manage transport requests, track fit-gap resolution, and schedule testing waves inside the governed lifecycle of each migration case.",
+    f8t:"SAP Blueprint Canvas", f8d:"Visual canvas mapping every ABAP object required for a case — programs, classes, function modules, tables, domains. Generate from a natural-language description, track status per object, and apply directly to SAP.",
+    f9t:"ABAP Standards & Templates", f9d:"Layered coding standards (global → client → project) injected into every AI generation prompt. Reusable implementation templates per object type enforce naming conventions, error handling, and documentation automatically.",
+    f10t:"Direct ADT Write-Back", f10d:"Generated ABAP code is written directly to your SAP system via ADT bridge — no copy-paste. Supports create-only skeleton creation for DDIC types, full source write for programs and classes, and ABAP Cloud (BTP) CDS DDL paths.",
+    f11t:"Live SAP System Check", f11d:"Before generating specs or code, the platform connects to your SAP system to read the real version, installed components, and existing object source — so AI generates to your actual system, not a generic template.",
+    f12t:"MCP ADT Bridge & Policy", f12d:"Self-hosted VM tunnel bridges your SAP system to the platform. Per-stage pipeline policy controls when ADT is used. Per-environment ADT path overrides support classic ABAP and ABAP Cloud side-by-side.",
     arena_tag:"Arena · Principal Feature",
     arena_h2:"Your orbital talent marketplace.",
     arena_sub:"Arena is the command center for connecting clients with the right SAP consultants — through an immersive, visual orbital interface that brings the entire talent network to life.",
@@ -141,7 +144,7 @@ const LANDING_STRINGS = {
     cl_growth_name:"Growth", cl_growth_period:"per month · cancel any time", cl_growth_badge:"Most popular",
     cl_growth_f:["5 active cases","10 team seats","AI-powered specifications","Full reporting & analytics","SLA management","Priority support"],
     cl_ent_name:"Enterprise", cl_ent_period:"Unlimited · dedicated support", cl_ent_custom:"$349",
-    cl_ent_f:["Unlimited cases & team","Everything in Growth","SAP BTP / S/4HANA integration","Custom lifecycle builder","SSO & advanced security","Dedicated customer success"],
+    cl_ent_f:["Unlimited cases & team","Everything in Growth","Unlimited environments & ADT bridges","Custom lifecycle builder","SSO & advanced security","Dedicated customer success"],
     // Headhunter plans
     hh_pro_name:"Pro", hh_pro_period:"per month · cancel any time",
     hh_pro_f:["Unlimited candidate profiles","Full talent pipeline","Placement tracking","AI candidate matching","Priority case visibility","Email & chat support"],
@@ -224,7 +227,7 @@ const LANDING_STRINGS = {
     ap_ac_r3name:"James L.",  ap_ac_r3role:"SAP Finance Lead · 10 yrs",
     ap_pause:"Pause", ap_play:"Play", ap_scene_of:"of",
     // Migration Hub showcase
-    mig_tag:"Migration Hub · New Feature",
+    mig_tag:"Migration Hub",
     mig_h2:"SAP migrations, fully governed.",
     mig_sub:"A dedicated workspace for SAP migration projects — aligned to SAP Activate, with phase-level tracking, fit-gap management, and transport coordination built in.",
     mb1t:"SAP Activate Phases", mb1d:"Pre-built phase templates: Discover, Prepare, Explore, Realize, Deploy, Run. Each phase gates deliverables before the next opens.",
@@ -239,22 +242,25 @@ const LANDING_STRINGS = {
     hero_badge:"Arena · Mercado de Consultores · 2026",
     hero_name:"Plataforma de Soluciones",
     hero_h1a:"Conecta. Involucra.", hero_h1b:"Entrega.",
-    hero_sub:"Arena es el mercado orbital en el centro de nuestra plataforma — conectando clientes con consultores SAP verificados a través de un flujo de trabajo visual, inteligente y basado en equipos. Desde el primer contacto hasta la entrega final.",
+    hero_sub:"Arena es la plataforma de entrega SAP potenciada por IA — desde la apertura estructurada del caso hasta el código ABAP generado por IA y escrito directamente en tu sistema SAP vía ADT. Respaldada por un mercado orbital de consultores que conecta clientes con especialistas SAP verificados.",
     hero_trial:"Iniciar prueba gratuita →", hero_demo:"▶ Ver demo",
     hero_trust:"Más de 1,200 consultores asignados en más de 340 empresas",
     stats_cases:"Casos gestionados hasta la fecha", stats_cos:"Empresas registradas", stats_sla:"% tasa de cumplimiento SLA",
     feat_tag:"Características de la Plataforma",
     feat_h2a:"Todo lo que un equipo de consultoría necesita.", feat_h2b:"Nada más.",
-    feat_sub:"Desde el primer ticket de soporte hasta la entrega final — Arena orquesta cada paso con ciclos de vida estructurados, acceso basado en roles y trazabilidad completa.",
+    feat_sub:"Desde el primer ticket de soporte hasta el código ABAP desplegado en SAP — Arena orquesta cada paso con blueprints impulsados por IA, escritura directa vía ADT, ciclos de vida estructurados y trazabilidad completa.",
     f1t:"Ciclos de Vida Estructurados", f1d:"Cada ticket sigue una cadena gobernada. Las puertas de transición bloquean movimientos prematuros; los permisos controlan quién puede avanzar cada etapa.",
     f2t:"Mercado de Consultores", f2d:"Explora consultores SAP verificados por habilidad, tarifa y disponibilidad. Aplica, preselecciona, compara y asigna — todo en un solo lugar.",
     f3t:"Gestión de Proyectos", f3d:"Agrupa casos bajo proyectos con presupuestos, hitos y plantillas heredadas. Visibilidad total desde el inicio hasta el cierre.",
     f4t:"Registro de Tiempo y Aprobación", f4d:"Los consultores registran horas por caso. Los gerentes aprueban. Los reportes se exportan al instante, conciliados con los umbrales SLA.",
-    f5t:"Especificaciones con IA", f5d:"Claude genera especificaciones funcionales del contexto del caso. Los clientes aprueban, los consultores construyen. Trazabilidad completa.",
+    f5t:"Pipeline de Entrega con IA", f5d:"Un flujo unificado: analiza el sistema SAP en vivo, genera especificaciones funcionales, construye un Blueprint Canvas de todos los objetos ABAP y luego escribe el código directamente en SAP vía ADT — totalmente configurable por tipo de objeto y etapa.",
     f6t:"Puertas de Transición y SLA", f6d:"Bloquea o advierte en transiciones hasta que se cumplan las condiciones. Los temporizadores SLA corren por fase. Nunca pierdas un compromiso.",
     f7t:"Hub de Migración", f7d:"Gestión de migración alineada a SAP Activate. Rastrea fases de Discover a Run, asigna entregables, registra decisiones fit-gap y controla transiciones de fase.",
-    f8t:"Generación de Documentos con IA", f8d:"Claude redacta especificaciones, planes de desarrollo y reportes fit-gap del contexto del caso. Los equipos revisan, comentan y aprueban en plataforma.",
-    f9t:"Suite de Herramientas SAP", f9d:"Gestiona órdenes de transporte, rastrea resolución de fit-gap y programa olas de prueba dentro del ciclo de vida gobernado de cada caso de migración.",
+    f8t:"SAP Blueprint Canvas", f8d:"Canvas visual que mapea cada objeto ABAP requerido para un caso — programas, clases, módulos de función, tablas, dominios. Genera desde lenguaje natural, monitorea el estado por objeto y aplica directamente en SAP.",
+    f9t:"Estándares y Plantillas ABAP", f9d:"Estándares de código en capas (global → cliente → proyecto) inyectados en cada prompt de generación IA. Plantillas reutilizables por tipo de objeto que aplican convenciones de nombres, manejo de errores y documentación automáticamente.",
+    f10t:"Escritura Directa vía ADT", f10d:"El código ABAP generado se escribe directamente en tu sistema SAP vía ADT bridge — sin copiar y pegar. Soporta creación de esqueletos para tipos DDIC, escritura de fuente completa para programas y clases, y rutas CDS DDL para ABAP Cloud (BTP).",
+    f11t:"Verificación SAP en Vivo", f11d:"Antes de generar especificaciones o código, la plataforma se conecta a tu sistema SAP para leer la versión real, los componentes instalados y el código fuente existente — para que la IA genere según tu sistema real, no una plantilla genérica.",
+    f12t:"Bridge MCP ADT y Política", f12d:"Túnel VM autoalojado conecta tu sistema SAP a la plataforma. La política de pipeline por etapa controla cuándo se usa ADT. Las rutas ADT configurables por entorno soportan ABAP clásico y ABAP Cloud en paralelo.",
     arena_tag:"Arena · Característica Principal",
     arena_h2:"Tu mercado de talento orbital.",
     arena_sub:"Arena es el centro de comando para conectar clientes con los consultores SAP adecuados — a través de una interfaz orbital visual e inmersiva que da vida a toda la red de talento.",
@@ -294,7 +300,7 @@ const LANDING_STRINGS = {
     cl_growth_name:"Crecimiento", cl_growth_period:"por mes · cancela cuando quieras", cl_growth_badge:"Más popular",
     cl_growth_f:["5 casos activos","10 asientos de equipo","Especificaciones con IA","Reportes y analítica","Gestión de SLA","Soporte prioritario"],
     cl_ent_name:"Empresa", cl_ent_period:"Ilimitado · soporte dedicado", cl_ent_custom:"$349",
-    cl_ent_f:["Casos y equipo ilimitados","Todo en Crecimiento","Integración SAP BTP / S/4HANA","Constructor de ciclo personalizado","SSO y seguridad avanzada","Éxito del cliente dedicado"],
+    cl_ent_f:["Casos y equipo ilimitados","Todo en Crecimiento","Entornos y bridges ADT ilimitados","Constructor de ciclo personalizado","SSO y seguridad avanzada","Éxito del cliente dedicado"],
     hh_pro_name:"Pro", hh_pro_period:"por mes · cancela cuando quieras",
     hh_pro_f:["Perfiles de candidatos ilimitados","Pipeline completo de talento","Seguimiento de colocaciones","Coincidencia con IA","Visibilidad prioritaria en casos","Soporte por correo y chat"],
     hh_agency_name:"Agencia", hh_agency_period:"por mes · cancela cuando quieras", hh_agency_badge:"Mejor para equipos",
@@ -376,7 +382,7 @@ const LANDING_STRINGS = {
     ap_ac_r3name:"Jaime L.",  ap_ac_r3role:"Líder SAP Finance · 10 años",
     ap_pause:"Pausar", ap_play:"Reproducir", ap_scene_of:"de",
     // Migration Hub showcase
-    mig_tag:"Hub de Migración · Nueva Función",
+    mig_tag:"Hub de Migración",
     mig_h2:"Migraciones SAP, completamente gobernadas.",
     mig_sub:"Un espacio de trabajo dedicado a proyectos de migración SAP — alineado a SAP Activate, con seguimiento de fases, gestión fit-gap y coordinación de transportes integrados.",
     mb1t:"Fases SAP Activate", mb1d:"Plantillas de fase prediseñadas: Discover, Prepare, Explore, Realize, Deploy, Run. Cada fase cierra entregables antes de abrir la siguiente.",
@@ -1787,6 +1793,57 @@ export function LandingView({ onSignIn }) {
                 <div className="feat-icon">🔒</div>
                 <div className="feat-title">{tl("f6t")}</div>
                 <div className="feat-desc">{tl("f6d")}</div>
+              </div>
+            </div>
+            <div className="feat-card fade-in">
+              <div className="feat-mockup">
+                <div style={{display:"flex",flexDirection:"column",gap:"5px"}}>
+                  {[{label:"object",val:"ZCL_INVOICE",type:"Class",status:"✓ Written",c:"#6EE7B7",b:"rgba(16,185,129,.2)"},{label:"object",val:"ZFM_CALC_TAX",type:"Function Module",status:"✓ Written",c:"#6EE7B7",b:"rgba(16,185,129,.2)"},{label:"object",val:"ZS_INVOICE_HDR",type:"Structure",status:"⊡ Skeleton",c:"#FCD34D",b:"rgba(245,158,11,.2)"}].map((r,i) => (
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:"6px",padding:"6px 8px",background:r.b,border:`1px solid ${r.c}40`,borderRadius:"6px"}}>
+                      <div style={{flex:1}}><div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:".58rem",color:r.c}}>{r.val}</div><div style={{fontSize:".55rem",color:"rgba(255,255,255,.4)"}}>{r.type}</div></div>
+                      <div style={{fontSize:".58rem",fontWeight:700,color:r.c}}>{r.status}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="feat-body">
+                <div className="feat-icon">⚡</div>
+                <div className="feat-title">{tl("f10t")}</div>
+                <div className="feat-desc">{tl("f10d")}</div>
+              </div>
+            </div>
+            <div className="feat-card fade-in">
+              <div className="feat-mockup">
+                <div style={{display:"flex",flexDirection:"column",gap:"5px"}}>
+                  {[{label:"SAP Release",val:"S/4HANA 2023 (release 2308)",c:"#A5B4FC"},{label:"Components",val:"BBPCRM, FI-GL, MM-PUR",c:"#6EE7B7"},{label:"Existing source",val:"ZCL_INVOICE → 142 lines read",c:"#FCD34D"}].map((r,i) => (
+                    <div key={i} style={{background:"#1a2237",borderRadius:"7px",padding:"8px 10px",border:"1px solid rgba(255,255,255,.08)"}}>
+                      <div style={{fontSize:".55rem",color:"rgba(255,255,255,.35)",marginBottom:"2px"}}>{r.label}</div>
+                      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:".6rem",color:r.c}}>{r.val}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="feat-body">
+                <div className="feat-icon">🔍</div>
+                <div className="feat-title">{tl("f11t")}</div>
+                <div className="feat-desc">{tl("f11d")}</div>
+              </div>
+            </div>
+            <div className="feat-card fade-in">
+              <div className="feat-mockup">
+                <div style={{display:"flex",flexDirection:"column",gap:"5px"}}>
+                  {[{stage:"Analyze",mcp:"✓ MCP on",c:"#6EE7B7"},{stage:"Specs",mcp:"✓ MCP on · rules",c:"#6EE7B7"},{stage:"Blueprint",mcp:"— MCP off",c:"rgba(255,255,255,.3)"},{stage:"Implement",mcp:"✓ MCP on · ADT write",c:"#A5B4FC"}].map((r,i) => (
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 8px",background:"#1a2237",borderRadius:"6px",border:"1px solid rgba(255,255,255,.07)"}}>
+                      <div style={{fontSize:".6rem",fontWeight:600,color:"#fff"}}>{r.stage}</div>
+                      <div style={{fontSize:".58rem",color:r.c}}>{r.mcp}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="feat-body">
+                <div className="feat-icon">🌉</div>
+                <div className="feat-title">{tl("f12t")}</div>
+                <div className="feat-desc">{tl("f12d")}</div>
               </div>
             </div>
           </div>
