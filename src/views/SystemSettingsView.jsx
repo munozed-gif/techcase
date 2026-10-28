@@ -31,7 +31,7 @@ import {
 import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS, WIZARD_MODE_DEFAULTS } from "../lib/constants.js";
 import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel, TransitionGatesPanel } from "./SettingsSubViews.jsx";
 import { PersonAvatar } from "./Projects.jsx";
-import { AbapTemplatesSection } from "../components/SapPanels.jsx";
+import { AbapTemplatesSection, SapMcpPolicyPanel } from "../components/SapPanels.jsx";
 import { SlaClientView } from "./OperationsViews.jsx";
 import { ConsultantProfilePanel } from "./ArenaView.jsx";
 
@@ -1268,26 +1268,60 @@ const INFRA_NODE_META = [
 ];
 
 const INFRA_CHECK_DEFAULTS = {
-  vm:  { enabled: true, autoSolve: true },
-  vpn: { enabled: true, autoSolve: true, vpnLoop: true },
-  mcp: { enabled: true, autoSolve: true },
-  sap: { enabled: true, autoSolve: false },
+  vm:  { enabled: true,  autoSolve: true },
+  vpn: { enabled: true,  autoSolve: true, vpnLoop: true },
+  mcp: { enabled: true,  autoSolve: true },
+  sap: { enabled: true,  autoSolve: false },
+};
+
+// Defaults differ per VPN type:
+// Platform VPN — VM + managed VPN + ADT Bridge all apply
+// User VPN — no VM, no managed VPN; user's FortiClient + laptop bridge
+const INFRA_CHECK_TYPE_DEFAULTS = {
+  platform_vpn: {
+    vm:  { enabled: true,  autoSolve: true },
+    vpn: { enabled: true,  autoSolve: true, vpnLoop: true },
+    mcp: { enabled: true,  autoSolve: true },
+    sap: { enabled: true,  autoSolve: false },
+  },
+  user_vpn: {
+    vm:  { enabled: false, autoSolve: false },
+    vpn: { enabled: false, autoSolve: false, vpnLoop: false },
+    mcp: { enabled: true,  autoSolve: true },
+    sap: { enabled: true,  autoSolve: false },
+  },
+};
+
+const INFRA_TYPE_HINTS = {
+  platform_vpn: 'VM runs on AWS; VPN and ADT bridge are managed by the platform.',
+  user_vpn:     'VPN managed by your FortiClient; ADT bridge runs on your laptop.',
 };
 
 function InfraCheckSettingsCard({ ssCtx }) {
   const raw = ssCtx.settings['infra_check_settings'] ?? {};
-  const [cfg, setCfg] = useState(() =>
-    Object.fromEntries(INFRA_NODE_META.map(n => [
-      n.key,
-      { enabled: raw[n.key]?.enabled ?? INFRA_CHECK_DEFAULTS[n.key].enabled,
-        autoSolve: raw[n.key]?.autoSolve ?? INFRA_CHECK_DEFAULTS[n.key].autoSolve,
-        ...(n.key === 'vpn' ? { vpnLoop: raw[n.key]?.vpnLoop ?? INFRA_CHECK_DEFAULTS.vpn.vpnLoop } : {}),
-      },
-    ]))
-  );
+  const [activeType, setActiveType] = useState('platform_vpn');
   const [expanded, setExpanded] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Normalise stored value: support both old flat format and new per-type format
+  function initType(typeKey) {
+    const stored = raw[typeKey] ?? (typeKey === 'platform_vpn' && !raw.platform_vpn ? raw : null);
+    const defs = INFRA_CHECK_TYPE_DEFAULTS[typeKey];
+    return Object.fromEntries(INFRA_NODE_META.map(n => [
+      n.key,
+      {
+        enabled:   stored?.[n.key]?.enabled   ?? defs[n.key].enabled,
+        autoSolve: stored?.[n.key]?.autoSolve ?? defs[n.key].autoSolve,
+        ...(n.key === 'vpn' ? { vpnLoop: stored?.[n.key]?.vpnLoop ?? defs.vpn.vpnLoop } : {}),
+      },
+    ]));
+  }
+
+  const [cfg, setCfg] = useState(() => ({
+    platform_vpn: initType('platform_vpn'),
+    user_vpn:     initType('user_vpn'),
+  }));
 
   async function save(next) {
     setCfg(next);
@@ -1300,7 +1334,13 @@ function InfraCheckSettingsCard({ ssCtx }) {
   }
 
   function toggle(nodeKey, field) {
-    const next = { ...cfg, [nodeKey]: { ...cfg[nodeKey], [field]: !cfg[nodeKey][field] } };
+    const next = {
+      ...cfg,
+      [activeType]: {
+        ...cfg[activeType],
+        [nodeKey]: { ...cfg[activeType][nodeKey], [field]: !cfg[activeType][nodeKey][field] },
+      },
+    };
     save(next);
   }
 
@@ -1311,55 +1351,65 @@ function InfraCheckSettingsCard({ ssCtx }) {
     </button>
   );
 
+  const typeCfg = cfg[activeType];
+
   return (
     <div className="mt-6 pt-5 border-t border-gray-100">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+          <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
             <Activity size={14} className="text-blue-500" /> Infrastructure Check
           </h4>
-          <p className="text-xs text-gray-400 mt-0.5">Configure which nodes to check and whether auto-solve is allowed per node.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Configure which nodes to check and whether auto-solve is allowed per connection type.</p>
         </div>
         {saving && <RefreshCw size={12} className="animate-spin text-gray-400" />}
         {saved && !saving && <span className="text-xs text-green-500 flex items-center gap-1"><Check size={11} /> Saved</span>}
       </div>
 
+      {/* Type tabs */}
+      <div className="flex gap-1 mb-3 p-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg w-fit">
+        {[['platform_vpn', 'Platform VPN'], ['user_vpn', 'User VPN']].map(([key, label]) => (
+          <button key={key} onClick={() => setActiveType(key)}
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${activeType === key ? 'bg-white dark:bg-gray-600 shadow text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-gray-400 mb-3">{INFRA_TYPE_HINTS[activeType]}</p>
+
       <div className="space-y-2">
         {INFRA_NODE_META.map(({ key, label, icon: Icon, color, autoSolveActions, cannotSolve }) => {
-          const node = cfg[key];
-          const isExpanded = !!expanded[key];
+          const node = typeCfg[key];
+          const isExpanded = !!expanded[`${activeType}_${key}`];
           return (
-            <div key={key} className={`rounded-xl border transition-colors ${node.enabled ? 'border-gray-200 bg-gray-50' : 'border-gray-100 bg-gray-50/50 opacity-60'}`}>
+            <div key={key} className={`rounded-xl border transition-colors ${node.enabled ? 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50' : 'border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30'}`}>
               <div className="flex items-center gap-3 px-3 py-2.5">
-                <Icon size={14} className={color} />
+                <Icon size={14} className={node.enabled ? color : 'text-gray-400 dark:text-gray-500'} />
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-gray-700">{label}</span>
+                  <span className={`text-sm font-medium ${node.enabled ? 'text-gray-700 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500'}`}>{label}</span>
                 </div>
 
-                {/* VPN Loop toggle — only for VPN node */}
-                {key === 'vpn' && node.enabled && (
+                {/* VPN Loop toggle — only for VPN node in platform mode */}
+                {key === 'vpn' && node.enabled && activeType === 'platform_vpn' && (
                   <div className="flex items-center gap-1.5 mr-3">
-                    <span className="text-xs text-gray-400" title="When off: stops VM openfortivpn so it doesn't conflict with your laptop FortiClient session">VPN loop</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-400" title="When off: stops VM openfortivpn so it doesn't conflict with your laptop FortiClient session">VPN loop</span>
                     <Toggle on={node.vpnLoop ?? true} onClick={() => toggle(key, 'vpnLoop')} />
                   </div>
                 )}
 
-                {/* Auto-solve toggle — only shown when node is enabled */}
                 {node.enabled && (
                   <div className="flex items-center gap-1.5 mr-3">
-                    <span className="text-xs text-gray-400">Auto-solve</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Auto-solve</span>
                     <Toggle on={node.autoSolve} onClick={() => toggle(key, 'autoSolve')} />
                   </div>
                 )}
 
-                {/* Enable toggle */}
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-gray-400">Check</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Check</span>
                   <Toggle on={node.enabled} onClick={() => toggle(key, 'enabled')} />
                 </div>
 
-                {/* Expand actions */}
-                <button onClick={() => setExpanded(e => ({ ...e, [key]: !e[key] }))}
+                <button onClick={() => setExpanded(e => ({ ...e, [`${activeType}_${key}`]: !e[`${activeType}_${key}`] }))}
                   className="p-1 text-gray-300 hover:text-gray-500 transition-colors">
                   {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </button>
@@ -1401,62 +1451,6 @@ function InfraCheckSettingsCard({ ssCtx }) {
   );
 }
 
-function SapInfraStatus({ mcpUrl }) {
-  const [status, setStatus] = useState(null); // null | { vm, mcp, vpn, vpnDetail, timestamp } | 'error'
-  const [checking, setChecking] = useState(false);
-
-  async function check() {
-    const base = (mcpUrl ?? '').trim().replace(/\/mcp\/?$/, '').replace(/\/$/, '');
-    if (!base) return;
-    setChecking(true);
-    setStatus(null);
-    try {
-      const res = await fetch(`${base}/status`, { signal: AbortSignal.timeout(8000) });
-      if (res.ok) { setStatus(await res.json()); return; }
-      // Older server without /status — fall back to /health to confirm VM+MCP are up
-      if (res.status === 404) {
-        const h = await fetch(`${base}/health`, { signal: AbortSignal.timeout(5000) });
-        if (h.ok) { setStatus({ vm: true, mcp: true, vpn: null }); return; }
-      }
-      setStatus('error');
-    } catch { setStatus('error'); }
-    finally { setChecking(false); }
-  }
-
-  const dot = (ok, label) => (
-    <span className="flex items-center gap-1.5 text-xs">
-      {ok === true  ? <CheckCircle2 size={13} className="text-green-500 shrink-0" />
-       : ok === false ? <XCircle size={13} className="text-red-400 shrink-0" />
-       : <AlertCircle size={13} className="text-gray-300 shrink-0" />}
-      <span className={ok === true ? 'text-green-700' : ok === false ? 'text-red-500' : 'text-gray-400'}>{label}</span>
-    </span>
-  );
-
-  return (
-    <div className="mt-2 flex items-center gap-3 flex-wrap">
-      <button
-        onClick={check}
-        disabled={checking || !(mcpUrl ?? '').trim()}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-blue-300 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-      >
-        {checking ? <RefreshCw size={12} className="animate-spin" /> : <Activity size={12} />}
-        Check infrastructure
-      </button>
-      {status && status !== 'error' && (
-        <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
-          {dot(status.vm,  'VM')}
-          {dot(status.mcp, 'MCP')}
-          {dot(status.vpn, status.vpn === null ? 'VPN?' : 'VPN')}
-        </div>
-      )}
-      {status === 'error' && (
-        <span className="flex items-center gap-1 text-xs text-red-500">
-          <XCircle size={13} /> Unreachable — check the URL or tunnel
-        </span>
-      )}
-    </div>
-  );
-}
 
 function SettingsGenerationTab({ ssCtx }) {
   const { t } = useT();
@@ -1486,7 +1480,6 @@ function SettingsGenerationTab({ ssCtx }) {
         ai_model:         resolveModel("ai_model",        "claude-haiku-5-5"),
         analysis_model:   resolveModel("analysis_model",  "claude-haiku-5-5"),
         prototype_model:  resolveModel("prototype_model", "claude-haiku-5-5"),
-        sap_mcp_server_url: ssCtx.settings["sap_mcp_server_url"] ?? "",
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
         context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx },
         profiles: {},
@@ -1530,12 +1523,11 @@ function SettingsGenerationTab({ ssCtx }) {
   async function handleSave() {
     setSaving(true);
     try {
-      const { ai_model, analysis_model, prototype_model, sap_mcp_server_url, context, ...genProfiles } = form;
+      const { ai_model, analysis_model, prototype_model, context, ...genProfiles } = form;
       await Promise.all([
         ssCtx.setSetting("ai_model",            ai_model),
         ssCtx.setSetting("analysis_model",      analysis_model),
         ssCtx.setSetting("prototype_model",     prototype_model),
-        ssCtx.setSetting("sap_mcp_server_url",  sap_mcp_server_url ?? ""),
         ssCtx.setSetting("generation_context",  context),
         ssCtx.setSetting("generation_profiles", genProfiles),
       ]);
@@ -1581,18 +1573,6 @@ function SettingsGenerationTab({ ssCtx }) {
             {AI_MODELS.map(m => <option key={m.value} value={m.value}>{t(m.labelKey)}</option>)}
           </select>
           <p className="text-xs text-gray-400 mt-1">{t("sys.prototype_model_hint")}</p>
-        </div>
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">SAP MCP Server URL</label>
-          <input
-            type="url"
-            value={form.sap_mcp_server_url}
-            onChange={e => setForm(p => ({ ...p, sap_mcp_server_url: e.target.value }))}
-            placeholder="https://your-mcp-server.example.com"
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-          />
-          <p className="text-xs text-gray-400 mt-1">URL of the TechCase SAP MCP server. When set, ABAP code generation connects to SAP live for reading and writing objects.</p>
-          <SapInfraStatus mcpUrl={form.sap_mcp_server_url} />
         </div>
 
         {/* ── Infrastructure Check Settings ─────────────────────── */}
@@ -5154,6 +5134,7 @@ function SystemSettingsView({ auth, onNavigate }) {
     { id: "catalog",     label: "Catalog",          Icon: Tag },
     { id: "generation",  label: "AI & Generation",  Icon: Zap },
     { id: "abap",        label: "ABAP Templates",   Icon: FileCode2 },
+    { id: "sap_policy",  label: "SAP MCP Policy",   Icon: FileCode2 },
     { id: "area_leaders", label: "Area Leaders",     Icon: UserCog },
     { id: "headhunter",  label: "Headhunter",       Icon: Crosshair },
     { id: "platform",    label: "Platform",         Icon: Sparkles },
@@ -5188,6 +5169,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       {activeTab === "catalog"     && <SettingsCatalogTab ssCtx={ssCtx} />}
       {activeTab === "generation"  && <SettingsGenerationTab ssCtx={ssCtx} />}
       {activeTab === "abap"        && <AbapTemplatesSection auth={auth} />}
+      {activeTab === "sap_policy"  && <div className="p-6"><SapMcpPolicyPanel auth={auth} /></div>}
       {activeTab === "area_leaders" && <SettingsAreaLeadersTab ssCtx={ssCtx} />}
       {activeTab === "headhunter"  && <SettingsHeadhunterTab ssCtx={ssCtx} />}
       {activeTab === "platform"    && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}

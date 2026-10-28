@@ -124,41 +124,58 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# ── Load Supabase credentials ──────────────────────────────────
+# ── Load Supabase credentials (production + preproduction) ─────
 SUPABASE_URL=""
 SUPABASE_SERVICE_KEY=""
 if [ -f "$SCRIPT_DIR/.env" ]; then
   SUPABASE_URL=$(grep '^SUPABASE_URL=' "$SCRIPT_DIR/.env" | head -1 | cut -d'=' -f2-)
   SUPABASE_SERVICE_KEY=$(grep '^SUPABASE_SERVICE_KEY=' "$SCRIPT_DIR/.env" | head -1 | cut -d'=' -f2-)
-  echo "[config] Loaded Supabase credentials from .env"
+  echo "[config] Loaded production Supabase credentials from .env"
 elif [ -f "/etc/vm-mcp-adt.env" ]; then
   SUPABASE_URL=$(grep '^SUPABASE_URL=' "/etc/vm-mcp-adt.env" | head -1 | cut -d'=' -f2-)
   SUPABASE_SERVICE_KEY=$(grep '^SUPABASE_SERVICE_KEY=' "/etc/vm-mcp-adt.env" | head -1 | cut -d'=' -f2-)
-  echo "[config] Loaded Supabase credentials from /etc/vm-mcp-adt.env"
+  echo "[config] Loaded production Supabase credentials from /etc/vm-mcp-adt.env"
 fi
 
-# ── Register tunnel URL in Supabase (PATCH first, INSERT if new) ──
-if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_KEY" ]; then
-  echo "[config] Registering tunnel URL in Supabase..."
-  AUTH_HEADERS=(-H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" -H "Content-Type: application/json")
-  HTTP_STATUS=$(curl -s -o /tmp/supabase-reg.json -w "%{http_code}" \
-    -X PATCH "${SUPABASE_URL}/rest/v1/system_settings?key=eq.adt_bridge_tunnel_url" \
-    "${AUTH_HEADERS[@]}" \
-    -d "{\"value\":\"${TUNNEL_URL}\"}")
-  if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "204" ]; then
-    echo "[config] Tunnel URL updated in Supabase ✓ (HTTP $HTTP_STATUS)"
-  else
-    HTTP_STATUS=$(curl -s -o /tmp/supabase-reg.json -w "%{http_code}" \
-      -X POST "${SUPABASE_URL}/rest/v1/system_settings" \
-      "${AUTH_HEADERS[@]}" \
-      -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${TUNNEL_URL}\"}")
-    if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
-      echo "[config] Tunnel URL registered in Supabase ✓ (HTTP $HTTP_STATUS)"
-    else
-      echo "[config] Supabase registration failed (HTTP $HTTP_STATUS): $(cat /tmp/supabase-reg.json 2>/dev/null)"
-    fi
+SUPABASE_URL_DEV=""
+SUPABASE_SERVICE_KEY_DEV=""
+if [ -f "$SCRIPT_DIR/.env.dev" ]; then
+  SUPABASE_URL_DEV=$(grep '^SUPABASE_URL=' "$SCRIPT_DIR/.env.dev" | head -1 | cut -d'=' -f2-)
+  SUPABASE_SERVICE_KEY_DEV=$(grep '^SUPABASE_SERVICE_KEY=' "$SCRIPT_DIR/.env.dev" | head -1 | cut -d'=' -f2-)
+  echo "[config] Loaded preproduction Supabase credentials from .env.dev"
+fi
+
+# ── Register tunnel URL in one Supabase (PATCH then INSERT) ───
+_register_one() {
+  local url="$1" sb_url="$2" sb_key="$3" label="$4" tmpf="/tmp/supabase-reg-${label}.json"
+  local AUTH=(-H "apikey: ${sb_key}" -H "Authorization: Bearer ${sb_key}" -H "Content-Type: application/json")
+  local STATUS
+  STATUS=$(curl -s -o "$tmpf" -w "%{http_code}" \
+    -X PATCH "${sb_url}/rest/v1/system_settings?key=eq.adt_bridge_tunnel_url" \
+    "${AUTH[@]}" -d "{\"value\":\"${url}\"}")
+  if [ "$STATUS" = "200" ] || [ "$STATUS" = "204" ]; then
+    echo "[config] Tunnel URL updated in ${label} Supabase ✓ (HTTP $STATUS)"
+    return
   fi
-else
+  STATUS=$(curl -s -o "$tmpf" -w "%{http_code}" \
+    -X POST "${sb_url}/rest/v1/system_settings" \
+    "${AUTH[@]}" -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${url}\"}")
+  if [ "$STATUS" = "200" ] || [ "$STATUS" = "201" ] || [ "$STATUS" = "204" ]; then
+    echo "[config] Tunnel URL inserted in ${label} Supabase ✓ (HTTP $STATUS)"
+  else
+    echo "[config] ${label} Supabase registration failed (HTTP $STATUS): $(cat "$tmpf" 2>/dev/null)"
+  fi
+}
+
+_register_tunnel_url() {
+  local url="$1"
+  [ -n "$SUPABASE_URL" ]     && _register_one "$url" "$SUPABASE_URL"     "$SUPABASE_SERVICE_KEY"     "production"
+  [ -n "$SUPABASE_URL_DEV" ] && _register_one "$url" "$SUPABASE_URL_DEV" "$SUPABASE_SERVICE_KEY_DEV" "preproduction"
+}
+
+echo "[config] Registering tunnel URL in Supabase..."
+_register_tunnel_url "$TUNNEL_URL"
+if [ -z "$SUPABASE_URL" ] && [ -z "$SUPABASE_URL_DEV" ]; then
   echo "[config] No Supabase creds found — tunnel URL won't auto-register"
   echo "         Create .env in this folder with SUPABASE_URL and SUPABASE_SERVICE_KEY"
 fi
@@ -187,6 +204,50 @@ else
   echo "       mcp-abap-abap-adt-api (R+W, 127 tools) may fail with TLS error."
   echo "       Fix: add SAP_HOST=vhxaads4ci.sap.admosa.com:44300 to .env"
   echo "       or:  openssl s_client -connect <host:port> -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > $SAP_CA_CERT"
+fi
+
+# ── Restart command monitor ────────────────────────────────────
+# Polls both Supabase instances every 30s for a remote restart request.
+if [ -n "$SUPABASE_URL" ] || [ -n "$SUPABASE_URL_DEV" ]; then
+  _MONITOR_START_EPOCH=$(date -u +%s)
+  (
+    _last_handled=$_MONITOR_START_EPOCH
+    _poll_ts() {
+      local sb_url="$1" sb_key="$2"
+      [ -z "$sb_url" ] && echo "" && return
+      local raw
+      raw=$(curl -sf "${sb_url}/rest/v1/system_settings?key=eq.adt_bridge_restart_requested&select=value" \
+        -H "apikey: ${sb_key}" -H "Authorization: Bearer ${sb_key}" 2>/dev/null || echo "")
+      echo "$raw" | grep -o '"ts":[0-9]*' | grep -o '[0-9]*' | head -1
+    }
+    while true; do
+      sleep 30
+      _ts_prod=$(_poll_ts "$SUPABASE_URL"     "$SUPABASE_SERVICE_KEY")
+      _ts_dev=$( _poll_ts "$SUPABASE_URL_DEV" "$SUPABASE_SERVICE_KEY_DEV")
+      _req_ts=$(printf '%s\n%s\n' "$_ts_prod" "$_ts_dev" | grep -v '^$' | sort -rn | head -1)
+      if [ -n "$_req_ts" ] && [ "$(( _req_ts / 1000 ))" -gt "$_last_handled" ] 2>/dev/null; then
+        echo "[restart] Remote restart command received — restarting cloudflared tunnel..."
+        kill $CF_PID 2>/dev/null || true
+        sleep 2
+        rm -f "$CF_LOG"
+        cloudflared tunnel --url "http://localhost:$PORT" > "$CF_LOG" 2>&1 &
+        CF_PID=$!
+        _new_url=""
+        for _i in $(seq 1 15); do
+          _new_url=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$CF_LOG" 2>/dev/null | head -1)
+          [ -n "$_new_url" ] && break
+          sleep 2
+        done
+        if [ -n "$_new_url" ]; then
+          _register_tunnel_url "$_new_url" >/dev/null 2>&1
+          echo "[restart] Tunnel restarted: $_new_url"
+        fi
+        _last_handled=$(date -u +%s)
+      fi
+    done
+  ) &
+  _MONITOR_PID=$!
+  trap "cleanup; kill $_MONITOR_PID 2>/dev/null || true" EXIT INT TERM
 fi
 
 # ── Start the ADT bridge ───────────────────────────────────────

@@ -713,6 +713,17 @@ app.post('/sap-write-mcp', async (req, res) => {
     const parentName = req.body?.parentName  || '$TMP';
     const description= req.body?.description || '';
     const parentPath = req.body?.parentPath  || `/sap/bc/adt/packages/${(req.body?.parentName || '$TMP')}`;
+    const policy     = req.body?.policy      || {};
+    const capabilities = req.body?.capabilities || {};
+    const effectivePolicy = {
+      autoCreateTransport: true, activateAfterWrite: true, verifyAfterWrite: true,
+      syntaxCheckBeforeWrite: false, stopOnSyntaxError: true,
+      ...policy,
+    };
+    const effectiveCaps = {
+      hasCts: true, hasRwMcp: true, hasRoMcp: true, hasSyntaxCheck: true, hasActivation: true,
+      ...capabilities,
+    };
 
     if (!host || !username || !password || !adtPath) {
       return res.status(400).json({ ok: false, error: 'Missing required fields: host, username, password, path' });
@@ -725,8 +736,8 @@ app.post('/sap-write-mcp', async (req, res) => {
     const objectSourceUrl = adtPath;
     const resolvedName    = objName || objectUrl.split('/').pop()?.toUpperCase() || '';
 
-    // Auto-create transport request when none provided and package is not $TMP
-    if (!transport && parentName && parentName !== '$TMP') {
+    // Auto-create transport request when none provided, package is not $TMP, and policy allows it
+    if (!transport && parentName && parentName !== '$TMP' && effectivePolicy.autoCreateTransport && effectiveCaps.hasCts) {
       try {
         const trDesc = `Techcase: ${resolvedName}${description ? ' - ' + description.slice(0, 40) : ''}`;
         transport = await createTransportViaAdt(host, username, password, sapClient, trDesc);
@@ -807,7 +818,9 @@ app.post('/sap-write-mcp', async (req, res) => {
       } catch (e) {
         activateError = e.message?.slice(0, 150);
       }
-      const verify = await verifyWithRO(host, username, password, sapClient, objtype, resolvedName);
+      const verify = (effectivePolicy.verifyAfterWrite !== false && effectiveCaps.hasRoMcp !== false)
+        ? await verifyWithRO(host, username, password, sapClient, objtype, resolvedName)
+        : { ok: false, skipped: true, reason: 'verifyAfterWrite disabled in policy' };
       return res.json({
         ok: true, status: 200, createOnly: true, created,
         package: parentName,
@@ -870,16 +883,38 @@ app.post('/sap-write-mcp', async (req, res) => {
     // 4. unLock (best-effort)
     try { await callTool('unLock', { objectUrl, lockHandle }); } catch {}
 
-    // 5. activateByName (non-fatal)
-    let activateError = null;
-    try {
-      await callTool('activateByName', { objectName: resolvedName, objectUrl });
-    } catch (e) {
-      activateError = e.message?.slice(0, 150);
+    // 5. Syntax check (optional, conditional on policy)
+    let syntaxErrors = null;
+    if (effectivePolicy.syntaxCheckBeforeWrite && effectiveCaps.hasSyntaxCheck) {
+      try {
+        const syntaxResult = await callTool('syntaxCheckCode', { objectUrl: objectSourceUrl });
+        const syntaxText = syntaxResult?.content?.[0]?.text ?? '';
+        const hasErrors = /error|syntaxError/i.test(syntaxText) && !/no error/i.test(syntaxText);
+        if (hasErrors) {
+          if (effectivePolicy.stopOnSyntaxError) {
+            return res.json({ ok: false, step: 'syntaxCheck', error: `Syntax errors: ${syntaxText.slice(0, 300)}` });
+          }
+          syntaxErrors = syntaxText.slice(0, 300);
+        }
+      } catch (e) {
+        console.warn(`[bridge] syntaxCheck failed (non-fatal): ${e.message?.slice(0, 100)}`);
+      }
     }
 
-    const verify = await verifyWithRO(host, username, password, sapClient, objtype, resolvedName);
-    res.json({ ok: true, status: 200, transport: transport || null, verify, ...(activateError ? { activateError } : {}) });
+    // 5b. activateByName (conditional on policy, non-fatal)
+    let activateError = null;
+    if (effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false) {
+      try {
+        await callTool('activateByName', { objectName: resolvedName, objectUrl });
+      } catch (e) {
+        activateError = e.message?.slice(0, 150);
+      }
+    }
+
+    const verify = (effectivePolicy.verifyAfterWrite !== false && effectiveCaps.hasRoMcp !== false)
+      ? await verifyWithRO(host, username, password, sapClient, objtype, resolvedName)
+      : { ok: false, skipped: true, reason: 'verifyAfterWrite disabled in policy' };
+    res.json({ ok: true, status: 200, transport: transport || null, verify, ...(activateError ? { activateError } : {}), ...(syntaxErrors ? { syntaxErrors } : {}) });
   } catch (err) {
     console.error('[bridge] /sap-write-mcp error:', err);
     res.status(500).json({ ok: false, error: err.message?.slice(0, 200) || 'Internal error' });

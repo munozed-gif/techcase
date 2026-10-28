@@ -5,3 +5,4 @@ dist
 .env*.local
 .env.development
 .env.production
+vm-mcp-adt/.env.dev

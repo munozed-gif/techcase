@@ -87,6 +87,140 @@ const ABAP_STANDARDS_DEFAULTS = {
   additionalInstructions: '',
 };
 
+// ============================================================
+// SAP ADT POLICY — 4-layer configuration system
+// ============================================================
+
+// Layer 1: MCP operation rules injected into the generation prompt
+const SAP_MCP_RULES_DEFAULTS = `== SAP MCP OPERATION RULES (follow exactly) ==
+
+READ RULES:
+- Always call GetProgram/GetClass/GetInterface etc. BEFORE writing to check if the object exists and what it contains.
+- Use SearchObject to discover related objects you may need to reference.
+- Prefer reading the full object source before modifying any part of it.
+- Use pagination (startLine/maxLines) for objects larger than 40KB.
+
+WRITE RULES:
+- Never use $TMP package for objects that will be transported — always assign to the correct development package.
+- Always provide a meaningful description when creating objects.
+- For function modules, always check if the function group exists first; create it if not.
+- For classes, create the class first, then add methods — never write a method without the class existing.
+- For includes, the include name must follow SAP naming conventions (e.g. ZProgramname_INC).
+- After writing, verify the object was created successfully by reading it back.
+
+TRANSPORT RULES:
+- Every object assigned to a package other than $TMP MUST have a transport request.
+- Group logically related objects into the same transport request.
+- Do not mix development and customizing objects in the same transport request.
+- Always use Workbench transport requests for ABAP code objects.
+
+NAMING RULES:
+- Customer objects start with Z or Y (or the configured namespace prefix).
+- Do not use SAP-reserved prefixes (no leading spaces, no / unless in a proper namespace).
+- Function group names are limited to 26 characters.
+- Message class names are limited to 20 characters.
+- Data elements and domains follow the ZDE_/ZD_ convention unless configured otherwise.
+
+== END SAP MCP OPERATION RULES ==`;
+
+// Layer 2: Object type → ADT path/URL/metadata configuration
+// Templates: {N}=object name uppercase, {FG}=function group, {FM}=function module name
+const SAP_ADT_OBJECT_MAP_DEFAULTS = {
+  program:       { pathTpl: '/sap/bc/adt/programs/programs/{N}/source/main', urlTpl: '/sap/bc/adt/programs/programs/{N}', objtype: 'PROG/P', createOnly: false, roToolHint: 'getprogram' },
+  report:        { pathTpl: '/sap/bc/adt/programs/programs/{N}/source/main', urlTpl: '/sap/bc/adt/programs/programs/{N}', objtype: 'PROG/P', createOnly: false, roToolHint: 'getprogram' },
+  include:       { pathTpl: '/sap/bc/adt/programs/includes/{N}/source/main', urlTpl: '/sap/bc/adt/programs/includes/{N}', objtype: 'PROG/I', createOnly: false, roToolHint: 'getinclude' },
+  class:         { pathTpl: '/sap/bc/adt/oo/classes/{N}/source/main', urlTpl: '/sap/bc/adt/oo/classes/{N}', objtype: 'CLAS/OC', createOnly: false, roToolHint: 'getclass' },
+  function_module: { pathTpl: '/sap/bc/adt/functions/groups/{FG}/fmodules/{FM}/source/main', urlTpl: '/sap/bc/adt/functions/groups/{FG}', objtype: 'FUGR/FF', createOnly: false, roToolHint: 'getfunctiongroup' },
+  bapi:          { pathTpl: '/sap/bc/adt/functions/groups/{FG}/fmodules/{FM}/source/main', urlTpl: '/sap/bc/adt/functions/groups/{FG}', objtype: 'FUGR/FF', createOnly: false, roToolHint: 'getfunctiongroup' },
+  table:         { pathTpl: '/sap/bc/adt/ddic/dbtables/{N}/source/main', urlTpl: '/sap/bc/adt/ddic/dbtables/{N}', objtype: 'TABL/DT', createOnly: false, roToolHint: 'gettable' },
+  structure:     { pathTpl: '/sap/bc/adt/ddic/structures/{N}/source/main', urlTpl: '/sap/bc/adt/ddic/structures/{N}', objtype: null, createOnly: false, roToolHint: 'getstructure' },
+  enhancement:   { pathTpl: '/sap/bc/adt/enhancements/{N}/source/main', urlTpl: '/sap/bc/adt/enhancements/{N}', objtype: 'ENHO', createOnly: false, roToolHint: null },
+  badi:          { pathTpl: '/sap/bc/adt/enhancements/badi_impl/{N}/source/main', urlTpl: '/sap/bc/adt/enhancements/badi_impl/{N}', objtype: null, createOnly: false, roToolHint: null },
+  domain:        { pathTpl: null, urlTpl: '/sap/bc/adt/ddic/domains/{N}', objtype: 'DOMA/DD', createOnly: true, roToolHint: 'getdomain' },
+  data_element:  { pathTpl: null, urlTpl: '/sap/bc/adt/ddic/dataelements/{N}', objtype: 'DTEL/DE', createOnly: true, roToolHint: 'getdataelement' },
+  message_class: { pathTpl: null, urlTpl: '/sap/bc/adt/messageclass/{N}', objtype: 'MSAG/N', createOnly: true, roToolHint: 'getmessageclass' },
+  smartform:     { pathTpl: null, urlTpl: null, objtype: null, createOnly: false, roToolHint: null },
+  odata:         { pathTpl: null, urlTpl: null, objtype: null, createOnly: false, roToolHint: null },
+  config:        { pathTpl: null, urlTpl: null, objtype: null, createOnly: false, roToolHint: null },
+};
+
+// Resolves full object type config with path templates substituted.
+// 3-layer merge: DEFAULTS → globalObjectMap (settings['sap_adt_object_map']) → envObjectMap (env.adt_object_map)
+function resolveObjectTypeConfig(objectType, objectName, globalObjectMap, envObjectMap) {
+  const n  = (objectName ?? '').toUpperCase();
+  const fg = n.includes('/') ? n.split('/')[0] : n;
+  const fm = n.includes('/') ? n.split('/')[1] : n;
+  const dflt   = SAP_ADT_OBJECT_MAP_DEFAULTS[objectType] ?? {};
+  const global = (globalObjectMap ?? {})[objectType] ?? {};
+  const env    = (envObjectMap ?? {})[objectType] ?? {};
+  const merged = { ...dflt, ...global, ...env };
+  const res = (tpl) => tpl?.replace(/\{N\}/g, n).replace(/\{FG\}/g, fg).replace(/\{FM\}/g, fm) ?? null;
+  return { ...merged, path: res(merged.pathTpl), url: res(merged.urlTpl) };
+}
+
+// Layer 3: Write policy toggles (sent with every write request to the bridge)
+const SAP_ADT_WRITE_POLICY_DEFAULTS = {
+  requirePackage:          false, // Block write if no package configured (objects would go to $TMP)
+  syntaxCheckBeforeWrite:  false, // Run syntaxCheckCode before setObjectSource
+  stopOnSyntaxError:       true,  // Abort write if syntax check returns errors
+  activateAfterWrite:      true,  // Call activateByName after setObjectSource
+  verifyAfterWrite:        true,  // Call verifyWithRO after write to confirm object exists in SAP
+  autoCreateTransport:     true,  // Auto-create workbench TR when package ≠ $TMP and no TR provided
+};
+
+// Layer 4: SAP system capability flags (control which ADT features are available)
+const SAP_ADT_CAPABILITIES_DEFAULTS = {
+  hasCts:         true,   // Can create transport requests via ADT CTS API
+  hasRwMcp:       true,   // R+W MCP server available (mcp-abap-abap-adt-api, 127 tools)
+  hasRoMcp:       true,   // R/O MCP server available (mcp-abap-adt, 16 tools)
+  hasSyntaxCheck: true,   // syntaxCheckCode tool available in R+W MCP server
+  hasActivation:  true,   // activateByName tool available
+  netWeaver754:   false,  // SAP NW 7.54+ (enables CDS view and BTP integration tools)
+  isS4Hana:       false,  // S/4HANA (enables Behavior definition, Service definition tools)
+};
+
+// Layer 5: Pipeline MCP/ADT policy — controls when and how MCP/ADT is used at each pipeline stage
+const MCP_ADT_PIPELINE_POLICY_DEFAULTS = {
+  // Per-stage options (all stages also honour the MCP server connectivity gate)
+  stages: {
+    analyze:   { use_mcp: true,  include_mcp_rules: false },
+    specs:     { use_mcp: true,  include_mcp_rules: true,  include_capabilities: false },
+    blueprint: { use_mcp: false, include_mcp_rules: false, include_capabilities: false },
+    implement: { use_mcp: true,  include_mcp_rules: false, include_capabilities: false },
+  },
+  // Per-object-type mode for blueprint + implement phases
+  // 'manual'          → skip entirely (user configures in SAP manually)
+  // 'adt-create-only' → create ADT skeleton (no ABAP source); user sets props in SE11/SE91
+  // 'ai-generate'     → AI generates ABAP source code, then writes it to SAP via ADT bridge
+  object_types: {
+    config:          'manual',
+    table:           'adt-create-only',
+    structure:       'adt-create-only',
+    domain:          'adt-create-only',
+    data_element:    'adt-create-only',
+    message_class:   'adt-create-only',
+    program:         'ai-generate',
+    include:         'ai-generate',
+    class:           'ai-generate',
+    function_module: 'ai-generate',
+    bapi:            'ai-generate',
+    odata:           'manual',
+    badi:            'ai-generate',
+    enhancement:     'ai-generate',
+    report:          'ai-generate',
+    smartform:       'manual',
+  },
+};
+
+// ABAP Cloud (BTP) preset — overrides classic ADT paths for CDS-based DDIC types.
+// In cloud environments, domain/data_element/table/structure are defined as CDS DDL sources.
+const ABAP_CLOUD_ADT_OBJECT_MAP_PRESET = {
+  domain:       { pathTpl: '/sap/bc/adt/ddic/ddls/sources/{N}', urlTpl: '/sap/bc/adt/ddic/ddls/{N}', objtype: 'DDLS/DF', createOnly: false },
+  data_element: { pathTpl: '/sap/bc/adt/ddic/ddls/sources/{N}', urlTpl: '/sap/bc/adt/ddic/ddls/{N}', objtype: 'DDLS/DE', createOnly: false },
+  table:        { pathTpl: '/sap/bc/adt/ddic/ddls/sources/{N}', urlTpl: '/sap/bc/adt/ddic/ddls/{N}', objtype: 'DDLS/TT', createOnly: false },
+  structure:    { pathTpl: '/sap/bc/adt/ddic/ddls/sources/{N}', urlTpl: '/sap/bc/adt/ddic/ddls/{N}', objtype: 'DDLS/ST', createOnly: false },
+};
+
 function resolveAbapStandards(settings, clientId, projectId, caseId) {
   const clientStd  = (settings['abap_standards_client']  ?? {})[clientId]  ?? {};
   const projectStd = (settings['abap_standards_project'] ?? {})[projectId] ?? {};
@@ -286,12 +420,12 @@ async function sapGetCsrfToken(config) {
   return res.headers.get('X-CSRF-Token') ?? '';
 }
 
-async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg, description) {
-  const path = sapObjectPath(objectType, objectName);
-  const createOnly = sapIsCreateOnly(objectType);
+async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg, description, policy, capabilities, globalObjectMap) {
+  const objCfg = resolveObjectTypeConfig(objectType, objectName, globalObjectMap, config.adt_object_map);
+  const path = objCfg.path;
+  const createOnly = objCfg.createOnly ?? false;
 
-  // For types with no ABAP source but that CAN be created via ADT (domain, data_element, message_class):
-  // send createOnly request — bridge runs createObject + activateByName, user fills properties in SE11
+  // For types with no ABAP source and not createOnly: must be done manually
   if (!path && !createOnly) {
     return { ok: false, error: `Object type '${objectType}' (${objectName}) has no ABAP source — create it manually` };
   }
@@ -310,15 +444,17 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
           bridgeUrl: adtWriteBase,
           host: config.host, username: config.username,
           password: config.password, client: config.client || '100',
-          path: path || sapObjectUrl(objectType, objectName),
+          path: path || objCfg.url,
           source: createOnly ? '' : source,
           transport: transportRequest,
           parentName: pkg || '$TMP',
           name: objectName.toUpperCase(),
           description: description || '',
-          objtype: sapAdtObjtype(objectType),
-          autoCreate: !!(sapAdtObjtype(objectType)),
+          objtype: objCfg.objtype,
+          autoCreate: !!(objCfg.objtype),
           createOnly,
+          policy: policy ?? SAP_ADT_WRITE_POLICY_DEFAULTS,
+          capabilities: capabilities ?? SAP_ADT_CAPABILITIES_DEFAULTS,
         }),
         signal: AbortSignal.timeout(55000),
       });
@@ -586,6 +722,7 @@ function SapIntegrationPanel({ clientId, auth }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showPasswords, setShowPasswords] = useState({});
+  const [expandedAdtPaths, setExpandedAdtPaths] = useState({});
 
   const canEdit = auth.isAdmin || auth.isManager || auth.isClient;
 
@@ -841,6 +978,78 @@ function SapIntegrationPanel({ clientId, auth }) {
                       ))}
                     </div>
 
+                    {/* ADT Object Paths — per-environment overrides */}
+                    <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
+                      <button
+                        onClick={() => setExpandedAdtPaths(p => ({ ...p, [env.id]: !p[env.id] }))}
+                        className="flex items-center gap-2 w-full text-left group">
+                        <ChevronRight size={12} className={`text-gray-400 transition-transform ${expandedAdtPaths[env.id] ? 'rotate-90' : ''}`} />
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide group-hover:text-gray-600 dark:group-hover:text-gray-300">ADT Object Paths</span>
+                        {Object.keys(env.adt_object_map ?? {}).length > 0 && (
+                          <span className="ml-auto text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                            {Object.keys(env.adt_object_map ?? {}).length} override{Object.keys(env.adt_object_map ?? {}).length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </button>
+
+                      {expandedAdtPaths[env.id] && (
+                        <div className="mt-3 space-y-3">
+                          <p className="text-xs text-gray-400 leading-snug">
+                            Override ADT paths for this environment only. ABAP Cloud (BTP) uses CDS DDL paths for DDIC types.
+                          </p>
+                          {canEdit && (
+                            <button
+                              onClick={() => updateEnvField(env.id, 'adt_object_map', { ...(env.adt_object_map ?? {}), ...ABAP_CLOUD_ADT_OBJECT_MAP_PRESET })}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/20 rounded-xl transition-colors">
+                              <Sparkles size={11} />Apply ABAP Cloud (BTP) preset
+                            </button>
+                          )}
+                          <div className="space-y-1.5">
+                            {Object.entries({ ...ABAP_CLOUD_ADT_OBJECT_MAP_PRESET, ...(env.adt_object_map ?? {}) }).map(([type]) => {
+                              const envEntry = (env.adt_object_map ?? {})[type] ?? {};
+                              const dflt = SAP_ADT_OBJECT_MAP_DEFAULTS[type] ?? {};
+                              const globalEntry = (ssCtx.settings['sap_adt_object_map'] ?? {})[type] ?? {};
+                              const effective = { ...dflt, ...globalEntry, ...envEntry };
+                              const hasOverride = Object.keys(envEntry).length > 0;
+                              return (
+                                <div key={type} className={`rounded-lg border px-3 py-2 ${hasOverride ? 'border-blue-200 bg-blue-50/40 dark:bg-blue-900/10 dark:border-blue-800' : 'border-gray-100 dark:border-gray-700'}`}>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{type}</span>
+                                    {hasOverride && canEdit && (
+                                      <button
+                                        onClick={() => {
+                                          const newMap = { ...(env.adt_object_map ?? {}) };
+                                          delete newMap[type];
+                                          updateEnvField(env.id, 'adt_object_map', newMap);
+                                        }}
+                                        className="text-[10px] text-red-400 hover:text-red-600">reset</button>
+                                    )}
+                                  </div>
+                                  <input
+                                    value={envEntry.pathTpl ?? ''}
+                                    placeholder={effective.pathTpl ?? 'default path'}
+                                    disabled={!canEdit}
+                                    onChange={e => {
+                                      const val = e.target.value.trim();
+                                      const cur = { ...(env.adt_object_map ?? {})[type] ?? {} };
+                                      if (val) cur.pathTpl = val; else delete cur.pathTpl;
+                                      updateEnvField(env.id, 'adt_object_map', { ...(env.adt_object_map ?? {}), [type]: cur });
+                                    }}
+                                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {Object.keys(env.adt_object_map ?? {}).length > 0 && canEdit && (
+                            <button onClick={() => updateEnvField(env.id, 'adt_object_map', {})} className="text-xs text-red-400 hover:text-red-600">
+                              Clear all overrides for this environment
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     {canEdit && (
                       <div className="flex items-center gap-3">
                         <button onClick={() => saveEnvironments(environments)} disabled={saving}
@@ -895,6 +1104,7 @@ function SapIntegrationPanel({ clientId, auth }) {
 function ProjectSapEnvPanel({ projectId, clientId, auth }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
+  const [standardsOpen, setStandardsOpen] = useState(false);
   const { settings } = ssCtx;
   const clientSapData = (settings['sap_integration'] ?? {})[clientId] ?? {};
   const rawEnvs = clientSapData.environments ?? (clientSapData.host ? [{ id: 'default', name: 'Default', envType: 'dev', ...clientSapData }] : []);
@@ -984,7 +1194,20 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
         </div>
       </div>
 
-      <AbapStandardsPanel level="project" entityId={projectId} clientId={clientId} auth={auth} />
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <button
+          onClick={() => setStandardsOpen(p => !p)}
+          className="flex items-center gap-2 w-full px-6 py-4 text-left hover:bg-gray-50 transition-colors">
+          <FileCode2 size={15} className="text-amber-600 flex-shrink-0" />
+          <span className="font-bold text-gray-900 text-sm flex-1">{t('abap.tab_title')}</span>
+          <ChevronRight size={14} className={`text-gray-400 transition-transform ${standardsOpen ? 'rotate-90' : ''}`} />
+        </button>
+        {standardsOpen && (
+          <div className="border-t border-gray-100">
+            <AbapStandardsPanel level="project" entityId={projectId} clientId={clientId} auth={auth} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1130,30 +1353,90 @@ function AbapTemplateSection({ projectId, canEdit }) {
 }
 
 function McpRestartButton({ mcpUrl }) {
-  const [state, setState] = useState('idle'); // idle | restarting | done | error
+  const [state, setState] = useState('idle'); // idle | restarting | queued | done | error
+  const [msg, setMsg] = useState('');
+  const pollRef = useRef(null);
   const base = (mcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
   if (!base) return null;
 
   async function restart() {
+    if (state === 'restarting' || state === 'queued') return;
+    clearTimeout(pollRef.current);
     setState('restarting');
+    setMsg('');
+
+    // 1. Try direct restart if the server is reachable
     try {
-      await fetch(`${base}/restart`, { method: 'POST', signal: AbortSignal.timeout(5000) }).catch(() => {});
-      setState('done');
+      const r = await fetch(`${base}/restart`, { method: 'POST', signal: AbortSignal.timeout(5000) });
+      if (r.ok) { setState('done'); setMsg(''); setTimeout(() => setState('idle'), 3000); return; }
+    } catch { /* tunnel is down — fall through to queue */ }
+
+    // 2. Fallback: write restart request to Supabase queue
+    const requestTs = Date.now();
+    try {
+      await supabase.from('system_settings').upsert(
+        { key: 'vm_restart_requested', value: { ts: requestTs } },
+        { onConflict: 'key' }
+      );
     } catch {
-      setState('error');
+      setState('error'); setMsg('Could not reach server or Supabase');
+      setTimeout(() => { setState('idle'); setMsg(''); }, 4000);
+      return;
     }
-    setTimeout(() => setState('idle'), 4000);
+
+    setState('queued');
+    setMsg('Restart requested — waiting for VM…');
+    let elapsed = 0;
+    const maxWait = 120000;
+    const poll = async () => {
+      try {
+        const { data } = await supabase
+          .from('vm_tunnel_registry')
+          .select('tunnel_url, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(1).maybeSingle();
+        if (data?.updated_at && new Date(data.updated_at).getTime() > requestTs) {
+          setState('done'); setMsg('Reconnected ✓');
+          setTimeout(() => { setState('idle'); setMsg(''); }, 4000);
+          return;
+        }
+      } catch { /* ignore */ }
+      elapsed += 10000;
+      if (elapsed >= maxWait) {
+        setState('error'); setMsg('Timed out — check VM');
+        setTimeout(() => { setState('idle'); setMsg(''); }, 5000);
+        return;
+      }
+      setMsg(`Waiting for VM… (${Math.round((maxWait - elapsed) / 1000)}s)`);
+      pollRef.current = setTimeout(poll, 10000);
+    };
+    pollRef.current = setTimeout(poll, 10000);
   }
 
+  const label = state === 'restarting' ? 'Restarting…'
+    : state === 'queued' ? 'Queued…'
+    : state === 'done' ? (msg || 'Done ✓')
+    : state === 'error' ? 'Failed'
+    : 'Restart VM';
+
   return (
-    <button onClick={restart} disabled={state === 'restarting'} title="Restart MCP server"
-      className={`shrink-0 flex items-center gap-1 px-2.5 py-2 rounded-xl border text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed
-        ${state === 'done' ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-900/20 dark:border-green-700'
-        : state === 'error' ? 'border-orange-300 text-orange-500 bg-orange-50 dark:bg-orange-900/20'
-        : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:border-blue-300 bg-white dark:bg-gray-700'}`}>
-      <RefreshCw size={13} className={state === 'restarting' ? 'animate-spin' : ''} />
-      <span className="hidden sm:inline">{state === 'restarting' ? 'Restarting…' : state === 'done' ? 'Sent' : state === 'error' ? 'Unreachable' : 'Restart MCP'}</span>
-    </button>
+    <div className="shrink-0 flex flex-col items-end gap-0.5">
+      <button onClick={restart} disabled={state === 'restarting' || state === 'queued'} title="Restart VM MCP server tunnel"
+        className={`flex items-center gap-1 px-2.5 py-2 rounded-xl border text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed
+          ${state === 'done' ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-900/20 dark:border-green-700'
+          : state === 'error' ? 'border-orange-300 text-orange-500 bg-orange-50 dark:bg-orange-900/20'
+          : state === 'queued' ? 'border-blue-300 text-blue-600 bg-blue-50 dark:bg-blue-900/20'
+          : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:border-blue-300 bg-white dark:bg-gray-700'}`}>
+        <RefreshCw size={13} className={(state === 'restarting' || state === 'queued') ? 'animate-spin' : ''} />
+        <span className="hidden sm:inline">{label}</span>
+      </button>
+      {msg && state === 'queued' && (
+        <span className="text-[10px] text-blue-500 dark:text-blue-400 max-w-[180px] text-right leading-tight">{msg}</span>
+      )}
+      {msg && state === 'error' && (
+        <span className="text-[10px] text-orange-500 max-w-[180px] text-right leading-tight">{msg}</span>
+      )}
+    </div>
   );
 }
 
@@ -1163,11 +1446,15 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const { settings: sysSettings } = useSystemSettings();
   const diagnosisModel = sysSettings['analysis_model'] ?? sysSettings['ai_model'] ?? 'claude-haiku-5-5';
   const infraCfgRaw = sysSettings['infra_check_settings'] ?? {};
+  // Pick the correct per-type sub-key; fall back to flat format for backwards compat
+  const infraIsUserVpn = env.vpn_mode === 'user';
+  const infraTypeKey   = infraIsUserVpn ? 'user_vpn' : 'platform_vpn';
+  const infraTyped     = infraCfgRaw[infraTypeKey] ?? (infraCfgRaw.vm ? infraCfgRaw : null);
   const infraCfg = {
-    vm:  { enabled: infraCfgRaw.vm?.enabled  ?? true, autoSolve: infraCfgRaw.vm?.autoSolve  ?? true },
-    vpn: { enabled: infraCfgRaw.vpn?.enabled ?? true, autoSolve: infraCfgRaw.vpn?.autoSolve ?? true, vpnLoop: infraCfgRaw.vpn?.vpnLoop ?? true },
-    mcp: { enabled: infraCfgRaw.mcp?.enabled ?? true, autoSolve: infraCfgRaw.mcp?.autoSolve ?? true },
-    sap: { enabled: infraCfgRaw.sap?.enabled ?? true, autoSolve: infraCfgRaw.sap?.autoSolve ?? false },
+    vm:  { enabled: infraTyped?.vm?.enabled  ?? (!infraIsUserVpn), autoSolve: infraTyped?.vm?.autoSolve  ?? true },
+    vpn: { enabled: infraTyped?.vpn?.enabled ?? (!infraIsUserVpn), autoSolve: infraTyped?.vpn?.autoSolve ?? true, vpnLoop: infraTyped?.vpn?.vpnLoop ?? true },
+    mcp: { enabled: infraTyped?.mcp?.enabled ?? true,              autoSolve: infraTyped?.mcp?.autoSolve ?? true },
+    sap: { enabled: infraTyped?.sap?.enabled ?? true,              autoSolve: infraTyped?.sap?.autoSolve ?? false },
   };
 
   const emptyNodes = () => ({
@@ -1192,6 +1479,12 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const [setupCopied, setSetupCopied] = useState(null);
   const [stoppingVpn, setStoppingVpn] = useState(false);
   const [stopVpnMsg, setStopVpnMsg] = useState(null);
+  const [restartingVm, setRestartingVm] = useState(false);
+  const [restartVmMsg, setRestartVmMsg] = useState('');
+  const restartVmPollRef = useRef(null);
+  const [restartingAdt, setRestartingAdt] = useState(false);
+  const [restartAdtMsg, setRestartAdtMsg] = useState('');
+  const restartAdtPollRef = useRef(null);
   const [aiDiagnosis, setAiDiagnosis] = useState(() => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s)?.aiDiagnosis ?? null : null; } catch { return null; } });
   const [diagnosing, setDiagnosing] = useState(false);
   const cancelRef = useRef(false);
@@ -1303,6 +1596,18 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     let vmMcpBase = isPlatformAdtMode
       ? (env.mcp_server_url?.trim() || globalMcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim()
       : currentMcpBase;
+
+    // Auto-discover ADT bridge URL from Supabase registry when not manually configured
+    if (isAdtMcpMode && !currentMcpBase) {
+      try {
+        const { data: regRow } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+        if (regRow?.value?.trim()) {
+          currentMcpBase = regRow.value.trim().replace(/\/$/, '');
+          addLog('vm', `Auto-discovered ADT bridge URL from registry: ${currentMcpBase}`, 'info');
+          if (onUpdateAdtUrl) onUpdateAdtUrl(currentMcpBase);
+        }
+      } catch {}
+    }
 
     // ── Node 1: VM ────────────────────────────────────────────────
     if (runLaptopBridgeMode) {
@@ -1949,6 +2254,100 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     }
   }
 
+  async function restartVmBridge() {
+    if (restartingVm) return;
+    clearTimeout(restartVmPollRef.current);
+    setRestartingVm(true);
+    const requestTs = Date.now();
+    setRestartVmMsg('Sending restart command…');
+    try {
+      await supabase.from('system_settings').upsert(
+        { key: 'vm_restart_requested', value: { ts: requestTs } },
+        { onConflict: 'key' }
+      );
+    } catch (e) {
+      setRestartVmMsg(`Could not send restart command: ${e.message?.slice(0, 60)}`);
+      setRestartingVm(false);
+      return;
+    }
+    setRestartVmMsg('Restart requested — waiting for VM to reconnect…');
+    let elapsed = 0;
+    const maxWait = 120000;
+    const pollInterval = 10000;
+    const poll = async () => {
+      try {
+        const { data } = await supabase
+          .from('vm_tunnel_registry')
+          .select('tunnel_url, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data?.updated_at && new Date(data.updated_at).getTime() > requestTs) {
+          if (onUpdateMcpUrl) onUpdateMcpUrl(data.tunnel_url);
+          setRestartVmMsg('');
+          setRestartingVm(false);
+          run();
+          return;
+        }
+      } catch { /* best-effort */ }
+      elapsed += pollInterval;
+      if (elapsed >= maxWait) {
+        setRestartVmMsg('VM did not reconnect within 2 min — check AWS console or start-sap-mcp-tunnel.sh on VM');
+        setRestartingVm(false);
+        return;
+      }
+      const rem = Math.round((maxWait - elapsed) / 1000);
+      setRestartVmMsg(`Waiting for VM to reconnect… (${rem}s)`);
+      restartVmPollRef.current = setTimeout(poll, pollInterval);
+    };
+    restartVmPollRef.current = setTimeout(poll, pollInterval);
+  }
+
+  async function restartAdtBridge() {
+    if (restartingAdt) return;
+    clearTimeout(restartAdtPollRef.current);
+    setRestartingAdt(true);
+    const requestTs = Date.now();
+    setRestartAdtMsg('Sending restart command…');
+    try {
+      await supabase.from('system_settings').upsert(
+        { key: 'adt_bridge_restart_requested', value: { ts: requestTs } },
+        { onConflict: 'key' }
+      );
+    } catch (e) {
+      setRestartAdtMsg(`Could not send restart command: ${e.message?.slice(0, 60)}`);
+      setRestartingAdt(false);
+      return;
+    }
+    setRestartAdtMsg('Restart requested — waiting for bridge to reconnect…');
+    let prevUrl = '';
+    try { const { data: _pd } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle(); prevUrl = _pd?.value ?? ''; } catch { prevUrl = ''; }
+    let elapsed = 0;
+    const maxWait = 120000;
+    const poll = async () => {
+      try {
+        const { data } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+        const newUrl = data?.value ?? '';
+        if (newUrl && newUrl !== prevUrl) {
+          if (onUpdateAdtUrl) onUpdateAdtUrl(newUrl);
+          setRestartAdtMsg('');
+          setRestartingAdt(false);
+          run();
+          return;
+        }
+      } catch { /* ignore */ }
+      elapsed += 10000;
+      if (elapsed >= maxWait) {
+        setRestartAdtMsg('ADT bridge did not reconnect within 2 min — run start-vm.sh on VM');
+        setRestartingAdt(false);
+        return;
+      }
+      setRestartAdtMsg(`Waiting for bridge to reconnect… (${Math.round((maxWait - elapsed) / 1000)}s)`);
+      restartAdtPollRef.current = setTimeout(poll, 10000);
+    };
+    restartAdtPollRef.current = setTimeout(poll, 10000);
+  }
+
   const isUserVpnMode = env.vpn_mode === 'user';
   const SETUP_STEPS = isUserVpnMode && isAdtMcpMode
     ? [
@@ -2099,6 +2498,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const isExpandedLog = !!expanded[key];
           const hasLog = node.log?.length > 0;
           const showDeploy = key === 'mcp' && !isPlatformAdtMode && (node.extra?.needsDeploy || node.status === 'error');
+          const showRestartAdt = key === 'mcp' && isPlatformAdtMode && node.status === 'error';
           const showSetup = key === 'vm' && node.status === 'error';
           const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode && node.status === 'ok';
           const showLaptopTunnel = key === 'vpn' && laptopBridgeMode;
@@ -2123,6 +2523,20 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                     className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition-colors">
                     {stoppingVpn ? <RefreshCw size={9} className="animate-spin" /> : <X size={9} />}
                     {stoppingVpn ? 'Stopping…' : 'Stop VM VPN'}
+                  </button>
+                )}
+                {showRestartAdt && (
+                  <button onClick={restartAdtBridge} disabled={restartingAdt || running}
+                    className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors">
+                    <RefreshCw size={9} className={restartingAdt ? 'animate-spin' : ''} />
+                    {restartingAdt ? 'Restarting…' : 'Restart Bridge'}
+                  </button>
+                )}
+                {showSetup && !isUserVpnMode && (
+                  <button onClick={restartVmBridge} disabled={restartingVm || running}
+                    className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-colors">
+                    <RefreshCw size={9} className={restartingVm ? 'animate-spin' : ''} />
+                    {restartingVm ? 'Restarting…' : 'Restart VM'}
                   </button>
                 )}
                 {showSetup && (
@@ -2192,6 +2606,26 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
               {showStopVpn && stopVpnMsg && (
                 <div className="px-10 pb-2">
                   <p className={`text-[10px] ${stopVpnMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>{stopVpnMsg}</p>
+                </div>
+              )}
+
+              {/* Restart ADT bridge feedback */}
+              {key === 'mcp' && restartAdtMsg && (
+                <div className="px-10 pb-2">
+                  <p className="text-[10px] text-blue-400 flex items-center gap-1">
+                    {restartingAdt && <RefreshCw size={8} className="animate-spin shrink-0" />}
+                    {restartAdtMsg}
+                  </p>
+                </div>
+              )}
+
+              {/* Restart VM feedback */}
+              {key === 'vm' && restartVmMsg && (
+                <div className="px-10 pb-2">
+                  <p className="text-[10px] text-blue-400 flex items-center gap-1">
+                    {restartingVm && <RefreshCw size={8} className="animate-spin shrink-0" />}
+                    {restartVmMsg}
+                  </p>
                 </div>
               )}
 
@@ -4012,17 +4446,21 @@ Suggest 5-15 objects covering the full scope.`;
       });
       const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const parsed = JSON.parse(raw.replace(/```json?/g, '').replace(/```/g, '').trim());
+      const _bpStoredPP = settings['mcp_adt_pipeline_policy'] ?? {};
+      const _bpObjTypes = { ...MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types, ...(_bpStoredPP.object_types ?? {}) };
       const nameToId = {};
       const newObjs = parsed.map((item, i) => {
         const id = crypto.randomUUID();
         nameToId[item.name] = id;
+        const _resolvedType = BP_TYPES[item.type] ? item.type : 'program';
+        const _objMode = _bpObjTypes[_resolvedType] ?? (item.aiCapable ? 'ai-generate' : 'manual');
         return {
           id,
           name: item.name,
-          type: BP_TYPES[item.type] ? item.type : 'program',
-          phase: (item.phase && BP_PHASES.some(p => p.id === item.phase)) ? item.phase : (BP_TYPES[item.type]?.phase ?? 'development'),
+          type: _resolvedType,
+          phase: (item.phase && BP_PHASES.some(p => p.id === item.phase)) ? item.phase : (BP_TYPES[_resolvedType]?.phase ?? 'development'),
           description: item.description ?? '',
-          aiCapable: item.aiCapable ?? (BP_TYPES[item.type]?.ai ?? true),
+          aiCapable: _objMode !== 'manual',
           dependsOn: [],
           order: i + 1,
           status: 'planned',
@@ -4076,17 +4514,21 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       });
       const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const parsed = JSON.parse(raw.replace(/```json?/g, '').replace(/```/g, '').trim());
+      const _nlStoredPP = settings['mcp_adt_pipeline_policy'] ?? {};
+      const _nlObjTypes = { ...MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types, ...(_nlStoredPP.object_types ?? {}) };
       const nameToId = {};
       const newObjs = parsed.map((item, i) => {
         const id = crypto.randomUUID();
         nameToId[item.name] = id;
+        const _resolvedType = BP_TYPES[item.type] ? item.type : 'program';
+        const _objMode = _nlObjTypes[_resolvedType] ?? (item.aiCapable ? 'ai-generate' : 'manual');
         return {
           id,
           name: item.name,
-          type: BP_TYPES[item.type] ? item.type : 'program',
-          phase: (item.phase && BP_PHASES.some(p => p.id === item.phase)) ? item.phase : (BP_TYPES[item.type]?.phase ?? 'development'),
+          type: _resolvedType,
+          phase: (item.phase && BP_PHASES.some(p => p.id === item.phase)) ? item.phase : (BP_TYPES[_resolvedType]?.phase ?? 'development'),
           description: item.description ?? '',
-          aiCapable: item.aiCapable ?? (BP_TYPES[item.type]?.ai ?? true),
+          aiCapable: _objMode !== 'manual',
           dependsOn: [],
           order: i + 1,
           status: 'planned',
@@ -4123,6 +4565,10 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     setRunLog([]);
     const sorted = topoSort(subset);
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
+    const writePolicy = { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(settings['sap_adt_write_policy'] ?? {}) };
+    const sapCaps    = { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(settings['sap_adt_capabilities'] ?? {}) };
+    const _storedPP  = settings['mcp_adt_pipeline_policy'] ?? {};
+    const pipelineObjTypes = { ...MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types, ...(_storedPP.object_types ?? {}) };
 
     const isAdtMode = sapConfig?.mcp_type === 'abap-adt' || sapConfig?.mcp_type === 'abap-adt-readonly' || sapConfig?.mcp_type === 'abap-adt-both';
     let freshMcpUrl = isAdtMode
@@ -4154,8 +4600,13 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       } catch { /* best-effort */ }
     }
 
-    // Warn once if no package configured (objects will land in $TMP)
+    // Warn or block based on package requirement policy
     if (autoImplEnabled && sapConfig?.host && !packageReq) {
+      if (writePolicy.requirePackage) {
+        addLog('⛔ Write policy requires a SAP package — configure one before running. Disable "Require Package" in SAP MCP Policy settings to allow $TMP.', 'error');
+        setRunning(false);
+        return;
+      }
       addLog('⚠ No SAP package configured — objects will be created in $TMP (local, not transportable). Enter a package in the settings above to assign them to a transport.', 'warn');
     }
 
@@ -4174,9 +4625,41 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
         continue;
       }
 
-      if (!obj.aiCapable) {
+      const objMode = pipelineObjTypes[obj.type] ?? (obj.aiCapable ? 'ai-generate' : 'manual');
+      if (objMode === 'manual') {
         updateObj(obj.id, { status: 'manual' });
-        addLog(`${obj.name}: manual (not AI-capable).`, 'manual');
+        addLog(`${obj.name}: manual (policy: ${obj.type} → manual).`, 'manual');
+        continue;
+      }
+      if (objMode === 'adt-create-only') {
+        if (autoImplEnabled && sapConfig?.host) {
+          try {
+            updateObj(obj.id, { status: 'applying', error: null });
+            addLog(`${obj.name}: creating ADT skeleton (policy: adt-create-only)...`, 'applying');
+            const _applyVia   = freshMcpUrl ? `${freshMcpUrl}/sap-proxy` : null;
+            const _applyCfg   = _applyVia ? { ...sapConfig, proxyUrl: _applyVia } : sapConfig;
+            const _r = await sapWriteSourceDetail(_applyCfg, obj.type, obj.name, null,
+              obj.transport || transportReq || undefined,
+              obj.package || packageReq || undefined,
+              obj.description || undefined, writePolicy, sapCaps, ssCtx.settings['sap_adt_object_map'] ?? {});
+            if (_r.ok) {
+              const _ut = _r.transport || obj.transport || transportReq || null;
+              const _up = _r.package   || obj.package   || packageReq   || null;
+              updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), appliedCreated: true, appliedTransport: _ut, appliedPackage: _up });
+              addLog(`${obj.name}: ✓ ADT skeleton created (pkg: ${_up || '$TMP'}${_ut ? `, tr: ${_ut}` : ''}). Set properties in SE11/SE91.`, 'done');
+              if (_r.activateError) addLog(`${obj.name}: activation warning: ${_r.activateError}`, 'warn');
+            } else {
+              throw new Error(_r.error || `HTTP ${_r.status}`);
+            }
+          } catch (_e) {
+            updateObj(obj.id, { status: 'error', error: _e.message });
+            addLog(`${obj.name}: ERROR creating ADT skeleton — ${_e.message}`, 'error');
+            if (stopOnError) { addLog('Stopped on error.', 'error'); break; }
+          }
+        } else {
+          updateObj(obj.id, { status: 'manual' });
+          addLog(`${obj.name}: adt-create-only — create in SE11/SE91 when ready.`, 'manual');
+        }
         continue;
       }
 
@@ -4244,7 +4727,7 @@ Output ONLY the ABAP source code, no explanations.`;
             : sapConfig.mcp_type === 'abap-adt-both' ? 'mcp-abap-abap-adt-api (127 tools R+W) ← write server from abap-adt-both'
             : 'custom MCP';
           addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabel}] | tunnel: ${freshMcpUrl} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
-          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined);
+          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined, writePolicy, sapCaps, ssCtx.settings['sap_adt_object_map'] ?? {});
           if (result.ok) {
             const usedTransport = result.transport || obj.transport || transportReq || null;
             const usedPackage   = result.package   || obj.package   || packageReq   || null;
@@ -4351,7 +4834,9 @@ Output ONLY the ABAP source code, no explanations.`;
         : 'ADT')
       : 'custom MCP';
     addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabelManual}] | tunnel: ${adtBase} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
-    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined);
+    const applyPolicy = { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(ssCtx.settings['sap_adt_write_policy'] ?? {}) };
+    const applyCaps   = { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(ssCtx.settings['sap_adt_capabilities'] ?? {}) };
+    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined, applyPolicy, applyCaps, ssCtx.settings['sap_adt_object_map'] ?? {});
     if (result.ok) {
       const usedTransport = result.transport || obj.transport || transportReq || null;
       const usedPackage   = result.package   || obj.package   || packageReq   || null;
@@ -5475,7 +5960,7 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
         : enrichedSapConfig;
 
       addLog(`Writing ${programName} to SAP…`);
-      const writeResult = await sapWriteSourceDetail(effectiveCfg, 'program', programName, specState.configScript, transportReq || undefined);
+      const writeResult = await sapWriteSourceDetail(effectiveCfg, 'program', programName, specState.configScript, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {});
       if (!writeResult.ok) throw new Error(writeResult.error ?? writeResult.hint ?? `HTTP ${writeResult.status}`);
       addLog('✓ Program written to SAP');
       addLog('Activating…');
@@ -5588,7 +6073,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     if (!obj?.objectName || !code) return;
     setActField(act.id, { applying: true, applyLog: [`Connecting to SAP via /api/sap-proxy → ${sapConfig.host}…`] });
     const pushLog = msg => setActField(act.id, s => ({ applyLog: [...(s.applyLog ?? []), msg] }));
-    const result = await sapWriteSourceDetail(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined);
+    const result = await sapWriteSourceDetail(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {});
     if (result.ok) {
       pushLog(`✓ Applied successfully (HTTP ${result.status})`);
       setActField(act.id, { applying: false, applied: true });
@@ -6592,4 +7077,312 @@ FALLBACK:
   );
 }
 
-export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource, detectSapObjectType };
+// ============================================================
+// SAP MCP POLICY PANEL (System Settings — 4-layer config UI)
+// ============================================================
+function SapMcpPolicyPanel({ auth }) {
+  const ssCtx = useSystemSettings();
+  const { settings } = ssCtx;
+  const canEdit = auth.isAdmin || auth.isManager;
+
+  const [activeLayer, setActiveLayer] = useState('rules');
+  const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
+
+  const [rulesText, setRulesText] = useState(() => settings['sap_mcp_rules'] ?? SAP_MCP_RULES_DEFAULTS);
+  useEffect(() => { setRulesText(settings['sap_mcp_rules'] ?? SAP_MCP_RULES_DEFAULTS); }, [settings]);
+
+  const [objectMap, setObjectMap] = useState(() => settings['sap_adt_object_map'] ?? {});
+  useEffect(() => { setObjectMap(settings['sap_adt_object_map'] ?? {}); }, [settings]);
+
+  const [policy, setPolicy] = useState(() => ({ ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(settings['sap_adt_write_policy'] ?? {}) }));
+  useEffect(() => { setPolicy({ ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(settings['sap_adt_write_policy'] ?? {}) }); }, [settings]);
+
+  const [caps, setCaps] = useState(() => ({ ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(settings['sap_adt_capabilities'] ?? {}) }));
+  useEffect(() => { setCaps({ ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(settings['sap_adt_capabilities'] ?? {}) }); }, [settings]);
+
+  const _buildPP = (s) => {
+    const stored = s['mcp_adt_pipeline_policy'] ?? {};
+    return {
+      stages:       { ...MCP_ADT_PIPELINE_POLICY_DEFAULTS.stages,       ...(stored.stages       ?? {}) },
+      object_types: { ...MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types, ...(stored.object_types ?? {}) },
+    };
+  };
+  const [pipelinePolicy, setPipelinePolicy] = useState(() => _buildPP(settings));
+  useEffect(() => { setPipelinePolicy(_buildPP(settings)); }, [settings]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      if (activeLayer === 'rules')    await ssCtx.setSetting('sap_mcp_rules', rulesText);
+      if (activeLayer === 'objects')  await ssCtx.setSetting('sap_adt_object_map', objectMap);
+      if (activeLayer === 'policy')   await ssCtx.setSetting('sap_adt_write_policy', policy);
+      if (activeLayer === 'caps')     await ssCtx.setSetting('sap_adt_capabilities', caps);
+      if (activeLayer === 'pipeline') await ssCtx.setSetting('mcp_adt_pipeline_policy', pipelinePolicy);
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+    } catch (e) { alert('Save failed: ' + e.message); }
+    finally { setSaving(false); }
+  }
+
+  async function handleReset() {
+    if (!window.confirm('Reset this layer to defaults?')) return;
+    setSaving(true);
+    try {
+      if (activeLayer === 'rules')    { setRulesText(SAP_MCP_RULES_DEFAULTS); await ssCtx.setSetting('sap_mcp_rules', SAP_MCP_RULES_DEFAULTS); }
+      if (activeLayer === 'objects')  { setObjectMap({}); await ssCtx.setSetting('sap_adt_object_map', {}); }
+      if (activeLayer === 'policy')   { setPolicy({ ...SAP_ADT_WRITE_POLICY_DEFAULTS }); await ssCtx.setSetting('sap_adt_write_policy', {}); }
+      if (activeLayer === 'caps')     { setCaps({ ...SAP_ADT_CAPABILITIES_DEFAULTS }); await ssCtx.setSetting('sap_adt_capabilities', {}); }
+      if (activeLayer === 'pipeline') { setPipelinePolicy(_buildPP({})); await ssCtx.setSetting('mcp_adt_pipeline_policy', {}); }
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+    } catch (e) { alert('Reset failed: ' + e.message); }
+    finally { setSaving(false); }
+  }
+
+  const LAYERS = [
+    { id: 'rules',    label: 'MCP Rules',       desc: 'Prompt rules for generation' },
+    { id: 'objects',  label: 'Object Types',    desc: 'ADT path templates' },
+    { id: 'policy',   label: 'Write Policy',    desc: 'Syntax check, activate, verify' },
+    { id: 'caps',     label: 'Capabilities',    desc: 'SAP feature flags' },
+    { id: 'pipeline', label: 'Pipeline Policy', desc: 'Per-stage MCP control' },
+  ];
+
+  const OBJECT_TYPE_ROWS = Object.keys(SAP_ADT_OBJECT_MAP_DEFAULTS);
+
+  function Toggle({ value, onChange, label, desc, disabled }) {
+    return (
+      <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-b-0">
+        <button
+          type="button"
+          onClick={() => onChange(!value)}
+          disabled={disabled}
+          className={`mt-0.5 w-9 h-5 rounded-full transition-colors flex-shrink-0 ${value ? 'bg-blue-500' : 'bg-gray-300'} disabled:opacity-50`}
+        >
+          <span className={`block w-4 h-4 rounded-full bg-white shadow transition-transform mx-0.5 ${value ? 'translate-x-4' : 'translate-x-0'}`} />
+        </button>
+        <div>
+          <div className="text-sm font-medium text-gray-800">{label}</div>
+          {desc && <div className="text-xs text-gray-500 mt-0.5">{desc}</div>}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100">
+        <h3 className="text-sm font-semibold text-gray-800">SAP MCP ADT Policy</h3>
+        <p className="text-xs text-gray-500 mt-0.5">4-layer configuration for SAP MCP operations — rules, object type mapping, write policy and system capabilities.</p>
+      </div>
+
+      <div className="flex gap-0 border-b border-gray-100 overflow-x-auto">
+        {LAYERS.map(l => (
+          <button
+            key={l.id}
+            type="button"
+            onClick={() => setActiveLayer(l.id)}
+            className={`px-4 py-3 text-xs font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${activeLayer === l.id ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            <div>{l.label}</div>
+            <div className="text-gray-400 font-normal hidden sm:block">{l.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      <div className="p-6 space-y-4">
+
+        {activeLayer === 'rules' && (
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">MCP Operation Rules (injected into generation prompt for non-ADT mode)</label>
+            <textarea
+              value={rulesText}
+              onChange={e => setRulesText(e.target.value)}
+              disabled={!canEdit}
+              rows={20}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white resize-y"
+            />
+            <p className="text-xs text-gray-400 mt-1">These rules are appended to the generation prompt so the LLM follows your SAP conventions when using MCP tools.</p>
+          </div>
+        )}
+
+        {activeLayer === 'objects' && (
+          <div>
+            <p className="text-xs text-gray-500 mb-3">Override ADT path templates per object type. Leave blank to use built-in defaults. Only fill rows you need to customise.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left py-2 pr-3 text-gray-600 font-medium w-28">Type</th>
+                    <th className="text-left py-2 pr-2 text-gray-600 font-medium">Path template (override)</th>
+                    <th className="text-left py-2 pr-2 text-gray-600 font-medium">URL template (override)</th>
+                    <th className="text-left py-2 text-gray-600 font-medium w-28">Objtype</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {OBJECT_TYPE_ROWS.map(ot => {
+                    const dflt = SAP_ADT_OBJECT_MAP_DEFAULTS[ot];
+                    const override = objectMap[ot] ?? {};
+                    const inpCls = "w-full border border-gray-200 rounded-lg px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 bg-white placeholder:text-gray-300";
+                    return (
+                      <tr key={ot} className="border-b border-gray-50">
+                        <td className="py-1.5 pr-3 font-mono text-gray-700 align-top">{ot}</td>
+                        <td className="py-1.5 pr-2 align-top">
+                          <input value={override.pathTpl ?? ''} disabled={!canEdit} placeholder={dflt.pathTpl ?? '(no source)'} className={inpCls}
+                            onChange={e => setObjectMap(p => { const v = e.target.value; const cur = p[ot] ?? {}; return { ...p, [ot]: v ? { ...cur, pathTpl: v } : (({ pathTpl: _, ...r }) => r)(cur) }; })} />
+                        </td>
+                        <td className="py-1.5 pr-2 align-top">
+                          <input value={override.urlTpl ?? ''} disabled={!canEdit} placeholder={dflt.urlTpl ?? '(no URL)'} className={inpCls}
+                            onChange={e => setObjectMap(p => { const v = e.target.value; const cur = p[ot] ?? {}; return { ...p, [ot]: v ? { ...cur, urlTpl: v } : (({ urlTpl: _, ...r }) => r)(cur) }; })} />
+                        </td>
+                        <td className="py-1.5 align-top">
+                          <input value={override.objtype ?? ''} disabled={!canEdit} placeholder={dflt.objtype ?? ''} className={inpCls}
+                            onChange={e => setObjectMap(p => { const v = e.target.value; const cur = p[ot] ?? {}; return { ...p, [ot]: v ? { ...cur, objtype: v } : (({ objtype: _, ...r }) => r)(cur) }; })} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Placeholders: <code className="bg-gray-100 px-1 rounded">{'{N}'}</code> object name, <code className="bg-gray-100 px-1 rounded">{'{FG}'}</code> function group, <code className="bg-gray-100 px-1 rounded">{'{FM}'}</code> function module.</p>
+          </div>
+        )}
+
+        {activeLayer === 'policy' && (
+          <div>
+            <p className="text-xs text-gray-500 mb-1">These toggles control what the bridge does on each write operation. Changes take effect immediately on the next run.</p>
+            <Toggle value={policy.requirePackage}         onChange={v => setPolicy(p => ({ ...p, requirePackage: v }))}         disabled={!canEdit} label="Require Package"          desc="Block write if no SAP package is configured. Objects would otherwise land in $TMP (non-transportable)." />
+            <Toggle value={policy.autoCreateTransport}    onChange={v => setPolicy(p => ({ ...p, autoCreateTransport: v }))}    disabled={!canEdit} label="Auto-create Transport"     desc="Automatically create a Workbench transport request when package ≠ $TMP and no TR is provided." />
+            <Toggle value={policy.syntaxCheckBeforeWrite} onChange={v => setPolicy(p => ({ ...p, syntaxCheckBeforeWrite: v }))} disabled={!canEdit} label="Syntax Check Before Write" desc="Run syntaxCheckCode via R+W MCP before saving. Requires the syntaxCheckCode tool." />
+            <Toggle value={policy.stopOnSyntaxError}      onChange={v => setPolicy(p => ({ ...p, stopOnSyntaxError: v }))}      disabled={!canEdit} label="Stop on Syntax Error"      desc="Abort the write if syntax check returns errors. Only relevant when Syntax Check is enabled." />
+            <Toggle value={policy.activateAfterWrite}     onChange={v => setPolicy(p => ({ ...p, activateAfterWrite: v }))}     disabled={!canEdit} label="Activate After Write"      desc="Call activateByName after setObjectSource to make the object active in SAP." />
+            <Toggle value={policy.verifyAfterWrite}       onChange={v => setPolicy(p => ({ ...p, verifyAfterWrite: v }))}       disabled={!canEdit} label="Verify After Write (R/O)"  desc="Read back the object with the R/O MCP server after write to confirm it exists in SAP." />
+          </div>
+        )}
+
+        {activeLayer === 'caps' && (
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Mark which features your SAP system supports. The bridge skips unavailable operations automatically.</p>
+            <Toggle value={caps.hasCts}        onChange={v => setCaps(p => ({ ...p, hasCts: v }))}        disabled={!canEdit} label="CTS API (transport creation)"    desc="SAP supports ADT CTS REST API for creating transport requests (/sap/bc/adt/cts/transportrequests)." />
+            <Toggle value={caps.hasRwMcp}      onChange={v => setCaps(p => ({ ...p, hasRwMcp: v }))}      disabled={!canEdit} label="R+W MCP (mcp-abap-abap-adt-api)" desc="The 127-tool read+write MCP server is installed and running on the VM alongside the bridge." />
+            <Toggle value={caps.hasRoMcp}      onChange={v => setCaps(p => ({ ...p, hasRoMcp: v }))}      disabled={!canEdit} label="R/O MCP (mcp-abap-adt)"          desc="The 16-tool read-only MCP server is installed and running on the VM alongside the bridge." />
+            <Toggle value={caps.hasSyntaxCheck} onChange={v => setCaps(p => ({ ...p, hasSyntaxCheck: v }))} disabled={!canEdit} label="Syntax Check tool"              desc="The syntaxCheckCode tool is available in the R+W MCP server." />
+            <Toggle value={caps.hasActivation} onChange={v => setCaps(p => ({ ...p, hasActivation: v }))} disabled={!canEdit} label="Activation tool"                  desc="The activateByName tool is available in the R+W MCP server." />
+            <Toggle value={caps.netWeaver754}  onChange={v => setCaps(p => ({ ...p, netWeaver754: v }))}  disabled={!canEdit} label="NetWeaver 7.54+"                  desc="Enables CDS view tools, BTP integration, and other NW 7.54+ features." />
+            <Toggle value={caps.isS4Hana}      onChange={v => setCaps(p => ({ ...p, isS4Hana: v }))}      disabled={!canEdit} label="S/4HANA"                          desc="Enables Behavior Definition, Service Definition, and other S/4HANA-specific tools." />
+          </div>
+        )}
+
+        {activeLayer === 'pipeline' && (
+          <div className="space-y-5">
+            <p className="text-xs text-gray-500">Control which pipeline stages use MCP/ADT and what context they include. Changes apply immediately on the next run.</p>
+
+            {/* Stage controls */}
+            {[
+              { key: 'analyze',   label: 'Analyze Context',   toggles: [
+                { field: 'use_mcp',           label: 'Use MCP for SAP object verification',        desc: 'Pass MCP servers when verifying SAP object existence during the Analyze stage.' },
+                { field: 'include_mcp_rules', label: 'Include MCP Rules in analyze prompt',        desc: 'Append sap_mcp_rules text to the analyze system prompt.' },
+              ]},
+              { key: 'specs',     label: 'Generate Specs',    toggles: [
+                { field: 'use_mcp',              label: 'Use MCP for spec generation',             desc: 'Pass MCP servers to Claude when generating specifications.' },
+                { field: 'include_mcp_rules',    label: 'Include MCP Rules in spec generation',   desc: 'Append sap_mcp_rules text to the spec generation system prompt.' },
+                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',    desc: 'Add sap_adt_capabilities flags to the context block sent with spec prompts.' },
+              ]},
+              { key: 'blueprint', label: 'Generate Blueprint', toggles: [
+                { field: 'use_mcp',              label: 'Use MCP for blueprint generation',       desc: 'Pass MCP servers when generating the blueprint object list.' },
+                { field: 'include_mcp_rules',    label: 'Include MCP Rules',                     desc: 'Append sap_mcp_rules text to the blueprint generation prompt.' },
+                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',   desc: 'Add sap_adt_capabilities flags to the context sent with blueprint prompts.' },
+              ]},
+              { key: 'implement', label: 'Implement Objects', toggles: [
+                { field: 'use_mcp',              label: 'Use MCP (non-ADT mode)',                 desc: 'Pass MCP servers during ABAP code generation in non-ADT mode.' },
+                { field: 'include_mcp_rules',    label: 'Include MCP Rules in generation prompt', desc: 'Append sap_mcp_rules text to the ABAP code generation prompt.' },
+                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',   desc: 'Add sap_adt_capabilities flags to the context sent with implement prompts.' },
+              ]},
+            ].map(({ key, label, toggles }) => {
+              const dflt = MCP_ADT_PIPELINE_POLICY_DEFAULTS.stages[key] ?? {};
+              const cur  = { ...dflt, ...(pipelinePolicy.stages?.[key] ?? {}) };
+              return (
+                <div key={key} className="border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                    <span className="text-xs font-semibold text-gray-700">{label}</span>
+                  </div>
+                  <div className="px-4">
+                    {toggles.map(t => (
+                      <Toggle key={t.field}
+                        value={cur[t.field] ?? false}
+                        onChange={v => setPipelinePolicy(p => ({
+                          ...p,
+                          stages: { ...p.stages, [key]: { ...(p.stages?.[key] ?? dflt), [t.field]: v } },
+                        }))}
+                        disabled={!canEdit}
+                        label={t.label}
+                        desc={t.desc}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Object type mode table */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-2">Object Type Modes</p>
+              <p className="text-xs text-gray-400 mb-3">Controls how each SAP object type is handled during blueprint generation and implementation.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left py-2 pr-4 text-gray-600 font-medium w-36">Object Type</th>
+                      <th className="text-left py-2 text-gray-600 font-medium">Mode</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.keys(MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types).map(ot => {
+                      const cur = pipelinePolicy.object_types?.[ot] ?? MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types[ot];
+                      return (
+                        <tr key={ot} className="border-b border-gray-50">
+                          <td className="py-1.5 pr-4 font-mono text-gray-700 align-middle">{ot}</td>
+                          <td className="py-1.5 align-middle">
+                            <select
+                              value={cur}
+                              disabled={!canEdit}
+                              onChange={e => setPipelinePolicy(p => ({
+                                ...p,
+                                object_types: { ...p.object_types, [ot]: e.target.value },
+                              }))}
+                              className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            >
+                              <option value="manual">manual — configure in SAP</option>
+                              <option value="adt-create-only">adt-create-only — ADT skeleton, set props in SE11/SE91</option>
+                              <option value="ai-generate">ai-generate — AI generates ABAP, writes via ADT</option>
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {canEdit && (
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center gap-3">
+          <button type="button" onClick={handleSave} disabled={saving}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button type="button" onClick={handleReset} disabled={saving}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            Reset to defaults
+          </button>
+          {saved && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={12} />Saved</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource, detectSapObjectType, SapMcpPolicyPanel, SAP_ADT_WRITE_POLICY_DEFAULTS, SAP_ADT_CAPABILITIES_DEFAULTS, SAP_MCP_RULES_DEFAULTS, SAP_ADT_OBJECT_MAP_DEFAULTS, resolveObjectTypeConfig, MCP_ADT_PIPELINE_POLICY_DEFAULTS, ABAP_CLOUD_ADT_OBJECT_MAP_PRESET };
