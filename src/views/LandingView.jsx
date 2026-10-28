@@ -102,7 +102,6 @@ const LANDING_STRINGS = {
     f9t:"ABAP Standards & Templates", f9d:"Layered coding standards (global → client → project) injected into every AI generation prompt. Reusable implementation templates per object type enforce naming conventions, error handling, and documentation automatically.",
     f10t:"Direct ADT Write-Back", f10d:"Generated ABAP code is written directly to your SAP system via ADT bridge — no copy-paste. Supports create-only skeleton creation for DDIC types, full source write for programs and classes, and ABAP Cloud (BTP) CDS DDL paths.",
     f11t:"Live SAP System Check", f11d:"Before generating specs or code, the platform connects to your SAP system to read the real version, installed components, and existing object source — so AI generates to your actual system, not a generic template.",
-    f12t:"MCP ADT Bridge & Policy", f12d:"Self-hosted VM tunnel bridges your SAP system to the platform. Per-stage pipeline policy controls when ADT is used. Per-environment ADT path overrides support classic ABAP and ABAP Cloud side-by-side.",
     arena_tag:"Arena · Principal Feature",
     arena_h2:"Your orbital talent marketplace.",
     arena_sub:"Arena is the command center for connecting clients with the right SAP consultants — through an immersive, visual orbital interface that brings the entire talent network to life.",
@@ -260,7 +259,6 @@ const LANDING_STRINGS = {
     f9t:"Estándares y Plantillas ABAP", f9d:"Estándares de código en capas (global → cliente → proyecto) inyectados en cada prompt de generación IA. Plantillas reutilizables por tipo de objeto que aplican convenciones de nombres, manejo de errores y documentación automáticamente.",
     f10t:"Escritura Directa vía ADT", f10d:"El código ABAP generado se escribe directamente en tu sistema SAP vía ADT bridge — sin copiar y pegar. Soporta creación de esqueletos para tipos DDIC, escritura de fuente completa para programas y clases, y rutas CDS DDL para ABAP Cloud (BTP).",
     f11t:"Verificación SAP en Vivo", f11d:"Antes de generar especificaciones o código, la plataforma se conecta a tu sistema SAP para leer la versión real, los componentes instalados y el código fuente existente — para que la IA genere según tu sistema real, no una plantilla genérica.",
-    f12t:"Bridge MCP ADT y Política", f12d:"Túnel VM autoalojado conecta tu sistema SAP a la plataforma. La política de pipeline por etapa controla cuándo se usa ADT. Las rutas ADT configurables por entorno soportan ABAP clásico y ABAP Cloud en paralelo.",
     arena_tag:"Arena · Característica Principal",
     arena_h2:"Tu mercado de talento orbital.",
     arena_sub:"Arena es el centro de comando para conectar clientes con los consultores SAP adecuados — a través de una interfaz orbital visual e inmersiva que da vida a toda la red de talento.",
@@ -1827,23 +1825,6 @@ export function LandingView({ onSignIn }) {
                 <div className="feat-icon">🔍</div>
                 <div className="feat-title">{tl("f11t")}</div>
                 <div className="feat-desc">{tl("f11d")}</div>
-              </div>
-            </div>
-            <div className="feat-card fade-in">
-              <div className="feat-mockup">
-                <div style={{display:"flex",flexDirection:"column",gap:"5px"}}>
-                  {[{stage:"Analyze",mcp:"✓ MCP on",c:"#6EE7B7"},{stage:"Specs",mcp:"✓ MCP on · rules",c:"#6EE7B7"},{stage:"Blueprint",mcp:"— MCP off",c:"rgba(255,255,255,.3)"},{stage:"Implement",mcp:"✓ MCP on · ADT write",c:"#A5B4FC"}].map((r,i) => (
-                    <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 8px",background:"#1a2237",borderRadius:"6px",border:"1px solid rgba(255,255,255,.07)"}}>
-                      <div style={{fontSize:".6rem",fontWeight:600,color:"#fff"}}>{r.stage}</div>
-                      <div style={{fontSize:".58rem",color:r.c}}>{r.mcp}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="feat-body">
-                <div className="feat-icon">🌉</div>
-                <div className="feat-title">{tl("f12t")}</div>
-                <div className="feat-desc">{tl("f12d")}</div>
               </div>
             </div>
           </div>
