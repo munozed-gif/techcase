@@ -805,9 +805,14 @@ app.post('/sap-write-mcp', async (req, res) => {
         created = true;
       } catch (e) {
         const msg = e.message ?? '';
-        // Treat "already exists", "duplicate", 409, OR "currently locked by same user" as success
-        if (/already exist|duplicate|409|ExceptionResourceNoAccess|currently editing/i.test(msg)) {
+        if (/already exist|duplicate|409/i.test(msg)) {
+          // Object already exists in SAP — treat as success, proceed to activate
           created = true;
+        } else if (/ExceptionResourceNoAccess|currently editing/i.test(msg)) {
+          // Object is LOCKED by a user in SAP — createObject is blocked.
+          // This means a previous run left the lock open. The user must release
+          // it via SAP transaction SM12 before this object can be created.
+          return res.json({ ok: false, step: 'create', error: `SAP lock conflict: ${resolvedName} is locked by another session. Go to SM12 in SAP and delete the lock for this object, then retry. (${msg.slice(0, 150)})` });
         } else {
           return res.json({ ok: false, step: 'create', error: msg.slice(0, 300) });
         }
