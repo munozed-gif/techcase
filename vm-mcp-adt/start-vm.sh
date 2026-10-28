@@ -142,7 +142,7 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_KEY" ]; then
   echo "[config] Registering tunnel URL in Supabase..."
   AUTH_HEADERS=(-H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" -H "Content-Type: application/json" -H "Prefer: resolution=merge-duplicates")
   HTTP_STATUS=$(curl -s -o /tmp/supabase-reg.json -w "%{http_code}" \
-    -X POST "${SUPABASE_URL}/rest/v1/system_settings" \
+    -X POST "${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key" \
     "${AUTH_HEADERS[@]}" \
     -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${TUNNEL_URL}\"}")
   if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ] || [ "$HTTP_STATUS" = "204" ]; then
@@ -207,7 +207,7 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_KEY" ]; then
           sleep 2
         done
         if [ -n "$_new_url" ]; then
-          curl -s -X POST "${SUPABASE_URL}/rest/v1/system_settings" \
+          curl -s -X POST "${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key" \
             -H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
             -H "Content-Type: application/json" -H "Prefer: resolution=merge-duplicates" \
             -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${_new_url}\"}" >/dev/null 2>&1
