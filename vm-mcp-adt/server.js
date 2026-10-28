@@ -736,18 +736,6 @@ app.post('/sap-write-mcp', async (req, res) => {
     const objectSourceUrl = adtPath;
     const resolvedName    = objName || objectUrl.split('/').pop()?.toUpperCase() || '';
 
-    // Auto-create transport request when none provided, package is not $TMP, and policy allows it
-    if (!transport && parentName && parentName !== '$TMP' && effectivePolicy.autoCreateTransport && effectiveCaps.hasCts) {
-      try {
-        const trDesc = `Techcase: ${resolvedName}${description ? ' - ' + description.slice(0, 40) : ''}`;
-        transport = await createTransportViaAdt(host, username, password, sapClient, trDesc);
-        console.log(`[bridge] Auto-created transport: ${transport} for ${resolvedName}`);
-      } catch (trErr) {
-        console.warn(`[bridge] Could not auto-create transport: ${trErr.message}`);
-        // Non-fatal: proceed without TR (object goes into package's default handling)
-      }
-    }
-
     const creds4Pool = { host, username, password, client: sapClient, serverType: 'abap-adt' };
 
     const parseMcpText = (result) => {
@@ -761,8 +749,6 @@ app.post('/sap-write-mcp', async (req, res) => {
     async function callTool(name, args) {
       async function rawCall(c) {
         const result = await c.callTool({ name, arguments: args });
-        // MCP tools signal SAP-level errors via isError:true instead of throwing.
-        // Surfacing it here means all callers see real errors from SAP.
         if (result?.isError) {
           const errText = result.content?.[0]?.text ?? 'tool returned isError';
           console.error(`[bridge] ${name} isError — ${errText.slice(0, 200)}`);
@@ -789,6 +775,30 @@ app.post('/sap-write-mcp', async (req, res) => {
       const handle = r.lockHandle || r.lock_handle || r.handle;
       if (!handle) throw new Error(`Lock returned no handle: ${JSON.stringify(r).slice(0, 200)}`);
       return handle;
+    }
+
+    // Auto-create transport via MCP createTransport tool (uses the library's own ADT logic)
+    if (!transport && parentName && parentName !== '$TMP' && effectivePolicy.autoCreateTransport && effectiveCaps.hasCts) {
+      try {
+        const trDesc = `Techcase: ${resolvedName}${description ? ' - ' + description.slice(0, 40) : ''}`;
+        const trResult = parseMcpText(await callTool('createTransport', {
+          objSourceUrl: objectSourceUrl || objectUrl,
+          REQUEST_TEXT: trDesc,
+          DEVCLASS: parentName,
+        }));
+        // Extract TR number from result — may be in transportNumber, TRKORR, number, or raw text
+        const trNum = trResult.transportNumber || trResult.TRKORR || trResult.number
+          || (typeof trResult.raw === 'string' && trResult.raw.match(/[A-Z]{1,4}K\d{6}/i)?.[0]?.toUpperCase());
+        if (trNum) {
+          transport = trNum;
+          console.log(`[bridge] Auto-created transport via MCP: ${transport} for ${resolvedName}`);
+        } else {
+          console.warn(`[bridge] createTransport returned no TR number: ${JSON.stringify(trResult).slice(0, 200)}`);
+        }
+      } catch (trErr) {
+        console.warn(`[bridge] Could not auto-create transport via MCP: ${trErr.message?.slice(0, 200)}`);
+        // Non-fatal: proceed without TR
+      }
     }
 
     // ── createOnly path: domain / data_element / message_class ──────────────
