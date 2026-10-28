@@ -127,19 +127,31 @@ SUPABASE_URL=$(grep '^SUPABASE_URL=' "$ENV_FILE" | head -1 | cut -d'=' -f2-)
 SUPABASE_SERVICE_KEY=$(grep '^SUPABASE_SERVICE_KEY=' "$ENV_FILE" | head -1 | cut -d'=' -f2-)
 echo "[config] Loaded dev Supabase credentials from .env.dev"
 
-# ── Register tunnel URL in dev Supabase (upsert) ──────────────
+# ── Register tunnel URL in dev Supabase (PATCH then INSERT) ───
+_register_tunnel_url() {
+  local url="$1"
+  local AUTH=(-H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" -H "Content-Type: application/json")
+  local STATUS
+  STATUS=$(curl -s -o /tmp/supabase-reg-dev.json -w "%{http_code}" \
+    -X PATCH "${SUPABASE_URL}/rest/v1/system_settings?key=eq.adt_bridge_tunnel_url" \
+    "${AUTH[@]}" -d "{\"value\":\"${url}\"}")
+  if [ "$STATUS" = "200" ] || [ "$STATUS" = "204" ]; then
+    echo "[config] Tunnel URL updated in dev Supabase ✓ (HTTP $STATUS)"
+    return
+  fi
+  STATUS=$(curl -s -o /tmp/supabase-reg-dev.json -w "%{http_code}" \
+    -X POST "${SUPABASE_URL}/rest/v1/system_settings" \
+    "${AUTH[@]}" -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${url}\"}")
+  if [ "$STATUS" = "200" ] || [ "$STATUS" = "201" ] || [ "$STATUS" = "204" ]; then
+    echo "[config] Tunnel URL inserted in dev Supabase ✓ (HTTP $STATUS)"
+  else
+    echo "[config] Dev Supabase registration failed (HTTP $STATUS): $(cat /tmp/supabase-reg-dev.json 2>/dev/null)"
+  fi
+}
+
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_KEY" ]; then
   echo "[config] Registering tunnel URL in dev Supabase..."
-  AUTH_HEADERS=(-H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" -H "Content-Type: application/json" -H "Prefer: resolution=merge-duplicates")
-  HTTP_STATUS=$(curl -s -o /tmp/supabase-reg-dev.json -w "%{http_code}" \
-    -X POST "${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key" \
-    "${AUTH_HEADERS[@]}" \
-    -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${TUNNEL_URL}\"}")
-  if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ] || [ "$HTTP_STATUS" = "204" ]; then
-    echo "[config] Tunnel URL registered in dev Supabase ✓ (HTTP $HTTP_STATUS)"
-  else
-    echo "[config] Dev Supabase registration failed (HTTP $HTTP_STATUS): $(cat /tmp/supabase-reg-dev.json 2>/dev/null)"
-  fi
+  _register_tunnel_url "$TUNNEL_URL"
 fi
 
 # ── SAP CA cert ───────────────────────────────────────────────
@@ -181,10 +193,7 @@ _MONITOR_START_EPOCH=$(date -u +%s)
         sleep 2
       done
       if [ -n "$_new_url" ]; then
-        curl -s -X POST "${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key" \
-          -H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
-          -H "Content-Type: application/json" -H "Prefer: resolution=merge-duplicates" \
-          -d "{\"key\":\"adt_bridge_tunnel_url\",\"value\":\"${_new_url}\"}" >/dev/null 2>&1
+        _register_tunnel_url "$_new_url" >/dev/null 2>&1
         echo "[restart] Tunnel restarted: $_new_url"
       fi
       _last_handled=$(date -u +%s)
