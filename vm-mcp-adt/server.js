@@ -777,27 +777,15 @@ app.post('/sap-write-mcp', async (req, res) => {
       return handle;
     }
 
-    // Auto-create transport via MCP createTransport tool (uses the library's own ADT logic)
+    // Auto-create transport via direct SAP ADT call (CSRF + XML POST to /sap/bc/adt/cts/transportrequests)
     if (!transport && parentName && parentName !== '$TMP' && effectivePolicy.autoCreateTransport && effectiveCaps.hasCts) {
       try {
         const trDesc = `Techcase: ${resolvedName}${description ? ' - ' + description.slice(0, 40) : ''}`;
-        const trResult = parseMcpText(await callTool('createTransport', {
-          objSourceUrl: objectSourceUrl || objectUrl,
-          REQUEST_TEXT: trDesc,
-          DEVCLASS: parentName,
-        }));
-        // Extract TR number from result — may be in transportNumber, TRKORR, number, or raw text
-        const trNum = trResult.transportNumber || trResult.TRKORR || trResult.number
-          || (typeof trResult.raw === 'string' && trResult.raw.match(/[A-Z]{1,4}K\d{6}/i)?.[0]?.toUpperCase());
-        if (trNum) {
-          transport = trNum;
-          console.log(`[bridge] Auto-created transport via MCP: ${transport} for ${resolvedName}`);
-        } else {
-          console.warn(`[bridge] createTransport returned no TR number: ${JSON.stringify(trResult).slice(0, 200)}`);
-        }
+        transport = await createTransportViaAdt(host, username, password, sapClient, trDesc);
+        console.log(`[bridge] Auto-created transport: ${transport} for ${resolvedName}`);
       } catch (trErr) {
-        console.warn(`[bridge] Could not auto-create transport via MCP: ${trErr.message?.slice(0, 200)}`);
-        // Non-fatal: proceed without TR
+        console.warn(`[bridge] Could not auto-create transport: ${trErr.message?.slice(0, 400)}`);
+        // Non-fatal: proceed without TR (object will be in SAP's default open request)
       }
     }
 
