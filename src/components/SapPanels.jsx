@@ -5917,6 +5917,21 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     if (saved.notifyOnComplete !== undefined) setNotifyRaw(saved.notifyOnComplete);
   }, [settingsLoading, caseData.id]);
 
+  // Debounced auto-save for transport and package (fires 700ms after user stops typing)
+  const _initDone = useRef(false);
+  useEffect(() => { _initDone.current = false; }, [caseData.id]);
+  useEffect(() => {
+    if (!_initDone.current) { _initDone.current = true; return; }
+    if (settingsLoading) return;
+    const t = setTimeout(() => saveTransport(transportReq), 700);
+    return () => clearTimeout(t);
+  }, [transportReq]);
+  useEffect(() => {
+    if (settingsLoading) return;
+    const t = setTimeout(() => savePackage(packageReq), 700);
+    return () => clearTimeout(t);
+  }, [packageReq]);
+
   const implActivities = activities.filter(a =>
     !['completed'].includes(a.phase) &&
     (a.phase === 'development' || a.phase === 'design' || !a.phase || a.progress_pct < 100)
@@ -6671,7 +6686,10 @@ FALLBACK:
   const StepNav = ({ prev, next, prevLabel = '← Back', nextLabel = 'Continue →' }) => (
     <div className="flex gap-2 pt-2">
       {prev && <button onClick={() => setImplStep(prev)} className="px-4 py-2 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-white/60 transition-colors">{prevLabel}</button>}
-      {next && <button onClick={() => setImplStep(next)} className="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">{nextLabel}</button>}
+      {next && <button onClick={async () => {
+        await Promise.all([saveTransport(transportReq), savePackage(packageReq)]);
+        setImplStep(next);
+      }} className="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">{nextLabel}</button>}
     </div>
   );
 
