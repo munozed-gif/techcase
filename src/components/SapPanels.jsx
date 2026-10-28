@@ -190,8 +190,7 @@ const MCP_ADT_PIPELINE_POLICY_DEFAULTS = {
   // Per-object-type mode for blueprint + implement phases
   // 'manual'          → skip entirely (user configures in SAP manually)
   // 'adt-create-only' → create ADT skeleton (no ABAP source); user sets props in SE11/SE91
-  // 'adt-write'       → AI generates ABAP, writes via ADT bridge
-  // 'ai-generate'     → AI generates ABAP, writes via ADT bridge (same as adt-write; kept for clarity)
+  // 'ai-generate'     → AI generates ABAP source code, then writes it to SAP via ADT bridge
   object_types: {
     config:          'manual',
     table:           'adt-create-only',
@@ -7257,8 +7256,7 @@ function SapMcpPolicyPanel({ auth }) {
                             >
                               <option value="manual">manual — configure in SAP</option>
                               <option value="adt-create-only">adt-create-only — ADT skeleton, set props in SE11/SE91</option>
-                              <option value="adt-write">adt-write — AI generate + write via ADT</option>
-                              <option value="ai-generate">ai-generate — AI generate + write via ADT</option>
+                              <option value="ai-generate">ai-generate — AI generates ABAP, writes via ADT</option>
                             </select>
                           </td>
                         </tr>
