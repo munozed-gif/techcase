@@ -816,21 +816,30 @@ app.post('/sap-write-mcp', async (req, res) => {
         created = true;
       } catch (e) {
         const msg = e.message ?? '';
-        if (/already exist|duplicate|409/i.test(msg)) {
+        // Treat "already exists", "duplicate", 409, OR "currently locked by same user" as success
+        if (/already exist|duplicate|409|ExceptionResourceNoAccess|currently editing/i.test(msg)) {
           created = true;
         } else {
           return res.json({ ok: false, step: 'create', error: msg.slice(0, 300) });
         }
       }
-      // createObject implicitly locks the object in SAP. Unlock before activating,
-      // otherwise activateByName sees a lock conflict from the same user.
+
+      // createObject implicitly locks the object in SAP. Attempt to unlock before activating.
+      // If doLock() fails (e.g. lock handle not available), log it and skip activation.
+      let unlocked = false;
       try {
         const createLockHandle = await doLock();
         await callTool('unLock', { objectUrl, lockHandle: createLockHandle });
-      } catch { /* best-effort — activation may still succeed */ }
+        unlocked = true;
+      } catch (unlockErr) {
+        console.warn(`[bridge] Could not unlock ${resolvedName} before activate: ${unlockErr.message?.slice(0, 200)}`);
+      }
 
+      // Message classes (MSAG) are active after createObject; skip explicit activation.
+      // For other types, activate only when unlock succeeded to avoid lock conflicts.
+      const skipActivation = /^MSAG/i.test(objtype ?? '');
       let activateError = null;
-      if (effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false) {
+      if (!skipActivation && unlocked && effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false) {
         try {
           await callTool('activateByName', { objectName: resolvedName, objectUrl });
         } catch (e) {
