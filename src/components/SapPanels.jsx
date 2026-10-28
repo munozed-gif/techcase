@@ -4746,9 +4746,13 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
             if (_r.ok) {
               const _ut = _r.transport || obj.transport || transportReq || null;
               const _up = _r.package   || obj.package   || packageReq   || null;
-              updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), appliedCreated: true, appliedTransport: _ut, appliedPackage: _up });
-              addLog(`${obj.name}: ✓ ADT skeleton created (pkg: ${_up || '$TMP'}${_ut ? `, tr: ${_ut}` : ''}). Set properties in SE11/SE91.`, 'done');
+              const _verifyOk = _r.verify?.ok === true;
+              const _verifySkipped = _r.verify?.skipped === true;
+              const _note = `${_verifyOk ? '✓ Confirmed in SAP.' : _verifySkipped ? '' : '⚠ Not confirmed in SAP — check SE91.'}${_r.activateError ? ' Activation warning: ' + _r.activateError : ''}`.trim() || null;
+              updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), appliedCreated: true, appliedTransport: _ut, appliedPackage: _up, appliedNote: _note, appliedActivateError: _r.activateError || null });
+              addLog(`${obj.name}: ✓ ADT skeleton created (pkg: ${_up || '$TMP'}${_ut ? `, tr: ${_ut}` : ''}${_verifyOk ? ', confirmed ✓' : _verifySkipped ? '' : ' — not confirmed in SAP'}). Set properties in SE11/SE91.`, 'done');
               if (_r.activateError) addLog(`${obj.name}: activation warning: ${_r.activateError}`, 'warn');
+              if (!_verifyOk && !_verifySkipped) addLog(`${obj.name}: ⚠ SAP verify failed — ${_r.verify?.reason || 'object not found via read-only check'}`, 'warn');
             } else {
               throw new Error(_r.error || `HTTP ${_r.status}`);
             }
@@ -5367,7 +5371,7 @@ Output ONLY the ABAP source code, no explanations.`;
                       className="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">Retry</button>
                   )}
                   {selectedObj.status === 'done' && canDevelop && (
-                    <button onClick={() => updateObj(selectedObj.id, { status: 'planned', appliedAt: null, error: null, appliedTransport: null, appliedPackage: null, appliedActivateError: null })}
+                    <button onClick={() => updateObj(selectedObj.id, { status: 'planned', appliedAt: null, error: null, appliedTransport: null, appliedPackage: null, appliedActivateError: null, appliedNote: null })}
                       className="px-2.5 py-1 text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">Reset</button>
                   )}
                   {autoImplEnabled && selectedObj.generatedCode && selectedObj.status !== 'done' && selectedObj.status !== 'applying' && (
