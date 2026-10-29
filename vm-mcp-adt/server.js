@@ -143,6 +143,8 @@ function parseSapCreds(authHeader) {
 
 // ── Subprocess client pool (keyed by SAP host+user) ──────────
 const clientPool = new Map();
+// Serializes all subprocess spawning — only one subprocess may be created at a time on this VM.
+let _spawnMutex = Promise.resolve();
 
 async function getClient(creds) {
   // Prefer per-request credentials from the auth token; fall back to .env
@@ -156,68 +158,77 @@ async function getClient(creds) {
   const adtScript = ADT_SCRIPTS[serverType] ?? ADT_SCRIPTS['abap-adt'];
 
   const key = `${sapUrl}|${sapUser}|${serverType}`;
+  // Fast path — subprocess already connected
   if (clientPool.has(key)) return clientPool.get(key);
 
-  // Pass SOCKS5 proxy env vars to subprocesses — respected by axios, undici, and some node:https uses
-  const proxyEnv = {};
-  const socksActive = await isSocksUp();
-  if (socksActive) {
-    proxyEnv.ALL_PROXY   = SOCKS_URL;
-    proxyEnv.HTTPS_PROXY = SOCKS_URL;
-    proxyEnv.HTTP_PROXY  = SOCKS_URL;
-  }
+  // Acquire global spawn mutex: concurrent callers (e.g. infra check + write-queue poller)
+  // both pass the pool check above because getClient is async. The mutex ensures only one
+  // subprocess is ever being spawned at a time, preventing OOM on memory-constrained VMs.
+  const _spawnResult = _spawnMutex.then(async () => {
+    // Re-check after acquiring the lock — a concurrent call may have just spawned this client.
+    if (clientPool.has(key)) return clientPool.get(key);
 
-  // mcp-abap-abap-adt-api (R+W) throws if NODE_TLS_REJECT_UNAUTHORIZED=0 is set —
-  // it explicitly blocks that flag and requires NODE_EXTRA_CA_CERTS instead.
-  // mcp-abap-adt (R/O) uses TLS_REJECT_UNAUTHORIZED (a different var) — keep as-is.
-  const tlsEnv = serverType === 'abap-adt'
-    ? {
-        // Provide CA cert via env if available; if blank the subprocess uses system trust store
-        ...(process.env.NODE_EXTRA_CA_CERTS
-          ? { NODE_EXTRA_CA_CERTS: process.env.NODE_EXTRA_CA_CERTS }
-          : {}),
-      }
-    : {
-        NODE_TLS_REJECT_UNAUTHORIZED: '0',
-        TLS_REJECT_UNAUTHORIZED: '0',
-      };
+    // Evict all OTHER subprocess types before spawning (single-subprocess policy for this VM).
+    for (const [k, c] of clientPool.entries()) {
+      if (k !== key) { try { c.close?.(); } catch {} clientPool.delete(k); }
+    }
 
-  const transport = new StdioClientTransport({
-    command: 'node',
-    args: [adtScript],
-    env: {
-      ...process.env,
-      SAP_URL:      sapUrl,
-      SAP_USER:     sapUser,
-      SAP_USERNAME: sapUser,         // mcp-abap-adt uses SAP_USERNAME
-      SAP_PASSWORD: sapPassword,
-      SAP_CLIENT:   sapClient,
-      SAP_LANGUAGE: sapLanguage,
-      ...tlsEnv,
-      ...proxyEnv,
-    },
+    // Pass SOCKS5 proxy env vars to subprocesses — respected by axios, undici, and some node:https uses
+    const proxyEnv = {};
+    const socksActive = process.env.NO_SOCKS ? false : await isSocksUp();
+    if (socksActive) {
+      proxyEnv.ALL_PROXY   = SOCKS_URL;
+      proxyEnv.HTTPS_PROXY = SOCKS_URL;
+      proxyEnv.HTTP_PROXY  = SOCKS_URL;
+    }
+
+    // mcp-abap-abap-adt-api (R+W) throws if NODE_TLS_REJECT_UNAUTHORIZED=0 is set —
+    // it explicitly blocks that flag and requires NODE_EXTRA_CA_CERTS instead.
+    // mcp-abap-adt (R/O) uses TLS_REJECT_UNAUTHORIZED (a different var) — keep as-is.
+    const tlsEnv = serverType === 'abap-adt'
+      ? {
+          // Provide CA cert via env if available; if blank the subprocess uses system trust store
+          ...(process.env.NODE_EXTRA_CA_CERTS
+            ? { NODE_EXTRA_CA_CERTS: process.env.NODE_EXTRA_CA_CERTS }
+            : {}),
+        }
+      : {
+          NODE_TLS_REJECT_UNAUTHORIZED: '0',
+          TLS_REJECT_UNAUTHORIZED: '0',
+        };
+
+    const transport = new StdioClientTransport({
+      command: 'node',
+      args: [adtScript],
+      env: {
+        ...process.env,
+        SAP_URL:      sapUrl,
+        SAP_USER:     sapUser,
+        SAP_USERNAME: sapUser,         // mcp-abap-adt uses SAP_USERNAME
+        SAP_PASSWORD: sapPassword,
+        SAP_CLIENT:   sapClient,
+        SAP_LANGUAGE: sapLanguage,
+        ...tlsEnv,
+        ...proxyEnv,
+      },
+    });
+
+    const client = new Client({ name: 'adt-http-bridge', version: '1.0.0' });
+    await client.connect(transport);
+
+    transport.onclose = () => {
+      console.warn(`[bridge] Client closed for ${key} — will respawn`);
+      clientPool.delete(key);
+    };
+
+    clientPool.set(key, client);
+    console.log(`[bridge] Connected subprocess (${serverType}) for ${sapUrl} / ${sapUser}`);
+    return client;
   });
 
-  const client = new Client({ name: 'adt-http-bridge', version: '1.0.0' });
-  await client.connect(transport);
-
-  transport.onclose = () => {
-    console.warn(`[bridge] Client closed for ${key} — will respawn`);
-    clientPool.delete(key);
-  };
-
-  clientPool.set(key, client);
-  console.log(`[bridge] Connected subprocess (${serverType}) for ${sapUrl} / ${sapUser}`);
-  return client;
-
-  transport.onclose = () => {
-    console.warn('[bridge] ADT subprocess closed — will respawn on next request');
-    adtClient = null;
-  };
-
-  adtClient = client;
-  console.log('[bridge] Connected to mcp-abap-abap-adt-api subprocess');
-  return client;
+  // Advance the mutex regardless of success or failure so future spawns are not blocked.
+  _spawnMutex = _spawnResult.then(() => {}, () => {});
+  return _spawnResult;
 }
 
 // ── Auto-register tunnel URL in Supabase system_settings ─────
