@@ -4913,13 +4913,16 @@ Output ONLY the ABAP source code, no explanations.`;
     // In custom mode: use vm_tunnel_registry (custom server proxy)
     let applyVia = null;
     if (isAdtMcpMode) {
-      // Refresh ADT bridge URL from Supabase in case tunnel rotated
+      // Use the per-environment bridge URL; only fall back to the global system_settings key
+      // when the environment has no explicit adt_mcp_url (supports multiple VMs/projects).
       let adtBase = (sapConfig.adt_mcp_url || '').trim().replace(/\/$/, '');
-      try {
-        const { data: sData } = await supabase
-          .from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
-        if (sData?.value) adtBase = sData.value.trim().replace(/\/$/, '');
-      } catch { /* best-effort */ }
+      if (!adtBase) {
+        try {
+          const { data: sData } = await supabase
+            .from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+          if (sData?.value) adtBase = sData.value.trim().replace(/\/$/, '');
+        } catch { /* best-effort */ }
+      }
       if (adtBase) applyVia = `${adtBase}/sap-proxy`;
     } else {
       let applyMcpUrl = ssCtx.settings['sap_mcp_server_url'] || '';
