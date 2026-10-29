@@ -499,7 +499,8 @@ app.post('/mcp-test', async (req, res) => {
   const rw = { ok: false, tools: 0, error: null };
   const ro = { ok: false, tools: 0, error: null };
 
-  // R+W: mcp-abap-abap-adt-api (127 tools)
+  // Test subprocesses SEQUENTIALLY — never both alive simultaneously (VM memory constraint).
+  // R+W: mcp-abap-abap-adt-api (127 tools) — spawn, test, then evict before R/O
   try {
     const rwClient = await getClient({ host, username, password, client: sapClient, serverType: 'abap-adt' });
     const list = await rwClient.listTools();
@@ -507,9 +508,15 @@ app.post('/mcp-test', async (req, res) => {
     rw.tools = list?.tools?.length ?? 0;
   } catch (e) {
     rw.error = e.message?.slice(0, 150) ?? 'spawn failed';
+  } finally {
+    const rwKey = `${host}|${username}|abap-adt`;
+    if (clientPool.has(rwKey)) {
+      try { clientPool.get(rwKey).close?.(); } catch {}
+      clientPool.delete(rwKey);
+    }
   }
 
-  // R/O: mcp-abap-adt (16 tools) — test then evict so it doesn't OOM alongside R+W
+  // R/O: mcp-abap-adt (16 tools) — spawn, test, then evict
   try {
     const roClient = await getClient({ host, username, password, client: sapClient, serverType: 'abap-adt-readonly' });
     const list = await roClient.listTools();
