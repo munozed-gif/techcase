@@ -760,9 +760,13 @@ app.post('/sap-write-mcp', async (req, res) => {
       try {
         return await rawCall(client);
       } catch (e) {
-        const isCrash = e?.code === -32000 || /connection closed|-32000/i.test(e?.message ?? '');
+        const msg = e?.message ?? '';
+        const isCrash = e?.code === -32000
+          || /connection closed|-32000/i.test(msg)
+          || /interrupted.*dropSession|dropSession before continuing|-32603/i.test(msg);
         if (!isCrash) throw e;
-        console.warn(`[bridge] MCP subprocess crashed on '${name}' (-32000) — respawning...`);
+        const reason = /-32603|interrupted|dropSession/i.test(msg) ? 'interrupted session (-32603)' : 'crash (-32000)';
+        console.warn(`[bridge] MCP subprocess needs reset on '${name}' (${reason}) — respawning...`);
         const key = `${host}|${username}|abap-adt`;
         clientPool.delete(key);
         client = await getClient(creds4Pool);
