@@ -748,7 +748,7 @@ app.post('/sap-write-mcp', async (req, res) => {
     //   2. -32000 crash code → delete pool entry and retry once with a fresh subprocess
     async function callTool(name, args) {
       async function rawCall(c) {
-        const result = await c.callTool({ name, arguments: args });
+        const result = await c.callTool({ name, arguments: args }, undefined, { timeout: 90000 });
         if (result?.isError) {
           const errText = result.content?.[0]?.text ?? 'tool returned isError';
           console.error(`[bridge] ${name} isError — ${errText.slice(0, 200)}`);
@@ -761,11 +761,13 @@ app.post('/sap-write-mcp', async (req, res) => {
         return await rawCall(client);
       } catch (e) {
         const msg = e?.message ?? '';
-        const isCrash = e?.code === -32000
-          || /connection closed|-32000/i.test(msg)
+        const isCrash = e?.code === -32000 || e?.code === -32001
+          || /connection closed|-32000|-32001|timed out/i.test(msg)
           || /interrupted.*dropSession|dropSession before continuing|-32603/i.test(msg);
         if (!isCrash) throw e;
-        const reason = /-32603|interrupted|dropSession/i.test(msg) ? 'interrupted session (-32603)' : 'crash (-32000)';
+        const reason = e?.code === -32001 || /timed out|-32001/i.test(msg) ? 'timeout (-32001)'
+          : /-32603|interrupted|dropSession/i.test(msg) ? 'interrupted session (-32603)'
+          : 'crash (-32000)';
         console.warn(`[bridge] MCP subprocess needs reset on '${name}' (${reason}) — respawning...`);
         const key = `${host}|${username}|abap-adt`;
         clientPool.delete(key);
