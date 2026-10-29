@@ -206,4 +206,7 @@ trap "cleanup; kill $_MONITOR_PID 2>/dev/null || true" EXIT INT TERM
 # ── Start the ADT bridge on port 3102 ─────────────────────────
 export SUPABASE_URL
 export SUPABASE_SERVICE_KEY
+# Disable SOCKS5 proxy detection — the VM has direct SAP access via VPN,
+# so routing sapFetch through SOCKS (port 1080) would break transport creation.
+export NO_SOCKS=1
 PORT=$PORT node server.js

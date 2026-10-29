@@ -61,7 +61,7 @@ function isSocksUp() {
 //   1. Skip self-signed cert validation (SAP uses self-signed certs)
 //   2. Optionally route through SOCKS5 when laptop tunnel is active
 async function sapFetch(url, options = {}) {
-  const useSocks = await isSocksUp();
+  const useSocks = process.env.NO_SOCKS ? false : await isSocksUp();
   const parsed = new URL(url);
   const mod = parsed.protocol === 'https:' ? https : http;
   const agent = useSocks
@@ -509,7 +509,7 @@ app.post('/mcp-test', async (req, res) => {
     rw.error = e.message?.slice(0, 150) ?? 'spawn failed';
   }
 
-  // R/O: mcp-abap-adt (16 tools)
+  // R/O: mcp-abap-adt (16 tools) — test then evict so it doesn't OOM alongside R+W
   try {
     const roClient = await getClient({ host, username, password, client: sapClient, serverType: 'abap-adt-readonly' });
     const list = await roClient.listTools();
@@ -517,6 +517,12 @@ app.post('/mcp-test', async (req, res) => {
     ro.tools = list?.tools?.length ?? 0;
   } catch (e) {
     ro.error = e.message?.slice(0, 150) ?? 'spawn failed';
+  } finally {
+    const roKey = `${host}|${username}|abap-adt-readonly`;
+    if (clientPool.has(roKey)) {
+      try { clientPool.get(roKey).close?.(); } catch {}
+      clientPool.delete(roKey);
+    }
   }
 
   res.json({ ok: rw.ok || ro.ok, rw, ro });
@@ -807,6 +813,14 @@ app.post('/sap-write-mcp', async (req, res) => {
       const _coT0 = Date.now();
       const _coElapsed = () => `+${Math.round((Date.now() - _coT0) / 1000)}s`;
       console.log(`[bridge] [timing] createOnly start: ${objtype} ${resolvedName} pkg=${parentName} tr=${transport || 'none'}`);
+      // Evict R/O subprocess from pool before spawning R+W — prevents simultaneous
+      // subprocesses that exhaust VM memory (OOM/SIGKILL).
+      const roKey = `${host}|${username}|abap-adt-readonly`;
+      if (clientPool.has(roKey)) {
+        try { clientPool.get(roKey).close?.(); } catch {}
+        clientPool.delete(roKey);
+        console.log(`[bridge] Evicted R/O pool entry to free memory before createOnly`);
+      }
       let created = false;
       try {
         console.log(`[bridge] [timing] createObject calling MCP (${_coElapsed()})`);
