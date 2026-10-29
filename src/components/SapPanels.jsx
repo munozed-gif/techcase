@@ -922,6 +922,33 @@ function SapIntegrationPanel({ clientId, auth }) {
                       </div>
                     </div>
 
+                    {/* VPN / network mode */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">Network / VPN Mode</label>
+                      <div className="flex gap-2">
+                        {[
+                          { value: 'platform', label: 'Platform VPN', desc: 'VM manages VPN connection (openfortivpn)' },
+                          { value: 'user',     label: 'User VPN',     desc: 'Local VPN client (FortiClient) — platform skips VPN check' },
+                        ].map(opt => {
+                          const active = (env.vpn_mode ?? 'platform') === opt.value;
+                          return (
+                            <button key={opt.value} type="button" disabled={!canEdit}
+                              onClick={() => updateEnvField(env.id, 'vpn_mode', opt.value)}
+                              title={opt.desc}
+                              className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${active ? 'bg-blue-500/20 border-blue-500/40 text-blue-600 dark:text-blue-300' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-50'} disabled:opacity-50`}>
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        {(env.vpn_mode ?? 'platform') === 'user'
+                          ? 'Connect via FortiClient or local VPN before testing SAP. Platform skips VPN check.'
+                          : 'VM manages the VPN connection automatically. VPN link is assigned at the project level.'
+                        }
+                      </p>
+                    </div>
+
                     {/* MCP server type + ADT bridge URL */}
                     <div className="space-y-2">
                       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">MCP Server Type</label>
@@ -968,6 +995,9 @@ function SapIntegrationPanel({ clientId, auth }) {
                         </div>
                       )}
                     </div>
+
+                    {/* Infra status check */}
+                    <EnvInfraStatusCard env={env} enrichEnvWithVpn={enrichEnvWithVpn} projectConns={[]} globalMcpUrl={ssCtx.settings['sap_mcp_server_url']} onUpdateMcpUrl={(url) => updateEnvField(env.id, 'mcp_server_url', url)} onUpdateAdtUrl={(url) => updateEnvField(env.id, 'adt_mcp_url', url)} />
 
                     {canEdit && (
                       <div className="space-y-1">
@@ -1113,6 +1143,29 @@ function SapIntegrationPanel({ clientId, auth }) {
           })}
         </div>
       )}
+
+      {/* Override Permissions */}
+      <div className="border-t border-gray-100 dark:border-gray-700 pt-5">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Override Permissions</p>
+        <div className="space-y-3">
+          {[
+            { key: 'allowProjectAdtOverride', label: 'Allow projects to override ADT bridge URL', desc: 'Projects can set a different ADT bridge URL per project without changing the customer environment default' },
+          ].map(({ key, label, desc }) => (
+            <div key={key} className="flex items-start gap-4 p-3 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/60">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{label}</p>
+                <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
+              </div>
+              <button disabled={!canEdit}
+                onClick={() => ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: { ...clientRaw, [key]: !(clientRaw[key] ?? true) } })}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${(clientRaw[key] ?? true) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'}`}
+                role="switch" aria-checked={clientRaw[key] ?? true}>
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${(clientRaw[key] ?? true) ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* AI model in use — read from settings, never hardcoded */}
       {(() => {
@@ -1304,8 +1357,8 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
         <p className="text-xs text-gray-400 mt-3">Check environments to assign them to this project. Click <strong>Set active</strong> to use one for SAP writes.</p>
       </div>
 
-      {/* ADT Bridge URL override — per-project, overrides the environment's default adt_mcp_url */}
-      {activeEnv && (
+      {/* ADT Bridge URL override — only shown when customer allows project-level overrides */}
+      {activeEnv && (clientSapData.allowProjectAdtOverride ?? true) && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">ADT Bridge URL</h4>
