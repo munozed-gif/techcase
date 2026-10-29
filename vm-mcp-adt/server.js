@@ -892,10 +892,25 @@ app.post('/sap-write-mcp', async (req, res) => {
           // Object already exists in SAP — treat as success, proceed to activate
           created = true;
         } else if (/ExceptionResourceNoAccess|currently editing/i.test(msg)) {
-          // Object is LOCKED by a user in SAP — createObject is blocked.
-          // This means a previous run left the lock open. The user must release
-          // it via SAP transaction SM12 before this object can be created.
-          return res.json({ ok: false, step: 'create', error: `SAP lock conflict: ${resolvedName} is locked by another session. Go to SM12 in SAP and delete the lock for this object, then retry. (${msg.slice(0, 150)})` });
+          // "currently editing" means the object EXISTS but has a lock (stale from a previous
+          // crashed run). Verify via HTTP GET — if the object is there, treat as already created.
+          console.log(`[bridge] createObject locked — verifying object existence via HTTP (${_coElapsed()})`);
+          try {
+            const _vAuth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
+            const _vRes = await sapFetch(`${host}${objectUrl}`, {
+              headers: { Authorization: _vAuth, 'sap-client': sapClient, Accept: 'application/xml' },
+              signal: AbortSignal.timeout(15000),
+            });
+            // 200 or 423 (locked) both confirm the object exists
+            if (_vRes.ok || _vRes.status === 423) {
+              console.log(`[bridge] Object ${resolvedName} exists (HTTP ${_vRes.status}) — treating lock conflict as already-created`);
+              created = true;
+            } else {
+              return res.json({ ok: false, step: 'create', error: `SAP lock conflict: ${resolvedName} is locked but does not exist (HTTP ${_vRes.status}). Go to SM12 in SAP and delete the lock, then retry. (${msg.slice(0, 150)})` });
+            }
+          } catch (verifyErr) {
+            return res.json({ ok: false, step: 'create', error: `SAP lock conflict: ${resolvedName} is locked by another session. Go to SM12 in SAP and delete the lock for this object, then retry. (${msg.slice(0, 150)})` });
+          }
         } else if (/cancelled or timed out|inspect writes and locks|-32603|-32001|timed out/i.test(msg)) {
           // SAP may have completed the object creation even though our MCP client timed out,
           // or a previous run left the session in a "recovery needed" state.
