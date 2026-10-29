@@ -777,7 +777,12 @@ app.post('/sap-write-mcp', async (req, res) => {
         if (result?.isError) {
           const errText = result.content?.[0]?.text ?? 'tool returned isError';
           console.error(`[bridge] ${name} isError — ${errText.slice(0, 200)}`);
-          throw new Error(errText.slice(0, 300));
+          // Tag as SAP-level error so isCrash never treats it as a subprocess crash.
+          // SAP isError responses often embed "code":-32603 in their JSON body, which
+          // would otherwise match our isCrash regex and trigger a pointless respawn.
+          const sapErr = new Error(errText.slice(0, 300));
+          sapErr.isSapError = true;
+          throw sapErr;
         }
         return result;
       }
@@ -786,9 +791,13 @@ app.post('/sap-write-mcp', async (req, res) => {
         return await rawCall(client);
       } catch (e) {
         const msg = e?.message ?? '';
-        const isCrash = e?.code === -32000 || e?.code === -32001
+        // isSapError = thrown from isError:true result (SAP rejected the call, subprocess is fine).
+        // Never treat those as subprocess crashes even if the error text contains -32603.
+        const isCrash = !e?.isSapError && (
+          e?.code === -32000 || e?.code === -32001
           || /connection closed|-32000|-32001|timed out/i.test(msg)
-          || /interrupted.*dropSession|dropSession before continuing|-32603/i.test(msg);
+          || /interrupted.*dropSession|dropSession before continuing|-32603/i.test(msg)
+        );
         if (!isCrash) throw e;
         const reason = e?.code === -32001 || /timed out|-32001/i.test(msg) ? 'timeout (-32001)'
           : /-32603|interrupted|dropSession/i.test(msg) ? 'interrupted session (-32603)'
@@ -912,23 +921,26 @@ app.post('/sap-write-mcp', async (req, res) => {
         }
       }
 
+      // Message classes (MSAG) are active-on-create; skip lock/unlock/activation entirely.
+      // For other types, lock → unLock → activate (lock needed to get the handle for unLock).
+      const skipActivation = /^MSAG/i.test(objtype ?? '');
       // createObject implicitly locks the object in SAP. Attempt to unlock before activating.
       // If doLock() fails (e.g. lock handle not available), log it and skip activation.
+      // Skip entirely for skipActivation types — there's nothing to unlock/activate and the
+      // implicit createObject lock will be released when the transport is released in SAP.
       let unlocked = false;
-      try {
-        console.log(`[bridge] [timing] doLock start (${_coElapsed()})`);
-        const createLockHandle = await doLock();
-        console.log(`[bridge] [timing] unLock start (${_coElapsed()})`);
-        await callTool('unLock', { objectUrl, lockHandle: createLockHandle });
-        unlocked = true;
-        console.log(`[bridge] [timing] unLock done (${_coElapsed()})`);
-      } catch (unlockErr) {
-        console.warn(`[bridge] Could not unlock ${resolvedName} before activate (${_coElapsed()}): ${unlockErr.message?.slice(0, 200)}`);
+      if (!skipActivation) {
+        try {
+          console.log(`[bridge] [timing] doLock start (${_coElapsed()})`);
+          const createLockHandle = await doLock();
+          console.log(`[bridge] [timing] unLock start (${_coElapsed()})`);
+          await callTool('unLock', { objectUrl, lockHandle: createLockHandle });
+          unlocked = true;
+          console.log(`[bridge] [timing] unLock done (${_coElapsed()})`);
+        } catch (unlockErr) {
+          console.warn(`[bridge] Could not unlock ${resolvedName} before activate (${_coElapsed()}): ${unlockErr.message?.slice(0, 200)}`);
+        }
       }
-
-      // Message classes (MSAG) are active after createObject; skip explicit activation.
-      // For other types, activate only when unlock succeeded to avoid lock conflicts.
-      const skipActivation = /^MSAG/i.test(objtype ?? '');
       let activateError = null;
       if (!skipActivation && unlocked && effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false) {
         try {
@@ -940,10 +952,15 @@ app.post('/sap-write-mcp', async (req, res) => {
           console.log(`[bridge] [timing] activate error (${_coElapsed()}): ${activateError}`);
         }
       }
-      // Verify via direct HTTP GET to SAP ADT (avoids spawning a second MCP subprocess)
+      // Verify: for skipActivation types (MSAG etc.) the createObject success is authoritative —
+      // the HTTP GET may return non-2xx while the implicit lock is still held (SAP returns 423).
+      // For all other types verify via direct HTTP GET to avoid spawning a second subprocess.
       let verify;
       if (effectivePolicy.verifyAfterWrite === false) {
         verify = { ok: false, skipped: true, reason: 'verifyAfterWrite disabled in policy' };
+      } else if (skipActivation && created) {
+        verify = { ok: true, method: 'createObject-success' };
+        console.log(`[bridge] [timing] verify skipped — trusted createObject success for ${objtype} (${_coElapsed()})`);
       } else {
         console.log(`[bridge] [timing] verifyViaHttp start (${_coElapsed()})`);
         const _vAuth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
