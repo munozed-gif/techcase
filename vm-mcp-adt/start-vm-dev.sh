@@ -79,7 +79,12 @@ fi
 # ── Kill any leftover DEV processes on port 3102 ──────────────
 pkill -f "cloudflared tunnel.*$PORT" 2>/dev/null || true
 fuser -k ${PORT}/tcp 2>/dev/null || true
-sleep 1
+
+# Kill orphaned MCP subprocess node processes left over from previous bridge crashes.
+# When the bridge is OOM-killed, its subprocesses keep running and consume memory.
+pkill -f "mcp-abap-abap-adt-api/dist/index.js" 2>/dev/null || true
+pkill -f "mcp-abap-adt/dist/index.js" 2>/dev/null || true
+sleep 2
 
 # ── Start cloudflared quick tunnel ────────────────────────────
 echo "[cloudflared] Starting quick tunnel → localhost:$PORT ..."
