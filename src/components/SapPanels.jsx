@@ -1108,18 +1108,44 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
   const { settings } = ssCtx;
   const clientSapData = (settings['sap_integration'] ?? {})[clientId] ?? {};
   const rawEnvs = clientSapData.environments ?? (clientSapData.host ? [{ id: 'default', name: 'Default', envType: 'dev', ...clientSapData }] : []);
-  const sapProjectEnv = settings['sap_project_env'] ?? {};
-  const selectedEnvId = sapProjectEnv[projectId] ?? '';
+  const sapProjectEnv  = settings['sap_project_env']  ?? {};   // { [projectId]: activeEnvId }
+  const sapProjectEnvs = settings['sap_project_envs'] ?? {};   // { [projectId]: envId[] }
+  const activeEnvId    = sapProjectEnv[projectId] ?? rawEnvs[0]?.id ?? '';
+  // Migrate legacy single-selection: if no multi-list yet, seed it from the active env
+  const assignedIds    = sapProjectEnvs[projectId] ?? (activeEnvId ? [activeEnvId] : []);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved]   = useState(false);
 
-  const selectedEnv = rawEnvs.find(e => e.id === selectedEnvId) ?? rawEnvs[0] ?? null;
+  const activeEnv    = rawEnvs.find(e => e.id === activeEnvId) ?? rawEnvs[0] ?? null;
+  const assignedEnvs = rawEnvs.filter(e => assignedIds.includes(e.id));
 
-  async function handleSelect(envId) {
+  async function saveAssignment(newActiveId, newAssignedIds) {
     setSaving(true);
-    await ssCtx.setSetting('sap_project_env', { ...sapProjectEnv, [projectId]: envId || null });
+    await Promise.all([
+      ssCtx.setSetting('sap_project_env',  { ...sapProjectEnv,  [projectId]: newActiveId }),
+      ssCtx.setSetting('sap_project_envs', { ...sapProjectEnvs, [projectId]: newAssignedIds }),
+    ]);
     setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  function handleToggle(envId) {
+    const isAssigned = assignedIds.includes(envId);
+    if (isAssigned) {
+      // Cannot remove the only assigned env or the active one without reassigning
+      if (assignedIds.length <= 1 || envId === activeEnvId) return;
+      saveAssignment(activeEnvId, assignedIds.filter(id => id !== envId));
+    } else {
+      // Add to assigned; if none active yet, also make it active
+      const newActive = activeEnvId || envId;
+      saveAssignment(newActive, [...assignedIds, envId]);
+    }
+  }
+
+  function handleSetActive(envId) {
+    // Setting active also ensures it is assigned
+    const newAssigned = assignedIds.includes(envId) ? assignedIds : [...assignedIds, envId];
+    saveAssignment(envId, newAssigned);
   }
 
   if (!rawEnvs.length) {
@@ -1134,64 +1160,77 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
 
   return (
     <div className="space-y-4">
+      {/* Active environment card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
         <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
           <Code2 size={16} className="text-blue-600" />{t('sap.project_env_label')}
         </h3>
 
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.project_env_label')}</label>
-          <select value={selectedEnvId} onChange={e => handleSelect(e.target.value)} disabled={saving}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-            <option value="">{t('sap.project_env_none')}</option>
-            {rawEnvs.map(env => {
-              const meta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
-              return (
-                <option key={env.id} value={env.id}>
-                  {env.name} — {env.host || t('sap.conn_ph_host')} ({meta.label})
-                </option>
-              );
-            })}
-          </select>
-          {saved && <span className="text-sm text-green-600 font-medium flex items-center gap-1 mt-2"><CheckCircle2 size={14} />Saved</span>}
-        </div>
-
-        {selectedEnv && (
+        {activeEnv ? (
           <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
             <div className="flex items-center gap-2 mb-2">
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${(SAP_ENV_TYPE_META[selectedEnv.envType] ?? SAP_ENV_TYPE_META.dev).color}`}>
-                {(SAP_ENV_TYPE_META[selectedEnv.envType] ?? SAP_ENV_TYPE_META.dev).label}
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${(SAP_ENV_TYPE_META[activeEnv.envType] ?? SAP_ENV_TYPE_META.dev).color}`}>
+                {(SAP_ENV_TYPE_META[activeEnv.envType] ?? SAP_ENV_TYPE_META.dev).label}
               </span>
-              <span className="font-semibold text-sm text-gray-800">{selectedEnv.name}</span>
+              <span className="font-semibold text-sm text-gray-800">{activeEnv.name}</span>
+              <span className="ml-auto text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">Active</span>
             </div>
             <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-500">
-              <div><span className="font-medium text-gray-600">Host:</span> {selectedEnv.host || '—'}</div>
-              <div><span className="font-medium text-gray-600">Client:</span> {selectedEnv.client || '—'}</div>
-              <div><span className="font-medium text-gray-600">User:</span> {selectedEnv.username || '—'}</div>
-              <div><span className="font-medium text-gray-600">System:</span> {selectedEnv.type?.toUpperCase() || '—'}</div>
+              <div><span className="font-medium text-gray-600">Host:</span> {activeEnv.host || '—'}</div>
+              <div><span className="font-medium text-gray-600">Client:</span> {activeEnv.client || '—'}</div>
+              <div><span className="font-medium text-gray-600">User:</span> {activeEnv.username || '—'}</div>
+              <div><span className="font-medium text-gray-600">System:</span> {activeEnv.type?.toUpperCase() || '—'}</div>
             </div>
           </div>
+        ) : (
+          <p className="text-sm text-gray-400">{t('sap.project_env_none')}</p>
         )}
+        {saved && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />Saved</span>}
       </div>
 
+      {/* All environments — check to assign to project, click name to set as active */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t('sap.environments')}</h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('sap.environments')}</h4>
+          <span className="text-xs text-gray-400">{assignedIds.length}/{rawEnvs.length} assigned</span>
+        </div>
         <div className="space-y-2">
           {rawEnvs.map(env => {
-            const meta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
-            const isActive = env.id === (selectedEnvId || rawEnvs[0]?.id);
+            const meta       = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
+            const isAssigned = assignedIds.includes(env.id);
+            const isActive   = env.id === activeEnvId;
+            const canRemove  = isAssigned && !isActive && assignedIds.length > 1;
             return (
               <div key={env.id}
-                onClick={() => handleSelect(env.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all ${isActive ? 'border-blue-200 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'}`}>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${meta.color}`}>{meta.label}</span>
-                <span className="font-medium text-sm text-gray-800 flex-1">{env.name}</span>
-                <span className="text-xs text-gray-400 hidden sm:block truncate max-w-[200px]">{env.host}</span>
-                {isActive && <CheckCircle2 size={14} className="text-blue-500 flex-shrink-0" />}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${isActive ? 'border-blue-200 bg-blue-50' : isAssigned ? 'border-green-100 bg-green-50' : 'border-gray-100 bg-white'}`}>
+                {/* Checkbox — toggle assignment */}
+                <button
+                  onClick={() => handleToggle(env.id)}
+                  disabled={saving || (isActive && assignedIds.length <= 1)}
+                  title={isAssigned ? (canRemove ? 'Remove from project' : 'Cannot remove active or last environment') : 'Add to project'}
+                  className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
+                    ${isAssigned ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-blue-400'}
+                    ${(!canRemove && isAssigned) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                  {isAssigned && <CheckCircle2 size={12} className="text-white" />}
+                </button>
+                {/* Env info — click to set as active */}
+                <button onClick={() => isAssigned ? handleSetActive(env.id) : handleToggle(env.id)}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${meta.color}`}>{meta.label}</span>
+                  <span className="font-medium text-sm text-gray-800 flex-1 truncate">{env.name}</span>
+                  <span className="text-xs text-gray-400 hidden sm:block truncate max-w-[160px]">{env.host}</span>
+                </button>
+                {isActive
+                  ? <span className="text-[10px] font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">Active</span>
+                  : isAssigned
+                    ? <span className="text-[10px] text-green-600 font-medium flex-shrink-0 cursor-pointer hover:text-blue-600"
+                        onClick={() => handleSetActive(env.id)} title="Set as active">Set active</span>
+                    : null}
               </div>
             );
           })}
         </div>
+        <p className="text-xs text-gray-400 mt-3">Check environments to assign them to this project. Click <strong>Set active</strong> to use one for SAP writes.</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
