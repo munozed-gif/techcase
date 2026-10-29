@@ -1108,13 +1108,18 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
   const { settings } = ssCtx;
   const clientSapData = (settings['sap_integration'] ?? {})[clientId] ?? {};
   const rawEnvs = clientSapData.environments ?? (clientSapData.host ? [{ id: 'default', name: 'Default', envType: 'dev', ...clientSapData }] : []);
-  const sapProjectEnv  = settings['sap_project_env']  ?? {};   // { [projectId]: activeEnvId }
-  const sapProjectEnvs = settings['sap_project_envs'] ?? {};   // { [projectId]: envId[] }
-  const activeEnvId    = sapProjectEnv[projectId] ?? rawEnvs[0]?.id ?? '';
+  const sapProjectEnv    = settings['sap_project_env']     ?? {};   // { [projectId]: activeEnvId }
+  const sapProjectEnvs   = settings['sap_project_envs']    ?? {};   // { [projectId]: envId[] }
+  const sapProjectAdtUrl = settings['sap_project_adt_url'] ?? {};   // { [projectId]: bridge URL override }
+  const activeEnvId      = sapProjectEnv[projectId] ?? rawEnvs[0]?.id ?? '';
   // Migrate legacy single-selection: if no multi-list yet, seed it from the active env
-  const assignedIds    = sapProjectEnvs[projectId] ?? (activeEnvId ? [activeEnvId] : []);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved]   = useState(false);
+  const assignedIds      = sapProjectEnvs[projectId] ?? (activeEnvId ? [activeEnvId] : []);
+  const projectAdtUrl    = sapProjectAdtUrl[projectId] ?? '';
+  const [saving, setSaving]       = useState(false);
+  const [saved, setSaved]         = useState(false);
+  const [adtUrlDraft, setAdtUrlDraft] = useState(null);   // null = use stored value
+  const [urlSaving, setUrlSaving] = useState(false);
+  const [urlSaved, setUrlSaved]   = useState(false);
 
   const activeEnv    = rawEnvs.find(e => e.id === activeEnvId) ?? rawEnvs[0] ?? null;
   const assignedEnvs = rawEnvs.filter(e => assignedIds.includes(e.id));
@@ -1146,6 +1151,25 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
     // Setting active also ensures it is assigned
     const newAssigned = assignedIds.includes(envId) ? assignedIds : [...assignedIds, envId];
     saveAssignment(envId, newAssigned);
+  }
+
+  async function saveAdtUrl(url) {
+    setUrlSaving(true);
+    await ssCtx.setSetting('sap_project_adt_url', { ...sapProjectAdtUrl, [projectId]: url.trim() });
+    setAdtUrlDraft(null);
+    setUrlSaving(false); setUrlSaved(true);
+    setTimeout(() => setUrlSaved(false), 2000);
+  }
+
+  async function refreshAdtUrlFromRegistry() {
+    try {
+      const { data } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+      if (data?.value) {
+        const url = data.value.trim().replace(/\/$/, '');
+        setAdtUrlDraft(url);
+        await saveAdtUrl(url);
+      }
+    } catch { /* best-effort */ }
   }
 
   if (!rawEnvs.length) {
@@ -1232,6 +1256,51 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
         </div>
         <p className="text-xs text-gray-400 mt-3">Check environments to assign them to this project. Click <strong>Set active</strong> to use one for SAP writes.</p>
       </div>
+
+      {/* ADT Bridge URL override — per-project, overrides the environment's default adt_mcp_url */}
+      {activeEnv && (activeEnv.mcp_type === 'abap-adt' || activeEnv.mcp_type === 'abap-adt-readonly' || activeEnv.mcp_type === 'abap-adt-both') && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">ADT Bridge URL</h4>
+            {projectAdtUrl && activeEnv?.adt_mcp_url && projectAdtUrl !== activeEnv.adt_mcp_url && (
+              <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">Project override active</span>
+            )}
+          </div>
+          <p className="text-xs text-gray-500">
+            Override the ADT bridge URL for this project only. Leave blank to use the environment default
+            {activeEnv?.adt_mcp_url ? <> (<code className="text-blue-500">{activeEnv.adt_mcp_url}</code>)</> : ''}.
+          </p>
+          <div className="flex gap-2 items-center">
+            <input
+              value={adtUrlDraft ?? projectAdtUrl}
+              onChange={e => setAdtUrlDraft(e.target.value)}
+              placeholder={activeEnv?.adt_mcp_url || 'https://your-tunnel.trycloudflare.com'}
+              className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+            />
+            <button
+              onClick={refreshAdtUrlFromRegistry}
+              disabled={urlSaving}
+              title="Fetch latest bridge URL from Supabase registry"
+              className="shrink-0 p-2 rounded-lg border border-gray-200 hover:bg-gray-100 text-gray-500 transition-colors disabled:opacity-50">
+              <RefreshCw size={13} className={urlSaving ? 'animate-spin' : ''} />
+            </button>
+            <button
+              onClick={() => saveAdtUrl(adtUrlDraft ?? projectAdtUrl)}
+              disabled={urlSaving || adtUrlDraft === null}
+              className="shrink-0 px-3 py-2 text-xs font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors">
+              Save
+            </button>
+          </div>
+          {projectAdtUrl && (
+            <button
+              onClick={() => saveAdtUrl('')}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors">
+              Clear override — use environment default
+            </button>
+          )}
+          {urlSaved && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={12} />Saved</span>}
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <button
@@ -4952,9 +5021,10 @@ Output ONLY the ABAP source code, no explanations.`;
     // In custom mode: use vm_tunnel_registry (custom server proxy)
     let applyVia = null;
     if (isAdtMcpMode) {
-      // Use the per-environment bridge URL; only fall back to the global system_settings key
-      // when the environment has no explicit adt_mcp_url (supports multiple VMs/projects).
-      let adtBase = (sapConfig.adt_mcp_url || '').trim().replace(/\/$/, '');
+      // Priority: project-level override → per-environment URL → global system_settings fallback.
+      const _projId = caseData.project_id ?? null;
+      const _projAdtUrl = _projId ? ((settings['sap_project_adt_url'] ?? {})[_projId] ?? '') : '';
+      let adtBase = (_projAdtUrl || sapConfig.adt_mcp_url || '').trim().replace(/\/$/, '');
       if (!adtBase) {
         try {
           const { data: sData } = await supabase
