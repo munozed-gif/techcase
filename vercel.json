@@ -9,7 +9,7 @@
     "api/stripe-webhook.js":   { "maxDuration": 10 },
     "api/stripe-setup.js":     { "maxDuration": 30 },
     "api/sap-proxy.js":        { "maxDuration": 30 },
-    "api/adt-write.js":        { "maxDuration": 60 },
+    "api/adt-write.js":        { "maxDuration": 120 },
     "api/mcp-script.js":       { "maxDuration": 10, "includeFiles": "sap-mcp-server/index.js" }
   }
 }

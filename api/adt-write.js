@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(writePayload),
-      signal: AbortSignal.timeout(55000),
+      signal: AbortSignal.timeout(115000),
     });
     const rawText = await r.text().catch(() => '');
     let data;

@@ -456,7 +456,7 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
           policy: policy ?? SAP_ADT_WRITE_POLICY_DEFAULTS,
           capabilities: capabilities ?? SAP_ADT_CAPABILITIES_DEFAULTS,
         }),
-        signal: AbortSignal.timeout(55000),
+        signal: AbortSignal.timeout(120000),
       });
       const rawText = await r.text();
       let data;
