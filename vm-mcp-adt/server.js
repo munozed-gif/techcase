@@ -860,11 +860,24 @@ app.post('/sap-write-mcp', async (req, res) => {
           console.log(`[bridge] [timing] activate error (${_coElapsed()}): ${activateError}`);
         }
       }
-      console.log(`[bridge] [timing] verifyWithRO start (${_coElapsed()})`);
-      const verify = (effectivePolicy.verifyAfterWrite !== false && effectiveCaps.hasRoMcp !== false)
-        ? await verifyWithRO(host, username, password, sapClient, objtype, resolvedName)
-        : { ok: false, skipped: true, reason: 'verifyAfterWrite disabled in policy' };
-      console.log(`[bridge] [timing] verifyWithRO done (${_coElapsed()}) ok=${verify?.ok}`);
+      // Verify via direct HTTP GET to SAP ADT (avoids spawning a second MCP subprocess)
+      let verify;
+      if (effectivePolicy.verifyAfterWrite === false) {
+        verify = { ok: false, skipped: true, reason: 'verifyAfterWrite disabled in policy' };
+      } else {
+        console.log(`[bridge] [timing] verifyViaHttp start (${_coElapsed()})`);
+        const _vAuth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
+        try {
+          const _vRes = await sapFetch(`${host}${objectUrl}`, {
+            headers: { Authorization: _vAuth, 'sap-client': sapClient, Accept: 'application/xml' },
+            signal: AbortSignal.timeout(15000),
+          });
+          verify = { ok: _vRes.ok, method: 'http-get', status: _vRes.status };
+        } catch (e) {
+          verify = { ok: false, reason: e.message?.slice(0, 100) };
+        }
+        console.log(`[bridge] [timing] verifyViaHttp done (${_coElapsed()}) ok=${verify.ok}`);
+      }
       return res.json({
         ok: true, status: 200, createOnly: true, created,
         package: parentName,
