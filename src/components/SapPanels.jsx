@@ -1149,18 +1149,24 @@ function SapIntegrationPanel({ clientId, auth }) {
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Override Permissions</p>
         <div className="space-y-3">
           {[
-            { key: 'allowProjectAdtOverride', label: 'Allow projects to override ADT bridge URL', desc: 'Projects can set a different ADT bridge URL per project without changing the customer environment default' },
+            { key: 'allowProjectEnvOverride', label: 'Allow projects to override environment settings', desc: 'Projects can override any environment setting (MCP type, ADT URL, VPN mode, credentials) per project without changing the customer environment default' },
           ].map(({ key, label, desc }) => (
             <div key={key} className="flex items-start gap-4 p-3 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/60">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{label}</p>
                 <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
               </div>
-              <button disabled={!canEdit}
-                onClick={() => ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: { ...clientRaw, [key]: !(clientRaw[key] ?? true) } })}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${(clientRaw[key] ?? true) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'}`}
-                role="switch" aria-checked={clientRaw[key] ?? true}>
-                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${(clientRaw[key] ?? true) ? 'translate-x-5' : 'translate-x-0'}`} />
+              {(() => {
+                const val = clientRaw[key] ?? clientRaw['allowProjectAdtOverride'] ?? true;
+                return (
+                  <button disabled={!canEdit}
+                    onClick={() => ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: { ...clientRaw, [key]: !val } })}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${val ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'}`}
+                    role="switch" aria-checked={val}>
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${val ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                );
+              })()}
               </button>
             </div>
           ))}
@@ -1201,28 +1207,152 @@ function SapIntegrationPanel({ clientId, auth }) {
 // ============================================================
 // PROJECT SAP ENVIRONMENT SELECTOR
 // ============================================================
+
+// Per-environment override form — manages its own draft state
+function EnvOverrideForm({ env, override, onSave, onClear }) {
+  const [draft, setDraft] = useState(() => ({
+    mcp_type:      override.mcp_type      ?? '',
+    adt_mcp_url:   override.adt_mcp_url   ?? '',
+    vpn_mode:      override.vpn_mode      ?? '',
+    mcp_server_url: override.mcp_server_url ?? '',
+    username:      override.username      ?? '',
+    password:      override.password      ?? '',
+  }));
+  const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
+  const hasAnyOverride = Object.values(override).some(v => v !== '' && v != null);
+
+  function f(key, val) { setDraft(p => ({ ...p, [key]: val })); }
+
+  async function handleSave() {
+    setSaving(true);
+    const cleaned = Object.fromEntries(Object.entries(draft).filter(([, v]) => v !== '' && v != null));
+    await onSave(cleaned);
+    setSaving(false); setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div className="px-4 pb-4 pt-3 bg-amber-50/30 dark:bg-amber-900/10 border-t border-amber-100 dark:border-amber-800 space-y-3">
+      <p className="text-xs text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1.5">
+        Project overrides — leave blank to use the customer environment default.
+        {hasAnyOverride && <span className="ml-auto text-amber-700 bg-amber-100 dark:bg-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-semibold">Overrides active</span>}
+      </p>
+
+      {/* MCP Server Type */}
+      <div className="space-y-1.5">
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">MCP Server Type</label>
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { value: '', label: `Default (${env.mcp_type ?? 'custom'})` },
+            { value: 'custom', label: 'Custom SAP-MCP' },
+            { value: 'abap-adt-both', label: 'ABAP ADT Community' },
+          ].map(opt => (
+            <label key={opt.value} className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 cursor-pointer text-xs transition-colors ${draft.mcp_type === opt.value ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-gray-300'}`}>
+              <input type="radio" checked={draft.mcp_type === opt.value} onChange={() => f('mcp_type', opt.value)} className="accent-blue-500" />
+              <span className="text-gray-700 dark:text-gray-200">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* ADT Bridge URL */}
+      <div>
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">ABAP ADT Bridge URL</label>
+        <div className="flex gap-2 items-center">
+          <input value={draft.adt_mcp_url} onChange={e => f('adt_mcp_url', e.target.value)}
+            placeholder={env.adt_mcp_url || 'https://your-tunnel.trycloudflare.com'}
+            className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100" />
+          <button onClick={async () => {
+            try {
+              const { data } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+              if (data?.value) f('adt_mcp_url', data.value.trim().replace(/\/$/, ''));
+            } catch {}
+          }} className="shrink-0 p-1.5 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors" title="Fetch latest from Supabase registry">
+            <RefreshCw size={12} />
+          </button>
+        </div>
+      </div>
+
+      {/* VPN Mode */}
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">VPN Mode</label>
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { value: '', label: `Default (${env.vpn_mode ?? 'platform'})` },
+            { value: 'platform', label: 'Platform VPN' },
+            { value: 'user', label: 'User VPN' },
+          ].map(opt => (
+            <label key={opt.value} className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 cursor-pointer text-xs transition-colors ${draft.vpn_mode === opt.value ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-gray-300'}`}>
+              <input type="radio" checked={draft.vpn_mode === opt.value} onChange={() => f('vpn_mode', opt.value)} className="accent-blue-500" />
+              <span className="text-gray-700 dark:text-gray-200">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* VM MCP Server URL */}
+      <div>
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">VM MCP Server URL <span className="font-normal text-gray-400">(port 3100)</span></label>
+        <input value={draft.mcp_server_url} onChange={e => f('mcp_server_url', e.target.value)}
+          placeholder={env.mcp_server_url || 'https://your-vm.trycloudflare.com'}
+          className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100" />
+      </div>
+
+      {/* SAP Username + Password */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">SAP Username</label>
+          <input value={draft.username} onChange={e => f('username', e.target.value)}
+            placeholder={env.username || 'env default'}
+            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100" autoComplete="off" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">SAP Password</label>
+          <input type="password" value={draft.password} onChange={e => f('password', e.target.value)}
+            placeholder="env default"
+            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100" autoComplete="new-password" />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-3 pt-1">
+        <button onClick={handleSave} disabled={saving}
+          className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
+          {saving ? 'Saving…' : 'Save overrides'}
+        </button>
+        {hasAnyOverride && (
+          <button onClick={onClear} className="text-xs text-gray-400 hover:text-red-500 transition-colors">
+            Clear all overrides
+          </button>
+        )}
+        {saved && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={11} />Saved</span>}
+      </div>
+    </div>
+  );
+}
+
 function ProjectSapEnvPanel({ projectId, clientId, auth }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
   const [standardsOpen, setStandardsOpen] = useState(false);
+  const [expandedEnvId, setExpandedEnvId] = useState(null);
   const { settings } = ssCtx;
-  const clientSapData = (settings['sap_integration'] ?? {})[clientId] ?? {};
-  const rawEnvs = clientSapData.environments ?? (clientSapData.host ? [{ id: 'default', name: 'Default', envType: 'dev', ...clientSapData }] : []);
-  const sapProjectEnv    = settings['sap_project_env']     ?? {};   // { [projectId]: activeEnvId }
-  const sapProjectEnvs   = settings['sap_project_envs']    ?? {};   // { [projectId]: envId[] }
-  const sapProjectAdtUrl = settings['sap_project_adt_url'] ?? {};   // { [projectId]: bridge URL override }
+  const clientSapData    = (settings['sap_integration'] ?? {})[clientId] ?? {};
+  const rawEnvs          = clientSapData.environments ?? (clientSapData.host ? [{ id: 'default', name: 'Default', envType: 'dev', ...clientSapData }] : []);
+  const overrideAllowed  = clientSapData.allowProjectEnvOverride ?? clientSapData.allowProjectAdtOverride ?? true;
+  const sapProjectEnv    = settings['sap_project_env']              ?? {};
+  const sapProjectEnvs   = settings['sap_project_envs']             ?? {};
+  const sapProjectOverrides = settings['sap_project_env_overrides'] ?? {}; // { [projectId]: { [envId]: {...} } }
+  const projectOverrides = sapProjectOverrides[projectId] ?? {};
   const activeEnvId      = sapProjectEnv[projectId] ?? rawEnvs[0]?.id ?? '';
-  // Migrate legacy single-selection: if no multi-list yet, seed it from the active env
   const assignedIds      = sapProjectEnvs[projectId] ?? (activeEnvId ? [activeEnvId] : []);
-  const projectAdtUrl    = sapProjectAdtUrl[projectId] ?? '';
-  const [saving, setSaving]       = useState(false);
-  const [saved, setSaved]         = useState(false);
-  const [adtUrlDraft, setAdtUrlDraft] = useState(null);   // null = use stored value
-  const [urlSaving, setUrlSaving] = useState(false);
-  const [urlSaved, setUrlSaved]   = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved]   = useState(false);
 
-  const activeEnv    = rawEnvs.find(e => e.id === activeEnvId) ?? rawEnvs[0] ?? null;
-  const assignedEnvs = rawEnvs.filter(e => assignedIds.includes(e.id));
+  const activeEnv         = rawEnvs.find(e => e.id === activeEnvId) ?? rawEnvs[0] ?? null;
+  const effectiveActiveEnv = activeEnv ? { ...activeEnv, ...(projectOverrides[activeEnv.id] ?? {}) } : null;
+  const activeHasOverride  = activeEnv && Object.keys(projectOverrides[activeEnv.id] ?? {}).length > 0;
 
   async function saveAssignment(newActiveId, newAssignedIds) {
     setSaving(true);
@@ -1237,39 +1367,29 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
   function handleToggle(envId) {
     const isAssigned = assignedIds.includes(envId);
     if (isAssigned) {
-      // Cannot remove the only assigned env or the active one without reassigning
       if (assignedIds.length <= 1 || envId === activeEnvId) return;
       saveAssignment(activeEnvId, assignedIds.filter(id => id !== envId));
     } else {
-      // Add to assigned; if none active yet, also make it active
-      const newActive = activeEnvId || envId;
-      saveAssignment(newActive, [...assignedIds, envId]);
+      saveAssignment(activeEnvId || envId, [...assignedIds, envId]);
     }
   }
 
   function handleSetActive(envId) {
-    // Setting active also ensures it is assigned
     const newAssigned = assignedIds.includes(envId) ? assignedIds : [...assignedIds, envId];
     saveAssignment(envId, newAssigned);
   }
 
-  async function saveAdtUrl(url) {
-    setUrlSaving(true);
-    await ssCtx.setSetting('sap_project_adt_url', { ...sapProjectAdtUrl, [projectId]: url.trim() });
-    setAdtUrlDraft(null);
-    setUrlSaving(false); setUrlSaved(true);
-    setTimeout(() => setUrlSaved(false), 2000);
+  async function saveEnvOverride(envId, overrideFields) {
+    await ssCtx.setSetting('sap_project_env_overrides', {
+      ...sapProjectOverrides,
+      [projectId]: { ...projectOverrides, [envId]: overrideFields }
+    });
   }
 
-  async function refreshAdtUrlFromRegistry() {
-    try {
-      const { data } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
-      if (data?.value) {
-        const url = data.value.trim().replace(/\/$/, '');
-        setAdtUrlDraft(url);
-        await saveAdtUrl(url);
-      }
-    } catch { /* best-effort */ }
+  async function clearEnvOverride(envId) {
+    const updated = { ...projectOverrides };
+    delete updated[envId];
+    await ssCtx.setSetting('sap_project_env_overrides', { ...sapProjectOverrides, [projectId]: updated });
   }
 
   if (!rawEnvs.length) {
@@ -1289,21 +1409,23 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
         <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
           <Code2 size={16} className="text-blue-600" />{t('sap.project_env_label')}
         </h3>
-
-        {activeEnv ? (
+        {effectiveActiveEnv ? (
           <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
             <div className="flex items-center gap-2 mb-2">
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${(SAP_ENV_TYPE_META[activeEnv.envType] ?? SAP_ENV_TYPE_META.dev).color}`}>
-                {(SAP_ENV_TYPE_META[activeEnv.envType] ?? SAP_ENV_TYPE_META.dev).label}
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${(SAP_ENV_TYPE_META[effectiveActiveEnv.envType] ?? SAP_ENV_TYPE_META.dev).color}`}>
+                {(SAP_ENV_TYPE_META[effectiveActiveEnv.envType] ?? SAP_ENV_TYPE_META.dev).label}
               </span>
-              <span className="font-semibold text-sm text-gray-800">{activeEnv.name}</span>
+              <span className="font-semibold text-sm text-gray-800">{effectiveActiveEnv.name}</span>
+              {activeHasOverride && (
+                <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">Project overrides active</span>
+              )}
               <span className="ml-auto text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">Active</span>
             </div>
             <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-500">
-              <div><span className="font-medium text-gray-600">Host:</span> {activeEnv.host || '—'}</div>
-              <div><span className="font-medium text-gray-600">Client:</span> {activeEnv.client || '—'}</div>
-              <div><span className="font-medium text-gray-600">User:</span> {activeEnv.username || '—'}</div>
-              <div><span className="font-medium text-gray-600">System:</span> {activeEnv.type?.toUpperCase() || '—'}</div>
+              <div><span className="font-medium text-gray-600">Host:</span> {effectiveActiveEnv.host || '—'}</div>
+              <div><span className="font-medium text-gray-600">Client:</span> {effectiveActiveEnv.client || '—'}</div>
+              <div><span className="font-medium text-gray-600">User:</span> {effectiveActiveEnv.username || '—'}</div>
+              <div><span className="font-medium text-gray-600">System:</span> {effectiveActiveEnv.type?.toUpperCase() || '—'}</div>
             </div>
           </div>
         ) : (
@@ -1312,7 +1434,7 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
         {saved && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />Saved</span>}
       </div>
 
-      {/* All environments — check to assign to project, click name to set as active */}
+      {/* All environments — checkbox to assign, chevron to expand overrides */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('sap.environments')}</h4>
@@ -1324,84 +1446,70 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
             const isAssigned = assignedIds.includes(env.id);
             const isActive   = env.id === activeEnvId;
             const canRemove  = isAssigned && !isActive && assignedIds.length > 1;
+            const isExpanded = expandedEnvId === env.id;
+            const hasOverride = isAssigned && Object.keys(projectOverrides[env.id] ?? {}).length > 0;
             return (
-              <div key={env.id}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${isActive ? 'border-blue-200 bg-blue-50' : isAssigned ? 'border-green-100 bg-green-50' : 'border-gray-100 bg-white'}`}>
-                {/* Checkbox — toggle assignment */}
-                <button
-                  onClick={() => handleToggle(env.id)}
-                  disabled={saving || (isActive && assignedIds.length <= 1)}
-                  title={isAssigned ? (canRemove ? 'Remove from project' : 'Cannot remove active or last environment') : 'Add to project'}
-                  className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
-                    ${isAssigned ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-blue-400'}
-                    ${(!canRemove && isAssigned) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                  {isAssigned && <CheckCircle2 size={12} className="text-white" />}
-                </button>
-                {/* Env info — click to set as active */}
-                <button onClick={() => isAssigned ? handleSetActive(env.id) : handleToggle(env.id)}
-                  className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${meta.color}`}>{meta.label}</span>
-                  <span className="font-medium text-sm text-gray-800 flex-1 truncate">{env.name}</span>
-                  <span className="text-xs text-gray-400 hidden sm:block truncate max-w-[160px]">{env.host}</span>
-                </button>
-                {isActive
-                  ? <span className="text-[10px] font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">Active</span>
-                  : isAssigned
-                    ? <span className="text-[10px] text-green-600 font-medium flex-shrink-0 cursor-pointer hover:text-blue-600"
-                        onClick={() => handleSetActive(env.id)} title="Set as active">Set active</span>
-                    : null}
+              <div key={env.id} className={`border rounded-xl overflow-hidden transition-all ${isActive ? 'border-blue-200' : isAssigned ? 'border-green-100' : 'border-gray-100'}`}>
+                {/* Row header */}
+                <div className={`flex items-center gap-3 px-4 py-3 ${isActive ? 'bg-blue-50' : isAssigned ? 'bg-green-50' : 'bg-white'}`}>
+                  {/* Checkbox — toggle assignment */}
+                  <button
+                    onClick={() => handleToggle(env.id)}
+                    disabled={saving || (isActive && assignedIds.length <= 1)}
+                    title={isAssigned ? (canRemove ? 'Remove from project' : 'Cannot remove active or last') : 'Add to project'}
+                    className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
+                      ${isAssigned ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-blue-400'}
+                      ${(!canRemove && isAssigned) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                    {isAssigned && <CheckCircle2 size={12} className="text-white" />}
+                  </button>
+                  {/* Env info — click to set as active */}
+                  <button onClick={() => isAssigned ? handleSetActive(env.id) : handleToggle(env.id)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${meta.color}`}>{meta.label}</span>
+                    <span className="font-medium text-sm text-gray-800 flex-1 truncate">{env.name}</span>
+                    <span className="text-xs text-gray-400 hidden sm:block truncate max-w-[120px]">{env.host}</span>
+                  </button>
+                  {/* Active / Set active */}
+                  {isActive
+                    ? <span className="text-[10px] font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">Active</span>
+                    : isAssigned
+                      ? <span className="text-[10px] text-green-600 font-medium flex-shrink-0 cursor-pointer hover:text-blue-600"
+                          onClick={() => handleSetActive(env.id)}>Set active</span>
+                      : null}
+                  {/* Override badge */}
+                  {hasOverride && (
+                    <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full flex-shrink-0">OVR</span>
+                  )}
+                  {/* Override expand — only when override allowed and env is assigned */}
+                  {overrideAllowed && isAssigned && (
+                    <button
+                      onClick={() => setExpandedEnvId(p => p === env.id ? null : env.id)}
+                      title={isExpanded ? 'Close overrides' : 'Edit project-level overrides'}
+                      className="shrink-0 p-1 rounded hover:bg-black/5 transition-colors">
+                      <ChevronRight size={13} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                    </button>
+                  )}
+                </div>
+                {/* Override form — collapsible */}
+                {overrideAllowed && isExpanded && isAssigned && (
+                  <EnvOverrideForm
+                    env={env}
+                    override={projectOverrides[env.id] ?? {}}
+                    onSave={fields => saveEnvOverride(env.id, fields)}
+                    onClear={() => clearEnvOverride(env.id)}
+                  />
+                )}
               </div>
             );
           })}
         </div>
-        <p className="text-xs text-gray-400 mt-3">Check environments to assign them to this project. Click <strong>Set active</strong> to use one for SAP writes.</p>
+        <p className="text-xs text-gray-400 mt-3">
+          Check environments to assign them to this project. Click <strong>Set active</strong> to use one for SAP writes.
+          {overrideAllowed && <> Click <strong>›</strong> to override any environment setting for this project only.</>}
+        </p>
       </div>
 
-      {/* ADT Bridge URL override — only shown when customer allows project-level overrides */}
-      {activeEnv && (clientSapData.allowProjectAdtOverride ?? true) && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">ADT Bridge URL</h4>
-            {projectAdtUrl && activeEnv?.adt_mcp_url && projectAdtUrl !== activeEnv.adt_mcp_url && (
-              <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">Project override active</span>
-            )}
-          </div>
-          <p className="text-xs text-gray-500">
-            Override the ADT bridge URL for this project only. Leave blank to use the environment default
-            {activeEnv?.adt_mcp_url ? <> (<code className="text-blue-500">{activeEnv.adt_mcp_url}</code>)</> : ''}.
-          </p>
-          <div className="flex gap-2 items-center">
-            <input
-              value={adtUrlDraft ?? projectAdtUrl}
-              onChange={e => setAdtUrlDraft(e.target.value)}
-              placeholder={activeEnv?.adt_mcp_url || 'https://your-tunnel.trycloudflare.com'}
-              className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-            />
-            <button
-              onClick={refreshAdtUrlFromRegistry}
-              disabled={urlSaving}
-              title="Fetch latest bridge URL from Supabase registry"
-              className="shrink-0 p-2 rounded-lg border border-gray-200 hover:bg-gray-100 text-gray-500 transition-colors disabled:opacity-50">
-              <RefreshCw size={13} className={urlSaving ? 'animate-spin' : ''} />
-            </button>
-            <button
-              onClick={() => saveAdtUrl(adtUrlDraft ?? projectAdtUrl)}
-              disabled={urlSaving || adtUrlDraft === null}
-              className="shrink-0 px-3 py-2 text-xs font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors">
-              Save
-            </button>
-          </div>
-          {projectAdtUrl && (
-            <button
-              onClick={() => saveAdtUrl('')}
-              className="text-xs text-gray-400 hover:text-red-500 transition-colors">
-              Clear override — use environment default
-            </button>
-          )}
-          {urlSaved && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={12} />Saved</span>}
-        </div>
-      )}
-
+      {/* ABAP Coding Standards */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <button
           onClick={() => setStandardsOpen(p => !p)}
@@ -5123,8 +5231,12 @@ Output ONLY the ABAP source code, no explanations.`;
     if (isAdtMcpMode) {
       // Priority: project-level override → per-environment URL → global system_settings fallback.
       const _projId = caseData.project_id ?? null;
-      const _projAdtUrl = _projId ? ((settings['sap_project_adt_url'] ?? {})[_projId] ?? '') : '';
-      let adtBase = (_projAdtUrl || sapConfig.adt_mcp_url || '').trim().replace(/\/$/, '');
+      // Priority: project env-level override → legacy project ADT URL → per-environment URL
+      const _projOverrides = _projId ? ((settings['sap_project_env_overrides'] ?? {})[_projId] ?? {}) : {};
+      const _activeEnvId   = _projId ? ((settings['sap_project_env'] ?? {})[_projId] ?? '') : '';
+      const _envOverrideUrl = _activeEnvId ? (_projOverrides[_activeEnvId]?.adt_mcp_url ?? '') : '';
+      const _legacyProjUrl  = _projId ? ((settings['sap_project_adt_url'] ?? {})[_projId] ?? '') : '';
+      let adtBase = (_envOverrideUrl || _legacyProjUrl || sapConfig.adt_mcp_url || '').trim().replace(/\/$/, '');
       if (!adtBase) {
         try {
           const { data: sData } = await supabase
