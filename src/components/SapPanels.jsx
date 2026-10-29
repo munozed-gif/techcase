@@ -1167,7 +1167,6 @@ function SapIntegrationPanel({ clientId, auth }) {
                   </button>
                 );
               })()}
-              </button>
             </div>
           ))}
         </div>
