@@ -208,6 +208,7 @@ async function getClient(creds) {
         SAP_PASSWORD: sapPassword,
         SAP_CLIENT:   sapClient,
         SAP_LANGUAGE: sapLanguage,
+        SAP_REQUEST_TIMEOUT_MS: '90000',
         ...tlsEnv,
         ...proxyEnv,
       },
@@ -796,6 +797,17 @@ app.post('/sap-write-mcp', async (req, res) => {
         const key = `${host}|${username}|abap-adt`;
         clientPool.delete(key);
         client = await getClient(creds4Pool);
+        // Clear SAP-side stuck session state before retrying — mario's readme prescribes
+        // login/dropSession/logout after an interrupted write to allow subsequent operations.
+        // Skip if we ARE dropSession to avoid recursion.
+        if (name !== 'dropSession') {
+          try {
+            await client.callTool({ name: 'dropSession', arguments: {} }, undefined, { timeout: 15000 });
+            console.log(`[bridge] dropSession succeeded — SAP session cleared, retrying ${name}`);
+          } catch (dsErr) {
+            console.warn(`[bridge] dropSession failed (${dsErr.message?.slice(0, 80)}) — retrying ${name} anyway`);
+          }
+        }
         return await rawCall(client);
       }
     }
@@ -807,18 +819,34 @@ app.post('/sap-write-mcp', async (req, res) => {
       return handle;
     }
 
-    // Auto-create transport via direct SAP ADT call (CSRF + XML POST to /sap/bc/adt/cts/transportrequests)
+    // Auto-create transport via MCP createTransport tool (uses subprocess's live authenticated session —
+    // avoids the cold CSRF GET to /sap/bc/adt/cts/transportrequests that AbortErrors on this VM).
+    // Falls back to direct HTTP if the MCP tool is unavailable, then proceeds without TR as last resort.
     if (!transport && parentName && parentName !== '$TMP' && effectivePolicy.autoCreateTransport && effectiveCaps.hasCts) {
+      const trDesc = `Techcase: ${resolvedName}${description ? ' - ' + description : ''}`.slice(0, 60);
+      console.log(`[bridge] [timing] createTransport start for ${resolvedName} (MCP tool)`);
+      const _trStart = Date.now();
       try {
-        // SAP transport description max is 60 characters
-        const trDesc = `Techcase: ${resolvedName}${description ? ' - ' + description : ''}`.slice(0, 60);
-        console.log(`[bridge] [timing] createTransport start for ${resolvedName}`);
-        const _trStart = Date.now();
-        transport = await createTransportViaAdt(host, username, password, sapClient, trDesc);
-        console.log(`[bridge] [timing] createTransport done in ${Date.now() - _trStart}ms → ${transport}`);
-      } catch (trErr) {
-        console.warn(`[bridge] Could not auto-create transport: ${trErr.message?.slice(0, 400)}`);
-        // Non-fatal: proceed without TR (object will be in SAP's default open request)
+        const trResult = parseMcpText(await callTool('createTransport', {
+          objSourceUrl: `/sap/bc/adt/packages/${parentName}`,
+          REQUEST_TEXT: trDesc,
+          DEVCLASS: parentName,
+        }));
+        transport = trResult?.transportNumber ?? trResult?.TRKORR ?? trResult?.trkorr ?? null;
+        if (transport) {
+          console.log(`[bridge] [timing] createTransport (MCP) done in ${Date.now() - _trStart}ms → ${transport}`);
+        } else {
+          console.warn(`[bridge] createTransport (MCP) returned no TR number: ${JSON.stringify(trResult).slice(0, 200)}`);
+        }
+      } catch (trMcpErr) {
+        console.warn(`[bridge] createTransport (MCP) failed: ${trMcpErr.message?.slice(0, 200)} — falling back to direct HTTP`);
+        try {
+          transport = await createTransportViaAdt(host, username, password, sapClient, trDesc);
+          console.log(`[bridge] [timing] createTransport (HTTP fallback) done in ${Date.now() - _trStart}ms → ${transport}`);
+        } catch (trErr) {
+          console.warn(`[bridge] Could not auto-create transport (HTTP fallback): ${trErr.message?.slice(0, 200)}`);
+          // Non-fatal: proceed without TR (object will be in SAP's default open request)
+        }
       }
     }
 
