@@ -75,6 +75,24 @@ function RequestFullAccessBanner({ auth }) {
   );
 }
 
+function ClientAbapStandardsCollapsible({ clientId, auth }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+      <button
+        onClick={() => setOpen(p => !p)}
+        className="flex items-center justify-between w-full px-6 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+        <div className="flex items-center gap-2">
+          <Code2 size={15} className="text-gray-400" />
+          <span className="font-semibold text-gray-800 dark:text-gray-100 text-sm">ABAP Coding Standards</span>
+        </div>
+        <ChevronRight size={14} className={`text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && <AbapStandardsPanel level="client" entityId={clientId} auth={auth} />}
+    </div>
+  );
+}
+
 function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   const { t, lang, setLang } = useT();
   const visCfg = useVisibilitySettings();
@@ -1379,7 +1397,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       {tabItem.id === "sap" && (
         <div className="space-y-6">
           <SapIntegrationPanel clientId={effectiveClientId} auth={auth} />
-          <AbapStandardsPanel level="client" entityId={effectiveClientId} auth={auth} />
+          <ClientAbapStandardsCollapsible clientId={effectiveClientId} auth={auth} />
         </div>
       )}
 

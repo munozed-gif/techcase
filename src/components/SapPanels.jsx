@@ -922,6 +922,53 @@ function SapIntegrationPanel({ clientId, auth }) {
                       </div>
                     </div>
 
+                    {/* MCP server type + ADT bridge URL */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">MCP Server Type</label>
+                      <div className="flex gap-3">
+                        {[
+                          { value: 'custom',       label: 'Custom SAP-MCP',        desc: 'Your existing VM server (default)' },
+                          { value: 'abap-adt-both', label: 'ABAP ADT Community',   desc: '143 tools · read+write + read-only · lock, activate, browse, transport' },
+                        ].map(opt => (
+                          <label key={opt.value} className={`flex-1 flex items-start gap-2 border rounded-xl px-3 py-2 cursor-pointer transition-colors ${(env.mcp_type ?? 'custom') === opt.value ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'} ${!canEdit ? 'pointer-events-none opacity-60' : ''}`}>
+                            <input type="radio" name={`mcp_type_${env.id}`} value={opt.value} disabled={!canEdit}
+                              checked={(env.mcp_type ?? 'custom') === opt.value}
+                              onChange={() => updateEnvField(env.id, 'mcp_type', opt.value)}
+                              className="mt-0.5 accent-blue-500" />
+                            <div>
+                              <p className="text-xs font-medium text-gray-700 dark:text-gray-200">{opt.label}</p>
+                              <p className="text-xs text-gray-400">{opt.desc}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                      {(env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly' || env.mcp_type === 'abap-adt-both') && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                            ABAP ADT Bridge URL <span className="text-red-400">*</span>
+                          </label>
+                          <div className="flex gap-2 items-center">
+                            <input value={env.adt_mcp_url ?? ''} onChange={e => updateEnvField(env.id, 'adt_mcp_url', e.target.value)} disabled={!canEdit}
+                              placeholder="https://your-tunnel.trycloudflare.com (port 3101)"
+                              className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                            <button title="Fetch latest URL from Supabase registry"
+                              onClick={async () => {
+                                try {
+                                  const { data } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+                                  if (data?.value) updateEnvField(env.id, 'adt_mcp_url', data.value.trim().replace(/\/$/, ''));
+                                } catch {}
+                              }}
+                              className="shrink-0 p-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">
+                              <RefreshCw size={13} />
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port 3101, opens a Cloudflare tunnel and registers the URL in Supabase automatically.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
                     {canEdit && (
                       <div className="space-y-1">
                         <div className="flex items-center gap-3">
