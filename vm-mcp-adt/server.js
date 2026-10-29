@@ -788,8 +788,10 @@ app.post('/sap-write-mcp', async (req, res) => {
       try {
         // SAP transport description max is 60 characters
         const trDesc = `Techcase: ${resolvedName}${description ? ' - ' + description : ''}`.slice(0, 60);
+        console.log(`[bridge] [timing] createTransport start for ${resolvedName}`);
+        const _trStart = Date.now();
         transport = await createTransportViaAdt(host, username, password, sapClient, trDesc);
-        console.log(`[bridge] Auto-created transport: ${transport} for ${resolvedName}`);
+        console.log(`[bridge] [timing] createTransport done in ${Date.now() - _trStart}ms → ${transport}`);
       } catch (trErr) {
         console.warn(`[bridge] Could not auto-create transport: ${trErr.message?.slice(0, 400)}`);
         // Non-fatal: proceed without TR (object will be in SAP's default open request)
@@ -802,15 +804,21 @@ app.post('/sap-write-mcp', async (req, res) => {
       if (!objtype || !resolvedName) {
         return res.status(400).json({ ok: false, error: 'createOnly requires objtype and name' });
       }
+      const _coT0 = Date.now();
+      const _coElapsed = () => `+${Math.round((Date.now() - _coT0) / 1000)}s`;
+      console.log(`[bridge] [timing] createOnly start: ${objtype} ${resolvedName} pkg=${parentName} tr=${transport || 'none'}`);
       let created = false;
       try {
+        console.log(`[bridge] [timing] createObject calling MCP (${_coElapsed()})`);
         await callTool('createObject', {
           objtype, name: resolvedName, parentName, description, parentPath,
           ...(transport ? { transport } : {}),
         });
         created = true;
+        console.log(`[bridge] [timing] createObject done (${_coElapsed()})`);
       } catch (e) {
         const msg = e.message ?? '';
+        console.log(`[bridge] [timing] createObject error at ${_coElapsed()}: ${msg.slice(0, 200)}`);
         if (/already exist|duplicate|409/i.test(msg)) {
           // Object already exists in SAP — treat as success, proceed to activate
           created = true;
@@ -828,11 +836,14 @@ app.post('/sap-write-mcp', async (req, res) => {
       // If doLock() fails (e.g. lock handle not available), log it and skip activation.
       let unlocked = false;
       try {
+        console.log(`[bridge] [timing] doLock start (${_coElapsed()})`);
         const createLockHandle = await doLock();
+        console.log(`[bridge] [timing] unLock start (${_coElapsed()})`);
         await callTool('unLock', { objectUrl, lockHandle: createLockHandle });
         unlocked = true;
+        console.log(`[bridge] [timing] unLock done (${_coElapsed()})`);
       } catch (unlockErr) {
-        console.warn(`[bridge] Could not unlock ${resolvedName} before activate: ${unlockErr.message?.slice(0, 200)}`);
+        console.warn(`[bridge] Could not unlock ${resolvedName} before activate (${_coElapsed()}): ${unlockErr.message?.slice(0, 200)}`);
       }
 
       // Message classes (MSAG) are active after createObject; skip explicit activation.
@@ -841,14 +852,19 @@ app.post('/sap-write-mcp', async (req, res) => {
       let activateError = null;
       if (!skipActivation && unlocked && effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false) {
         try {
+          console.log(`[bridge] [timing] activate start (${_coElapsed()})`);
           await callTool('activateByName', { objectName: resolvedName, objectUrl });
+          console.log(`[bridge] [timing] activate done (${_coElapsed()})`);
         } catch (e) {
           activateError = e.message?.slice(0, 150);
+          console.log(`[bridge] [timing] activate error (${_coElapsed()}): ${activateError}`);
         }
       }
+      console.log(`[bridge] [timing] verifyWithRO start (${_coElapsed()})`);
       const verify = (effectivePolicy.verifyAfterWrite !== false && effectiveCaps.hasRoMcp !== false)
         ? await verifyWithRO(host, username, password, sapClient, objtype, resolvedName)
         : { ok: false, skipped: true, reason: 'verifyAfterWrite disabled in policy' };
+      console.log(`[bridge] [timing] verifyWithRO done (${_coElapsed()}) ok=${verify?.ok}`);
       return res.json({
         ok: true, status: 200, createOnly: true, created,
         package: parentName,
