@@ -1451,15 +1451,16 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
               <div key={env.id} className={`border rounded-xl overflow-hidden transition-all ${isActive ? 'border-blue-200' : isAssigned ? 'border-green-100' : 'border-gray-100'}`}>
                 {/* Row header */}
                 <div className={`flex items-center gap-3 px-4 py-3 ${isActive ? 'bg-blue-50' : isAssigned ? 'bg-green-50' : 'bg-white'}`}>
-                  {/* Checkbox — toggle assignment */}
+                  {/* Toggle switch — enable/disable env for this project */}
                   <button
                     onClick={() => handleToggle(env.id)}
-                    disabled={saving || (isActive && assignedIds.length <= 1)}
+                    disabled={saving || (!canRemove && isAssigned)}
                     title={isAssigned ? (canRemove ? 'Remove from project' : 'Cannot remove active or last') : 'Add to project'}
-                    className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
-                      ${isAssigned ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-blue-400'}
-                      ${(!canRemove && isAssigned) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                    {isAssigned && <CheckCircle2 size={12} className="text-white" />}
+                    role="switch" aria-checked={isAssigned}
+                    className={`flex-shrink-0 relative inline-flex h-5 w-9 rounded-full border-2 border-transparent transition-colors duration-200
+                      ${isAssigned ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-600'}
+                      ${(!canRemove && isAssigned) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
+                    <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${isAssigned ? 'translate-x-4' : 'translate-x-0'}`} />
                   </button>
                   {/* Env info — click to set as active */}
                   <button onClick={() => isAssigned ? handleSetActive(env.id) : handleToggle(env.id)}
