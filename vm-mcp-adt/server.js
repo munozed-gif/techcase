@@ -653,7 +653,7 @@ async function createTransportViaAdt(host, username, password, client, descripti
   const csrfRes = await sapFetch(`${host}/sap/bc/adt/cts/transportrequests`, {
     method: 'GET',
     headers: { ...baseHeaders, 'X-CSRF-Token': 'Fetch', Accept: 'application/xml' },
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(30000),
   });
   const csrfToken = csrfRes.headers.get('x-csrf-token') || '';
   const setCookieRaw = csrfRes.headers.get('set-cookie');
@@ -841,6 +841,26 @@ app.post('/sap-write-mcp', async (req, res) => {
           // This means a previous run left the lock open. The user must release
           // it via SAP transaction SM12 before this object can be created.
           return res.json({ ok: false, step: 'create', error: `SAP lock conflict: ${resolvedName} is locked by another session. Go to SM12 in SAP and delete the lock for this object, then retry. (${msg.slice(0, 150)})` });
+        } else if (/cancelled or timed out|inspect writes and locks|-32603|-32001|timed out/i.test(msg)) {
+          // SAP may have completed the object creation even though our MCP client timed out,
+          // or a previous run left the session in a "recovery needed" state.
+          // Verify via direct HTTP GET before reporting failure.
+          console.log(`[bridge] createObject uncertain — verifying object existence via HTTP (${_coElapsed()})`);
+          try {
+            const _vAuth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
+            const _vRes = await sapFetch(`${host}${objectUrl}`, {
+              headers: { Authorization: _vAuth, 'sap-client': sapClient, Accept: 'application/xml' },
+              signal: AbortSignal.timeout(15000),
+            });
+            if (_vRes.ok) {
+              console.log(`[bridge] Object ${resolvedName} exists in SAP despite error — treating as created`);
+              created = true;
+            } else {
+              return res.json({ ok: false, step: 'create', error: `SAP createObject timed out/cancelled and object not found (HTTP ${_vRes.status}). If a previous attempt left locks, go to SM12 in SAP and clear locks for ${resolvedName}, then retry. (${msg.slice(0, 100)})` });
+            }
+          } catch (verifyErr) {
+            return res.json({ ok: false, step: 'create', error: `SAP createObject timed out/cancelled. Verify ${resolvedName} exists in SAP manually, then use Reset to retry. (${msg.slice(0, 100)})` });
+          }
         } else {
           return res.json({ ok: false, step: 'create', error: msg.slice(0, 300) });
         }
