@@ -1258,7 +1258,7 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
       </div>
 
       {/* ADT Bridge URL override — per-project, overrides the environment's default adt_mcp_url */}
-      {activeEnv && (activeEnv.mcp_type === 'abap-adt' || activeEnv.mcp_type === 'abap-adt-readonly' || activeEnv.mcp_type === 'abap-adt-both') && (
+      {activeEnv && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">ADT Bridge URL</h4>
