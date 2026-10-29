@@ -199,7 +199,7 @@ async function getClient(creds) {
 
     const transport = new StdioClientTransport({
       command: 'node',
-      args: [adtScript],
+      args: ['--max-old-space-size=256', adtScript],
       env: {
         ...process.env,
         SAP_URL:      sapUrl,

@@ -214,4 +214,4 @@ export SUPABASE_SERVICE_KEY
 # Disable SOCKS5 proxy detection — the VM has direct SAP access via VPN,
 # so routing sapFetch through SOCKS (port 1080) would break transport creation.
 export NO_SOCKS=1
-PORT=$PORT node server.js
+PORT=$PORT node --max-old-space-size=256 server.js
