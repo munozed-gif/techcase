@@ -5785,8 +5785,7 @@ function CaseInviteCard({ caseData, auth }) {
 
   async function deliverInvite({ email, recipientName, joinUrl, isResend = false }) {
     const invCfg    = cdSettings["invitation_config"] ?? {};
-    const smtpCfg   = cdSettings["smtp_config"];
-    const autoEmail = invCfg.delivery === "email" && smtpCfg?.host;
+    const autoEmail = invCfg.delivery === "email";
 
     if (autoEmail) {
       const platformName = cdSettings["platform_name"] || "Arena";
@@ -5809,7 +5808,7 @@ function CaseInviteCard({ caseData, auth }) {
         </div>`;
       try {
         await supabase.functions.invoke("send-email", {
-          body: { to: email, subject, html, smtpConfig: smtpCfg },
+          body: { to: email, subject, html },
         });
         setFeedback({ type: "success", msg: `Invite emailed to ${email}!` });
         return;

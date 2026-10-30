@@ -30,6 +30,65 @@ async function notifyCaseParticipants(caseId, excludeUserId, title, body, opts =
     })));
   } catch (_) {}
 }
+// ── Email helpers ─────────────────────────────────────────────
+function buildEmailHtml({ title, preheader = '', bodyHtml, ctaText, ctaUrl, footerNote = '', platformName = 'Arena Solutions Platform', logoUrl = '' }) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+${preheader ? `<span style="display:none;max-height:0;overflow:hidden;mso-hide:all">${preheader}</span>` : ''}
+</head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px">
+  <tr><td align="center">
+    <table width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">
+      <!-- Header -->
+      <tr><td style="background:#1d4ed8;padding:28px 32px;text-align:center">
+        ${logoUrl ? `<img src="${logoUrl}" alt="${platformName}" style="height:36px;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto">` : ''}
+        <div style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-0.3px">${platformName}</div>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="padding:32px 32px 24px">
+        <h1 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;line-height:1.3">${title}</h1>
+        <div style="font-size:15px;line-height:1.6;color:#374151">${bodyHtml}</div>
+        ${ctaText && ctaUrl ? `
+        <div style="margin:28px 0">
+          <a href="${ctaUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600">${ctaText}</a>
+        </div>` : ''}
+        ${footerNote ? `<p style="font-size:13px;color:#6b7280;margin:16px 0 0;line-height:1.5">${footerNote}</p>` : ''}
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:16px 32px;text-align:center">
+        <p style="margin:0;font-size:12px;color:#9ca3af">You received this because you have an account on ${platformName}.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}
+
+async function sendEmail(toEmail, subject, html) {
+  if (!toEmail) return;
+  try {
+    await supabase.functions.invoke("send-email", { body: { to: toEmail, subject, html } });
+  } catch (_) {}
+}
+
+async function sendEmailToUser(userId, subject, html) {
+  if (!userId) return;
+  try {
+    const { data } = await supabase.from("users").select("email").eq("id", userId).maybeSingle();
+    if (data?.email) await sendEmail(data.email, subject, html);
+  } catch (_) {}
+}
+
+async function sendEmailToManagers(subject, html) {
+  try {
+    const { data } = await supabase.from("users").select("email").in("role", ["admin","manager"]).eq("is_active", true);
+    if (!data?.length) return;
+    await Promise.all(data.map(u => sendEmail(u.email, subject, html)));
+  } catch (_) {}
+}
 // ─────────────────────────────────────────────────────────────
 
 // ── Claude API helper ────────────────────────────────────────
@@ -140,4 +199,4 @@ async function logEvent(eventType, opts = {}) {
   } catch (_) {}
 }
 
-export { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, clearAuditConfigCache };
+export { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, clearAuditConfigCache, buildEmailHtml, sendEmail, sendEmailToUser, sendEmailToManagers };

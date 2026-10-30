@@ -14,7 +14,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useSystemSettings, useVisibilitySettings, usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
-import { logEvent, notify, clearAuditConfigCache } from "../lib/utils.js";
+import { logEvent, notify, clearAuditConfigCache, buildEmailHtml, sendEmailToUser } from "../lib/utils.js";
 import { Badge, PlanUsageCard, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import {
@@ -1862,6 +1862,13 @@ function UserApprovalQueue() {
       ? 'Your full access has been approved! You now have complete client access.'
       : 'Your account has been approved! 🎉 You now have access to the platform. Welcome aboard.';
     notify(userId, 'Account approved', msg);
+    if (targetUser?.email) sendEmailToUser(userId, 'Your Account Has Been Approved', buildEmailHtml({
+      title: 'Account Approved 🎉',
+      preheader: 'Your account is now active',
+      bodyHtml: `<p>Hi ${targetUser.full_name ?? 'there'},</p><p>${msg}</p>`,
+      ctaText: 'Log In Now',
+      ctaUrl: window.location.origin,
+    }));
     setUsers(p => p.filter(u => u.id !== userId));
     setProcessing(null);
   }
@@ -1869,12 +1876,19 @@ function UserApprovalQueue() {
   async function handleReject() {
     if (!rejectModal) return;
     setProcessing(rejectModal.id);
+    const rejectTarget = users.find(u => u.id === rejectModal.id);
     await supabase.from('users').update({
       verification_status: 'rejected',
       rejection_reason: rejectReason || null,
     }).eq('id', rejectModal.id);
     logEvent('user.rejected', { entityType: 'user', entityId: rejectModal.id, metadata: { reason: rejectReason } });
-    notify(rejectModal.id, 'Your account application was not approved', rejectReason.trim() || 'Please contact our team for more information.');
+    const rejectMsg = rejectReason.trim() || 'Please contact our team for more information.';
+    notify(rejectModal.id, 'Your account application was not approved', rejectMsg);
+    if (rejectTarget?.email) sendEmailToUser(rejectModal.id, 'Account Application Update', buildEmailHtml({
+      title: 'Account Application Update',
+      preheader: 'An update regarding your account application',
+      bodyHtml: `<p>Hi ${rejectTarget.full_name ?? 'there'},</p><p>After reviewing your application, we were unable to approve your account at this time.</p>${rejectMsg !== 'Please contact our team for more information.' ? `<p><strong>Reason:</strong> ${rejectMsg}</p>` : '<p>Please contact our team for more information.</p>'}`,
+    }));
     setUsers(p => p.filter(u => u.id !== rejectModal.id));
     setRejectModal(null);
     setRejectReason('');
@@ -1913,6 +1927,13 @@ function UserApprovalQueue() {
         ? 'Your full access has been approved! You now have complete client access.'
         : 'Your account has been approved. Welcome aboard.';
       await notify(userId, 'Account approved', msg);
+      if (targetUser?.email) sendEmailToUser(userId, 'Your Account Has Been Approved', buildEmailHtml({
+        title: 'Account Approved 🎉',
+        preheader: 'Your account is now active',
+        bodyHtml: `<p>Hi ${targetUser.full_name ?? 'there'},</p><p>${msg}</p>`,
+        ctaText: 'Log In Now',
+        ctaUrl: window.location.origin,
+      }));
       await logEvent('user.approved_bulk', { entityType: 'user', entityId: userId });
       setBulkProgressCount(p => ({ ...p, current: p.current + 1 }));
     }
@@ -1931,7 +1952,14 @@ function UserApprovalQueue() {
         rejection_reason: bulkRejectReason || null,
       }).eq('id', userId);
       await logEvent('user.rejected_bulk', { entityType: 'user', entityId: userId, metadata: { reason: bulkRejectReason } });
-      await notify(userId, 'Your account application was not approved', bulkRejectReason.trim() || 'Please contact our team for more information.');
+      const bulkMsg = bulkRejectReason.trim() || 'Please contact our team for more information.';
+      await notify(userId, 'Your account application was not approved', bulkMsg);
+      const bulkTarget = users.find(u => u.id === userId);
+      if (bulkTarget?.email) sendEmailToUser(userId, 'Account Application Update', buildEmailHtml({
+        title: 'Account Application Update',
+        preheader: 'An update regarding your account application',
+        bodyHtml: `<p>Hi ${bulkTarget.full_name ?? 'there'},</p><p>After reviewing your application, we were unable to approve your account at this time.</p><p>${bulkMsg}</p>`,
+      }));
       setBulkProgressCount(p => ({ ...p, current: p.current + 1 }));
     }
     setUsers(p => p.filter(u => !ids.includes(u.id)));
@@ -4681,14 +4709,12 @@ function AutoApproveDomainsSection({ settings, setSetting }) {
   );
 }
 
-// ── SMTP settings ─────────────────────────────────────────────
+// ── Email settings (Resend) ────────────────────────────────────
 function SettingsSMTPTab({ ssCtx }) {
-  const { t } = useT();
   const { settings, setSetting } = ssCtx;
-  const stored = settings["smtp_config"] ?? {};
-  const EMPTY = { host: "", port: 587, username: "", password: "", from_email: "", from_name: "", encryption: "tls" };
+  const stored = settings["email_config"] ?? {};
+  const EMPTY = { from_email: "noreply@arenasolutionsplatform.com", from_name: "Arena Solutions Platform", test_to: "" };
   const [form, setForm] = useState({ ...EMPTY, ...stored });
-  const [showPass, setShowPass] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -4698,86 +4724,57 @@ function SettingsSMTPTab({ ssCtx }) {
 
   async function handleSave() {
     setSaving(true);
-    await setSetting("smtp_config", form);
-    setSaving(false);
-    setSaved(true);
+    await setSetting("email_config", form);
+    setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
 
   async function handleTest() {
-    if (!form.host || !form.from_email) { setTestResult({ ok: false, msg: "Fill in host and from email first." }); return; }
+    const to = form.test_to?.trim();
+    if (!to) { setTestResult({ ok: false, msg: "Enter a test recipient email first." }); return; }
     setTesting(true); setTestResult(null);
     try {
       const res = await supabase.functions.invoke("send-email", {
-        body: { to: form.from_email, subject: "TechCase SMTP Test", html: "<p>SMTP is working correctly.</p>", smtpConfig: form },
+        body: { to, subject: "Platform Email Test", html: `<p>Platform email is working correctly via Resend.</p><p>Sent to: ${to}</p>` },
       });
       if (res.error) throw new Error(res.error.message ?? "Edge function error");
-      setTestResult({ ok: true, msg: `Test email sent to ${form.from_email}` });
+      if (res.data?.error) throw new Error(res.data.error);
+      setTestResult({ ok: true, msg: `Test email sent to ${to} ✓` });
     } catch (e) {
       setTestResult({ ok: false, msg: e.message || "Test failed" });
     }
     setTesting(false);
   }
 
-  const field = (label, key, type = "text", placeholder = "") => (
-    <div>
-      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
-      <input type={type} value={form[key]} onChange={f(key)} placeholder={placeholder}
-        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-    </div>
-  );
-
   return (
     <div className="mt-4 space-y-4">
       <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
         <AlertTriangle size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
         <div className="text-xs text-blue-700 leading-relaxed">
-          <span className="font-semibold">Two places to configure SMTP:</span><br />
-          1. <span className="font-medium">Here</span> — used for platform notifications (approvals, rejections, alerts).<br />
-          2. <span className="font-medium">Supabase Dashboard → Authentication → SMTP Settings</span> — required for OTP / Email Verify flows.
+          <span className="font-semibold">Platform emails are sent via Resend.</span><br />
+          The API key is stored as a Supabase Edge Function secret (<code className="bg-blue-100 px-1 rounded">RESEND_API_KEY</code>).
+          For auth emails (OTP, password reset) also configure <span className="font-medium">Supabase Dashboard → Authentication → SMTP Settings</span> with Resend SMTP credentials.
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {field("SMTP Host", "host", "text", "smtp.gmail.com")}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Port</label>
-          <input type="number" value={form.port} onChange={f("port")}
+          <label className="block text-xs font-medium text-gray-700 mb-1">From Email</label>
+          <input value={form.from_email} onChange={f("from_email")} placeholder="noreply@arenasolutionsplatform.com"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">From Name</label>
+          <input value={form.from_name} onChange={f("from_name")} placeholder="Arena Solutions Platform"
             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        {field("Username / Email", "username", "text", "you@domain.com")}
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Password</label>
-          <div className="relative">
-            <input type={showPass ? "text" : "password"} value={form.password} onChange={f("password")}
-              placeholder="App password or SMTP key"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <button type="button" onClick={() => setShowPass(p => !p)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              {showPass ? <Lock size={13} /> : <Lock size={13} />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {field("From Email", "from_email", "email", "noreply@yourdomain.com")}
-        {field("From Name", "from_name", "text", "TechCase")}
-      </div>
-
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">Encryption</label>
-        <div className="flex gap-2">
-          {[["tls", "TLS (587)"], ["ssl", "SSL (465)"], ["none", "None (25)"]].map(([v, l]) => (
-            <button key={v} onClick={() => setForm(p => ({ ...p, encryption: v }))}
-              className={`flex-1 py-2 text-xs font-medium rounded-xl border-2 transition-all ${form.encryption === v ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
-              {l}
-            </button>
-          ))}
-        </div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Test Recipient Email</label>
+        <input value={form.test_to} onChange={f("test_to")} placeholder="you@gmail.com"
+          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <p className="text-xs text-gray-400 mt-1">Send a test email to verify Resend is working. Requires RESEND_API_KEY secret to be set.</p>
       </div>
 
       {testResult && (
@@ -4788,13 +4785,13 @@ function SettingsSMTPTab({ ssCtx }) {
       )}
 
       <div className="flex gap-3 pt-1">
-        <button onClick={handleTest} disabled={testing || saving}
+        <button onClick={handleTest} disabled={testing}
           className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-600 font-medium disabled:opacity-50">
-          {testing ? t("smtp.sending") : t("smtp.send_test")}
+          {testing ? "Sending…" : "Send Test Email"}
         </button>
         <button onClick={handleSave} disabled={saving}
           className="px-5 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-          {saved ? t("smtp.saved") : saving ? t("state.saving") : t("smtp.save_settings")}
+          {saved ? "Saved ✓" : saving ? "Saving…" : "Save Settings"}
         </button>
       </div>
     </div>

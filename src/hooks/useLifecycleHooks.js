@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase.js";
-import { notify, notifyManagers, notifyCaseParticipants } from "../lib/utils.js";
+import { notify, notifyManagers, notifyCaseParticipants, buildEmailHtml, sendEmailToUser, sendEmailToManagers } from "../lib/utils.js";
 import { LIFECYCLE_PRESETS } from "../lib/businessConstants.js";
 
 // useLifecycleTemplates, runStartDateMonitor, useStartDateMonitor, runDueDateMonitor
@@ -60,9 +60,17 @@ async function runStartDateMonitor(auth, cases) {
       const key = `sdrem1_${c.id}`;
       if (!localStorage.getItem(key)) {
         localStorage.setItem(key, todayStr);
-        for (const uid of consultants)
-          await notify(uid, "Case Starting Soon",
-            `"${c.title}" starts in ${daysUntil} day${daysUntil !== 1 ? "s" : ""} (${c.start_date}). Please be ready to begin on time.`);
+        const msg1 = `"${c.title}" starts in ${daysUntil} day${daysUntil !== 1 ? "s" : ""} (${c.start_date}). Please be ready to begin on time.`;
+        for (const uid of consultants) {
+          await notify(uid, "Case Starting Soon", msg1);
+          sendEmailToUser(uid, `Case Starting in ${daysUntil} Day${daysUntil !== 1 ? 's' : ''}`, buildEmailHtml({
+            title: `Case Starting Soon`,
+            preheader: `"${c.title}" starts in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
+            bodyHtml: `<p>${msg1}</p>`,
+            ctaText: 'View Case',
+            ctaUrl: window.location.origin,
+          }));
+        }
       }
     }
 
@@ -70,11 +78,27 @@ async function runStartDateMonitor(auth, cases) {
       const key = `sdrem2_${c.id}`;
       if (!localStorage.getItem(key)) {
         localStorage.setItem(key, todayStr);
-        for (const uid of consultants)
-          await notify(uid, daysUntil === 1 ? "Case Starts Tomorrow" : "Case Starting Today",
-            `"${c.title}" must start by ${c.start_date}. If not started in time it may be auto-progressed or reassigned.`);
+        const title2 = daysUntil === 1 ? "Case Starts Tomorrow" : "Case Starting Today";
+        const msg2 = `"${c.title}" must start by ${c.start_date}. If not started in time it may be auto-progressed or reassigned.`;
+        for (const uid of consultants) {
+          await notify(uid, title2, msg2);
+          sendEmailToUser(uid, title2, buildEmailHtml({
+            title: title2,
+            preheader: msg2,
+            bodyHtml: `<p>${msg2}</p>`,
+            ctaText: 'View Case',
+            ctaUrl: window.location.origin,
+          }));
+        }
         await notifyManagers("Case Starting Soon",
           `"${c.title}" is set to begin in ${daysUntil} day${daysUntil !== 1 ? "s" : ""}. Current status: Assigned.`);
+        sendEmailToManagers("Case Starting Soon", buildEmailHtml({
+          title: "Case Starting Soon",
+          preheader: `"${c.title}" starts in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
+          bodyHtml: `<p>"${c.title}" is set to begin in ${daysUntil} day${daysUntil !== 1 ? 's' : ''} (${c.start_date}). Current status: Assigned.</p>`,
+          ctaText: 'View Case',
+          ctaUrl: window.location.origin,
+        }));
       }
     }
 
@@ -135,6 +159,13 @@ async function runDueDateMonitor(cases) {
     if (daysLeft < 0 && !localStorage.getItem(`dueoverdue_${c.id}`)) {
       localStorage.setItem(`dueoverdue_${c.id}`, "1");
       notifyManagers("Case overdue", `"${c.title}" passed its due date (${c.due_date}) and is still open.`);
+      sendEmailToManagers("Case Overdue", buildEmailHtml({
+        title: "Case Overdue",
+        preheader: `"${c.title}" has passed its due date`,
+        bodyHtml: `<p>"${c.title}" passed its due date (${c.due_date}) and is still open. Immediate review may be required.</p>`,
+        ctaText: 'View Case',
+        ctaUrl: window.location.origin,
+      }));
     }
   }
 }
