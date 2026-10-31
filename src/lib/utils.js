@@ -141,6 +141,7 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
     err.code = 'ai_limit_reached';
     err.used  = e.error?.used;
     err.limit = e.error?.limit;
+    try { window.dispatchEvent(new CustomEvent('ai-limit-reached', { detail: { used: err.used, limit: err.limit } })); } catch (_) {}
     throw err;
   }
 

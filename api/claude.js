@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
-const FREE_MONTHLY_LIMIT = 10;
+const FREE_MONTHLY_LIMIT_DEFAULT = 10;
 
 // ── Supabase service-role client (bypasses RLS) ──────────────
 let _db = null;
@@ -26,10 +26,12 @@ function decryptApiKey(enc) {
 
 // ── Usage check (does NOT increment yet) ────────────────────
 async function checkUsage(userId) {
-  const [{ data: user }, { data: planRow }] = await Promise.all([
+  const [{ data: user }, { data: planRow }, { data: limitRow }] = await Promise.all([
     db().from("users").select("is_pro, anthropic_api_key_enc, role").eq("id", userId).single(),
     db().from("system_settings").select("value").eq("key", "user_plans").maybeSingle(),
+    db().from("system_settings").select("value").eq("key", "ai_free_monthly_limit").maybeSingle(),
   ]);
+  const FREE_MONTHLY_LIMIT = Number(limitRow?.value) || FREE_MONTHLY_LIMIT_DEFAULT;
 
   if (!user) return { allowed: true, apiKey: null, isPro: false, isByok: false, used: 0, usageId: null };
 
@@ -107,9 +109,9 @@ export default async function handler(req, res) {
       return res.status(402).json({
         error: {
           code: "ai_limit_reached",
-          message: `You've used all ${FREE_MONTHLY_LIMIT} free AI generations this month. Add your Anthropic API key in Profile → AI, or ask your admin to enable Pro.`,
+          message: `You've used all ${usage.limit} free AI generations this month. Add your Anthropic API key in Profile → AI, or ask your admin to enable Pro.`,
           used: usage.used,
-          limit: FREE_MONTHLY_LIMIT,
+          limit: usage.limit,
         },
       });
     }
@@ -177,7 +179,7 @@ export default async function handler(req, res) {
     // Surface remaining quota to the caller
     if (!usage.isPro && !usage.isByok) {
       res.setHeader("X-AI-Generations-Used", String(usage.used + 1));
-      res.setHeader("X-AI-Generations-Limit", String(FREE_MONTHLY_LIMIT));
+      res.setHeader("X-AI-Generations-Limit", String(usage.limit ?? FREE_MONTHLY_LIMIT_DEFAULT));
     }
 
     return res.status(200).json(data);

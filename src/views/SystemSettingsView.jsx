@@ -1817,6 +1817,113 @@ function SettingsGenerationTab({ ssCtx }) {
           {saving ? t("state.saving") : <><Check size={14} /> {t("gen.save")}</>}
         </button>
       </div>
+
+      {/* ── AI Usage Admin ──────────────────────────────────── */}
+      <AiUsageAdminPanel ssCtx={ssCtx} />
+    </div>
+  );
+}
+
+function AiUsageAdminPanel({ ssCtx }) {
+  const { settings, setSetting } = ssCtx;
+  const [freeLimit, setFreeLimit] = useState(settings['ai_free_monthly_limit'] ?? 10);
+  const [savingLimit, setSavingLimit] = useState(false);
+  const [savedLimit, setSavedLimit] = useState(false);
+  const [usageRows, setUsageRows] = useState(null);
+  const [loadingUsage, setLoadingUsage] = useState(false);
+
+  useEffect(() => {
+    setFreeLimit(settings['ai_free_monthly_limit'] ?? 10);
+  }, [settings['ai_free_monthly_limit']]);
+
+  async function saveLimit() {
+    setSavingLimit(true);
+    await setSetting('ai_free_monthly_limit', Number(freeLimit) || 10);
+    setSavingLimit(false); setSavedLimit(true);
+    setTimeout(() => setSavedLimit(false), 2500);
+  }
+
+  async function loadUsage() {
+    setLoadingUsage(true);
+    const month = new Date().toISOString().slice(0, 7);
+    const { data } = await supabase
+      .from('ai_usage')
+      .select('user_id, generations_used, month, users:user_id(full_name, email, role)')
+      .eq('month', month)
+      .order('generations_used', { ascending: false });
+    setUsageRows(data ?? []);
+    setLoadingUsage(false);
+  }
+
+  const limit = Number(freeLimit) || 10;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-5">
+      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+        <Zap size={16} className="text-violet-600" /> AI Usage & API Settings
+      </h3>
+
+      {/* Platform API key status */}
+      <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+        <AlertTriangle size={14} className="text-amber-500 mt-0.5 flex-shrink-0" />
+        <div className="text-xs text-amber-800 leading-relaxed">
+          <span className="font-semibold">Platform Anthropic API Key</span> is set via the <code className="bg-amber-100 px-0.5 rounded">ANTHROPIC_API_KEY</code> environment variable in{' '}
+          <a href="https://vercel.com/dashboard" target="_blank" rel="noreferrer" className="underline font-medium">Vercel → Project → Settings → Environment Variables</a>.
+          The <code className="bg-amber-100 px-0.5 rounded">ENCRYPTION_SECRET</code> env var is also required for user BYOK keys.
+        </div>
+      </div>
+
+      {/* Free monthly limit */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Free Monthly Generation Limit</label>
+        <div className="flex gap-2 items-center">
+          <input type="number" min={1} max={1000} value={freeLimit}
+            onChange={e => setFreeLimit(e.target.value)}
+            className="w-32 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <button onClick={saveLimit} disabled={savingLimit}
+            className="px-4 py-2 text-sm bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 disabled:opacity-50">
+            {savedLimit ? 'Saved ✓' : savingLimit ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 mt-1">Free-tier users get this many AI generations per calendar month. BYOK and Pro users are unlimited.</p>
+      </div>
+
+      {/* Usage dashboard */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-gray-700">Current Month Usage</span>
+          <button onClick={loadUsage} disabled={loadingUsage}
+            className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50">
+            <RefreshCw size={11} className={loadingUsage ? 'animate-spin' : ''} />
+            {loadingUsage ? 'Loading…' : usageRows ? 'Refresh' : 'Load usage'}
+          </button>
+        </div>
+        {usageRows && (
+          usageRows.length === 0
+            ? <p className="text-xs text-gray-400">No usage recorded this month.</p>
+            : (
+              <div className="space-y-2">
+                {usageRows.map(row => {
+                  const pct = Math.min(100, (row.generations_used / limit) * 100);
+                  const atLimit = row.generations_used >= limit;
+                  return (
+                    <div key={row.user_id} className="flex items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs text-gray-700 truncate font-medium">{row.users?.full_name ?? row.users?.email ?? row.user_id}</span>
+                          <span className={`text-xs font-semibold ml-2 shrink-0 ${atLimit ? 'text-red-500' : 'text-gray-500'}`}>{row.generations_used}/{limit}</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${atLimit ? 'bg-red-400' : 'bg-blue-400'}`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+        )}
+      </div>
     </div>
   );
 }

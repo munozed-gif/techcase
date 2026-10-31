@@ -22,7 +22,7 @@ import { ROLE_COLORS, SAP_AREAS, INDUSTRY_AREAS } from "../lib/businessConstants
 import { useRatings } from "../hooks/useCaseHooks.js";
 import { useConsultantTeams } from "../hooks/useTeamHooks.js";
 
-function ProfileView({ auth, compact = false }) {
+function ProfileView({ auth, compact = false, initialTab = null }) {
   const { t, lang, setLang } = useT();
   // Extract the real consultant_profiles id from auth (useAuth already fetched it via FK join)
   const cpRaw = auth.profile?.consultant_profiles;
@@ -32,6 +32,8 @@ function ProfileView({ auth, compact = false }) {
   const { ratings, avgRating } = useRatings(auth.user?.id);
   const { teams, pendingInvites, createTeam, inviteMember, respondToInvite, removeMember, leaveTeam, deleteTeam } = useConsultantTeams(auth.user?.id);
   const { startCheckout, priceIds } = usePlanConfig();
+  const { settings: sysSettings } = useSystemSettings();
+  const FREE_LIMIT = sysSettings['ai_free_monthly_limit'] ?? 10;
   const [teamForm, setTeamForm] = useState({ name: "", desc: "" });
   const [showCreateTeam, setShowCreateTeam] = useState(false);
   const [creatingTeam, setCreatingTeam] = useState(false);
@@ -59,7 +61,7 @@ function ProfileView({ auth, compact = false }) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [inviting, setInviting] = useState(false);
-  const [profileTab, setProfileTab] = useState("experience");
+  const [profileTab, setProfileTab] = useState(initialTab ?? "experience");
   const pvCarouselRef = useRef(null);
   const pvCarouselScrolling = useRef(false);
   const [pvMountedSlides, setPvMountedSlides] = useState(() => new Set(["experience"]));
@@ -987,15 +989,15 @@ function ProfileView({ auth, compact = false }) {
                 ) : (
                   <>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">{t("profile.ai_used_of").replace('{used}', aiUsage?.generations_used ?? 0).replace('{limit}', 10)}</span>
-                      <span className={`text-xs font-semibold ${(aiUsage?.generations_used ?? 0) >= 10 ? 'text-red-500' : 'text-gray-600 dark:text-gray-300'}`}>
-                        {Math.max(0, 10 - (aiUsage?.generations_used ?? 0))} {t("profile.ai_remaining")}
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{t("profile.ai_used_of").replace('{used}', aiUsage?.generations_used ?? 0).replace('{limit}', FREE_LIMIT)}</span>
+                      <span className={`text-xs font-semibold ${(aiUsage?.generations_used ?? 0) >= FREE_LIMIT ? 'text-red-500' : 'text-gray-600 dark:text-gray-300'}`}>
+                        {Math.max(0, FREE_LIMIT - (aiUsage?.generations_used ?? 0))} {t("profile.ai_remaining")}
                       </span>
                     </div>
                     <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all ${(aiUsage?.generations_used ?? 0) >= 10 ? 'bg-red-500' : 'bg-blue-500'}`}
-                        style={{ width: `${Math.min(100, ((aiUsage?.generations_used ?? 0) / 10) * 100)}%` }}
+                        className={`h-full rounded-full transition-all ${(aiUsage?.generations_used ?? 0) >= FREE_LIMIT ? 'bg-red-500' : 'bg-blue-500'}`}
+                        style={{ width: `${Math.min(100, ((aiUsage?.generations_used ?? 0) / FREE_LIMIT) * 100)}%` }}
                       />
                     </div>
                     <p className="text-xs text-gray-400 mt-2">{t("profile.ai_resets_monthly")}</p>
@@ -1015,7 +1017,8 @@ function ProfileView({ auth, compact = false }) {
                     <span className="text-xs text-green-700 dark:text-green-300 flex-1">✓ {t("profile.ai_key_saved")}</span>
                     <button
                       onClick={async () => {
-                        await fetch('/api/save-api-key', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: auth.user.id }) });
+                        const { data: { session: _s } } = await supabase.auth.getSession();
+                        await fetch('/api/save-api-key', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_s?.access_token ?? ''}` }, body: JSON.stringify({ user_id: auth.user.id }) });
                         setAiHasKey(false);
                       }}
                       className="text-xs text-red-500 hover:text-red-700"
@@ -1037,9 +1040,10 @@ function ProfileView({ auth, compact = false }) {
                         if (!aiKeyInput.trim()) return;
                         setAiKeySaving(true); setAiKeyError(''); setAiKeyOk(false);
                         try {
+                          const { data: { session: _s2 } } = await supabase.auth.getSession();
                           const res = await fetch('/api/save-api-key', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_s2?.access_token ?? ''}` },
                             body: JSON.stringify({ user_id: auth.user.id, api_key: aiKeyInput.trim() }),
                           });
                           const d = await res.json();

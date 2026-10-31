@@ -240,6 +240,7 @@ import { useConsultantShortlist, ConsultantProfilePanel, ArenaView } from "./src
 // CONSULTANT PROFILE VIEW
 // ============================================================
 import { ProfileView } from "./src/views/ProfileView.jsx";
+import { AiLimitModal } from "./src/components/AiLimitModal.jsx";
 
 
 // ============================================================
@@ -582,6 +583,17 @@ export default function App() {
   const [pendingUserId, setPendingUserId] = useState(null);
   const [pendingClientId, setPendingClientId] = useState(null);
   const [stripeBanner, setStripeBanner] = useState(null); // null | 'success' | 'cancel'
+  const [profileInitialTab, setProfileInitialTab] = useState(null);
+
+  // Navigate to Profile → AI tab when AiLimitModal "Add my key" is clicked
+  useEffect(() => {
+    function onNavToProfileAi() {
+      setProfileInitialTab("ai");
+      setActiveView("profile");
+    }
+    window.addEventListener("nav-to-profile-ai", onNavToProfileAi);
+    return () => window.removeEventListener("nav-to-profile-ai", onNavToProfileAi);
+  }, []);
 
   // Sync authed state with auth session
   useEffect(() => {
@@ -750,7 +762,7 @@ export default function App() {
       case "arena":          return <ArenaView auth={auth} />;
       case "profile":        return pendingUserId
                                ? <ConsultantProfileView userId={pendingUserId} onBack={() => { setActiveView("settings"); setPendingUserId(null); }} />
-                               : <ProfileView auth={auth} />;
+                               : <ProfileView auth={auth} initialTab={profileInitialTab} key={profileInitialTab} />;
       case "consultants":    return <ConsultantsView auth={auth} />;
       case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
       case "reports":        return (auth.isAdmin || auth.isManager) ? <ReportsView /> : <Dashboard auth={auth} />;
@@ -877,6 +889,7 @@ export default function App() {
           </main>
         </div>
       </LanguageProvider>
+      <AiLimitModal />
     </SystemSettingsProvider>
     </ThemeProvider>
   );

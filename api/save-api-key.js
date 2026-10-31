@@ -13,12 +13,26 @@ function encryptApiKey(plaintext) {
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (!["POST", "DELETE"].includes(req.method)) return res.status(405).json({ error: "Method not allowed" });
 
   const { user_id, api_key } = req.body ?? {};
   if (!user_id) return res.status(400).json({ error: "user_id is required" });
+
+  // Verify the caller's session token matches the user_id being modified
+  const token = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (token) {
+    try {
+      const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+      const { data: { user }, error } = await db.auth.getUser(token);
+      if (error || !user || user.id !== user_id) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    } catch {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+  }
 
   if (!process.env.ENCRYPTION_SECRET) {
     return res.status(500).json({ error: "ENCRYPTION_SECRET is not configured on the server." });
