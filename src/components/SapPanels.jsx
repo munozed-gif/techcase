@@ -976,7 +976,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                           </label>
                           <div className="flex gap-2 items-center">
                             <input value={env.adt_mcp_url ?? ''} onChange={e => updateEnvField(env.id, 'adt_mcp_url', e.target.value)} disabled={!canEdit}
-                              placeholder="https://your-tunnel.trycloudflare.com (port 3101)"
+                              placeholder={`https://your-tunnel.trycloudflare.com (port ${settings['sap_vm_config']?.bridge_port_prod ?? 3101})`}
                               className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
                             <button title="Fetch latest URL from Supabase registry"
                               onClick={async () => {
@@ -990,7 +990,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                             </button>
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port 3101, opens a Cloudflare tunnel and registers the URL in Supabase automatically.
+                            Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {settings['sap_vm_config']?.bridge_port_prod ?? 3101}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.
                           </p>
                         </div>
                       )}
@@ -2691,7 +2691,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         { label: '2. Start MCP server + tunnel', cmd: 'cd techcase/sap-mcp-server && ./start-local.sh' },
       ]
     : [
-        { label: '1. SSH into your VM', cmd: 'ssh ubuntu@3.16.56.90' },
+        { label: '1. SSH into your VM', cmd: `ssh ${sysSettings['sap_vm_config']?.vm_ssh_user ?? 'ubuntu'}@${sysSettings['sap_vm_config']?.vm_host ?? '<VM_HOST>'}` },
         { label: '2. Clone repo on the VM (once)', cmd: 'git clone https://github.com/munozed-gif/techcase.git /home/ubuntu/techcase' },
         { label: '3. Install dependencies', cmd: 'cd /home/ubuntu/techcase/sap-mcp-server && npm install' },
         { label: '4. Start service', cmd: 'sudo systemctl start sap-mcp && sudo systemctl enable sap-mcp' },
@@ -2974,7 +2974,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                   {[
                     { label: '1. Install microsocks (once, Mac)', cmd: 'brew install microsocks' },
                     { label: '2. Start SOCKS5 proxy on laptop', cmd: 'microsocks -p 8888 &' },
-                    { label: '3. Tunnel it to VM (keep terminal open)', cmd: 'ssh -R 127.0.0.1:1080:127.0.0.1:8888 ubuntu@3.16.56.90 -N' },
+                    { label: '3. Tunnel it to VM (keep terminal open)', cmd: `ssh -R 127.0.0.1:${sysSettings['sap_vm_config']?.socks_port ?? 1080}:127.0.0.1:8888 ${sysSettings['sap_vm_config']?.vm_ssh_user ?? 'ubuntu'}@${sysSettings['sap_vm_config']?.vm_host ?? '<VM_HOST>'} -N` },
                   ].map((step, si) => (
                     <div key={si} className="space-y-0.5">
                       <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-semibold">{step.label}</p>
@@ -3524,7 +3524,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                                 </label>
                                 <div className="flex gap-2 items-center">
                                   <input value={env.adt_mcp_url ?? ''} onChange={e => updateEnvField(env.id, 'adt_mcp_url', e.target.value)} disabled={!canEdit}
-                                    placeholder="https://your-tunnel.trycloudflare.com (port 3101)"
+                                    placeholder={`https://your-tunnel.trycloudflare.com (port ${ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101})`}
                                     className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
                                   <button title="Fetch latest URL from Supabase registry"
                                     onClick={async () => {
@@ -3540,7 +3540,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                                 <p className="text-xs text-gray-400 mt-0.5">
                                   {env.vpn_mode === 'user'
                                     ? <>Run <code className="text-blue-400">vm-mcp-adt/start-local.sh</code> on your laptop (FortiClient must be connected) — the tunnel URL is printed on startup and auto-registered.</>
-                                    : <>Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port 3101, opens a Cloudflare tunnel and registers the URL in Supabase automatically.</>
+                                    : <>Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.</>
                                   }
                                 </p>
                               </div>

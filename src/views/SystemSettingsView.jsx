@@ -4798,6 +4798,85 @@ function SettingsSMTPTab({ ssCtx }) {
   );
 }
 
+// ── SAP VM & Bridge settings tab ──────────────────────────────
+function SettingsSapVmTab({ ssCtx }) {
+  const { settings, setSetting } = ssCtx;
+  const stored = settings["sap_vm_config"] ?? {};
+  const DEFAULTS = { vm_host: "", vm_ssh_user: "ubuntu", bridge_port_prod: 3101, bridge_port_dev: 3102, socks_port: 1080 };
+  const [form, setForm] = useState({ ...DEFAULTS, ...stored });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const f = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+  const fNum = (k) => (e) => setForm(p => ({ ...p, [k]: Number(e.target.value) || p[k] }));
+
+  async function handleSave() {
+    setSaving(true);
+    await setSetting("sap_vm_config", form);
+    setSaving(false); setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  return (
+    <div className="mt-4 space-y-5">
+      <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
+        <AlertTriangle size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
+        <p className="text-xs text-blue-700 leading-relaxed">
+          These settings control the platform-level VM and ADT bridge defaults. They populate setup wizard commands and port hints across the platform. Customer- and project-level overrides (ADT URL, VPN mode, credentials) are still managed per-environment in each project.
+        </p>
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold text-gray-800 mb-3">VM / SSH</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">VM Host / Public IP</label>
+            <input value={form.vm_host} onChange={f("vm_host")} placeholder="e.g. 1.2.3.4 or vm.example.com"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <p className="text-xs text-gray-400 mt-0.5">Public IP or hostname of the EC2 / cloud VM.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">SSH User</label>
+            <input value={form.vm_ssh_user} onChange={f("vm_ssh_user")} placeholder="ubuntu"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold text-gray-800 mb-3">Bridge Ports</h3>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Production bridge port</label>
+            <input type="number" value={form.bridge_port_prod} onChange={fNum("bridge_port_prod")} placeholder="3101"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <p className="text-xs text-gray-400 mt-0.5">Default: 3101. Set via <code className="bg-gray-100 px-0.5 rounded">PORT</code> env on the VM.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Dev bridge port</label>
+            <input type="number" value={form.bridge_port_dev} onChange={fNum("bridge_port_dev")} placeholder="3102"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <p className="text-xs text-gray-400 mt-0.5">Default: 3102. Used by <code className="bg-gray-100 px-0.5 rounded">start-vm-dev.sh</code>.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">SOCKS port</label>
+            <input type="number" value={form.socks_port} onChange={fNum("socks_port")} placeholder="1080"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <p className="text-xs text-gray-400 mt-0.5">Reverse-tunnel SOCKS5 port. Set <code className="bg-gray-100 px-0.5 rounded">SOCKS_PORT</code> env on the VM bridge.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3 pt-1">
+        <button onClick={handleSave} disabled={saving}
+          className="px-5 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+          {saved ? "Saved ✓" : saving ? "Saving…" : "Save Settings"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Invitations settings tab ───────────────────────────────────
 function SettingsInvitationsTab({ ssCtx }) {
   const { settings, setSetting } = ssCtx;
@@ -5132,6 +5211,7 @@ function SystemSettingsView({ auth, onNavigate }) {
     { id: "generation",  label: "AI & Generation",  Icon: Zap },
     { id: "abap",        label: "ABAP Templates",   Icon: FileCode2 },
     { id: "sap_policy",  label: "SAP MCP Policy",   Icon: FileCode2 },
+    { id: "sap_vm",      label: "SAP VM & Bridge",  Icon: Monitor },
     { id: "area_leaders", label: "Area Leaders",     Icon: UserCog },
     { id: "headhunter",  label: "Headhunter",       Icon: Crosshair },
     { id: "platform",    label: "Platform",         Icon: Sparkles },
@@ -5167,6 +5247,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       {activeTab === "generation"  && <SettingsGenerationTab ssCtx={ssCtx} />}
       {activeTab === "abap"        && <AbapTemplatesSection auth={auth} />}
       {activeTab === "sap_policy"  && <div className="p-6"><SapMcpPolicyPanel auth={auth} /></div>}
+      {activeTab === "sap_vm"      && <div className="p-6"><SettingsSapVmTab ssCtx={ssCtx} /></div>}
       {activeTab === "area_leaders" && <SettingsAreaLeadersTab ssCtx={ssCtx} />}
       {activeTab === "headhunter"  && <SettingsHeadhunterTab ssCtx={ssCtx} />}
       {activeTab === "platform"    && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}
@@ -5308,4 +5389,4 @@ function SettingsAuditTab({ ssCtx }) {
   );
 }
 
-export { UpgradeModal, SettingsUsersTab, SettingsPhasesTab, SettingsCatalogTab, SettingsPlatformTab, SettingsRolesTab, SettingsGenerationTab, UserApprovalQueue, ApprovalHistory, ClientRatingModal, RatingModal, AUDIT_EVENT_COLORS, AUDIT_EVENT_LABELS, AUDIT_ENTITY_ICONS, auditNavTarget, auditRenderDetail, AuditEntityPanel, AuditLogDashboard, SettingsTrustTab, SettingsInvoiceTab, SettingsPeopleTab, SettingsPlansTab, SettingsPricingTab, SettingsWorkflowTab, SettingsSignupFlowTab, AutoApproveDomainsSection, SettingsSMTPTab, SettingsPlatformCombinedTab, SystemSettingsView };
+export { UpgradeModal, SettingsUsersTab, SettingsPhasesTab, SettingsCatalogTab, SettingsPlatformTab, SettingsRolesTab, SettingsGenerationTab, UserApprovalQueue, ApprovalHistory, ClientRatingModal, RatingModal, AUDIT_EVENT_COLORS, AUDIT_EVENT_LABELS, AUDIT_ENTITY_ICONS, auditNavTarget, auditRenderDetail, AuditEntityPanel, AuditLogDashboard, SettingsTrustTab, SettingsInvoiceTab, SettingsPeopleTab, SettingsPlansTab, SettingsPricingTab, SettingsWorkflowTab, SettingsSignupFlowTab, AutoApproveDomainsSection, SettingsSMTPTab, SettingsSapVmTab, SettingsPlatformCombinedTab, SystemSettingsView };

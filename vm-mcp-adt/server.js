@@ -44,7 +44,7 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 // ── Laptop SOCKS5 tunnel helpers ──────────────────────────────
 // When the laptop creates a reverse SSH tunnel (ssh -R 1080:...), all SAP traffic
 // can route through the laptop's FortiClient VPN.
-const SOCKS_PORT = 1080;
+const SOCKS_PORT = Number(process.env.SOCKS_PORT ?? 1080);
 const SOCKS_URL  = `socks5://127.0.0.1:${SOCKS_PORT}`;
 
 function isSocksUp() {
