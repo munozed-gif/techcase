@@ -321,7 +321,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       <div className="p-4 border-t border-blue-900">
         {(() => {
           const profileView = (role === 'client' || role === 'invited_client') ? 'client-profile' : 'profile';
-          const canGoToProfile = ['consultant', 'headhunter', 'client', 'invited_client'].includes(role);
+          const canGoToProfile = ['consultant', 'headhunter', 'client', 'invited_client', 'admin', 'manager'].includes(role);
           return (
             <div className="flex items-center gap-2 mb-3 -mx-2">
               <div
