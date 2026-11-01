@@ -853,7 +853,7 @@ export default function App() {
           <Sidebar
             role={auth.role}
             activeView={activeView}
-            onNav={v => { setActiveView(v); setSidebarOpen(false); }}
+            onNav={v => { if (v === 'profile') setPendingUserId(null); setActiveView(v); setSidebarOpen(false); }}
             onSignOut={handleSignOut}
             profile={auth.profile}
             unreadCount={unreadCount}
