@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Activity, BarChart2, Briefcase, Camera, Check, ChevronLeft, ChevronRight,
-  CreditCard, GraduationCap, Heart, Mail, Pencil, Plus, Star, Trash2, Trophy, UserMinus, Users, X,
+  CreditCard, GraduationCap, Heart, Key, Mail, Pencil, Plus, Star, Trash2, Trophy, UserMinus, Users, X, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -9,6 +9,7 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { Spinner, TrustBadge, TierProgressBar, VouchingPanel, PlanUsageCard, ResumeImporter, ConsultantProjectsHierarchy } from "./ProfileComponents.jsx";
 import { PersonAvatar } from "../views/Projects.jsx";
 import { useConsultantTeams } from "../hooks/useTeamHooks.js";
+import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 
 function ConsultantProfileView({ userId, onBack }) {
   const auth = useAuth();
@@ -259,6 +260,28 @@ function ConsultantProfileView({ userId, onBack }) {
     if (group) group.ratings.push(r);
   }
 
+  const { settings: sysSettings } = useSystemSettings();
+  const FREE_LIMIT = Number(sysSettings['ai_free_monthly_limit']) || 10;
+
+  const [aiUsage, setAiUsage]       = useState(null);
+  const [aiIsPro, setAiIsPro]       = useState(false);
+  const [aiHasKey, setAiHasKey]     = useState(false);
+  const [aiKeyInput, setAiKeyInput] = useState('');
+  const [aiKeySaving, setAiKeySaving] = useState(false);
+  const [aiKeyError, setAiKeyError] = useState('');
+  const [aiKeyOk, setAiKeyOk]       = useState(false);
+
+  useEffect(() => {
+    if (!isOwnProfile || !auth.user?.id) return;
+    (async () => {
+      const { data: u } = await supabase.from('users').select('is_pro, anthropic_api_key_enc').eq('id', auth.user.id).single();
+      if (u) { setAiIsPro(!!u.is_pro); setAiHasKey(!!u.anthropic_api_key_enc); }
+      const month = new Date().toISOString().slice(0, 7);
+      const { data: row } = await supabase.from('ai_usage').select('generations_used').eq('user_id', auth.user.id).eq('month', month).maybeSingle();
+      setAiUsage({ generations_used: row?.generations_used ?? 0, month });
+    })();
+  }, [isOwnProfile, auth.user?.id]);
+
   const tabs = [
     { id: 'overview',   label: t('profile.tab_overview'),   icon: BarChart2,     count: null },
     { id: 'experience', label: t('profile.tab_experience'),  icon: Briefcase,     count: cpData?.consultant_projects?.length > 0 ? cpData.consultant_projects.length : null },
@@ -269,6 +292,7 @@ function ConsultantProfileView({ userId, onBack }) {
     { id: 'vouches',    label: t('vouch.tab'),               icon: Heart,         count: null },
     ...(isOwnProfile ? [{ id: 'teams', label: 'Teams', icon: Users, count: teams.length > 0 ? teams.length : null }] : []),
     ...(isOwnProfile ? [{ id: 'plan',  label: 'My Plan', icon: CreditCard, count: null }] : []),
+    ...(isOwnProfile ? [{ id: 'ai',    label: t('profile.tab_ai'), icon: Zap, count: null }] : []),
   ];
 
   const cvTabStatus = (() => {
@@ -1130,6 +1154,89 @@ function ConsultantProfileView({ userId, onBack }) {
                   </div>
                 </>
               )}
+            </div>
+          )}
+
+          {/* AI Settings (own profile only) */}
+          {tab.id === 'ai' && isOwnProfile && (
+            <div className="space-y-6">
+              {/* Usage meter */}
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Zap size={16} className={aiIsPro ? "text-violet-500" : "text-blue-500"} />
+                    <span className="font-semibold text-sm text-gray-900 dark:text-white">{t('profile.ai_usage_title')}</span>
+                    {aiIsPro && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700 border border-violet-200">PRO</span>}
+                    {aiHasKey && !aiIsPro && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 border border-green-200">BYOK</span>}
+                  </div>
+                  <span className="text-xs text-gray-400">{aiUsage?.month ?? '—'}</span>
+                </div>
+                {(aiIsPro || aiHasKey) ? (
+                  <p className="text-sm text-gray-500">{t('profile.ai_unlimited')}</p>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs text-gray-500">{t('profile.ai_used_of').replace('{used}', aiUsage?.generations_used ?? 0).replace('{limit}', FREE_LIMIT)}</span>
+                      <span className={`text-xs font-semibold ${(aiUsage?.generations_used ?? 0) >= FREE_LIMIT ? 'text-red-500' : 'text-gray-600'}`}>
+                        {Math.max(0, FREE_LIMIT - (aiUsage?.generations_used ?? 0))} {t('profile.ai_remaining')}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${(aiUsage?.generations_used ?? 0) >= FREE_LIMIT ? 'bg-red-500' : 'bg-blue-500'}`}
+                        style={{ width: `${Math.min(100, ((aiUsage?.generations_used ?? 0) / FREE_LIMIT) * 100)}%` }} />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">{t('profile.ai_resets_monthly')}</p>
+                  </>
+                )}
+              </div>
+              {/* BYOK */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Key size={14} className="text-gray-400" />
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{t('profile.ai_byok_title')}</h4>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">{t('profile.ai_byok_hint')}</p>
+                {aiHasKey ? (
+                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                    <span className="text-xs text-green-700 flex-1">✓ {t('profile.ai_key_saved')}</span>
+                    <button onClick={async () => {
+                      const { data: { session: s } } = await supabase.auth.getSession();
+                      await fetch('/api/save-api-key', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${s?.access_token ?? ''}` }, body: JSON.stringify({ user_id: auth.user.id }) });
+                      setAiHasKey(false);
+                    }} className="text-xs text-red-500 hover:text-red-700">{t('action.remove')}</button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <input type="password" value={aiKeyInput}
+                      onChange={e => { setAiKeyInput(e.target.value); setAiKeyError(''); setAiKeyOk(false); }}
+                      placeholder="sk-ant-api03-..."
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    {aiKeyError && <p className="text-xs text-red-500">{aiKeyError}</p>}
+                    {aiKeyOk && <p className="text-xs text-green-600">{t('profile.ai_key_saved')}</p>}
+                    <button
+                      onClick={async () => {
+                        if (!aiKeyInput.trim()) return;
+                        setAiKeySaving(true); setAiKeyError(''); setAiKeyOk(false);
+                        try {
+                          const { data: { session: s } } = await supabase.auth.getSession();
+                          const res = await fetch('/api/save-api-key', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${s?.access_token ?? ''}` },
+                            body: JSON.stringify({ user_id: auth.user.id, api_key: aiKeyInput.trim() }),
+                          });
+                          const d = await res.json();
+                          if (!res.ok) throw new Error(d.error ?? 'Failed to save');
+                          setAiHasKey(true); setAiKeyInput(''); setAiKeyOk(true);
+                        } catch (e) { setAiKeyError(e.message); }
+                        finally { setAiKeySaving(false); }
+                      }}
+                      disabled={aiKeySaving || !aiKeyInput.trim()}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors">
+                      {aiKeySaving ? t('action.saving') : t('profile.ai_save_key')}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
