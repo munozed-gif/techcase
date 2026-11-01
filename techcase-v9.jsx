@@ -581,6 +581,7 @@ export default function App() {
   const [pendingCaseId, setPendingCaseId] = useState(null);
   const [pendingProjectId, setPendingProjectId] = useState(null);
   const [pendingUserId, setPendingUserId] = useState(null);
+  const [pendingUserBackView, setPendingUserBackView] = useState("settings");
   const [pendingClientId, setPendingClientId] = useState(null);
   const [stripeBanner, setStripeBanner] = useState(null); // null | 'success' | 'cancel'
   const [profileInitialTab, setProfileInitialTab] = useState(null);
@@ -593,6 +594,19 @@ export default function App() {
     }
     window.addEventListener("nav-to-profile-ai", onNavToProfileAi);
     return () => window.removeEventListener("nav-to-profile-ai", onNavToProfileAi);
+  }, []);
+
+  // Navigate to a consultant's full profile from ConsultantProfilePanel
+  useEffect(() => {
+    function onNavToConsultantProfile(e) {
+      const userId = e.detail?.userId;
+      if (!userId) return;
+      setPendingUserId(userId);
+      setPendingUserBackView(activeView ?? "settings");
+      setActiveView("profile");
+    }
+    window.addEventListener("nav-to-consultant-profile", onNavToConsultantProfile);
+    return () => window.removeEventListener("nav-to-consultant-profile", onNavToConsultantProfile);
   }, []);
 
   // Sync authed state with auth session
@@ -761,7 +775,7 @@ export default function App() {
       case "my-cases":       return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
       case "arena":          return <ArenaView auth={auth} />;
       case "profile":        return pendingUserId
-                               ? <ConsultantProfileView userId={pendingUserId} onBack={() => { setActiveView("settings"); setPendingUserId(null); }} />
+                               ? <ConsultantProfileView userId={pendingUserId} onBack={() => { setActiveView(pendingUserBackView ?? "settings"); setPendingUserId(null); }} />
                                : <ProfileView auth={auth} initialTab={profileInitialTab} key={profileInitialTab} />;
       case "consultants":    return <ConsultantsView auth={auth} />;
       case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
@@ -773,12 +787,13 @@ export default function App() {
         ? <ClientProfileView auth={auth} clientId={pendingClientId ?? auth.user?.id} onBack={pendingClientId ? () => { setPendingClientId(null); setActiveView("settings"); } : null} />
         : <Dashboard auth={auth} />;
       case "lifecycle":      return (auth.isAdmin || auth.isManager) ? <LifecycleSettingsView auth={auth} /> : <Dashboard auth={auth} />;
-      case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} onNavigate={({ view, userId, clientId }) => { setPendingUserId(userId ?? null); setPendingClientId(clientId ?? null); setActiveView(view); }} /> : <Dashboard auth={auth} />;
+      case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} onNavigate={({ view, userId, clientId }) => { setPendingUserId(userId ?? null); setPendingUserBackView("settings"); setPendingClientId(clientId ?? null); setActiveView(view); }} /> : <Dashboard auth={auth} />;
       case "audit_log":      return (auth.isAdmin || auth.isManager)
         ? <AuditLogDashboard onNavigate={({ view, caseId, projectId, userId }) => {
             setPendingCaseId(caseId ?? null);
             setPendingProjectId(projectId ?? null);
             setPendingUserId(userId ?? null);
+            setPendingUserBackView("audit_log");
             setActiveView(view);
           }} />
         : <Dashboard auth={auth} />;

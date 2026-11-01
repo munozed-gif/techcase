@@ -837,6 +837,15 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
                       </button>
                     );
                   })}
+                  <button
+                    onClick={() => {
+                      try { window.dispatchEvent(new CustomEvent('nav-to-consultant-profile', { detail: { userId: consultantId } })); } catch (_) {}
+                      onClose?.();
+                    }}
+                    style={{ flexShrink:0, marginLeft:'auto', display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:'1.5px solid rgba(100,160,220,0.35)', background:'rgba(37,99,235,0.15)', color:'#60A5FA', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    <ExternalLink size={11}/>
+                    <span>Full Profile</span>
+                  </button>
                 </div>
               </div>
             );
