@@ -765,7 +765,7 @@ function SapIntegrationPanel({ clientId, auth }) {
   }
 
   function enrichEnvWithVpn(env) {
-    const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
+    const linkedConn = env.connectionId ? (projectConns ?? []).find(c => c.id === env.connectionId) : null;
     const vpnProxyUrl = linkedConn?.db_type === 'vpn' ? linkedConn.meta?.proxy_url?.trim() : null;
     return vpnProxyUrl ? { ...env, _vpnProxyUrl: vpnProxyUrl } : env;
   }
@@ -976,7 +976,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                           </label>
                           <div className="flex gap-2 items-center">
                             <input value={env.adt_mcp_url ?? ''} onChange={e => updateEnvField(env.id, 'adt_mcp_url', e.target.value)} disabled={!canEdit}
-                              placeholder={`https://your-tunnel.trycloudflare.com (port ${settings['sap_vm_config']?.bridge_port_prod ?? 3101})`}
+                              placeholder={`https://your-tunnel.trycloudflare.com (port ${ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101})`}
                               className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
                             <button title="Fetch latest URL from Supabase registry"
                               onClick={async () => {
@@ -990,7 +990,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                             </button>
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {settings['sap_vm_config']?.bridge_port_prod ?? 3101}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.
+                            Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.
                           </p>
                         </div>
                       )}
