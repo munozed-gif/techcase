@@ -1003,7 +1003,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                                   if (!vpnDraft.remote_gateway) return;
                                   setAddVpnSaving(true);
                                   try {
-                                    const newConn = await addClientConn({ db_type: 'vpn', host: vpnDraft.remote_gateway, meta: { conn_name: vpnDraft.conn_name, remote_gateway: vpnDraft.remote_gateway, password: vpnDraft.password, trusted_cert: vpnDraft.trusted_cert, vpn_client: 'openfortivpn', username: vpnDraft.username } });
+                                    const newConn = await addClientConn({ db_type: 'vpn', host: vpnDraft.remote_gateway, username: vpnDraft.username, meta: { conn_name: vpnDraft.conn_name, remote_gateway: vpnDraft.remote_gateway, password: vpnDraft.password, trusted_cert: vpnDraft.trusted_cert, vpn_client: 'openfortivpn' } });
                                     setAddVpnFormEnvId(null);
                                   } catch (e) { /* ignore */ } finally { setAddVpnSaving(false); }
                                 }}
