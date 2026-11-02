@@ -714,6 +714,9 @@ function SapIntegrationPanel({ clientId, auth }) {
     clientRaw.host ? [{ id: 'default', name: 'Default', envType: 'dev', ...clientRaw }] : []
   );
 
+  // Client-scoped VPN / DB connections
+  const { connections: clientConns, addConnection: addClientConn } = useDbConnections(clientId);
+
   const [environments, setEnvironments] = useState(initialEnvs);
   const [expandedId, setExpandedId] = useState(null);
   const [testStates, setTestStates] = useState({});
@@ -723,6 +726,10 @@ function SapIntegrationPanel({ clientId, auth }) {
   const [saved, setSaved] = useState(false);
   const [showPasswords, setShowPasswords] = useState({});
   const [expandedAdtPaths, setExpandedAdtPaths] = useState({});
+  const [vmCfgExpanded, setVmCfgExpanded] = useState({});
+  const [addVpnFormEnvId, setAddVpnFormEnvId] = useState(null);
+  const [vpnDraft, setVpnDraft] = useState({ conn_name: '', remote_gateway: '', username: '', password: '', trusted_cert: '' });
+  const [addVpnSaving, setAddVpnSaving] = useState(false);
 
   const canEdit = auth.isAdmin || auth.isManager || auth.isClient;
 
@@ -765,7 +772,7 @@ function SapIntegrationPanel({ clientId, auth }) {
   }
 
   function enrichEnvWithVpn(env) {
-    const linkedConn = env.connectionId ? (projectConns ?? []).find(c => c.id === env.connectionId) : null;
+    const linkedConn = env.connectionId ? (clientConns ?? []).find(c => c.id === env.connectionId) : null;
     const vpnProxyUrl = linkedConn?.db_type === 'vpn' ? linkedConn.meta?.proxy_url?.trim() : null;
     return vpnProxyUrl ? { ...env, _vpnProxyUrl: vpnProxyUrl } : env;
   }
@@ -923,7 +930,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                     </div>
 
                     {/* VPN / network mode */}
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">Network / VPN Mode</label>
                       <div className="flex gap-2">
                         {[
@@ -941,12 +948,75 @@ function SapIntegrationPanel({ clientId, auth }) {
                           );
                         })}
                       </div>
-                      <p className="text-xs text-gray-400">
-                        {(env.vpn_mode ?? 'platform') === 'user'
-                          ? 'Connect via FortiClient or local VPN before testing SAP. Platform skips VPN check.'
-                          : 'VM manages the VPN connection automatically. VPN link is assigned at the project level.'
-                        }
-                      </p>
+                      {(env.vpn_mode ?? 'platform') === 'platform' ? (
+                        <div className="space-y-1.5">
+                          <select value={env.connectionId ?? ''} onChange={e => updateEnvField(env.id, 'connectionId', e.target.value)} disabled={!canEdit}
+                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
+                            <option value="">— None (no VPN credentials) —</option>
+                            {(clientConns ?? []).filter(c => c.db_type === 'vpn').map(c => (
+                              <option key={c.id} value={c.id}>🔒 VPN — {c.meta?.conn_name || c.host}</option>
+                            ))}
+                          </select>
+                          {canEdit && (
+                            <button onClick={() => { setAddVpnFormEnvId(addVpnFormEnvId === env.id ? null : env.id); setVpnDraft({ conn_name: '', remote_gateway: '', username: '', password: '', trusted_cert: '' }); }}
+                              className="flex items-center gap-1 text-[11px] text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
+                              <Plus size={11} />{addVpnFormEnvId === env.id ? 'Cancel' : 'Add VPN connection'}
+                            </button>
+                          )}
+                          {addVpnFormEnvId === env.id && (
+                            <div className="border border-blue-200 dark:border-blue-800 rounded-xl p-3 space-y-2 bg-blue-50/40 dark:bg-blue-900/10">
+                              <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">New VPN Connection</p>
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <div>
+                                  <label className="block text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">Name</label>
+                                  <input value={vpnDraft.conn_name} onChange={e => setVpnDraft(d => ({ ...d, conn_name: e.target.value }))}
+                                    placeholder="e.g. ADMOSA FortiGate"
+                                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100" />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">Gateway (host or IP)</label>
+                                  <input value={vpnDraft.remote_gateway} onChange={e => setVpnDraft(d => ({ ...d, remote_gateway: e.target.value }))}
+                                    placeholder="vpn.example.com"
+                                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100" />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">Username</label>
+                                  <input value={vpnDraft.username} onChange={e => setVpnDraft(d => ({ ...d, username: e.target.value }))}
+                                    autoComplete="off"
+                                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100" />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">Password</label>
+                                  <input type="password" value={vpnDraft.password} onChange={e => setVpnDraft(d => ({ ...d, password: e.target.value }))}
+                                    autoComplete="new-password"
+                                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100" />
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="block text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">Trusted Cert (optional)</label>
+                                  <input value={vpnDraft.trusted_cert} onChange={e => setVpnDraft(d => ({ ...d, trusted_cert: e.target.value }))}
+                                    placeholder="SHA256 hash or leave blank"
+                                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                                </div>
+                              </div>
+                              <button disabled={!vpnDraft.remote_gateway || addVpnSaving}
+                                onClick={async () => {
+                                  if (!vpnDraft.remote_gateway) return;
+                                  setAddVpnSaving(true);
+                                  try {
+                                    const newConn = await addClientConn({ db_type: 'vpn', host: vpnDraft.remote_gateway, meta: { conn_name: vpnDraft.conn_name, remote_gateway: vpnDraft.remote_gateway, password: vpnDraft.password, trusted_cert: vpnDraft.trusted_cert, vpn_client: 'openfortivpn', username: vpnDraft.username } });
+                                    setAddVpnFormEnvId(null);
+                                  } catch (e) { /* ignore */ } finally { setAddVpnSaving(false); }
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors">
+                                {addVpnSaving ? <RefreshCw size={10} className="animate-spin" /> : <Plus size={10} />}
+                                {addVpnSaving ? 'Saving…' : 'Save VPN Connection'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">Connect via FortiClient or local VPN before testing SAP. Platform skips VPN check.</p>
+                      )}
                     </div>
 
                     {/* MCP server type + ADT bridge URL */}
@@ -974,9 +1044,12 @@ function SapIntegrationPanel({ clientId, auth }) {
                           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                             ABAP ADT Bridge URL <span className="text-red-400">*</span>
                           </label>
+                          {(() => {
+                            const envBridgePort = env.bridge_port_override || (env.envType === 'dev' ? (ssCtx.settings['sap_vm_config']?.bridge_port_dev ?? 3102) : (ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101));
+                            return (<>
                           <div className="flex gap-2 items-center">
                             <input value={env.adt_mcp_url ?? ''} onChange={e => updateEnvField(env.id, 'adt_mcp_url', e.target.value)} disabled={!canEdit}
-                              placeholder={`https://your-tunnel.trycloudflare.com (port ${ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101})`}
+                              placeholder={`https://your-tunnel.trycloudflare.com (port ${envBridgePort})`}
                               className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
                             <button title="Fetch latest URL from Supabase registry"
                               onClick={async () => {
@@ -990,14 +1063,51 @@ function SapIntegrationPanel({ clientId, auth }) {
                             </button>
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.
+                            Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {envBridgePort}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.
                           </p>
+                            </>);
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* VM Config Override */}
+                    <div className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden">
+                      <button onClick={() => setVmCfgExpanded(p => ({ ...p, [env.id]: !p[env.id] }))}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <ChevronRight size={12} className={`text-gray-400 transition-transform ${vmCfgExpanded[env.id] ? 'rotate-90' : ''}`} />
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">VM Config</span>
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">(optional — overrides global defaults)</span>
+                        {(env.vm_host_override || env.ssh_user_override || env.bridge_port_override) && (
+                          <span className="ml-auto text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full">overridden</span>
+                        )}
+                      </button>
+                      {vmCfgExpanded[env.id] && (
+                        <div className="px-3 pb-3 pt-1 border-t border-gray-100 dark:border-gray-700 grid grid-cols-1 gap-2 sm:grid-cols-3 bg-gray-50/50 dark:bg-black/10">
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">VM Host / Public IP</label>
+                            <input value={env.vm_host_override ?? ''} onChange={e => updateEnvField(env.id, 'vm_host_override', e.target.value)} disabled={!canEdit}
+                              placeholder={ssCtx.settings['sap_vm_config']?.vm_host || 'e.g. 52.10.3.5'}
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">SSH User</label>
+                            <input value={env.ssh_user_override ?? ''} onChange={e => updateEnvField(env.id, 'ssh_user_override', e.target.value)} disabled={!canEdit}
+                              placeholder={ssCtx.settings['sap_vm_config']?.vm_ssh_user || 'ubuntu'}
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">Bridge Port</label>
+                            <input type="number" value={env.bridge_port_override ?? ''} onChange={e => updateEnvField(env.id, 'bridge_port_override', e.target.value ? Number(e.target.value) : '')} disabled={!canEdit}
+                              placeholder={String(env.envType === 'dev' ? (ssCtx.settings['sap_vm_config']?.bridge_port_dev ?? 3102) : (ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101))}
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                          </div>
                         </div>
                       )}
                     </div>
 
                     {/* Infra status check */}
-                    <EnvInfraStatusCard env={env} enrichEnvWithVpn={enrichEnvWithVpn} projectConns={[]} globalMcpUrl={ssCtx.settings['sap_mcp_server_url']} onUpdateMcpUrl={(url) => updateEnvField(env.id, 'mcp_server_url', url)} onUpdateAdtUrl={(url) => updateEnvField(env.id, 'adt_mcp_url', url)} />
+                    <EnvInfraStatusCard env={env} enrichEnvWithVpn={enrichEnvWithVpn} projectConns={clientConns ?? []} globalMcpUrl={ssCtx.settings['sap_mcp_server_url']} onUpdateMcpUrl={(url) => updateEnvField(env.id, 'mcp_server_url', url)} onUpdateAdtUrl={(url) => updateEnvField(env.id, 'adt_mcp_url', url)} />
 
                     {canEdit && (
                       <div className="space-y-1">
@@ -2678,6 +2788,11 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
   }
 
   const isUserVpnMode = env.vpn_mode === 'user';
+  // Per-env VM overrides take precedence over global sap_vm_config
+  const vmHost     = env.vm_host_override    || sysSettings['sap_vm_config']?.vm_host     || '<VM_HOST>';
+  const vmSshUser  = env.ssh_user_override   || sysSettings['sap_vm_config']?.vm_ssh_user  || 'ubuntu';
+  const bridgePort = env.bridge_port_override || (env.envType === 'dev' ? (sysSettings['sap_vm_config']?.bridge_port_dev ?? 3102) : (sysSettings['sap_vm_config']?.bridge_port_prod ?? 3101));
+  const socksPort  = env.socks_port_override  || sysSettings['sap_vm_config']?.socks_port  || 1080;
   const SETUP_STEPS = isUserVpnMode && isAdtMcpMode
     ? [
         { label: '1. Clone repo on your laptop (once)', cmd: 'git clone https://github.com/munozed-gif/techcase.git' },
@@ -2691,7 +2806,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         { label: '2. Start MCP server + tunnel', cmd: 'cd techcase/sap-mcp-server && ./start-local.sh' },
       ]
     : [
-        { label: '1. SSH into your VM', cmd: `ssh ${sysSettings['sap_vm_config']?.vm_ssh_user ?? 'ubuntu'}@${sysSettings['sap_vm_config']?.vm_host ?? '<VM_HOST>'}` },
+        { label: '1. SSH into your VM', cmd: `ssh ${vmSshUser}@${vmHost}` },
         { label: '2. Clone repo on the VM (once)', cmd: 'git clone https://github.com/munozed-gif/techcase.git /home/ubuntu/techcase' },
         { label: '3. Install dependencies', cmd: 'cd /home/ubuntu/techcase/sap-mcp-server && npm install' },
         { label: '4. Start service', cmd: 'sudo systemctl start sap-mcp && sudo systemctl enable sap-mcp' },
@@ -2797,6 +2912,15 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
   return (
     <div className="mt-3">
+      {/* Concurrency warning — shown when using global fallback VM with platform VPN */}
+      {(env.vpn_mode ?? 'platform') === 'platform' && !env.mcp_server_url?.trim() && infraCfg.vm.enabled && (
+        <div className="flex items-start gap-2 mb-2 px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+          <AlertTriangle size={11} className="shrink-0 mt-0.5 text-amber-500" />
+          <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-snug">
+            Using global VM — multiple environments sharing this VM may queue VPN checks. Set a per-environment MCP Server URL above for full isolation.
+          </p>
+        </div>
+      )}
       {/* Header bar */}
       <div className="flex items-center justify-between gap-2 mb-2">
         <button
@@ -2974,7 +3098,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                   {[
                     { label: '1. Install microsocks (once, Mac)', cmd: 'brew install microsocks' },
                     { label: '2. Start SOCKS5 proxy on laptop', cmd: 'microsocks -p 8888 &' },
-                    { label: '3. Tunnel it to VM (keep terminal open)', cmd: `ssh -R 127.0.0.1:${sysSettings['sap_vm_config']?.socks_port ?? 1080}:127.0.0.1:8888 ${sysSettings['sap_vm_config']?.vm_ssh_user ?? 'ubuntu'}@${sysSettings['sap_vm_config']?.vm_host ?? '<VM_HOST>'} -N` },
+                    { label: '3. Tunnel it to VM (keep terminal open)', cmd: `ssh -R 127.0.0.1:${socksPort}:127.0.0.1:8888 ${vmSshUser}@${vmHost} -N` },
                   ].map((step, si) => (
                     <div key={si} className="space-y-0.5">
                       <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-semibold">{step.label}</p>
@@ -3155,6 +3279,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
   const [infraChecks, setInfraChecks] = useState({}); // { [envId]: { checking, vm, vpn, sap } }
   const [expandedAdtPaths, setExpandedAdtPaths] = useState({});
   const [standardsOpen, setStandardsOpen] = useState(false);
+  const [vmCfgExpanded, setVmCfgExpanded] = useState({});
 
   const sapProjectEnv = ssCtx.settings['sap_project_env'] ?? {};
   const selectedEnvId = sapProjectEnv[projectId] ?? '';
@@ -3522,9 +3647,12 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                                   ABAP ADT Bridge URL <span className="text-red-400">*</span>
                                 </label>
+                                {(() => {
+                                  const envBridgePort = env.bridge_port_override || (env.envType === 'dev' ? (ssCtx.settings['sap_vm_config']?.bridge_port_dev ?? 3102) : (ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101));
+                                  return (<>
                                 <div className="flex gap-2 items-center">
                                   <input value={env.adt_mcp_url ?? ''} onChange={e => updateEnvField(env.id, 'adt_mcp_url', e.target.value)} disabled={!canEdit}
-                                    placeholder={`https://your-tunnel.trycloudflare.com (port ${ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101})`}
+                                    placeholder={`https://your-tunnel.trycloudflare.com (port ${envBridgePort})`}
                                     className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
                                   <button title="Fetch latest URL from Supabase registry"
                                     onClick={async () => {
@@ -3540,9 +3668,45 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                                 <p className="text-xs text-gray-400 mt-0.5">
                                   {env.vpn_mode === 'user'
                                     ? <>Run <code className="text-blue-400">vm-mcp-adt/start-local.sh</code> on your laptop (FortiClient must be connected) — the tunnel URL is printed on startup and auto-registered.</>
-                                    : <>Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.</>
+                                    : <>Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {envBridgePort}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.</>
                                   }
                                 </p>
+                                  </>);
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                          {/* VM Config Override */}
+                          <div className="mt-3 border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden">
+                            <button onClick={() => setVmCfgExpanded(p => ({ ...p, [env.id]: !p[env.id] }))}
+                              className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                              <ChevronRight size={12} className={`text-gray-400 transition-transform ${vmCfgExpanded[env.id] ? 'rotate-90' : ''}`} />
+                              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">VM Config</span>
+                              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">(optional — overrides global defaults)</span>
+                              {(env.vm_host_override || env.ssh_user_override || env.bridge_port_override) && (
+                                <span className="ml-auto text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full">overridden</span>
+                              )}
+                            </button>
+                            {vmCfgExpanded[env.id] && (
+                              <div className="px-3 pb-3 pt-1 border-t border-gray-100 dark:border-gray-700 grid grid-cols-1 gap-2 sm:grid-cols-3 bg-gray-50/50 dark:bg-black/10">
+                                <div>
+                                  <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">VM Host / Public IP</label>
+                                  <input value={env.vm_host_override ?? ''} onChange={e => updateEnvField(env.id, 'vm_host_override', e.target.value)} disabled={!canEdit}
+                                    placeholder={ssCtx.settings['sap_vm_config']?.vm_host || 'e.g. 52.10.3.5'}
+                                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">SSH User</label>
+                                  <input value={env.ssh_user_override ?? ''} onChange={e => updateEnvField(env.id, 'ssh_user_override', e.target.value)} disabled={!canEdit}
+                                    placeholder={ssCtx.settings['sap_vm_config']?.vm_ssh_user || 'ubuntu'}
+                                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1">Bridge Port</label>
+                                  <input type="number" value={env.bridge_port_override ?? ''} onChange={e => updateEnvField(env.id, 'bridge_port_override', e.target.value ? Number(e.target.value) : '')} disabled={!canEdit}
+                                    placeholder={String(env.envType === 'dev' ? (ssCtx.settings['sap_vm_config']?.bridge_port_dev ?? 3102) : (ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101))}
+                                    className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                                </div>
                               </div>
                             )}
                           </div>
