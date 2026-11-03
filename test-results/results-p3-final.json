@@ -1,0 +1,24 @@
+{
+  "P": 2,
+  "F": 1,
+  "results": [
+    {
+      "id": "HH-08",
+      "desc": "HH Consultants: propose/place UI visible in panel",
+      "status": "PASS",
+      "note": "sel=div[class*=\"grid\"] > div[class*=\"cursor\"]"
+    },
+    {
+      "id": "C-08",
+      "desc": "Arena tab separate from Dashboard (consultant)",
+      "status": "FAIL",
+      "note": "#arena redirects to Dashboard for consultant"
+    },
+    {
+      "id": "CL-10",
+      "desc": "Arena: applicant ranking scores visible for client",
+      "status": "PASS",
+      "note": "scores visible"
+    }
+  ]
+}
