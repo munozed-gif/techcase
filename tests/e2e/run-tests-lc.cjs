@@ -50,13 +50,19 @@ async function clickNav(page, text) {
 }
 
 // Open a case card by matching title text (or first card if not found)
+// Individual case cards have cursor-pointer class; outer grid container does not.
 async function openCase(page, titleFragment) {
-  const cards = page.locator('div[class*="shadow"][class*="rounded"]');
+  const cards = page.locator('div[class*="cursor-pointer"][class*="rounded"]');
   const matchCard = cards.filter({ hasText: new RegExp(titleFragment, 'i') }).first();
   if (await matchCard.isVisible({ timeout: 5000 }).catch(() => false)) {
     await matchCard.click(); await page.waitForTimeout(2000); return true;
   }
-  // Use first card
+  // Try clicking h3 title element (also triggers navigation via event bubbling)
+  const titleEl = page.locator('h3').filter({ hasText: new RegExp(titleFragment, 'i') }).first();
+  if (await titleEl.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await titleEl.click(); await page.waitForTimeout(2000); return true;
+  }
+  // Fall back to first cursor-pointer card
   const first = cards.first();
   if (await first.isVisible({ timeout: 3000 }).catch(() => false)) {
     const txt = await first.innerText().catch(() => '');
@@ -66,21 +72,46 @@ async function openCase(page, titleFragment) {
   return false;
 }
 
-// Get current stage from page body
+// Get current stage from page body (checks first 500 chars where the current-stage badge appears)
 async function getStage(page) {
   const txt = await body(page);
-  // Look for pattern "← Cases XX TS CaseName {Stage} Medium" or in a badge/header
-  const stages = ['Completed','Closed','Approved','User Test','Functional Test','Technical Test',
-    'Standby','In Progress','Assigned','Estimated','Returned','Confirmed','Open'];
+  // Most-advanced stages first so the current badge wins over the progress-bar breadcrumb
+  const stages = ['Terminated','Cancelled','Approved','Adjustments','User Test','Functional Test',
+    'Technical Test','Standby','In Progress','Assigned','Estimated','Returned','Confirmed','Open',
+    'Completed','Closed'];
   for (const s of stages) {
-    const re = new RegExp(s, 'i');
-    if (re.test(txt.slice(0, 500))) return s;
+    if (new RegExp(s, 'i').test(txt.slice(0, 500))) return s;
   }
   return '';
 }
 
 // Advance to next stage
 async function advance(page, targetStage) {
+  // For Cancelled: click → Cancelled (persistent CTA or lifecycle tab),
+  // then fill the cancel modal (reason radio + notes) and confirm.
+  if (/cancelled/i.test(targetStage)) {
+    const cancelBtn = page.locator('button').filter({ hasText: /→.*cancelled/i }).first();
+    if (!await cancelBtn.isVisible({ timeout: 3000 }).catch(() => false)) return false;
+    await cancelBtn.click(); await page.waitForTimeout(1500);
+    // Wait for cancel modal (check for its unique radio name="cxReason")
+    const radio = page.locator('input[type="radio"][name="cxReason"]').first();
+    if (await radio.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await radio.click().catch(() => {}); await page.waitForTimeout(300);
+    }
+    // Fill notes textarea (the first visible textarea — cancel modal's textarea)
+    const textarea = page.locator('textarea').first();
+    if (await textarea.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await textarea.fill('Automated test cancellation').catch(() => {}); await page.waitForTimeout(300);
+    }
+    // Click "Confirm Cancellation" button
+    const confirm = page.locator('button').filter({ hasText: /confirm cancellation/i }).first();
+    if (await confirm.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await confirm.click(); await page.waitForTimeout(2000);
+    }
+    return true;
+  }
+
+  // Default: look for → {targetStage} button (standard stages)
   const btn = page.locator('button').filter({ hasText: new RegExp(`→.*${targetStage}|${targetStage}.*→`, 'i') }).first();
   if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
     await btn.click(); await page.waitForTimeout(2000);
@@ -470,8 +501,9 @@ let lcCaseTitle = null;
     finally { await ctx.close().catch(() => {}); }
   }
 
-  // ═══ LC-11/12/13: Approved → Closed → Completed ═══
-  log('\n════ LC-11/12/13: Approved → Closed → Completed ════');
+  // ═══ LC-11/12/13: Approved → Terminated (terminal), Cancelled (terminal) ═══
+  // Support Center lifecycle terminal stages are Terminated and Cancelled (not Closed/Completed)
+  log('\n════ LC-11/12/13: Approved → Terminated + Cancelled ════');
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     const page = await ctx.newPage(); page.setDefaultTimeout(25000);
@@ -480,37 +512,121 @@ let lcCaseTitle = null;
       await clickNav(page, 'Cases');
       const found = await openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
       if (found) {
-        const txt = await body(page);
         // Approved
         const adv11 = await advance(page, 'Approved');
         const txt11 = await body(page);
         add('LC-11', 'Approved stage advance', /approved/i.test(txt11.slice(0, 600)) ? 'PASS' : 'FAIL', `adv=${adv11}`);
         await ss(page, 'LC-11');
 
-        // Closed
-        const adv12 = await advance(page, 'Closed');
+        // Terminated (terminal success exit)
+        const adv12 = await advance(page, 'Terminated');
         const txt12 = await body(page);
-        add('LC-12', 'Closed stage advance', /closed/i.test(txt12.slice(0, 600)) ? 'PASS' : 'FAIL', `adv=${adv12}`);
+        add('LC-12', 'Terminated stage advance (terminal exit from Approved)',
+          /terminated/i.test(txt12.slice(0, 600)) ? 'PASS' : 'FAIL', `adv=${adv12}`);
         await ss(page, 'LC-12');
 
-        // Completed
-        const adv13 = await advance(page, 'Completed');
-        const txt13 = await body(page);
-        add('LC-13', 'Completed stage advance', /completed/i.test(txt13.slice(0, 600)) ? 'PASS' : 'FAIL', `adv=${adv13}`);
-        await ss(page, 'LC-13');
-
-        // No further transitions
+        // No further transitions after Terminated
         const finalBtns = await getBtns(page);
         const noAdvance = !finalBtns.some(b => /^→ /i.test(b));
-        add('LC-13-final', 'No further stage transitions in terminal state',
+        add('LC-13-final', 'No further stage transitions after Terminated (is terminal)',
           noAdvance ? 'PASS' : 'FAIL', `btns=[${finalBtns.filter(b => /→/.test(b)).join(',')}]`);
+        await ss(page, 'LC-13-final');
       } else {
         add('LC-11', 'Approved stage', 'FAIL', 'case not found');
-        add('LC-12', 'Closed stage', 'FAIL', 'case not found');
-        add('LC-13', 'Completed stage', 'FAIL', 'case not found');
+        add('LC-12', 'Terminated stage', 'FAIL', 'case not found');
         add('LC-13-final', 'Terminal state', 'FAIL', 'case not found');
       }
-    } catch(e) { ['LC-11','LC-12','LC-13','LC-13-final'].forEach(id => add(id, id, 'FAIL', e.message.slice(0, 60))); }
+    } catch(e) { ['LC-11','LC-12','LC-13-final'].forEach(id => add(id, id, 'FAIL', e.message.slice(0, 60))); }
+    finally { await ctx.close(); }
+  }
+
+  // ═══ LC-13: Cancelled terminal stage ═══
+  // Manager creates a fresh case via the + New Case wizard (starts in Open where → Cancelled is available).
+  // The cancel modal (reason + notes) was missing from CaseDetail.jsx; now fixed.
+  log('\n════ LC-13: Cancelled terminal stage ════');
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const page = await ctx.newPage(); page.setDefaultTimeout(30000);
+    const LC13_TITLE = `LC-Cancel-${TS}`;
+    let caseCreated = false;
+    try {
+      await login(page, 'sfmanager@techcase.com', MPW);
+      await clickNav(page, 'Cases');
+      await page.waitForTimeout(2000);
+
+      // Create a fresh case via the 10-step wizard
+      const newCaseBtn = page.locator('button').filter({ hasText: /\+ new case/i }).first();
+      if (await newCaseBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await newCaseBtn.click(); await page.waitForTimeout(2500);
+
+        for (let step = 0; step < 12; step++) {
+          const pg = await body(page);
+          const stepMatch = pg.match(/step\s+(\d+)\s+of\s+(\d+)/i);
+          const stepNum = stepMatch ? parseInt(stepMatch[1]) : 0;
+
+          // Step 1: select standalone project
+          if (stepNum === 1) {
+            const standalone = page.locator('div, button, [role="button"]').filter({ hasText: /standalone.*no project/i }).first();
+            if (await standalone.isVisible({ timeout: 1500 }).catch(() => false)) {
+              await standalone.click(); await page.waitForTimeout(500);
+            }
+          }
+
+          // Fill text inputs
+          const inputs = await page.locator('input:not([type="hidden"]):not([type="checkbox"]):not([type="date"])').all();
+          for (const inp of inputs) {
+            if (!await inp.isVisible({ timeout: 300 }).catch(() => false)) continue;
+            const type = await inp.getAttribute('type').catch(() => 'text');
+            const val = await inp.inputValue().catch(() => '');
+            if (!val) await inp.fill(type === 'number' ? '1' : LC13_TITLE).catch(() => {});
+          }
+
+          const contBtn = page.locator('button').filter({ hasText: /continue →/i }).first();
+          const finishBtn = page.locator('button').filter({ hasText: /^create.*case|^create$|^finish$|^submit$/i }).first();
+
+          if (await finishBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+            await finishBtn.click(); await page.waitForTimeout(5000);
+            caseCreated = true; break;
+          } else if (await contBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await contBtn.click(); await page.waitForTimeout(1800);
+          } else {
+            break;
+          }
+        }
+      }
+
+      // After wizard completes we may land on case detail directly.
+      // Check if → Cancelled is already visible; if not, navigate to Cases and open by h3 title.
+      await page.waitForTimeout(1000);
+      let cancelBtnVis = await page.locator('button').filter({ hasText: /→.*cancelled/i }).isVisible({ timeout: 2000 }).catch(() => false);
+      log(`  Case created=${caseCreated}, → Cancelled visible=${cancelBtnVis}`);
+
+      if (!cancelBtnVis) {
+        // Navigate to Cases and open the new case by clicking its h3 title
+        await clickNav(page, 'Cases');
+        await page.waitForTimeout(2500);
+        const titleEl = page.locator('h3').filter({ hasText: new RegExp(LC13_TITLE.slice(0, 8), 'i') }).first();
+        const titleVis = await titleEl.isVisible({ timeout: 4000 }).catch(() => false);
+        log(`  Case in list (h3): ${titleVis}`);
+        if (titleVis) {
+          await titleEl.click(); await page.waitForTimeout(2500);
+          cancelBtnVis = await page.locator('button').filter({ hasText: /→.*cancelled/i }).isVisible({ timeout: 2000 }).catch(() => false);
+          log(`  → Cancelled after h3 click: ${cancelBtnVis}`);
+        }
+        if (!cancelBtnVis) {
+          add('LC-13', 'Cancelled stage', 'FAIL', `wizard=${caseCreated}, → Cancelled btn not found`);
+        }
+      }
+
+      if (cancelBtnVis) {
+        await ss(page, 'LC-13-before');
+        const adv13 = await advance(page, 'Cancelled');
+        const txt13 = await body(page);
+        add('LC-13', 'Cancelled stage (terminal exit — available from any non-terminal stage)',
+          /cancelled/i.test(txt13.slice(0, 500)) ? 'PASS' : 'FAIL', `adv=${adv13}`);
+        await ss(page, 'LC-13');
+      }
+    } catch(e) { add('LC-13', 'LC-13 error', 'FAIL', e.message.slice(0, 60)); }
     finally { await ctx.close(); }
   }
 
