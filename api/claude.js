@@ -120,6 +120,12 @@ export default async function handler(req, res) {
   // ── Build Anthropic request ──────────────────────────────
   const betaFeatures = [];
   if (mcp_servers?.length) betaFeatures.push("mcp-client-2025-04-04");
+  const hasPdfDocument = Array.isArray(messages) && messages.some(m =>
+    Array.isArray(m.content) && m.content.some(b =>
+      b?.type === 'document' && b?.source?.media_type === 'application/pdf'
+    )
+  );
+  if (hasPdfDocument) betaFeatures.push('pdfs-2024-09-25');
 
   const SAFE_MODEL = 'claude-haiku-5-5';
   const MODEL_ALIASES = {
