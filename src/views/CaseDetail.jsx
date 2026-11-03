@@ -347,7 +347,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   useEffect(() => {
     if (!caseData.id) return;
-    supabase.from("case_files").select("id, file_name, name").eq("case_id", caseData.id)
+    supabase.from("case_files").select("id, file_name").eq("case_id", caseData.id)
       .then(({ data }) => setCaseFilesForSpec(data ?? []));
   }, [caseData.id]);
 
