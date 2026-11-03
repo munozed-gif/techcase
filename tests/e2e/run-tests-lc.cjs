@@ -488,8 +488,7 @@ let lcCaseTitle = null;
         } else {
           add('LC-10-client', 'Client sees User Test status', 'FAIL', 'case not found for client');
         }
-        await ctx2.close();
-        return; // skip the outer ctx.close() since we handled it
+        await Promise.race([ctx2.close(), new Promise(r => setTimeout(r, 5000))]).catch(() => {});
       } else {
         add('LC-10', 'User Test stage', 'FAIL', 'case not found');
         add('LC-10-client', 'Client sees User Test', 'FAIL', 'case not found');
