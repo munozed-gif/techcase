@@ -860,7 +860,7 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
 // ARENA (COMPETITIVE BIDDING)
 // ============================================================
 let _arenaCaseIdx = 0; // persists carousel position across ArenaView remounts
-function ArenaView({ auth }) {
+function ArenaView({ auth, onNavigate }) {
   const { t } = useT();
   const { isDark } = useTheme();
   const visCfg = useVisibilitySettings();
@@ -2097,6 +2097,7 @@ function ArenaView({ auth }) {
             isShortlisted={isShortlisted(profileView)}
             onToggleShortlist={() => toggleShortlist(profileView)}
             openCases={cases.filter(c => c.status === 'estimated' || c.status === 'open')}
+            onOpenClientProfile={onNavigate ? (clientId) => { setProfileView(null); onNavigate({ view: 'client-profile', clientId }); } : null}
           />
         </div>
       )}

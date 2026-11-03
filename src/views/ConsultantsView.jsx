@@ -23,7 +23,7 @@ import { useConsultantProfile } from "../hooks/useProfileHooks.js";
 import { ConsultantProfilePanel, useConsultantShortlist } from "./ArenaView.jsx";
 import { PersonAvatar } from "./Projects.jsx";
 
-function ConsultantsView({ auth }) {
+function ConsultantsView({ auth, onNavigate }) {
   const { t } = useT();
   const [search, setSearch]           = useState("");
   const [profileView, setProfileView] = useState(null);
@@ -197,6 +197,7 @@ function ConsultantsView({ auth }) {
             isShortlisted={isShortlisted(profileView)}
             onToggleShortlist={() => toggleShortlist(profileView)}
             openCases={openCases}
+            onOpenClientProfile={onNavigate ? (clientId) => { setProfileView(null); onNavigate({ view: 'client-profile', clientId }); } : null}
           />
         </div>
       )}

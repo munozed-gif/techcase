@@ -773,11 +773,11 @@ export default function App() {
       case "projects":       return <ProjectsView auth={auth} initialProjectId={pendingProjectId} />;
       case "cases":          return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
       case "my-cases":       return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
-      case "arena":          return <ArenaView auth={auth} />;
+      case "arena":          return <ArenaView auth={auth} onNavigate={({ view, clientId }) => { setPendingClientId(clientId ?? null); setActiveView(view); }} />;
       case "profile":        return pendingUserId
                                ? <ConsultantProfileView userId={pendingUserId} onBack={() => { setActiveView(pendingUserBackView ?? "settings"); setPendingUserId(null); }} />
                                : <ProfileView auth={auth} initialTab={profileInitialTab} key={profileInitialTab} />;
-      case "consultants":    return <ConsultantsView auth={auth} />;
+      case "consultants":    return <ConsultantsView auth={auth} onNavigate={({ view, clientId }) => { setPendingClientId(clientId ?? null); setActiveView(view); }} />;
       case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
       case "reports":        return (auth.isAdmin || auth.isManager) ? <ReportsView /> : <Dashboard auth={auth} />;
       case "sla":            return (auth.isAdmin || auth.isManager) ? <SlaView auth={auth} /> : <Dashboard auth={auth} />;
