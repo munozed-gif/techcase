@@ -81,10 +81,16 @@ async function openCase(page, titleFragment) {
   return false;
 }
 
-// Get current stage from page body (checks first 500 chars where the current-stage badge appears)
+// Get current stage from the lifecycle stage badge (data-testid="lc-stage-badge"), or body text fallback
 async function getStage(page) {
+  try {
+    const badge = page.locator('[data-testid="lc-stage-badge"]').first();
+    if (await badge.count().then(n => n > 0).catch(() => false)) {
+      const txt = await badge.innerText().catch(() => '');
+      if (txt.trim()) return txt.trim();
+    }
+  } catch(e) {}
   const txt = await body(page);
-  // Most-advanced stages first so the current badge wins over the progress-bar breadcrumb
   const stages = ['Terminated','Cancelled','Approved','Adjustments','User Test','Functional Test',
     'Technical Test','Standby','In Progress','Assigned','Estimated','Returned','Confirmed','Open',
     'Completed','Closed'];
@@ -291,6 +297,17 @@ async function gotoCase(page) {
             await submit.click(); await page.waitForTimeout(4000);
             lcCaseTitle = LC_TITLE;
             lcCaseUrl = page.url();
+            // If wizard redirected to root (not case detail), find the case in My Cases
+            if (!lcCaseUrl.includes('/cases/')) {
+              await clickNav(page, 'My Cases'); await page.waitForTimeout(2000);
+              const reTitle = new RegExp(LC_TITLE.slice(0, 12).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+              const caseCard = page.locator('div[class*="cursor-pointer"]').filter({ hasText: reTitle }).first();
+              if (await caseCard.count().then(n => n > 0).catch(() => false)) {
+                await caseCard.scrollIntoViewIfNeeded().catch(() => {});
+                await caseCard.click(); await page.waitForTimeout(2500);
+                lcCaseUrl = page.url();
+              }
+            }
             log('  Created: ' + lcCaseTitle + ' url=' + lcCaseUrl.slice(-40));
             await ss(page, 'LC-created');
             break;
