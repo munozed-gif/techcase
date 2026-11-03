@@ -3,6 +3,7 @@
 const TRANSLATIONS = {
   en: {
     // Navigation
+    "nav.users":          "Users",
     "nav.dashboard":      "Dashboard",
     "nav.projects":       "Projects",
     "nav.cases":          "Cases",
@@ -112,7 +113,7 @@ const TRANSLATIONS = {
     "auth.build_consultant": "Build your consultant profile",
     "auth.build_key_user":   "Complete your Key User account",
     "auth.build_client":     "Set up your company profile",
-    "auth.help_clients":     "Help clients find you with the right details.",
+    "auth.help_clients":     "Showcase your skills and headline to get found.",
     "auth.tell_consultants": "Tell consultants about your company.",
     // Common labels
     "label.status":       "Status",

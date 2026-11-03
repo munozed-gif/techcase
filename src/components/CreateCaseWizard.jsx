@@ -1009,7 +1009,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               );
             })()}
 
-            <Input label={`${t("label.title")} *`} value={basics.title}
+            <Input label={`${t("label.title")} *`} name="title" value={basics.title}
               onChange={e => setBasics(p => ({ ...p, title: e.target.value }))}
               placeholder={t("case.ph_title_eg")} />
             {mode === "express" ? (

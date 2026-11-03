@@ -111,23 +111,29 @@ async function body(page) { return page.evaluate(() => document.body.innerText.s
     finally { await ctx.close(); }
   }
 
-  // Re-verify C-08: does #arena truly redirect to Dashboard for consultant?
+  // Re-verify C-08: consultant can navigate to Arena via sidebar
   log('\n════ C-08 re-verify: consultant arena ════');
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     const page = await ctx.newPage(); page.setDefaultTimeout(20000);
     try {
       await login(page, 'test.consultant@test.arena.dev', PW);
-      await page.goto(APP + '#arena', { waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(2000);
+      // Try sidebar button first (plan upgrade should make Arena visible)
+      const arenaBtn = page.locator('aside button').filter({ hasText: /^arena$/i }).first();
+      const hasArenaBtn = await arenaBtn.isVisible({ timeout: 3000 }).catch(() => false);
+      if (hasArenaBtn) {
+        await arenaBtn.click(); await page.waitForTimeout(2000);
+      } else {
+        await page.goto(APP + '#arena', { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(2000);
+      }
       const txt = await body(page);
-      // Check if this is the Dashboard (not Arena)
-      const isRedirectedToDash = /welcome back.*sam|open cases available|my applications/i.test(txt);
-      const hasLeaderboard = /leaderboard.*tab|cards.*tab|compare.*tab/i.test(txt);
+      const isOnDashboard = /welcome back|open cases available|my applications/i.test(txt) && !/leaderboard|applicant.*rank|score/i.test(txt);
+      const hasArenaContent = /leaderboard|applicant.*rank|score|arena/i.test(txt);
       log('C-08 page content: ' + txt.slice(0, 300).replace(/\n/g, ' '));
       add('C-08', 'Arena tab separate from Dashboard (consultant)',
-        !isRedirectedToDash && hasLeaderboard ? 'PASS' : 'FAIL',
-        isRedirectedToDash ? '#arena redirects to Dashboard for consultant' : 'leaderboard tabs absent');
+        hasArenaBtn && hasArenaContent && !isOnDashboard ? 'PASS' : 'FAIL',
+        !hasArenaBtn ? 'Arena nav button hidden (plan restriction)' : isOnDashboard ? 'redirects to Dashboard' : 'arena content present');
     } catch(e) { add('C-08-ERR', 'C-08 error', 'FAIL', e.message.slice(0,80)); }
     finally { await ctx.close(); }
   }

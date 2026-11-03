@@ -91,6 +91,8 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "transport",       Icon: ArrowRightLeft,    labelKey: "nav.transport" },
       { id: "fitgap",          Icon: GitCompare,        labelKey: "nav.fitgap" },
       { id: "testing",         Icon: FlaskConical,      labelKey: "nav.testing" },
+      { id: "dispatch-queue", Icon: Inbox,            labelKey: "nav.dispatch_queue" },
+      { id: "users",          Icon: UsersRound,        labelKey: "nav.users" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     manager: [
