@@ -309,9 +309,22 @@ async function createLCCase(browser) {
       if (await cont.isVisible({ timeout: 2000 }).catch(() => false)) {
         await cont.click(); await page.waitForTimeout(1500);
       } else {
+        // Dismiss "Case limit reached" upgrade modal if visible
+        const maybeLaterBtn = page.locator('button').filter({ hasText: /maybe later/i }).first();
+        if (await maybeLaterBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+          log('  Dismissing plan upgrade modal (case limit)');
+          await maybeLaterBtn.click(); await page.waitForTimeout(800);
+        }
         const submit = page.locator('button').filter({ hasText: /submit|finish|create.*case|save/i }).first();
         if (await submit.isVisible({ timeout: 2000 }).catch(() => false)) {
           await submit.click(); await page.waitForTimeout(4000);
+          // Check for and dismiss upgrade modal that may appear after click
+          const maybeLater2 = page.locator('button').filter({ hasText: /maybe later/i }).first();
+          if (await maybeLater2.isVisible({ timeout: 1500 }).catch(() => false)) {
+            log('  WARN: Case limit still hit — plan seed may not have run');
+            await maybeLater2.click(); await page.waitForTimeout(500);
+            break; // Cannot create case, exit wizard loop
+          }
           lcCaseId = LC_CASE_TITLE;
           log('  Created LC test case: ' + lcCaseId);
           await ss(page, 'LC-case-created');
@@ -385,28 +398,48 @@ async function findAndOpenCase(page, caseTitle, role) {
   const titlePrefix = caseTitle.slice(0, Math.min(caseTitle.length, 30));
   const escapedPrefix = titlePrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // Strategy 0: Use GlobalSearch (⌘K) — most reliable since it queries Supabase directly by title
-  // Only for roles that have the Search button (manager, admin, pm, consultant)
+  // Strategy 0: Use GlobalSearch (Ctrl+K) — queries Supabase directly by title
   if (['manager', 'admin', 'pm', 'consultant'].includes(role)) {
-    const searchBtn = page.locator('aside button:has(kbd)').first();
-    if (await searchBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await searchBtn.click(); await page.waitForTimeout(800);
-      // Type in the global search input
-      const gsInput = page.locator('input[placeholder*="cases, projects" i], input[placeholder*="casos, proyectos" i]').first();
-      if (await gsInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await gsInput.fill(caseTitle.slice(0, 20)).catch(() => {}); await page.waitForTimeout(1200);
-        // Click the first case result (has "View →" text)
+    // Try keyboard shortcut first, then button click as fallback
+    await page.keyboard.press('Control+k');
+    await page.waitForTimeout(1000);
+    let gsInput = page.locator('input[placeholder*="cases, projects" i], input[placeholder*="casos, proyectos" i]').first();
+    let gsVisible = await gsInput.isVisible({ timeout: 1500 }).catch(() => false);
+    if (!gsVisible) {
+      // Fallback: click the sidebar Search button
+      const searchBtn = page.locator('aside button').filter({ has: page.locator('kbd') }).first();
+      const btnVisible = await searchBtn.isVisible({ timeout: 1500 }).catch(() => false);
+      if (btnVisible) { await searchBtn.click(); await page.waitForTimeout(800); }
+      gsVisible = await gsInput.isVisible({ timeout: 1500 }).catch(() => false);
+    }
+    log(`  Strategy 0 (Ctrl+K): gsInput visible=${gsVisible}`);
+    if (gsVisible) {
+      // Use keyboard.type() — input auto-focuses on mount, no click needed (avoids backdrop close)
+      await page.keyboard.type(caseTitle.slice(0, 20), { delay: 30 });
+      const inputVal = await gsInput.inputValue().catch(() => '');
+      log(`  Strategy 0: input value="${inputVal}"`);
+      await page.waitForTimeout(1500); // debounce 250ms + Supabase round-trip
+      const overlayStillOpen = await gsInput.isVisible({ timeout: 500 }).catch(() => false);
+      log(`  Strategy 0: overlay still open after type=${overlayStillOpen}`);
+      if (overlayStillOpen) {
         const caseResult = page.locator('button').filter({ hasText: new RegExp(escapedPrefix, 'i') }).first();
-        if (await caseResult.isVisible({ timeout: 2000 }).catch(() => false)) {
-          log(`  Found case via GlobalSearch`);
-          await caseResult.click(); await page.waitForTimeout(2000);
+        const resultVisible = await caseResult.isVisible({ timeout: 2000 }).catch(() => false);
+        log(`  Strategy 0: caseResult visible=${resultVisible} (prefix="${escapedPrefix.slice(0,20)}")`);
+        if (!resultVisible) {
+          // Log search result buttons for diagnosis
+          const resBtns = await page.evaluate(() =>
+            Array.from(document.querySelectorAll('button')).map(b => (b.innerText||'').trim().slice(0,60))
+              .filter(t => t.length > 2 && !/Dashboard|Cases|Projects|Sign Out|⌘K/i.test(t))
+          );
+          log(`  Strategy 0 result buttons: ${resBtns.slice(0,6).join(' | ')}`);
+        }
+        if (resultVisible) {
+          log('  Found case via GlobalSearch');
+          await caseResult.click(); await page.waitForTimeout(2500);
           return true;
         }
-        // Dismiss search if case not found
-        await page.keyboard.press('Escape').catch(() => {}); await page.waitForTimeout(500);
-      } else {
-        await page.keyboard.press('Escape').catch(() => {}); await page.waitForTimeout(300);
       }
+      await page.keyboard.press('Escape').catch(() => {}); await page.waitForTimeout(500);
     }
   }
 
@@ -632,7 +665,8 @@ async function testLifecycle(browser) {
         // Check audit trail
         const auditBtn = page.locator('button, a, [role="tab"]').filter({ hasText: /activity|audit|history|log/i }).first();
         if (await auditBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await auditBtn.click(); await page.waitForTimeout(1000);
+          await auditBtn.click({ timeout: 5000 }).catch(() => {});
+          await page.waitForTimeout(1000);
           const auditTxt = await body(page);
           add('LC-02-audit', 'LC-02: Stage change logged in activity/audit trail', /confirmed|open|stage|transition/i.test(auditTxt) ? 'PASS' : 'FAIL');
         } else {

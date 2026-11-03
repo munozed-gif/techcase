@@ -1,6 +1,10 @@
 /**
  * Seed: upgrade test user plans to "professional"
  * This removes plan-based nav restrictions for KU-05/FU-05/IN-03/IN-04/PM-05/C-08.
+ *
+ * Also seeds plan_config so that "professional" is a valid client plan with maxCases:-1.
+ * DEFAULT_PLAN_CONFIG only defines free/growth/enterprise; "professional" falls back to
+ * free (maxCases:3) without this seed.
  */
 const { createClient } = require('@supabase/supabase-js');
 
@@ -16,6 +20,7 @@ const PLAN_UPGRADES = {
   'a0ec6a44-547a-4b5e-947d-d242eb87b7cb': { plan: 'professional', roleType: 'client',     updatedAt: NOW }, // test.internal
   '66267025-cf5d-45c8-9e7f-0d8e109a0f14': { plan: 'professional', roleType: 'client',     updatedAt: NOW }, // test.pm
   '18769da1-b80c-4e57-92d4-cd78159d0bda': { plan: 'professional', roleType: 'consultant', updatedAt: NOW }, // test.consultant
+  '2a96462e-468c-4733-a560-fe7479a2402b': { plan: 'professional', roleType: 'client',     updatedAt: NOW }, // test.client
 };
 
 (async () => {
@@ -53,5 +58,41 @@ const PLAN_UPGRADES = {
   if (upsertErr) { console.error('Upsert error:', upsertErr.message); process.exit(1); }
 
   console.log('Done — upgraded', Object.keys(PLAN_UPGRADES).length, 'test users to professional plan.');
+
+  // --- Seed plan_config so "professional" is a valid client plan with maxCases:-1 ---
+  const { data: pcRows, error: pcReadErr } = await supabase
+    .from('system_settings')
+    .select('value')
+    .eq('key', 'plan_config')
+    .single();
+
+  if (pcReadErr && pcReadErr.code !== 'PGRST116') {
+    console.error('plan_config read error:', pcReadErr.message); process.exit(1);
+  }
+
+  const currentPc = pcRows?.value ?? {};
+  const mergedPc = {
+    ...currentPc,
+    client: {
+      free:         { label: 'Free',         maxCases: 3,  maxTeam: 2,  ai: false, analytics: false, helpDesk: false },
+      growth:       { label: 'Growth',       maxCases: 5,  maxTeam: 10, ai: true,  analytics: true,  helpDesk: false },
+      professional: { label: 'Professional', maxCases: -1, maxTeam: -1, ai: true,  analytics: true,  helpDesk: true  },
+      enterprise:   { label: 'Enterprise',   maxCases: -1, maxTeam: -1, ai: true,  analytics: true,  helpDesk: true  },
+      ...(currentPc.client ?? {}),
+    },
+    consultant: {
+      free: { label: 'Free', maxApps: 3,  ai: false, priority: false },
+      pro:  { label: 'Pro',  maxApps: -1, ai: true,  priority: true  },
+      professional: { label: 'Professional', maxApps: -1, ai: true, priority: true },
+      ...(currentPc.consultant ?? {}),
+    },
+  };
+
+  const { error: pcUpsertErr } = await supabase
+    .from('system_settings')
+    .upsert({ key: 'plan_config', value: mergedPc }, { onConflict: 'key' });
+
+  if (pcUpsertErr) { console.error('plan_config upsert error:', pcUpsertErr.message); process.exit(1); }
+  console.log('Done — seeded plan_config with professional plan (maxCases:-1).');
   process.exit(0);
 })();
