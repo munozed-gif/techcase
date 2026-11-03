@@ -5,6 +5,7 @@
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
   "functions": {
     "api/claude.js":           { "maxDuration": 60 },
+    "api/extract-pdf.js":      { "maxDuration": 30 },
     "api/stripe-checkout.js":  { "maxDuration": 10 },
     "api/stripe-webhook.js":   { "maxDuration": 10 },
     "api/stripe-setup.js":     { "maxDuration": 30 },

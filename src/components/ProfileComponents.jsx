@@ -365,19 +365,30 @@ function ResumeImporter({ onExtracted }) {
 
   async function handleFile(file) {
     if (!file || file.type !== "application/pdf") { setError("Please select a PDF file."); return; }
-    const base64 = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload  = () => res(r.result.split(",")[1]);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
-    runExtraction([{
-      role: "user",
-      content: [
-        { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
-        { type: "text", text: "Extract the requested profile information from this resume." }
-      ]
-    }]);
+    setLoading(true); setError("");
+    try {
+      const base64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload  = () => res(r.result.split(",")[1]);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+      const resp = await fetch("/api/extract-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: base64 }),
+      });
+      if (!resp.ok) throw new Error(`extract-pdf ${resp.status}`);
+      const { text, error: extractErr } = await resp.json();
+      if (extractErr) throw new Error(extractErr);
+      if (!text?.trim()) throw new Error("No text found in PDF");
+      setLoading(false);
+      runExtraction([{ role: "user", content: `Resume text:\n\n${text}\n\nExtract the requested profile information from this resume.` }]);
+    } catch (e) {
+      console.error("PDF extraction error:", e);
+      setError("Could not read the PDF. Try the paste option or fill in manually.");
+      setLoading(false);
+    }
   }
 
   function handlePaste() {
