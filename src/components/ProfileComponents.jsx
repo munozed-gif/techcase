@@ -339,7 +339,7 @@ function ResumeImporter({ onExtracted }) {
       setPending(filtered); // show preview instead of saving immediately
     } catch (e) {
       console.error("ResumeImporter extraction error:", e);
-      setError("Could not read the content. Try the paste option or fill in manually.");
+      setError(`Could not read the content (${e?.message ?? "unknown error"}). Try the paste option or fill in manually.`);
     }
     setLoading(false);
   }
