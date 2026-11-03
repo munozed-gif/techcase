@@ -63,16 +63,8 @@ async function openCase(page, titleFragment) {
     await page.waitForTimeout(2000); return true;
   }
 
-  // Tier 2: any cursor-pointer element containing the title (client My Cases view)
-  const anyCard = page.locator('[class*="cursor-pointer"]').filter({ hasText: re }).first();
-  if (await anyCard.count().then(n => n > 0).catch(() => false)) {
-    await anyCard.scrollIntoViewIfNeeded().catch(() => {});
-    await anyCard.click({ timeout: 5000 }).catch(() => {});
-    await page.waitForTimeout(2000); return true;
-  }
-
-  // Tier 3: h3 title element (navigation via event bubbling)
-  const titleEl = page.locator('h3').filter({ hasText: re }).first();
+  // Tier 2: h3 title element (navigation via event bubbling)
+  const titleEl = page.locator('h3, [class*="case-title"], [class*="card-title"]').filter({ hasText: re }).first();
   if (await titleEl.count().then(n => n > 0).catch(() => false)) {
     await titleEl.scrollIntoViewIfNeeded().catch(() => {});
     await titleEl.click({ timeout: 5000 }).catch(() => {});
@@ -150,6 +142,20 @@ async function getBtns(page) {
 }
 
 let lcCaseTitle = null;
+let lcCaseUrl = null; // direct URL captured after wizard — used instead of title search
+
+// Navigate to the LC test case — direct URL when available, title search otherwise
+async function gotoCase(page) {
+  if (lcCaseUrl && lcCaseUrl.includes('/cases/')) {
+    await page.goto(lcCaseUrl, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
+    await page.waitForTimeout(2000);
+    // Confirm we landed on a case detail (has stage buttons or case content)
+    const onDetail = await page.locator('button, h2, h3').count().then(n => n > 0).catch(() => false);
+    if (onDetail) return true;
+  }
+  // Fallback to title search
+  return openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
+}
 
 (async () => {
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
@@ -284,7 +290,8 @@ let lcCaseTitle = null;
           if (await submit.isVisible({ timeout: 1500 }).catch(() => false)) {
             await submit.click(); await page.waitForTimeout(4000);
             lcCaseTitle = LC_TITLE;
-            log('  Created: ' + lcCaseTitle);
+            lcCaseUrl = page.url();
+            log('  Created: ' + lcCaseTitle + ' url=' + lcCaseUrl.slice(-40));
             await ss(page, 'LC-created');
             break;
           }
@@ -316,7 +323,7 @@ let lcCaseTitle = null;
     try {
       await login(page, 'test.client@test.arena.dev', PW);
       await clickNav(page, 'My Cases');
-      const found = await openCase(page, lcCaseTitle?.slice(0, 15) || 'LC Case');
+      const found = await gotoCase(page);
       if (found) {
         const stage = await getStage(page);
         const txt = await body(page);
@@ -338,7 +345,7 @@ let lcCaseTitle = null;
     try {
       await login(page, 'sfmanager@techcase.com', MPW);
       await clickNav(page, 'Cases');
-      const found = await openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
+      const found = await gotoCase(page);
       if (found) {
         const btns = await getBtns(page);
         log('  Before advance buttons: ' + btns.filter(b => /→|advance|confirm/i.test(b)).join(' | '));
@@ -378,7 +385,7 @@ let lcCaseTitle = null;
     try {
       await login(page, 'sfmanager@techcase.com', MPW);
       await clickNav(page, 'Cases');
-      const found = await openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
+      const found = await gotoCase(page);
       if (found) {
         const btns = await getBtns(page);
         log('  Buttons: ' + btns.filter(b => /→|return|estimated/i.test(b)).join(' | '));
@@ -415,7 +422,7 @@ let lcCaseTitle = null;
     try {
       await login(page, 'sfmanager@techcase.com', MPW);
       await clickNav(page, 'Cases');
-      const found = await openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
+      const found = await gotoCase(page);
 
       if (found) {
         let currentStage = await getStage(page);
@@ -480,7 +487,7 @@ let lcCaseTitle = null;
     try {
       await login(page, 'sfmanager@techcase.com', MPW);
       await clickNav(page, 'Cases');
-      const found = await openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
+      const found = await gotoCase(page);
       if (found) {
         const btns = await getBtns(page);
         const txt = await body(page);
@@ -526,7 +533,7 @@ let lcCaseTitle = null;
     try {
       await login(page, 'sfmanager@techcase.com', MPW);
       await clickNav(page, 'Cases');
-      const found = await openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
+      const found = await gotoCase(page);
       if (found) {
         // Approved
         const adv11 = await advance(page, 'Approved');
@@ -678,7 +685,7 @@ let lcCaseTitle = null;
     try {
       await login(page, 'sfmanager@techcase.com', MPW);
       await clickNav(page, 'Cases');
-      const found = await openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
+      const found = await gotoCase(page);
       if (found) {
         // If the case reached a terminal stage (Terminated/Cancelled), reopen it first
         const btns0 = await getBtns(page);
@@ -716,7 +723,7 @@ let lcCaseTitle = null;
     try {
       await login(page, 'test.client@test.arena.dev', PW);
       await clickNav(page, 'My Cases');
-      const found = await openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
+      const found = await gotoCase(page);
       if (found) {
         const btns = await getBtns(page);
         const advanceBtns = btns.filter(b => /^→ /i.test(b));
@@ -764,7 +771,7 @@ let lcCaseTitle = null;
     try {
       await login(page, 'sfmanager@techcase.com', MPW);
       await clickNav(page, 'Cases');
-      const found = await openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
+      const found = await gotoCase(page);
       if (found) {
         const auditTab = page.locator('button').filter({ hasText: /audit.*log|activity|history/i }).first();
         if (await auditTab.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -795,7 +802,7 @@ let lcCaseTitle = null;
     try {
       await login(page, 'sfmanager@techcase.com', MPW);
       await clickNav(page, 'Cases');
-      await openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
+      await gotoCase(page);
       await page.waitForTimeout(2000);
       const criticalErrors = errors.filter(e => !/favicon|chunk|not found|google/i.test(e));
       add('LC-X6', 'No JS console errors during case lifecycle navigation',
