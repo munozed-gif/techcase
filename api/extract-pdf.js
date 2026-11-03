@@ -1,3 +1,69 @@
+import { inflateSync } from "zlib";
+
+// Pure Node.js PDF text extractor — no external dependencies.
+// Handles FlateDecode compressed content streams and standard PDF text operators.
+function extractText(buffer) {
+  const raw = buffer.toString("latin1");
+  const texts = [];
+
+  // Find all stream...endstream blocks
+  const streamRe = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  let m;
+  while ((m = streamRe.exec(raw)) !== null) {
+    const data = Buffer.from(m[1], "latin1");
+
+    // Try FlateDecode (zlib) decompression
+    let content;
+    try {
+      content = inflateSync(data).toString("latin1");
+    } catch (_) {
+      // Check if this looks like it might be raw text content anyway
+      content = data.toString("latin1");
+    }
+
+    // Skip obvious non-text streams (images, fonts, XObjects)
+    if (!content.includes("BT") && !content.includes("Tj") && !content.includes("TJ")) continue;
+
+    // Extract text from BT ... ET blocks
+    const btRe = /BT([\s\S]*?)ET/g;
+    let bt;
+    while ((bt = btRe.exec(content)) !== null) {
+      const block = bt[1];
+      const parts = [];
+
+      // Handle (string) Tj  and  [(arr)] TJ
+      const opRe = /\(([^)\\]*(?:\\.[^)\\]*)*)\)\s*Tj|\[([^\]]*)\]\s*TJ/g;
+      let op;
+      while ((op = opRe.exec(block)) !== null) {
+        if (op[1] !== undefined) {
+          parts.push(decodePdfString(op[1]));
+        } else if (op[2] !== undefined) {
+          // TJ array: collect all (string) entries, skip numeric kerning values
+          const arrRe = /\(([^)\\]*(?:\\.[^)\\]*)*)\)/g;
+          let ar;
+          while ((ar = arrRe.exec(op[2])) !== null) {
+            parts.push(decodePdfString(ar[1]));
+          }
+        }
+      }
+
+      if (parts.length) texts.push(parts.join(""));
+    }
+  }
+
+  return texts.join("\n").replace(/\s{2,}/g, " ").trim();
+}
+
+function decodePdfString(s) {
+  // Decode PDF escape sequences: \n \r \t \\ \( \) and octal \ddd
+  return s
+    .replace(/\\([0-7]{1,3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)))
+    .replace(/\\n/g, " ")
+    .replace(/\\r/g, " ")
+    .replace(/\\t/g, " ")
+    .replace(/\\(.)/g, "$1");
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
@@ -6,26 +72,8 @@ export default async function handler(req, res) {
 
   try {
     const buffer = Buffer.from(data, "base64");
-    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-
-    const loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(buffer),
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      disableFontFace: true,
-    });
-    const doc = await loadingTask.promise;
-
-    const pages = [];
-    for (let i = 1; i <= Math.min(doc.numPages, 20); i++) {
-      const pg = await doc.getPage(i);
-      const content = await pg.getTextContent();
-      pages.push(content.items.map(it => it.str).join(" "));
-    }
-
-    const text = pages.join("\n\n").replace(/\s{3,}/g, "  ").trim();
+    const text = extractText(buffer);
     if (!text) return res.status(422).json({ error: "No text found in PDF" });
-
     return res.json({ text: text.slice(0, 20000) });
   } catch (err) {
     return res.status(500).json({ error: err.message });
