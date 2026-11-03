@@ -49,20 +49,37 @@ async function clickNav(page, text) {
   return false;
 }
 
-// Open a case card by matching title text (or first card if not found)
-// Individual case cards have cursor-pointer class; outer grid container does not.
+// Open a case card by matching title text (or first card if not found).
+// Uses count()+scrollIntoViewIfNeeded so off-screen cards are found too.
 async function openCase(page, titleFragment) {
+  const re = new RegExp(titleFragment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+
+  // Tier 1: div with both cursor-pointer and rounded classes (manager Cases view)
   const cards = page.locator('div[class*="cursor-pointer"][class*="rounded"]');
-  const matchCard = cards.filter({ hasText: new RegExp(titleFragment, 'i') }).first();
-  if (await matchCard.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await matchCard.click(); await page.waitForTimeout(2000); return true;
+  const matchCard = cards.filter({ hasText: re }).first();
+  if (await matchCard.count().then(n => n > 0).catch(() => false)) {
+    await matchCard.scrollIntoViewIfNeeded().catch(() => {});
+    await matchCard.click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(2000); return true;
   }
-  // Try clicking h3 title element (also triggers navigation via event bubbling)
-  const titleEl = page.locator('h3').filter({ hasText: new RegExp(titleFragment, 'i') }).first();
-  if (await titleEl.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await titleEl.click(); await page.waitForTimeout(2000); return true;
+
+  // Tier 2: any cursor-pointer element containing the title (client My Cases view)
+  const anyCard = page.locator('[class*="cursor-pointer"]').filter({ hasText: re }).first();
+  if (await anyCard.count().then(n => n > 0).catch(() => false)) {
+    await anyCard.scrollIntoViewIfNeeded().catch(() => {});
+    await anyCard.click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(2000); return true;
   }
-  // Fall back to first cursor-pointer card
+
+  // Tier 3: h3 title element (navigation via event bubbling)
+  const titleEl = page.locator('h3').filter({ hasText: re }).first();
+  if (await titleEl.count().then(n => n > 0).catch(() => false)) {
+    await titleEl.scrollIntoViewIfNeeded().catch(() => {});
+    await titleEl.click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(2000); return true;
+  }
+
+  // Fallback: first cursor-pointer card (logs which case is used)
   const first = cards.first();
   if (await first.isVisible({ timeout: 3000 }).catch(() => false)) {
     const txt = await first.innerText().catch(() => '');
@@ -654,7 +671,7 @@ let lcCaseTitle = null;
     finally { await ctx.close(); }
   }
 
-  // LC-X2: Stage badge updates in real-time
+  // LC-X2: Stage badge updates in real-time (no full page reload needed)
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     const page = await ctx.newPage(); page.setDefaultTimeout(25000);
@@ -663,12 +680,28 @@ let lcCaseTitle = null;
       await clickNav(page, 'Cases');
       const found = await openCase(page, lcCaseTitle?.slice(0, 12) || 'LC Case');
       if (found) {
+        // If the case reached a terminal stage (Terminated/Cancelled), reopen it first
+        const btns0 = await getBtns(page);
+        const hasForward = btns0.some(b => /^→ /i.test(b) && !/reopen/i.test(b));
+        if (!hasForward) {
+          const reopenBtn = page.locator('button').filter({ hasText: /reopen/i }).first();
+          if (await reopenBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await reopenBtn.click(); await page.waitForTimeout(2000);
+          }
+        }
+        // Now advance to any available non-terminal next stage
         const before = await getStage(page);
-        const adv = await advance(page, 'Confirmed');
+        const btns = await getBtns(page);
+        const nextBtn = btns.find(b => /^→ /i.test(b) && !/reopen/i.test(b));
+        let adv = false;
+        if (nextBtn) {
+          const target = nextBtn.replace(/^→\s*/i, '').trim();
+          adv = await advance(page, target);
+        }
         await page.waitForTimeout(1000);
         const after = await getStage(page);
         add('LC-X2', 'Stage badge updates without full page reload',
-          before !== after || adv ? 'PASS' : 'FAIL', `before="${before}" after="${after}"`);
+          before !== after ? 'PASS' : 'FAIL', `before="${before}" after="${after}" adv=${adv}`);
       } else {
         add('LC-X2', 'Stage badge real-time update', 'FAIL', 'case not found');
       }
