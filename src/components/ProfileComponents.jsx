@@ -674,7 +674,7 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
   const [skills,        setSkills]        = useState((cpCons?.skills ?? []).join(", "));
   const [yearsExp,      setYearsExp]      = useState(cpCons?.years_experience ?? "");
   const [hourlyRate,    setHourlyRate]    = useState(cpCons?.hourly_rate ?? "");
-  const [expertiseLvl,  setExpertiseLvl]  = useState(cpCons?.expertise_level ?? "intermediate");
+  const [expertiseLvl,  setExpertiseLvl]  = useState(cpCons?.expertise_level ?? "mid");
   const [companyName,   setCompanyName]   = useState(cpCli?.company_name ?? "");
   const [industry,      setIndustry]      = useState(cpCli?.industry ?? "");
   const [website,       setWebsite]       = useState(cpCli?.website ?? "");
@@ -918,7 +918,7 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Expertise level</label>
                 <div className="flex gap-2">
-                  {["beginner","intermediate","expert"].map(l => (
+                  {["junior","mid","senior","expert"].map(l => (
                     <button key={l} onClick={() => setExpertiseLvl(l)}
                       className={`flex-1 py-2 rounded-xl text-xs font-semibold border-2 transition-all capitalize ${expertiseLvl === l ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
                       {l}

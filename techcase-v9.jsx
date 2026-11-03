@@ -840,7 +840,11 @@ export default function App() {
           </SystemSettingsProvider>
         );
       }
-      return <ProfileOnboardingScreen auth={auth} />;
+      return (
+        <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
+          <ProfileOnboardingScreen auth={auth} />
+        </LanguageProvider>
+      );
     }
   }
 
