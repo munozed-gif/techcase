@@ -64,6 +64,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   const [profileTab, setProfileTab] = useState(initialTab ?? "experience");
   const pvCarouselRef = useRef(null);
   const pvCarouselScrolling = useRef(false);
+  const pvScrollDebounce = useRef(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -630,19 +631,26 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
           if (pvCarouselScrolling.current) return;
           const el = pvCarouselRef.current;
           if (!el) return;
-          let closest = 0;
           if (isMobile) {
-            closest = Math.min(Math.round(el.scrollTop / el.clientHeight), tabs.length - 1);
+            clearTimeout(pvScrollDebounce.current);
+            pvScrollDebounce.current = setTimeout(() => {
+              if (pvCarouselScrolling.current) return;
+              const el2 = pvCarouselRef.current;
+              if (!el2) return;
+              const closest = Math.min(Math.round(el2.scrollTop / el2.clientHeight), tabs.length - 1);
+              const t2 = tabs[closest];
+              if (t2 && t2.id !== profileTab) setProfileTab(t2.id);
+            }, 150);
           } else {
             const center = el.scrollLeft + el.offsetWidth / 2;
-            let minDist = Infinity;
+            let closest = 0, minDist = Infinity;
             Array.from(el.children).forEach((child, i) => {
               const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
               if (dist < minDist) { minDist = dist; closest = i; }
             });
+            const t2 = tabs[closest];
+            if (t2 && t2.id !== profileTab) setProfileTab(t2.id);
           }
-          const t2 = tabs[closest];
-          if (t2 && t2.id !== profileTab) setProfileTab(t2.id);
         }
         return (
           <div style={{ position:'relative' }}>
@@ -656,18 +664,6 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
               <button onClick={() => scrollTo(carouselIdx + 1)}
                 style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
                 <ChevronRight size={16} style={{color:'var(--t-text2)'}}/>
-              </button>
-            )}
-            {isMobile && carouselIdx > 0 && (
-              <button onClick={() => scrollTo(carouselIdx - 1)}
-                style={{ position:'absolute', top:8, left:'50%', transform:'translateX(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)' }}>
-                <ChevronUp size={16} style={{color:'var(--t-text2)'}}/>
-              </button>
-            )}
-            {isMobile && carouselIdx < tabs.length - 1 && (
-              <button onClick={() => scrollTo(carouselIdx + 1)}
-                style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)' }}>
-                <ChevronDown size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
             <div ref={pvCarouselRef} onScroll={onScroll}
