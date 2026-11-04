@@ -356,15 +356,20 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
               ...(data.skills?.length   ? { _skills: data.skills.join(", ") } : {}),
             }));
             const errors = [];
+            const existingCoNames = new Set((profile?.consultant_customers ?? []).map(c => c.company_name.toLowerCase()));
+            const seenExpCo = new Set();
             for (const exp of (data.work_experience ?? [])) {
-              try { await addCustomer({ company_name: exp.company_name || "", role_held: exp.role_held || null, start_date: exp.start_date || null, end_date: exp.end_date || null, description: exp.description || null }); }
+              if (!exp.company_name) continue;
+              const coKey = exp.company_name.toLowerCase();
+              if (seenExpCo.has(coKey) || existingCoNames.has(coKey)) continue;
+              seenExpCo.add(coKey);
+              try { await addCustomer({ company_name: exp.company_name, role_held: exp.role_held || null, start_date: exp.start_date || null, end_date: exp.end_date || null, description: exp.description || null }); }
               catch (e) { console.error("addCustomer (experience) failed:", e?.message); errors.push(e?.message); }
             }
-            const existingCoNames = new Set((profile?.consultant_customers ?? []).map(c => c.company_name.toLowerCase()));
             const seenCo = new Set();
             for (const proj of (data.projects ?? [])) {
               const co = proj.consulting_company?.trim();
-              if (co && !existingCoNames.has(co.toLowerCase()) && !seenCo.has(co.toLowerCase())) {
+              if (co && !existingCoNames.has(co.toLowerCase()) && !seenCo.has(co.toLowerCase()) && !seenExpCo.has(co.toLowerCase())) {
                 seenCo.add(co.toLowerCase());
                 try { await addCustomer({ company_name: co }); }
                 catch (e) { console.error("addCustomer (project co) failed:", e?.message); errors.push(e?.message); }
@@ -375,7 +380,10 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
               catch (e) { console.error("addProject failed:", e?.message); errors.push(e?.message); }
             }
             await refetch(true);
-            if (errors.length) console.warn(`Resume import: ${errors.length} insert(s) failed:`, errors);
+            if (errors.length) {
+              console.warn(`Resume import: ${errors.length} insert(s) failed:`, errors);
+              alert(`Some data couldn't be saved (${errors.length} error${errors.length > 1 ? "s" : ""}). Check the console for details.`);
+            }
           }} />
           <Input label={t("label.headline")} value={form.headline} onChange={e => setForm(p => ({ ...p, headline: e.target.value }))}
             placeholder={t("profile.ph_headline_eg")} />
