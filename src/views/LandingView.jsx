@@ -1448,7 +1448,10 @@ export function LandingView({ onSignIn }) {
   const [activeLcStage, setActiveLcStage] = useState(3);
   const [activeLcTab, setActiveLcTab] = useState("Details");
   const { settings: landingSettings } = useSystemSettings();
-  const showPricing = landingSettings["show_pricing_section"] ?? true;
+  const showPricing      = landingSettings["show_pricing_section"]  ?? true;
+  const showTrustedBy    = landingSettings["show_trusted_by"]       ?? true;
+  const showStats        = landingSettings["show_stats_section"]    ?? true;
+  const showTestimonials = landingSettings["show_testimonials"]     ?? true;
   function tl(k) { return LANDING_STRINGS[lang]?.[k] ?? LANDING_STRINGS.en[k] ?? k; }
   function toggleLang() {
     const next = lang === "en" ? "es" : "en";
@@ -1598,23 +1601,23 @@ export function LandingView({ onSignIn }) {
       </section>
 
       {/* LOGO STRIP */}
-      <div className="logo-strip">
+      {showTrustedBy && <div className="logo-strip">
         <div className="logo-strip-inner">
           <span className="logo-strip-label">{tl("trusted_by")}</span>
           {["Acme Corporation","TechStart LLC","Global Industries","Meridian Consulting","NovaSAP GmbH","Apex Solutions"].map(c => (
             <span key={c} className="logo-company">{c}</span>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* STATS */}
-      <section className="stats">
+      {showStats && <section className="stats">
         <div className="stats-inner">
           <div className="stat-item fade-in"><div className="stat-num" data-target="12400">0</div><div className="stat-label">{tl("stats_cases")}</div></div>
           <div className="stat-item fade-in"><div className="stat-num" data-target="340">0</div><div className="stat-label">{tl("stats_cos")}</div></div>
           <div className="stat-item fade-in"><div className="stat-num" data-target="98">0</div><div className="stat-label">{tl("stats_sla")}</div></div>
         </div>
-      </section>
+      </section>}
 
       {/* FEATURES */}
       <section className="section" id="features">
@@ -2062,7 +2065,7 @@ export function LandingView({ onSignIn }) {
       <DemoCarousel tl={tl} />
 
       {/* TESTIMONIALS */}
-      <section className="section">
+      {showTestimonials && <section className="section">
         <div className="section-inner">
           <div className="section-tag">{tl("testi_tag")}</div>
           <h2>{tl("testi_h2")}</h2>
@@ -2083,7 +2086,7 @@ export function LandingView({ onSignIn }) {
             ))}
           </div>
         </div>
-      </section>
+      </section>}
 
       {/* PRICING */}
       {showPricing && <section className="pricing-section" id="pricing">

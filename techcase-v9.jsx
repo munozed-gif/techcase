@@ -755,10 +755,14 @@ export default function App() {
 
   if (!authed || !auth.user) {
     if (!showAuth) {
-      return <LandingView onSignIn={() => {
-        try { localStorage.setItem('arena_returning', '1'); } catch {}
-        setShowAuth(true);
-      }} />;
+      return (
+        <SystemSettingsProvider>
+          <LandingView onSignIn={() => {
+            try { localStorage.setItem('arena_returning', '1'); } catch {}
+            setShowAuth(true);
+          }} />
+        </SystemSettingsProvider>
+      );
     }
     return (
       <SystemSettingsProvider>
