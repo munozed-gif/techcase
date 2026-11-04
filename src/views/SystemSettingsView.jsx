@@ -965,6 +965,36 @@ const NAV_ITEMS_CONFIG = [
 
 const NAV_VIS_ROLES = ["manager", "consultant", "internal_consultant", "project_manager", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
 
+const CAP_ICONS = {
+  create_cases:               Plus,
+  view_all_cases:             FolderKanban,
+  approve_specs:              BadgeCheck,
+  regen_specs:                RefreshCw,
+  upload_docs:                FileText,
+  view_docs:                  FolderOpen,
+  add_activities:             ListChecks,
+  log_time:                   Calendar,
+  approve_time:               CheckCircle2,
+  apply_to_cases:             Handshake,
+  view_reports:               BarChart2,
+  manage_invoices:            Receipt,
+  view_lifecycle:             Activity,
+  submit_specs:               Send,
+  generate_dev_plan:          Sparkles,
+  require_team_signup:        Users,
+  edit_activity_phase:        Pencil,
+  edit_activity_predecessors: SlidersHorizontal,
+  bulk_delete_activities:     Trash2,
+  bulk_delete_subcases:       XCircle,
+  arena_see_all_cases:        Globe,
+  create_projects:            Briefcase,
+  view_audit_log:             ClipboardList,
+  reopen_cases:               RotateCcw,
+  edit_lifecycle:             Zap,
+  export_pdf_docs:            Download,
+  upload_project_docs:        Database,
+};
+
 function SettingsRolesTab({ ssCtx }) {
   const { t } = useT();
 
@@ -1098,10 +1128,15 @@ function SettingsRolesTab({ ssCtx }) {
               </tr>
             </thead>
             <tbody>
-              {CAPABILITIES.map((cap, idx) => (
+              {CAPABILITIES.map((cap, idx) => {
+                const CapIcon = CAP_ICONS[cap];
+                return (
                 <tr key={cap} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
-                  <td className="py-2.5 pr-4 font-medium text-gray-700 dark:text-gray-300 text-xs">
-                    {t("roles.cap." + cap)}
+                  <td className="py-2.5 pr-4 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      {CapIcon && <CapIcon size={11} className="text-blue-400 dark:text-blue-500 flex-shrink-0" />}
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{t("roles.cap." + cap)}</span>
+                    </div>
                   </td>
                   {ALL_ROLES.map(role => (
                     <td key={role} className="text-center py-2.5 px-2">
@@ -1124,7 +1159,8 @@ function SettingsRolesTab({ ssCtx }) {
                     </td>
                   ))}
                 </tr>
-              ))}
+                );
+              })}
               {/* Arena Leaderboard Carousel row */}
               <tr className={`border-b border-gray-100 dark:border-gray-700 ${CAPABILITIES.length % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
                 <td className="py-2.5 pr-4 text-xs">
