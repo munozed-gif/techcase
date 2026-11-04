@@ -27,7 +27,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   // Extract the real consultant_profiles id from auth (useAuth already fetched it via FK join)
   const cpRaw = auth.profile?.consultant_profiles;
   const realProfileId = Array.isArray(cpRaw) ? cpRaw[0]?.id : cpRaw?.id;
-  const { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, updateCustomer, deleteCustomer, addProject, updateProject, deleteProject, addWorkAuth } =
+  const { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, updateCustomer, deleteCustomer, addProject, updateProject, deleteProject, addWorkAuth, refetch } =
     useConsultantProfile(auth.user?.id, realProfileId);
   const { ratings, avgRating } = useRatings(auth.user?.id);
   const { teams, pendingInvites, createTeam, inviteMember, respondToInvite, removeMember, leaveTeam, deleteTeam } = useConsultantTeams(auth.user?.id);
@@ -355,22 +355,27 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
               ...(data.years_experience ? { years_experience: String(data.years_experience) } : {}),
               ...(data.skills?.length   ? { _skills: data.skills.join(", ") } : {}),
             }));
+            const errors = [];
             for (const exp of (data.work_experience ?? [])) {
-              try { await addCustomer({ company_name: exp.company_name || "", role_held: exp.role_held || null, start_date: exp.start_date || null, end_date: exp.end_date || null, description: exp.description || null }); } catch (_) {}
+              try { await addCustomer({ company_name: exp.company_name || "", role_held: exp.role_held || null, start_date: exp.start_date || null, end_date: exp.end_date || null, description: exp.description || null }); }
+              catch (e) { console.error("addCustomer (experience) failed:", e?.message); errors.push(e?.message); }
             }
-            // Auto-create consultant_customers for any consulting_company not already present
             const existingCoNames = new Set((profile?.consultant_customers ?? []).map(c => c.company_name.toLowerCase()));
             const seenCo = new Set();
             for (const proj of (data.projects ?? [])) {
               const co = proj.consulting_company?.trim();
               if (co && !existingCoNames.has(co.toLowerCase()) && !seenCo.has(co.toLowerCase())) {
                 seenCo.add(co.toLowerCase());
-                try { await addCustomer({ company_name: co }); } catch (_) {}
+                try { await addCustomer({ company_name: co }); }
+                catch (e) { console.error("addCustomer (project co) failed:", e?.message); errors.push(e?.message); }
               }
             }
             for (const proj of (data.projects ?? [])) {
-              try { await addProject({ title: proj.title || "", consulting_company: proj.consulting_company || null, client_name: proj.client_name || null, role: proj.role || null, description: proj.description || null, tech_stack: proj.tech_stack || [], url: proj.url || null }); } catch (_) {}
+              try { await addProject({ title: proj.title || "", consulting_company: proj.consulting_company || null, client_name: proj.client_name || null, role: proj.role || null, description: proj.description || null, tech_stack: proj.tech_stack || [], url: proj.url || null }); }
+              catch (e) { console.error("addProject failed:", e?.message); errors.push(e?.message); }
             }
+            await refetch(true);
+            if (errors.length) console.warn(`Resume import: ${errors.length} insert(s) failed:`, errors);
           }} />
           <Input label={t("label.headline")} value={form.headline} onChange={e => setForm(p => ({ ...p, headline: e.target.value }))}
             placeholder={t("profile.ph_headline_eg")} />

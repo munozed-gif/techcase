@@ -913,9 +913,10 @@ function ConsultantProfileView({ userId, onBack }) {
                   const newCustomers = [];
                   for (const exp of (data.work_experience ?? [])) {
                     if (!exp.company_name) continue;
-                    const { data: ins } = await supabase.from('consultant_customers')
+                    const { data: ins, error: insErr } = await supabase.from('consultant_customers')
                       .insert({ consultant_id: targetUserId, company_name: exp.company_name, role_held: exp.role_held ?? null, start_date: exp.start_date ?? null, end_date: exp.end_date ?? null, description: exp.description ?? null })
                       .select().single();
+                    if (insErr) console.error("insert consultant_customers failed:", insErr.message);
                     if (ins) newCustomers.push(ins);
                   }
                   // Auto-create companies for consulting_company found in projects
@@ -937,9 +938,10 @@ function ConsultantProfileView({ userId, onBack }) {
                   const newProjects = [];
                   for (const proj of (data.projects ?? [])) {
                     if (!proj.title) continue;
-                    const { data: ins } = await supabase.from('consultant_projects')
+                    const { data: ins, error: insErr } = await supabase.from('consultant_projects')
                       .insert({ consultant_id: targetUserId, title: proj.title, consulting_company: proj.consulting_company ?? null, client_name: proj.client_name ?? null, role: proj.role ?? null, description: proj.description ?? null, tech_stack: proj.tech_stack ?? [], url: proj.url ?? null })
                       .select().single();
+                    if (insErr) console.error("insert consultant_projects failed:", insErr.message);
                     if (ins) newProjects.push(ins);
                   }
                   // Update local state

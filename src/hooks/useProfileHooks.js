@@ -120,14 +120,14 @@ function useConsultantProfile(consultantId, profileId) {
     const { error } = await supabase.from("consultant_customers")
       .insert({ ...data, consultant_id: resolvedId });
     if (error) throw error;
-    await fetchProfile();
+    await fetchProfile(true);
   }
 
   async function addProject(data) {
     const { error } = await supabase.from("consultant_projects")
       .insert({ ...data, consultant_id: resolvedId });
     if (error) throw error;
-    await fetchProfile();
+    await fetchProfile(true);
   }
 
   async function updateCustomer(id, data) {
