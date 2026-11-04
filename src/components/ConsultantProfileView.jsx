@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Activity, BarChart2, Briefcase, Camera, Check, ChevronLeft, ChevronRight,
+  Activity, BarChart2, Briefcase, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   CreditCard, GraduationCap, Heart, Key, Mail, Pencil, Plus, Star, Trash2, Trophy, UserMinus, Users, X, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -35,6 +35,12 @@ function ConsultantProfileView({ userId, onBack }) {
   const [section, setSection] = useState('overview');
   const cvCarouselRef = useRef(null);
   const cvCarouselScrolling = useRef(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
   const [cvMountedSlides, setCvMountedSlides] = useState(() => new Set(["overview"]));
   const [cvManualCompletions, setCvManualCompletionsRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`tc_cvmc_${userId ?? 'me'}`) ?? "{}"); } catch { return {}; }
@@ -314,12 +320,16 @@ function ConsultantProfileView({ userId, onBack }) {
     if (idx < 0) return;
     const slide = el.children[idx];
     if (!slide) return;
-    const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
     cvCarouselScrolling.current = true;
-    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    if (isMobile) {
+      el.scrollTo({ top: idx * el.clientHeight, behavior: 'smooth' });
+    } else {
+      const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+      el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    }
     const tid = setTimeout(() => { cvCarouselScrolling.current = false; }, 600);
     return () => clearTimeout(tid);
-  }, [section]);
+  }, [section, isMobile]);
 
   if (loading) return <Spinner />;
   if (error) return (
@@ -433,39 +443,60 @@ function ConsultantProfileView({ userId, onBack }) {
           if (cvCarouselScrolling.current) return;
           const el = cvCarouselRef.current;
           if (!el) return;
-          const center = el.scrollLeft + el.offsetWidth / 2;
-          let closest = 0, minDist = Infinity;
-          Array.from(el.children).forEach((child, i) => {
-            const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
-            if (dist < minDist) { minDist = dist; closest = i; }
-          });
+          let closest = 0;
+          if (isMobile) {
+            closest = Math.min(Math.round(el.scrollTop / el.clientHeight), tabs.length - 1);
+          } else {
+            const center = el.scrollLeft + el.offsetWidth / 2;
+            let minDist = Infinity;
+            Array.from(el.children).forEach((child, i) => {
+              const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+              if (dist < minDist) { minDist = dist; closest = i; }
+            });
+          }
           const tab = tabs[closest];
           if (tab && tab.id !== section) setSection(tab.id);
         }
         return (
           <div style={{ position:'relative' }}>
-            {carouselIdx > 0 && (
+            {!isMobile && carouselIdx > 0 && (
               <button onClick={() => scrollTo(carouselIdx - 1)}
                 style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
                 <ChevronLeft size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
-            {carouselIdx < tabs.length - 1 && (
+            {!isMobile && carouselIdx < tabs.length - 1 && (
               <button onClick={() => scrollTo(carouselIdx + 1)}
                 style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
                 <ChevronRight size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
+            {isMobile && carouselIdx > 0 && (
+              <button onClick={() => scrollTo(carouselIdx - 1)}
+                style={{ position:'absolute', top:8, left:'50%', transform:'translateX(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)' }}>
+                <ChevronUp size={16} style={{color:'var(--t-text2)'}}/>
+              </button>
+            )}
+            {isMobile && carouselIdx < tabs.length - 1 && (
+              <button onClick={() => scrollTo(carouselIdx + 1)}
+                style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)' }}>
+                <ChevronDown size={16} style={{color:'var(--t-text2)'}}/>
+              </button>
+            )}
             <div ref={cvCarouselRef} onScroll={onScroll}
-              style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
+              style={isMobile
+                ? { display:'flex', flexDirection:'column', overflowY:'scroll', scrollSnapType:'y mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', height:700 }
+                : { display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
               {tabs.map((tab, i) => {
                 const isActive = tab.id === section;
                 const Icon = tab.icon;
                 const st = cvTabStatus[tab.id];
                 return (
                   <div key={tab.id}
-                    style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
-                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
+                    style={isMobile
+                      ? { flex:'0 0 100%', width:'100%', minWidth:0, overflow:'hidden', scrollSnapAlign:'start', scrollSnapStop:'always' }
+                      : { flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', height:'100%', minHeight:isMobile?300:700, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid var(--t-tab-border)', background:isActive?'var(--t-tab-active)':'var(--t-tab-inactive)', flexShrink:0, cursor:isActive?'default':'pointer' }}
                         onClick={() => !isActive && scrollTo(i)}>
                         {st === "complete"
