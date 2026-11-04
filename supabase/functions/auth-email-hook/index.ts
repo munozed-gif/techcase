@@ -23,7 +23,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ── Branded email template (matches buildEmailHtml in src/lib/utils.js) ──────
+// ── Branded email template — matches Arena Solutions Platform login screen ────
 function buildEmailHtml({
   title,
   bodyHtml,
@@ -37,50 +37,79 @@ function buildEmailHtml({
   ctaUrl?: string;
   footerNote?: string;
 }): string {
-  const platformName = "Arena Solutions Platform";
   const cta =
     ctaText && ctaUrl
-      ? `<div style="margin:28px 0">
-           <a href="${ctaUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600">${ctaText}</a>
-         </div>`
+      ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0 20px">
+           <tr><td align="center">
+             <a href="${ctaUrl}" style="display:inline-block;background:#4F6EF7;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:700;letter-spacing:0.01em;font-family:'Plus Jakarta Sans',Arial,sans-serif">${ctaText}</a>
+           </td></tr>
+         </table>`
       : "";
   const footer = footerNote
-    ? `<p style="font-size:13px;color:#6b7280;margin:16px 0 0;line-height:1.5">${footerNote}</p>`
+    ? `<p style="font-size:12px;color:#4a5568;margin:20px 0 0;line-height:1.6;text-align:center">${footerNote}</p>`
     : "";
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title}</title>
 </head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px">
-  <tr><td align="center">
-    <table width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">
-      <tr><td style="background:#1d4ed8;padding:28px 32px;text-align:center">
-        <div style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-0.3px">${platformName}</div>
-      </td></tr>
-      <tr><td style="padding:32px 32px 24px">
-        <h1 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;line-height:1.3">${title}</h1>
-        <div style="font-size:15px;line-height:1.6;color:#374151">${bodyHtml}</div>
-        ${cta}
-        ${footer}
-      </td></tr>
-      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:16px 32px;text-align:center">
-        <p style="margin:0;font-size:12px;color:#9ca3af">You received this because you have an account on ${platformName}.</p>
+<body style="margin:0;padding:0;background:#0B0F1A;font-family:'Plus Jakarta Sans',Arial,sans-serif">
+<!--[if mso]><table width="100%" bgcolor="#0B0F1A" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0B0F1A;min-height:100vh">
+  <tr><td align="center" style="padding:40px 16px">
+
+    <!-- Logo row -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin-bottom:28px">
+      <tr><td align="center">
+        <div style="display:inline-block">
+          <span style="font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:26px;font-weight:800;color:#4F6EF7;letter-spacing:-0.04em">Arena</span>
+          <span style="font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:14px;font-weight:600;color:#94a3b8;letter-spacing:0.01em;margin-left:6px;vertical-align:middle">Solutions Platform</span>
+        </div>
       </td></tr>
     </table>
+
+    <!-- Card -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#0f1826;border-radius:18px;border:1px solid rgba(79,110,247,0.25);overflow:hidden">
+
+      <!-- Blue accent top bar -->
+      <tr><td style="background:linear-gradient(90deg,#4F6EF7 0%,#3b55d4 100%);height:4px;font-size:0;line-height:0">&nbsp;</td></tr>
+
+      <!-- Body -->
+      <tr><td style="padding:36px 36px 28px">
+
+        <!-- Title -->
+        <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#f1f5f9;line-height:1.3;letter-spacing:-0.02em;font-family:'Plus Jakarta Sans',Arial,sans-serif">${title}</h1>
+
+        <!-- Content -->
+        <div style="font-size:15px;line-height:1.7;color:#94a3b8;font-family:'Plus Jakarta Sans',Arial,sans-serif">${bodyHtml}</div>
+
+        ${cta}
+        ${footer}
+
+      </td></tr>
+
+      <!-- Footer -->
+      <tr><td style="background:#080d16;border-top:1px solid rgba(79,110,247,0.15);padding:16px 36px;text-align:center">
+        <p style="margin:0;font-size:12px;color:#334155;font-family:'Plus Jakarta Sans',Arial,sans-serif">
+          You received this because you have an account on <span style="color:#4F6EF7">Arena Solutions Platform</span>.
+        </p>
+      </td></tr>
+
+    </table>
+
   </td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </body></html>`;
 }
 
 // ── OTP code block helper ─────────────────────────────────────────────────────
 function otpBlock(token: string): string {
   return `<div style="margin:24px 0;text-align:center">
-    <div style="display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:16px 32px">
-      <span style="font-size:32px;font-weight:800;letter-spacing:8px;color:#1d4ed8;font-family:monospace">${token}</span>
+    <div style="display:inline-block;background:#0d1424;border:1px solid rgba(79,110,247,0.5);border-radius:12px;padding:18px 36px">
+      <span style="font-size:34px;font-weight:800;letter-spacing:10px;color:#4F6EF7;font-family:'Courier New',monospace">${token}</span>
     </div>
-    <p style="margin:12px 0 0;font-size:13px;color:#6b7280">This code expires in 10 minutes.</p>
+    <p style="margin:12px 0 0;font-size:13px;color:#475569">This code expires in 10 minutes.</p>
   </div>`;
 }
 
@@ -104,14 +133,14 @@ function buildEmail(
   switch (actionType) {
     case "signup":
       return {
-        subject: "Your TechCase verification code",
+        subject: "Your Arena Solutions Platform verification code",
         html: buildEmailHtml({
-          title: "Verify your email ✉️",
-          bodyHtml: `<p>Hi ${name},</p>
-            <p>Enter the code below on the TechCase signup screen to verify your email address.</p>
+          title: "Verify your email",
+          bodyHtml: `<p style="margin:0 0 12px;color:#cbd5e1">Hi ${name},</p>
+            <p style="margin:0 0 20px;color:#94a3b8">Enter the code below on the signup screen to verify your email address.</p>
             ${token ? otpBlock(token) : ""}
-            <p>Or click the button below to verify directly:</p>`,
-          ctaText: "Verify email address",
+            <p style="margin:0 0 4px;color:#94a3b8">Or click the button below to verify directly:</p>`,
+          ctaText: "Verify Email Address",
           ctaUrl: confirmUrl,
           footerNote: "If you didn't create an account, you can safely ignore this email.",
         }),
@@ -121,10 +150,10 @@ function buildEmail(
       return {
         subject: "Reset your Arena Solutions Platform password",
         html: buildEmailHtml({
-          title: "Reset Your Password 🔑",
-          bodyHtml: `<p>Hi ${name},</p>
-            <p>We received a request to reset the password for your account. Click the button below to choose a new password.</p>
-            <p style="font-size:13px;color:#6b7280">This link expires in 24 hours and can only be used once.</p>`,
+          title: "Reset your password",
+          bodyHtml: `<p style="margin:0 0 12px;color:#cbd5e1">Hi ${name},</p>
+            <p style="margin:0 0 12px;color:#94a3b8">We received a request to reset the password for your account. Click the button below to choose a new password.</p>
+            <p style="margin:0;font-size:13px;color:#475569">This link expires in 24 hours and can only be used once.</p>`,
           ctaText: "Reset Password",
           ctaUrl: confirmUrl,
           footerNote: "If you didn't request a password reset, you can safely ignore this email — your password will not change.",
@@ -135,9 +164,10 @@ function buildEmail(
       return {
         subject: "Your Arena Solutions Platform sign-in link",
         html: buildEmailHtml({
-          title: "Sign in to Arena Solutions Platform 🚀",
-          bodyHtml: `<p>Hi ${name},</p>
-            <p>Click the button below to sign in. This link expires in 10 minutes and can only be used once.</p>`,
+          title: "Sign in to Arena",
+          bodyHtml: `<p style="margin:0 0 12px;color:#cbd5e1">Hi ${name},</p>
+            <p style="margin:0 0 12px;color:#94a3b8">Click the button below to sign in to Arena Solutions Platform.</p>
+            <p style="margin:0;font-size:13px;color:#475569">This link expires in 10 minutes and can only be used once.</p>`,
           ctaText: "Sign In Now",
           ctaUrl: confirmUrl,
           footerNote: "If you didn't request this link, you can safely ignore this email.",
@@ -149,9 +179,10 @@ function buildEmail(
       return {
         subject: "Confirm your new email address",
         html: buildEmailHtml({
-          title: "Confirm Email Change ✉️",
-          bodyHtml: `<p>Hi ${name},</p>
-            <p>Click the button below to confirm your new email address. This link expires in 24 hours.</p>`,
+          title: "Confirm email change",
+          bodyHtml: `<p style="margin:0 0 12px;color:#cbd5e1">Hi ${name},</p>
+            <p style="margin:0 0 12px;color:#94a3b8">Click the button below to confirm your new email address.</p>
+            <p style="margin:0;font-size:13px;color:#475569">This link expires in 24 hours.</p>`,
           ctaText: "Confirm New Email",
           ctaUrl: confirmUrl,
           footerNote: "If you didn't request this change, please contact support immediately.",
@@ -162,9 +193,9 @@ function buildEmail(
       return {
         subject: "You've been invited to Arena Solutions Platform",
         html: buildEmailHtml({
-          title: "You're Invited 🎉",
-          bodyHtml: `<p>Hi ${name},</p>
-            <p>You've been invited to join Arena Solutions Platform. Click the button below to accept your invitation and set up your account.</p>`,
+          title: "You're invited",
+          bodyHtml: `<p style="margin:0 0 12px;color:#cbd5e1">Hi ${name},</p>
+            <p style="margin:0 0 12px;color:#94a3b8">You've been invited to join Arena Solutions Platform. Click the button below to accept your invitation and set up your account.</p>`,
           ctaText: "Accept Invitation",
           ctaUrl: confirmUrl,
           footerNote: "If you weren't expecting this invitation, you can safely ignore this email.",
@@ -175,8 +206,8 @@ function buildEmail(
       return {
         subject: "Arena Solutions Platform — action required",
         html: buildEmailHtml({
-          title: "Action Required",
-          bodyHtml: `<p>Hi ${name},</p><p>Please click the button below to continue.</p>`,
+          title: "Action required",
+          bodyHtml: `<p style="margin:0 0 12px;color:#cbd5e1">Hi ${name},</p><p style="margin:0;color:#94a3b8">Please click the button below to continue.</p>`,
           ctaText: "Continue",
           ctaUrl: confirmUrl,
         }),
