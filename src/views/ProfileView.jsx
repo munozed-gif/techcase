@@ -22,6 +22,12 @@ import { ROLE_COLORS, SAP_AREAS, INDUSTRY_AREAS } from "../lib/businessConstants
 import { useRatings } from "../hooks/useCaseHooks.js";
 import { useConsultantTeams } from "../hooks/useTeamHooks.js";
 
+const DEFAULT_SKILLS_TECHNICAL = ["ABAP Development", "SAP Basis Administration", "HANA DB Administration", "SAP Security / Roles", "SAP Fiori / UI5", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP BTP", "LSMW / BODS", "RFC / BAPI", "Workflow / BRF+", "ABAP OO"];
+const DEFAULT_SKILLS_FUNCTIONAL = ["SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP BW / Analytics", "SAP PM / QM", "SAP PS (Project Systems)", "SAP SuccessFactors", "SAP S/4HANA Finance", "SAP Treasury", "SAP GRC / Access Control", "SAP Ariba"];
+const DEFAULT_SKILLS_SOFT = ["Communication", "Team Leadership", "Client Management", "Project Management", "Problem Solving", "Change Management", "Stakeholder Management", "Training & Coaching", "Documentation", "Requirements Gathering", "Business Analysis"];
+const DEFAULT_LANGUAGES = ["English", "Spanish", "German", "French", "Portuguese", "Italian", "Dutch", "Polish", "Mandarin", "Japanese", "Arabic", "Russian", "Hindi"];
+const DEFAULT_CERTIFICATIONS = ["SAP Certified Associate - ABAP", "SAP Certified Application Associate - SAP S/4HANA Finance", "SAP Certified Application Associate - SAP MM", "SAP Certified Application Associate - SAP SD", "SAP Certified Application Associate - SAP HCM", "SAP Certified Technology Associate - SAP HANA", "SAP Certified Technology Associate - SAP Basis", "SAP Certified Application Associate - SAP SuccessFactors"];
+
 function ProfileView({ auth, compact = false, initialTab = null }) {
   const { t, lang, setLang } = useT();
   // Extract the real consultant_profiles id from auth (useAuth already fetched it via FK join)
@@ -164,6 +170,11 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   const [projForm, setProjForm] = useState({ title: "", consulting_company: "", client_name: "", role: "", url: "", description: "", _tech: "" });
   const [authForm, setAuthForm] = useState({ country_name: "", country_code: "", auth_type: "citizen" });
   const [savingExp, setSavingExp] = useState(false);
+  const [skillPickerOpen, setSkillPickerOpen] = useState(false);
+  const [skillPickerCat, setSkillPickerCat] = useState("technical");
+  const [langForm, setLangForm] = useState({ lang: "", level: "intermediate" });
+  const [certForm, setCertForm] = useState({ name: "", year: "", issuer: "", customName: "" });
+  const [eduForm, setEduForm] = useState({ degree: "", field: "", institution: "", year: "" });
 
   const tabs = [
     { id: "experience", label: t("profile.tab_experience"), icon: Briefcase,     count: null },
@@ -767,70 +778,264 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
           {/* Skills */}
           {tab.id === "skills" && (
             <div className="space-y-6">
+
+              {/* ── Skills from Catalog ── */}
               <div>
-                <h3 className="font-semibold text-gray-900 mb-4">{t("label.skills")}</h3>
-                {(profile?.skills?.length ?? 0) === 0
-                  ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_skills")}</p>
-                  : <div className="flex flex-wrap gap-2 mb-4">{profile.skills.map(s => {
-                      const isFeatured = (profile?.featured_skills ?? []).includes(s);
-                      return (
-                        <div key={s} className={`flex items-center rounded-xl text-sm font-medium border ${
-                          isFeatured ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-100"
-                        }`}>
-                          <button onClick={async () => {
-                            const el = pvCarouselRef.current;
-                            const savedTop = el ? el.scrollTop : null;
-                            const savedLeft = el ? el.scrollLeft : null;
-                            const cur = profile?.featured_skills ?? [];
-                            const next = isFeatured ? cur.filter(f => f !== s) : [...cur, s];
-                            try { await updateProfile({ featured_skills: next }); } catch (e) { alert(e.message); }
-                            if (el && savedTop !== null) { el.scrollTop = savedTop; el.scrollLeft = savedLeft; }
-                          }} title={isFeatured ? "Remove from highlights" : "Add to highlights"}
-                            className="flex items-center gap-1.5 px-3 py-1.5 transition-colors hover:opacity-80">
-                            <Star className="w-3 h-3 flex-shrink-0" fill={isFeatured ? "currentColor" : "none"} />
-                            {s}
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900">{t("label.skills")}</h3>
+                  <button onClick={() => setSkillPickerOpen(v => !v)}
+                    className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700">
+                    <Plus className="w-3 h-3" />{skillPickerOpen ? "Close" : "Browse catalog"}
+                  </button>
+                </div>
+                {skillPickerOpen && (() => {
+                  const catDefs = {
+                    technical: sysSettings['catalog_skills_technical'] ?? DEFAULT_SKILLS_TECHNICAL,
+                    functional: sysSettings['catalog_skills_functional'] ?? DEFAULT_SKILLS_FUNCTIONAL,
+                    soft: sysSettings['catalog_skills_soft'] ?? DEFAULT_SKILLS_SOFT,
+                  };
+                  return (
+                    <div className="border border-gray-200 rounded-2xl p-4 mb-4 bg-gray-50">
+                      <div className="flex gap-1 mb-3 flex-wrap">
+                        {[["technical","Technical"],["functional","Functional"],["soft","Soft Skills"]].map(([cat,label]) => (
+                          <button key={cat} onClick={() => setSkillPickerCat(cat)}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                              skillPickerCat === cat ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-200"
+                            }`}>
+                            {label}
                           </button>
-                          <button onClick={async () => {
-                            const el = pvCarouselRef.current;
-                            const savedTop = el ? el.scrollTop : null;
-                            const savedLeft = el ? el.scrollLeft : null;
-                            setSavingExp(true);
-                            try {
-                              const nextSkills = (profile?.skills ?? []).filter(sk => sk !== s);
-                              const nextFeatured = (profile?.featured_skills ?? []).filter(f => f !== s);
-                              await updateProfile({ skills: nextSkills, featured_skills: nextFeatured });
-                            } catch (e) { alert(e.message); }
-                            setSavingExp(false);
-                            if (el && savedTop !== null) { el.scrollTop = savedTop; el.scrollLeft = savedLeft; }
-                          }} title="Remove skill"
-                            className="pr-2 pl-0.5 py-1.5 hover:text-red-500 transition-colors">
-                            <X className="w-3 h-3" />
-                          </button>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(catDefs[skillPickerCat] ?? []).map(skill => {
+                          const sel = (profile?.skills ?? []).includes(skill);
+                          return (
+                            <button key={skill} onClick={async () => {
+                              const cur = profile?.skills ?? [];
+                              if (sel) {
+                                await updateProfile({ skills: cur.filter(s => s !== skill), featured_skills: (profile?.featured_skills ?? []).filter(f => f !== skill) });
+                              } else {
+                                await updateProfile({ skills: [...cur, skill] });
+                              }
+                            }} className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                              sel ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-200 hover:border-blue-400 hover:text-blue-600"
+                            }`}>
+                              {sel && <Check className="w-3 h-3 inline mr-1" />}{skill}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  const techC = sysSettings['catalog_skills_technical'] ?? DEFAULT_SKILLS_TECHNICAL;
+                  const funcC = sysSettings['catalog_skills_functional'] ?? DEFAULT_SKILLS_FUNCTIONAL;
+                  const softC = sysSettings['catalog_skills_soft'] ?? DEFAULT_SKILLS_SOFT;
+                  const getC = s => techC.includes(s) ? "Technical" : funcC.includes(s) ? "Functional" : softC.includes(s) ? "Soft Skills" : "Other";
+                  const grouped = {};
+                  for (const s of (profile?.skills ?? [])) {
+                    const c = getC(s);
+                    if (!grouped[c]) grouped[c] = [];
+                    grouped[c].push(s);
+                  }
+                  const catOrder = ["Technical", "Functional", "Soft Skills", "Other"];
+                  if (!(profile?.skills?.length ?? 0)) return <p className="text-sm text-gray-400">{t("profile.no_skills")}</p>;
+                  return (
+                    <div className="space-y-3">
+                      {catOrder.filter(c => grouped[c]).map(cat => (
+                        <div key={cat}>
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{cat}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {grouped[cat].map(s => {
+                              const isFeatured = (profile?.featured_skills ?? []).includes(s);
+                              return (
+                                <div key={s} className={`flex items-center rounded-xl text-sm font-medium border ${
+                                  isFeatured ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-100"
+                                }`}>
+                                  <button onClick={async () => {
+                                    const cur = profile?.featured_skills ?? [];
+                                    try { await updateProfile({ featured_skills: isFeatured ? cur.filter(f => f !== s) : [...cur, s] }); } catch (e) { alert(e.message); }
+                                  }} title={isFeatured ? "Remove from highlights" : "Add to highlights"}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 transition-colors hover:opacity-80">
+                                    <Star className="w-3 h-3 flex-shrink-0" fill={isFeatured ? "currentColor" : "none"} />{s}
+                                  </button>
+                                  <button onClick={async () => {
+                                    setSavingExp(true);
+                                    try { await updateProfile({ skills: (profile?.skills ?? []).filter(sk => sk !== s), featured_skills: (profile?.featured_skills ?? []).filter(f => f !== s) }); } catch (e) { alert(e.message); }
+                                    setSavingExp(false);
+                                  }} title="Remove skill" className="pr-2 pl-0.5 py-1.5 hover:text-red-500 transition-colors">
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      );
-                    })}</div>}
-                <p className="text-xs text-gray-400 mb-3">Tap a skill to highlight it in your overview.</p>
-                <div className="flex gap-2 mt-2">
-                  <input id="new-skill-input" placeholder={t("profile.skill_ph")}
-                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <button disabled={savingExp} onClick={async () => {
-                    const input = document.getElementById("new-skill-input");
-                    const val = input?.value?.trim();
-                    if (!val) return;
-                    const el = pvCarouselRef.current;
-                    const savedTop = el ? el.scrollTop : null;
-                    const savedLeft = el ? el.scrollLeft : null;
+                      ))}
+                    </div>
+                  );
+                })()}
+                <p className="text-xs text-gray-400 mt-2">Star a skill to highlight it in your overview.</p>
+              </div>
+
+              {/* ── Languages ── */}
+              <div className="border-t border-gray-100 pt-6">
+                <h3 className="font-semibold text-gray-900 mb-3">Languages</h3>
+                {(profile?.languages?.length ?? 0) === 0
+                  ? <p className="text-sm text-gray-400 mb-3">No languages added yet.</p>
+                  : <div className="flex flex-wrap gap-2 mb-3">
+                      {(profile.languages ?? []).map(raw => {
+                        const [ln, lv] = raw.split("|");
+                        const lvLabel = { beginner:"Beginner", intermediate:"Intermediate", advanced:"Advanced", native:"Native" }[lv] ?? lv ?? "";
+                        return (
+                          <div key={raw} className="flex items-center bg-green-50 text-green-700 border border-green-100 rounded-xl text-sm font-medium">
+                            <span className="flex items-center gap-1.5 px-3 py-1.5">
+                              <Globe className="w-3 h-3 flex-shrink-0" />{ln}{lvLabel ? ` · ${lvLabel}` : ""}
+                            </span>
+                            <button onClick={async () => {
+                              setSavingExp(true);
+                              try { await updateProfile({ languages: (profile?.languages ?? []).filter(l => l !== raw) }); } catch (e) { alert(e.message); }
+                              setSavingExp(false);
+                            }} className="pr-2 pl-0 py-1.5 hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
+                          </div>
+                        );
+                      })}
+                    </div>}
+                <div className="flex gap-2">
+                  <select value={langForm.lang} onChange={e => setLangForm(p => ({ ...p, lang: e.target.value }))}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="">Select language…</option>
+                    {(sysSettings['catalog_languages'] ?? DEFAULT_LANGUAGES).map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                  <select value={langForm.level} onChange={e => setLangForm(p => ({ ...p, level: e.target.value }))}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                    <option value="native">Native</option>
+                  </select>
+                  <button disabled={savingExp || !langForm.lang} onClick={async () => {
+                    if (!langForm.lang) return;
                     setSavingExp(true);
                     try {
-                      const current = profile?.skills ?? [];
-                      if (!current.includes(val)) await updateProfile({ skills: [...current, val] });
-                      input.value = "";
+                      const raw = `${langForm.lang}|${langForm.level}`;
+                      const cur = profile?.languages ?? [];
+                      if (!cur.some(l => l.split("|")[0] === langForm.lang)) await updateProfile({ languages: [...cur, raw] });
+                      setLangForm({ lang: "", level: "intermediate" });
                     } catch (e) { alert(e.message); }
                     setSavingExp(false);
-                    if (el && savedTop !== null) { el.scrollTop = savedTop; el.scrollLeft = savedLeft; }
-                  }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                    {savingExp ? "…" : t("profile.add_skill")}
+                  }} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                    {savingExp ? "…" : "Add"}
                   </button>
+                </div>
+              </div>
+
+              {/* ── Certifications ── */}
+              <div className="border-t border-gray-100 pt-6">
+                <h3 className="font-semibold text-gray-900 mb-3">Certifications</h3>
+                {(profile?.certifications?.length ?? 0) === 0
+                  ? <p className="text-sm text-gray-400 mb-3">No certifications added yet.</p>
+                  : <div className="space-y-2 mb-3">
+                      {(profile.certifications ?? []).map((c, i) => (
+                        <div key={i} className="flex items-center justify-between bg-purple-50 border border-purple-100 rounded-xl px-3 py-2">
+                          <div className="min-w-0 flex-1">
+                            <span className="text-sm font-medium text-purple-800">{c.name}</span>
+                            {c.issuer && <span className="text-xs text-purple-500 ml-2">{c.issuer}</span>}
+                            {c.year && <span className="text-xs text-purple-400 ml-1">· {c.year}</span>}
+                          </div>
+                          <button onClick={async () => {
+                            setSavingExp(true);
+                            try { await updateProfile({ certifications: (profile?.certifications ?? []).filter((_,j) => j !== i) }); } catch (e) { alert(e.message); }
+                            setSavingExp(false);
+                          }} className="text-purple-300 hover:text-red-500 transition-colors ml-2 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ))}
+                    </div>}
+                <div className="space-y-2">
+                  <select value={certForm.name} onChange={e => setCertForm(p => ({ ...p, name: e.target.value, customName: "" }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="">Select certification…</option>
+                    {(sysSettings['catalog_certifications'] ?? DEFAULT_CERTIFICATIONS).map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="__custom__">Other…</option>
+                  </select>
+                  {certForm.name === "__custom__" && (
+                    <input placeholder="Certification name" value={certForm.customName} onChange={e => setCertForm(p => ({ ...p, customName: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  )}
+                  <div className="flex gap-2">
+                    <input placeholder="Issuer" value={certForm.issuer} onChange={e => setCertForm(p => ({ ...p, issuer: e.target.value }))}
+                      className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input placeholder="Year" value={certForm.year} onChange={e => setCertForm(p => ({ ...p, year: e.target.value }))}
+                      type="number" min="1990" max="2030"
+                      className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <button disabled={savingExp || !(certForm.name === "__custom__" ? certForm.customName.trim() : certForm.name)}
+                      onClick={async () => {
+                        const name = certForm.name === "__custom__" ? certForm.customName.trim() : certForm.name;
+                        if (!name) return;
+                        setSavingExp(true);
+                        try {
+                          const entry = { name, ...(certForm.issuer.trim() ? { issuer: certForm.issuer.trim() } : {}), ...(certForm.year ? { year: Number(certForm.year) } : {}) };
+                          await updateProfile({ certifications: [...(profile?.certifications ?? []), entry] });
+                          setCertForm({ name: "", year: "", issuer: "", customName: "" });
+                        } catch (e) { alert(e.message); }
+                        setSavingExp(false);
+                      }} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                      {savingExp ? "…" : "Add"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Education ── */}
+              <div className="border-t border-gray-100 pt-6">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><GraduationCap className="w-4 h-4 text-indigo-500" />Education</h3>
+                {(profile?.education?.length ?? 0) === 0
+                  ? <p className="text-sm text-gray-400 mb-3">No education added yet.</p>
+                  : <div className="space-y-2 mb-3">
+                      {(profile.education ?? []).map((ed, i) => (
+                        <div key={i} className="flex items-start justify-between bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5">
+                          <div>
+                            <div className="text-sm font-medium text-indigo-800">{ed.degree}{ed.field ? ` in ${ed.field}` : ""}</div>
+                            {ed.institution && <div className="text-xs text-indigo-500">{ed.institution}{ed.year ? ` · ${ed.year}` : ""}</div>}
+                          </div>
+                          <button onClick={async () => {
+                            setSavingExp(true);
+                            try { await updateProfile({ education: (profile?.education ?? []).filter((_,j) => j !== i) }); } catch (e) { alert(e.message); }
+                            setSavingExp(false);
+                          }} className="text-indigo-300 hover:text-red-500 transition-colors ml-2 mt-0.5 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ))}
+                    </div>}
+                <div className="grid grid-cols-2 gap-2">
+                  <input placeholder="Degree (e.g. Bachelor, MBA)" value={eduForm.degree} onChange={e => setEduForm(p => ({ ...p, degree: e.target.value }))}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input placeholder="Field of study" value={eduForm.field} onChange={e => setEduForm(p => ({ ...p, field: e.target.value }))}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input placeholder="Institution / University" value={eduForm.institution} onChange={e => setEduForm(p => ({ ...p, institution: e.target.value }))}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <div className="flex gap-2">
+                    <input placeholder="Year" value={eduForm.year} onChange={e => setEduForm(p => ({ ...p, year: e.target.value }))}
+                      type="number" min="1950" max="2030"
+                      className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <button disabled={savingExp || !eduForm.degree.trim()} onClick={async () => {
+                      if (!eduForm.degree.trim()) return;
+                      setSavingExp(true);
+                      try {
+                        const entry = {
+                          degree: eduForm.degree.trim(),
+                          ...(eduForm.field.trim() ? { field: eduForm.field.trim() } : {}),
+                          ...(eduForm.institution.trim() ? { institution: eduForm.institution.trim() } : {}),
+                          ...(eduForm.year ? { year: Number(eduForm.year) } : {}),
+                        };
+                        await updateProfile({ education: [...(profile?.education ?? []), entry] });
+                        setEduForm({ degree: "", field: "", institution: "", year: "" });
+                      } catch (e) { alert(e.message); }
+                      setSavingExp(false);
+                    }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                      {savingExp ? "…" : "Add"}
+                    </button>
+                  </div>
                 </div>
               </div>
 
