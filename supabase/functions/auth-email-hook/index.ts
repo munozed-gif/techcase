@@ -188,7 +188,8 @@ function buildEmail(
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
-  // Verify hook secret — Supabase sends it as Bearer JWT
+  // Verify hook secret — Supabase signs requests as HS256 JWT
+  // Secret format from dashboard: "v1,whsec_<base64>" — strip prefix and decode
   const hookSecret = Deno.env.get("HOOK_SECRET");
   if (hookSecret) {
     const auth = req.headers.get("Authorization") ?? "";
@@ -198,11 +199,14 @@ serve(async (req) => {
         status: 401, headers: { "Content-Type": "application/json" },
       });
     }
-    // Verify HMAC-signed JWT using Web Crypto (no external deps)
     try {
       const [headerB64, payloadB64, sigB64] = token.split(".");
       const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
-      const keyBytes = new TextEncoder().encode(hookSecret);
+      // Strip the "v1,whsec_" prefix Supabase prepends, then base64-decode
+      const rawSecret = hookSecret.startsWith("v1,whsec_")
+        ? hookSecret.slice("v1,whsec_".length)
+        : hookSecret;
+      const keyBytes = Uint8Array.from(atob(rawSecret), c => c.charCodeAt(0));
       const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
       const sig = Uint8Array.from(atob(sigB64.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
       const valid = await crypto.subtle.verify("HMAC", key, sig, data);
