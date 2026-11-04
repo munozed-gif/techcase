@@ -1959,7 +1959,7 @@ function ArenaView({ auth, onNavigate }) {
       </div>
 
       {/* Section 3 — Leaderboard / Cards / Compare carousel */}
-      <div style={{ marginTop:28 }}>
+      {(arenaSettings["leaderboard_carousel_by_role"]?.[auth.role] !== false) && <div style={{ marginTop:28 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
           <div style={{ width:28, height:28, borderRadius:8, background:'linear-gradient(135deg,#5B21B6,#7C3AED)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
             <Trophy size={14} color="white" />
@@ -2066,7 +2066,7 @@ function ArenaView({ auth, onNavigate }) {
           </div>
         );
       })()}
-      </div>{/* end Section 3 wrapper */}
+      </div>}{/* end Section 3 wrapper */}
 
 
       {/* Floating compare bar */}

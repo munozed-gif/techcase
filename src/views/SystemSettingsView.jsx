@@ -6,7 +6,7 @@ import {
   ExternalLink, FileCode2, FileText, FolderKanban, FolderOpen, Globe,
   Handshake, ListChecks, Lock, Mail, Palette, Pencil, Phone, Plus, Receipt,
   RefreshCw, RotateCcw, Search, Send, Settings, Shield, SlidersHorizontal,
-  Monitor, Rocket, Sparkles, Tag, Trash2, TrendingUp, User, UserCheck, UserCog,
+  Monitor, Rocket, Sparkles, Tag, Trash2, TrendingUp, Trophy, User, UserCheck, UserCog,
   Users, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -978,6 +978,7 @@ function SettingsRolesTab({ ssCtx }) {
   const [matrix, setMatrix] = useState(null);
   const [wizardModes, setWizardModes] = useState(null);
   const [navVisibility, setNavVisibility] = useState({});
+  const [leaderboardVis, setLeaderboardVis] = useState({});
   const [saving, setSaving] = useState(false);
   const [toast, setToast]   = useState(null);
 
@@ -1000,6 +1001,10 @@ function SettingsRolesTab({ ssCtx }) {
       }
       setWizardModes(mergedWiz);
       setNavVisibility(ssCtx.settings["nav_visibility_by_role"] ?? {});
+
+      const lbDefaults = {};
+      for (const r of NAV_VIS_ROLES) lbDefaults[r] = true;
+      setLeaderboardVis({ ...lbDefaults, ...(ssCtx.settings["leaderboard_carousel_by_role"] ?? {}) });
     }
   }, [ssCtx.loading, ssCtx.settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1022,6 +1027,7 @@ function SettingsRolesTab({ ssCtx }) {
       await ssCtx.setSetting("role_permissions", matrix);
       await ssCtx.setSetting("wizard_modes", wizardModes);
       await ssCtx.setSetting("nav_visibility_by_role", navVisibility);
+      await ssCtx.setSetting("leaderboard_carousel_by_role", leaderboardVis);
       setToast(t("roles.saved"));
       setTimeout(() => setToast(null), 3000);
     } catch (e) {
@@ -1041,6 +1047,9 @@ function SettingsRolesTab({ ssCtx }) {
     }
     setWizardModes(freshWiz);
     setNavVisibility({});
+    const freshLb = {};
+    for (const r of NAV_VIS_ROLES) freshLb[r] = true;
+    setLeaderboardVis(freshLb);
   }
 
   if (ssCtx.loading || !matrix || !wizardModes) return <Spinner />;
@@ -1214,6 +1223,36 @@ function SettingsRolesTab({ ssCtx }) {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Arena Leaderboard Carousel */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Trophy size={16} className="text-purple-600" />
+          <h3 className="font-semibold text-gray-900 dark:text-white">Arena Leaderboard Carousel</h3>
+        </div>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-5">
+          Choose which roles can see the Leaderboard / Cards / Compare carousel in the Arena view. Disabled roles will not see the section at all.
+        </p>
+        <div className="flex flex-wrap gap-2.5">
+          {NAV_VIS_ROLES.map(role => {
+            const visible = leaderboardVis[role] !== false;
+            return (
+              <button
+                key={role}
+                onClick={() => setLeaderboardVis(p => ({ ...p, [role]: !visible }))}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors ${
+                  visible
+                    ? ROLE_COLORS[role] ?? 'bg-blue-50 border-blue-400 text-blue-600'
+                    : 'border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 bg-transparent'
+                }`}
+              >
+                {visible ? <Check size={11} /> : <X size={11} />}
+                {t("role." + role)}
+              </button>
+            );
+          })}
         </div>
       </div>
 
