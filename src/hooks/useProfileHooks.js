@@ -73,10 +73,12 @@ function useConsultantProfile(consultantId, profileId) {
 
   const resolvedId = profileId ?? consultantId;
 
-  const fetchProfile = useCallback(async () => {
+  const fetchProfile = useCallback(async (silent = false) => {
     if (!resolvedId) return;
-    setLoading(true);
-    setProfileError(null);
+    if (!silent) {
+      setLoading(true);
+      setProfileError(null);
+    }
 
     // Avoid the case_assignments nested join — it requires a FK from case_assignments
     // to consultant_profiles which may not exist. Fetch core + safe related tables only.
@@ -95,7 +97,7 @@ function useConsultantProfile(consultantId, profileId) {
     const { data: avail } = await supabase.rpc("get_consultant_availability",
       { p_consultant_id: resolvedId });
     setAvailability(avail);
-    setLoading(false);
+    if (!silent) setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedId]);
 
@@ -111,7 +113,7 @@ function useConsultantProfile(consultantId, profileId) {
         .insert({ id: resolvedId, ...updates });
       if (ie) throw new Error(`Profile create failed: ${ie.message}`);
     }
-    await fetchProfile();
+    await fetchProfile(true); // silent — no spinner, keeps carousel mounted
   }
 
   async function addCustomer(data) {
