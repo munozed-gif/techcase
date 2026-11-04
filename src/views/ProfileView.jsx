@@ -760,15 +760,22 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                           isFeatured ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-100"
                         }`}>
                           <button onClick={async () => {
+                            const el = pvCarouselRef.current;
+                            const savedTop = el ? el.scrollTop : null;
+                            const savedLeft = el ? el.scrollLeft : null;
                             const cur = profile?.featured_skills ?? [];
                             const next = isFeatured ? cur.filter(f => f !== s) : [...cur, s];
                             try { await updateProfile({ featured_skills: next }); } catch (e) { alert(e.message); }
+                            if (el && savedTop !== null) { el.scrollTop = savedTop; el.scrollLeft = savedLeft; }
                           }} title={isFeatured ? "Remove from highlights" : "Add to highlights"}
                             className="flex items-center gap-1.5 px-3 py-1.5 transition-colors hover:opacity-80">
                             <Star className="w-3 h-3 flex-shrink-0" fill={isFeatured ? "currentColor" : "none"} />
                             {s}
                           </button>
                           <button onClick={async () => {
+                            const el = pvCarouselRef.current;
+                            const savedTop = el ? el.scrollTop : null;
+                            const savedLeft = el ? el.scrollLeft : null;
                             setSavingExp(true);
                             try {
                               const nextSkills = (profile?.skills ?? []).filter(sk => sk !== s);
@@ -776,6 +783,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                               await updateProfile({ skills: nextSkills, featured_skills: nextFeatured });
                             } catch (e) { alert(e.message); }
                             setSavingExp(false);
+                            if (el && savedTop !== null) { el.scrollTop = savedTop; el.scrollLeft = savedLeft; }
                           }} title="Remove skill"
                             className="pr-2 pl-0.5 py-1.5 hover:text-red-500 transition-colors">
                             <X className="w-3 h-3" />
@@ -791,6 +799,9 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                     const input = document.getElementById("new-skill-input");
                     const val = input?.value?.trim();
                     if (!val) return;
+                    const el = pvCarouselRef.current;
+                    const savedTop = el ? el.scrollTop : null;
+                    const savedLeft = el ? el.scrollLeft : null;
                     setSavingExp(true);
                     try {
                       const current = profile?.skills ?? [];
@@ -798,6 +809,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                       input.value = "";
                     } catch (e) { alert(e.message); }
                     setSavingExp(false);
+                    if (el && savedTop !== null) { el.scrollTop = savedTop; el.scrollLeft = savedLeft; }
                   }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                     {savingExp ? "…" : t("profile.add_skill")}
                   </button>

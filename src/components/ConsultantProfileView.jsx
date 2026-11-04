@@ -1152,10 +1152,14 @@ function ConsultantProfileView({ userId, onBack }) {
                         <div key={s} className={`flex items-center rounded-xl text-sm font-medium border ${isFeatured ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-100"}`}>
                           {isOwnProfile ? (
                             <button onClick={async () => {
+                              const el = cvCarouselRef.current;
+                              const savedTop = el ? el.scrollTop : null;
+                              const savedLeft = el ? el.scrollLeft : null;
                               const cur = cpData?.featured_skills ?? [];
                               const next = isFeatured ? cur.filter(f => f !== s) : [...cur, s];
                               await supabase.from('consultant_profiles').update({ featured_skills: next }).eq('id', targetUserId);
                               setCpData(p => p ? { ...p, featured_skills: next } : p);
+                              if (el && savedTop !== null) { el.scrollTop = savedTop; el.scrollLeft = savedLeft; }
                             }} title={isFeatured ? "Remove from highlights" : "Add to highlights"}
                               className="flex items-center gap-1.5 px-3 py-1.5 transition-colors hover:opacity-80">
                               <Star className="w-3 h-3 flex-shrink-0" fill={isFeatured ? "currentColor" : "none"} />
@@ -1168,10 +1172,14 @@ function ConsultantProfileView({ userId, onBack }) {
                           )}
                           {isOwnProfile && (
                             <button onClick={async () => {
+                              const el = cvCarouselRef.current;
+                              const savedTop = el ? el.scrollTop : null;
+                              const savedLeft = el ? el.scrollLeft : null;
                               const nextSkills   = (cpData?.skills ?? []).filter(sk => sk !== s);
                               const nextFeatured = (cpData?.featured_skills ?? []).filter(f => f !== s);
                               await supabase.from('consultant_profiles').update({ skills: nextSkills, featured_skills: nextFeatured }).eq('id', targetUserId);
                               setCpData(p => p ? { ...p, skills: nextSkills, featured_skills: nextFeatured } : p);
+                              if (el && savedTop !== null) { el.scrollTop = savedTop; el.scrollLeft = savedLeft; }
                             }} title="Remove skill"
                               className="pr-2 pl-0.5 py-1.5 hover:text-red-500 transition-colors">
                               <X className="w-3 h-3" />
@@ -1191,23 +1199,31 @@ function ConsultantProfileView({ userId, onBack }) {
                         if (e.key !== 'Enter') return;
                         const val = e.target.value.trim();
                         if (!val) return;
+                        const el = cvCarouselRef.current;
+                        const savedTop = el ? el.scrollTop : null;
+                        const savedLeft = el ? el.scrollLeft : null;
                         const current = cpData?.skills ?? [];
                         if (current.includes(val)) return;
                         const next = [...current, val];
                         await supabase.from('consultant_profiles').update({ skills: next }).eq('id', targetUserId);
                         setCpData(p => p ? { ...p, skills: next } : p);
                         e.target.value = '';
+                        if (el && savedTop !== null) { el.scrollTop = savedTop; el.scrollLeft = savedLeft; }
                       }} />
                     <button onClick={async () => {
                       const input = document.getElementById('cp-skill-input');
                       const val = input?.value?.trim();
                       if (!val) return;
+                      const el = cvCarouselRef.current;
+                      const savedTop = el ? el.scrollTop : null;
+                      const savedLeft = el ? el.scrollLeft : null;
                       const current = cpData?.skills ?? [];
                       if (current.includes(val)) return;
                       const next = [...current, val];
                       await supabase.from('consultant_profiles').update({ skills: next }).eq('id', targetUserId);
                       setCpData(p => p ? { ...p, skills: next } : p);
                       input.value = '';
+                      if (el && savedTop !== null) { el.scrollTop = savedTop; el.scrollLeft = savedLeft; }
                     }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl">
                       {t("profile.add_skill")}
                     </button>
