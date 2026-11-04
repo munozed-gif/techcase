@@ -355,6 +355,11 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
               ...(data.years_experience ? { years_experience: String(data.years_experience) } : {}),
               ...(data.skills?.length   ? { _skills: data.skills.join(", ") } : {}),
             }));
+            // Normalize "YYYY-MM" dates to "YYYY-MM-DD" for PostgreSQL date columns
+            const toDate = v => {
+              if (!v) return null;
+              return /^\d{4}-\d{2}$/.test(v) ? `${v}-01` : v;
+            };
             const errors = [];
             const existingCoNames = new Set((profile?.consultant_customers ?? []).map(c => c.company_name.toLowerCase()));
             const seenExpCo = new Set();
@@ -363,7 +368,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
               const coKey = exp.company_name.toLowerCase();
               if (seenExpCo.has(coKey) || existingCoNames.has(coKey)) continue;
               seenExpCo.add(coKey);
-              try { await addCustomer({ company_name: exp.company_name, role_held: exp.role_held || null, start_date: exp.start_date || null, end_date: exp.end_date || null, description: exp.description || null }); }
+              try { await addCustomer({ company_name: exp.company_name, role_held: exp.role_held || null, start_date: toDate(exp.start_date), end_date: toDate(exp.end_date), description: exp.description || null }); }
               catch (e) { console.error("addCustomer (experience) failed:", e?.message); errors.push(e?.message); }
             }
             const seenCo = new Set();

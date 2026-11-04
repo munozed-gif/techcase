@@ -909,12 +909,18 @@ function ConsultantProfileView({ userId, onBack }) {
                     await supabase.from('consultant_profiles').update(profileUpdates).eq('id', targetUserId);
                     setCpData(prev => prev ? { ...prev, ...profileUpdates } : prev);
                   }
-                  // Add work experience companies
+                  const toDate = v => (!v ? null : /^\d{4}-\d{2}$/.test(v) ? `${v}-01` : v);
+                  // Add work experience companies (deduplicated)
                   const newCustomers = [];
+                  const existingCoNamesSet = new Set((cpData?.consultant_customers ?? []).map(c => c.company_name.toLowerCase()));
+                  const seenExpCoSet = new Set();
                   for (const exp of (data.work_experience ?? [])) {
                     if (!exp.company_name) continue;
+                    const coKey = exp.company_name.toLowerCase();
+                    if (seenExpCoSet.has(coKey) || existingCoNamesSet.has(coKey)) continue;
+                    seenExpCoSet.add(coKey);
                     const { data: ins, error: insErr } = await supabase.from('consultant_customers')
-                      .insert({ consultant_id: targetUserId, company_name: exp.company_name, role_held: exp.role_held ?? null, start_date: exp.start_date ?? null, end_date: exp.end_date ?? null, description: exp.description ?? null })
+                      .insert({ consultant_id: targetUserId, company_name: exp.company_name, role_held: exp.role_held ?? null, start_date: toDate(exp.start_date), end_date: toDate(exp.end_date), description: exp.description ?? null })
                       .select().single();
                     if (insErr) console.error("insert consultant_customers failed:", insErr.message);
                     if (ins) newCustomers.push(ins);
@@ -923,6 +929,7 @@ function ConsultantProfileView({ userId, onBack }) {
                   const existingNames = new Set([
                     ...(cpData?.consultant_customers ?? []).map(c => c.company_name.toLowerCase()),
                     ...newCustomers.map(c => c.company_name.toLowerCase()),
+                    ...seenExpCoSet,
                   ]);
                   const seenCo = new Set();
                   for (const proj of (data.projects ?? [])) {
