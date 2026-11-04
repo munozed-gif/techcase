@@ -318,9 +318,9 @@ function ResumeImporter({ onExtracted }) {
     const active = RESUME_SECTIONS.filter(s => selected.has(s.key));
     const schemaLines = active.map(s => s.schema).join(",\n");
     const notes = [];
-    if (selected.has("experience")) notes.push("work_experience should list all past and current jobs.");
-    if (selected.has("projects"))   notes.push("projects should list notable professional or personal projects.");
-    notes.push("Only populate fields where clear evidence exists in the source.");
+    if (selected.has("experience")) notes.push("work_experience: include up to 5 most recent jobs only.");
+    if (selected.has("projects"))   notes.push("projects: include up to 5 most notable projects only.");
+    notes.push("Only populate fields where clear evidence exists in the source. Keep string values concise.");
     return `You are a professional profile data extractor.\nExtract structured information from the provided resume or profile text.\nReturn ONLY valid JSON — no markdown fences, no explanation — matching exactly:\n{\n${schemaLines}\n}\n${notes.join(" ")}`;
   }
 
@@ -383,7 +383,8 @@ function ResumeImporter({ onExtracted }) {
       if (extractErr) throw new Error(extractErr);
       if (!text?.trim()) throw new Error("No text found in PDF");
       setLoading(false);
-      runExtraction([{ role: "user", content: `Resume text:\n\n${text}\n\nExtract the requested profile information from this resume.` }]);
+      const truncated = text.length > 10000 ? text.slice(0, 10000) + "\n[truncated]" : text;
+      runExtraction([{ role: "user", content: `Resume text:\n\n${truncated}\n\nExtract the requested profile information from this resume.` }]);
     } catch (e) {
       console.error("PDF extraction error:", e);
       setError("Could not read the PDF. Try the paste option or fill in manually.");
