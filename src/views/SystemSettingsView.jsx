@@ -1125,6 +1125,35 @@ function SettingsRolesTab({ ssCtx }) {
                   ))}
                 </tr>
               ))}
+              {/* Arena Leaderboard Carousel row */}
+              <tr className={`border-b border-gray-100 dark:border-gray-700 ${CAPABILITIES.length % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
+                <td className="py-2.5 pr-4 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Trophy size={11} className="text-purple-500 flex-shrink-0" />
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Arena Leaderboard Carousel</span>
+                  </div>
+                </td>
+                {ALL_ROLES.map(role => (
+                  <td key={role} className="text-center py-2.5 px-2">
+                    {role === 'admin' ? (
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-red-500 bg-red-500/20 text-red-500" title="Admin always has access">
+                        <Check size={11} />
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setLeaderboardVis(p => ({ ...p, [role]: !(p[role] !== false) }))}
+                        className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                          leaderboardVis[role] !== false
+                            ? 'bg-blue-600 border-blue-600 text-white'
+                            : 'bg-transparent border-gray-400 dark:border-gray-500 text-transparent hover:border-blue-400'
+                        }`}
+                      >
+                        <Check size={11} />
+                      </button>
+                    )}
+                  </td>
+                ))}
+              </tr>
             </tbody>
           </table>
         </div>
@@ -1223,36 +1252,6 @@ function SettingsRolesTab({ ssCtx }) {
               ))}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* Arena Leaderboard Carousel */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
-        <div className="flex items-center gap-2 mb-1">
-          <Trophy size={16} className="text-purple-600" />
-          <h3 className="font-semibold text-gray-900 dark:text-white">Arena Leaderboard Carousel</h3>
-        </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-5">
-          Choose which roles can see the Leaderboard / Cards / Compare carousel in the Arena view. Disabled roles will not see the section at all.
-        </p>
-        <div className="flex flex-wrap gap-2.5">
-          {NAV_VIS_ROLES.map(role => {
-            const visible = leaderboardVis[role] !== false;
-            return (
-              <button
-                key={role}
-                onClick={() => setLeaderboardVis(p => ({ ...p, [role]: !visible }))}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors ${
-                  visible
-                    ? ROLE_COLORS[role] ?? 'bg-blue-50 border-blue-400 text-blue-600'
-                    : 'border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 bg-transparent'
-                }`}
-              >
-                {visible ? <Check size={11} /> : <X size={11} />}
-                {t("role." + role)}
-              </button>
-            );
-          })}
         </div>
       </div>
 
