@@ -122,7 +122,12 @@ function AuthScreen({ onAuth, onBack }) {
     setForgotLoad(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), { redirectTo: window.location.origin });
     setForgotLoad(false);
-    if (err) { setError(err.message); return; }
+    if (err) {
+      const raw = err.message || err.error_description || err.msg || "";
+      const isUseless = !raw || raw === "{}" || raw === "[object Object]";
+      setError(isUseless ? "Failed to send reset email. Please try again." : raw);
+      return;
+    }
     setForgotSent(true);
   }
 
