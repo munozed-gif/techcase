@@ -37,6 +37,7 @@ function ConsultantProfileView({ userId, onBack }) {
   const cvCarouselScrolling = useRef(false);
   const cvScrollDebounce = useRef(null);
   const cvClickLock = useRef(null);
+  const cvTouchStartY = useRef(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -448,7 +449,7 @@ function ConsultantProfileView({ userId, onBack }) {
           if (isMobile) {
             clearTimeout(cvScrollDebounce.current);
             cvScrollDebounce.current = setTimeout(() => {
-              if (cvCarouselScrolling.current) return;
+              if (cvCarouselScrolling.current || cvTouchStartY.current !== null) return;
               const el2 = cvCarouselRef.current;
               if (!el2) return;
               const closest = Math.min(Math.round(el2.scrollTop / el2.clientHeight), tabs.length - 1);
@@ -481,10 +482,23 @@ function ConsultantProfileView({ userId, onBack }) {
               </button>
             )}
             <div ref={cvCarouselRef} onScroll={onScroll}
-              onClickCapture={isMobile ? () => {
+              onTouchStart={isMobile ? (e) => {
                 cvCarouselScrolling.current = true;
+                cvTouchStartY.current = e.touches[0]?.clientY ?? null;
                 clearTimeout(cvClickLock.current);
-                cvClickLock.current = setTimeout(() => { cvCarouselScrolling.current = false; }, 600);
+                cvClickLock.current = setTimeout(() => {
+                  cvCarouselScrolling.current = false;
+                  cvTouchStartY.current = null;
+                }, 800);
+              } : undefined}
+              onTouchMove={isMobile ? (e) => {
+                if (cvTouchStartY.current === null) return;
+                const dy = Math.abs((e.touches[0]?.clientY ?? 0) - cvTouchStartY.current);
+                if (dy > 20) {
+                  cvTouchStartY.current = null;
+                  cvCarouselScrolling.current = false;
+                  clearTimeout(cvClickLock.current);
+                }
               } : undefined}
               style={isMobile
                 ? { display:'flex', flexDirection:'column', overflowY:'scroll', scrollSnapType:'y mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', height:700 }

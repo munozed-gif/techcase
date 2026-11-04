@@ -66,6 +66,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   const pvCarouselScrolling = useRef(false);
   const pvScrollDebounce = useRef(null);
   const pvClickLock = useRef(null);
+  const pvTouchStartY = useRef(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -635,7 +636,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
           if (isMobile) {
             clearTimeout(pvScrollDebounce.current);
             pvScrollDebounce.current = setTimeout(() => {
-              if (pvCarouselScrolling.current) return;
+              if (pvCarouselScrolling.current || pvTouchStartY.current !== null) return;
               const el2 = pvCarouselRef.current;
               if (!el2) return;
               const closest = Math.min(Math.round(el2.scrollTop / el2.clientHeight), tabs.length - 1);
@@ -668,10 +669,23 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
               </button>
             )}
             <div ref={pvCarouselRef} onScroll={onScroll}
-              onClickCapture={isMobile ? () => {
+              onTouchStart={isMobile ? (e) => {
                 pvCarouselScrolling.current = true;
+                pvTouchStartY.current = e.touches[0]?.clientY ?? null;
                 clearTimeout(pvClickLock.current);
-                pvClickLock.current = setTimeout(() => { pvCarouselScrolling.current = false; }, 600);
+                pvClickLock.current = setTimeout(() => {
+                  pvCarouselScrolling.current = false;
+                  pvTouchStartY.current = null;
+                }, 800);
+              } : undefined}
+              onTouchMove={isMobile ? (e) => {
+                if (pvTouchStartY.current === null) return;
+                const dy = Math.abs((e.touches[0]?.clientY ?? 0) - pvTouchStartY.current);
+                if (dy > 20) {
+                  pvTouchStartY.current = null;
+                  pvCarouselScrolling.current = false;
+                  clearTimeout(pvClickLock.current);
+                }
               } : undefined}
               style={isMobile
                 ? { display:'flex', flexDirection:'column', overflowY:'scroll', scrollSnapType:'y mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', height:700 }
