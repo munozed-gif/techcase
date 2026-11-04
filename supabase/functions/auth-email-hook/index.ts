@@ -49,11 +49,17 @@ function buildEmailHtml({
     ? `<p style="font-size:12px;color:#4a5568;margin:20px 0 0;line-height:1.6;text-align:center">${footerNote}</p>`
     : "";
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="color-scheme:dark">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
 <title>${title}</title>
+<style>
+:root { color-scheme: dark; }
+body { background-color: #0B0F1A !important; }
+</style>
 </head>
-<body style="margin:0;padding:0;background:#0B0F1A;font-family:'Plus Jakarta Sans',Arial,sans-serif">
+<body style="margin:0;padding:0;background:#0B0F1A !important;font-family:'Plus Jakarta Sans',Arial,sans-serif;color-scheme:dark">
 <!--[if mso]><table width="100%" bgcolor="#0B0F1A" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#0B0F1A;min-height:100vh">
   <tr><td align="center" style="padding:40px 16px">

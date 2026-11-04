@@ -137,7 +137,7 @@ import { EmptyState, Modal, Input, Textarea, Select } from "./src/components/ui.
 // AUTH SCREEN
 // ============================================================
 import { AuthScreen } from "./src/views/AuthScreen.jsx";
-import { LandingView } from "./src/views/LandingView.jsx";
+import { LandingView, NovaLandingMark } from "./src/views/LandingView.jsx";
 import ProjectShareView from "./src/views/ProjectShareView.jsx";
 import ApprovalView from "./src/views/ApprovalView.jsx";
 import CustomerSpecReviewView from "./src/views/CustomerSpecReviewView.jsx";
@@ -578,36 +578,59 @@ function SetNewPasswordScreen({ onDone }) {
   }
 
   return (
-    <div className="arena-dark min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div style={{ background: '#6366f1', padding: '20px', textAlign: 'center' }}>
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>Arena Solutions Platform</span>
-        </div>
-        <div className="p-6">
+    <div style={{
+      minHeight: "100vh", background: "#0B0F1A",
+      backgroundImage: "radial-gradient(circle at 70% -10%,rgba(79,110,247,.22) 0%,transparent 65%),linear-gradient(rgba(79,110,247,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,.07) 1px,transparent 1px)",
+      backgroundSize: "100% 100%,48px 48px,48px 48px",
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 16px",
+    }}>
+      {/* Orbital logo */}
+      <div style={{ marginBottom: 24 }}>
+        <NovaLandingMark size={176} />
+      </div>
+      {/* Title */}
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: "#f1f5f9", letterSpacing: "-0.02em" }}>
+          <span style={{ color: "#4F6EF7" }}>Arena</span> Solutions Platform
+        </h1>
+      </div>
+      {/* Card */}
+      <div style={{
+        width: "100%", maxWidth: 400,
+        background: "#0f1826", borderRadius: 20,
+        border: "1px solid rgba(79,110,247,0.25)",
+        overflow: "hidden",
+      }}>
+        <div style={{ background: "linear-gradient(90deg,#4F6EF7,#3b55d4)", height: 4 }} />
+        <div style={{ padding: "28px 28px 32px" }}>
           {done ? (
-            <div className="text-center py-4">
-              <div className="text-green-600 text-4xl mb-3">✓</div>
-              <p className="font-semibold text-gray-800">Password updated!</p>
-              <p className="text-sm text-gray-500 mt-1">Signing you in…</p>
+            <div style={{ textAlign: "center", padding: "16px 0" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>✓</div>
+              <p style={{ fontWeight: 700, color: "#f1f5f9", margin: "0 0 6px" }}>Password updated!</p>
+              <p style={{ fontSize: 14, color: "#94a3b8", margin: 0 }}>Signing you in…</p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <h2 className="text-lg font-bold text-gray-900">Set New Password</h2>
-              {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+            <form onSubmit={handleSubmit}>
+              <h2 style={{ margin: "0 0 20px", fontSize: 20, fontWeight: 700, color: "#f1f5f9" }}>Set New Password</h2>
+              {error && (
+                <div style={{ background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#fca5a5" }}>
+                  {error}
+                </div>
+              )}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#94a3b8", marginBottom: 6 }}>New password</label>
                 <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Min 6 characters" required />
+                  placeholder="Min 6 characters" required autoFocus
+                  style={{ width: "100%", background: "#0d1424", border: "1px solid rgba(79,110,247,.25)", borderRadius: 10, padding: "11px 14px", fontSize: 14, color: "#f1f5f9", outline: "none", boxSizing: "border-box" }} />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#94a3b8", marginBottom: 6 }}>Confirm password</label>
                 <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Repeat password" required />
+                  placeholder="Repeat password" required
+                  style={{ width: "100%", background: "#0d1424", border: "1px solid rgba(79,110,247,.25)", borderRadius: 10, padding: "11px 14px", fontSize: 14, color: "#f1f5f9", outline: "none", boxSizing: "border-box" }} />
               </div>
               <button type="submit" disabled={saving}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl disabled:opacity-50 transition-colors">
+                style={{ width: "100%", background: "#4F6EF7", color: "#fff", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 12, padding: "13px", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1, transition: "opacity .15s" }}>
                 {saving ? 'Saving…' : 'Update Password'}
               </button>
             </form>
