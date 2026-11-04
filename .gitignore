@@ -6,3 +6,4 @@ dist
 .env.development
 .env.production
 vm-mcp-adt/.env.dev
+supabase/.temp/
