@@ -67,6 +67,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   const pvScrollDebounce = useRef(null);
   const pvClickLock = useRef(null);
   const pvTouchStartY = useRef(null);
+  const pvLockedScrollTop = useRef(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -630,7 +631,16 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
           setProfileTab(tabs[Math.max(0, Math.min(idx, tabs.length - 1))]?.id ?? profileTab);
         }
         function onScroll() {
-          if (pvCarouselScrolling.current) return;
+          if (pvCarouselScrolling.current) {
+            // iOS CSS snap-seek fired during a tap — snap back to locked position instantly
+            if (isMobile && pvLockedScrollTop.current !== null) {
+              const el = pvCarouselRef.current;
+              if (el && Math.abs(el.scrollTop - pvLockedScrollTop.current) > 2) {
+                el.scrollTop = pvLockedScrollTop.current;
+              }
+            }
+            return;
+          }
           const el = pvCarouselRef.current;
           if (!el) return;
           if (isMobile) {
@@ -670,12 +680,15 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
             )}
             <div ref={pvCarouselRef} onScroll={onScroll}
               onTouchStart={isMobile ? (e) => {
+                const el = pvCarouselRef.current;
+                pvLockedScrollTop.current = el ? el.scrollTop : null;
                 pvCarouselScrolling.current = true;
                 pvTouchStartY.current = e.touches[0]?.clientY ?? null;
                 clearTimeout(pvClickLock.current);
                 pvClickLock.current = setTimeout(() => {
                   pvCarouselScrolling.current = false;
                   pvTouchStartY.current = null;
+                  pvLockedScrollTop.current = null;
                 }, 800);
               } : undefined}
               onTouchMove={isMobile ? (e) => {
@@ -683,6 +696,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                 const dy = Math.abs((e.touches[0]?.clientY ?? 0) - pvTouchStartY.current);
                 if (dy > 20) {
                   pvTouchStartY.current = null;
+                  pvLockedScrollTop.current = null;
                   pvCarouselScrolling.current = false;
                   clearTimeout(pvClickLock.current);
                 }

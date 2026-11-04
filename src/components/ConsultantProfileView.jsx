@@ -38,6 +38,7 @@ function ConsultantProfileView({ userId, onBack }) {
   const cvScrollDebounce = useRef(null);
   const cvClickLock = useRef(null);
   const cvTouchStartY = useRef(null);
+  const cvLockedScrollTop = useRef(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -443,7 +444,15 @@ function ConsultantProfileView({ userId, onBack }) {
           setSection(tabs[Math.max(0, Math.min(idx, tabs.length - 1))]?.id ?? section);
         }
         function onScroll() {
-          if (cvCarouselScrolling.current) return;
+          if (cvCarouselScrolling.current) {
+            if (isMobile && cvLockedScrollTop.current !== null) {
+              const el = cvCarouselRef.current;
+              if (el && Math.abs(el.scrollTop - cvLockedScrollTop.current) > 2) {
+                el.scrollTop = cvLockedScrollTop.current;
+              }
+            }
+            return;
+          }
           const el = cvCarouselRef.current;
           if (!el) return;
           if (isMobile) {
@@ -483,12 +492,15 @@ function ConsultantProfileView({ userId, onBack }) {
             )}
             <div ref={cvCarouselRef} onScroll={onScroll}
               onTouchStart={isMobile ? (e) => {
+                const el = cvCarouselRef.current;
+                cvLockedScrollTop.current = el ? el.scrollTop : null;
                 cvCarouselScrolling.current = true;
                 cvTouchStartY.current = e.touches[0]?.clientY ?? null;
                 clearTimeout(cvClickLock.current);
                 cvClickLock.current = setTimeout(() => {
                   cvCarouselScrolling.current = false;
                   cvTouchStartY.current = null;
+                  cvLockedScrollTop.current = null;
                 }, 800);
               } : undefined}
               onTouchMove={isMobile ? (e) => {
@@ -496,6 +508,7 @@ function ConsultantProfileView({ userId, onBack }) {
                 const dy = Math.abs((e.touches[0]?.clientY ?? 0) - cvTouchStartY.current);
                 if (dy > 20) {
                   cvTouchStartY.current = null;
+                  cvLockedScrollTop.current = null;
                   cvCarouselScrolling.current = false;
                   clearTimeout(cvClickLock.current);
                 }
