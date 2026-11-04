@@ -66,6 +66,9 @@ body { background-color: #0B0F1A !important; }
 
     <!-- Logo row -->
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin-bottom:28px">
+      <tr><td align="center" style="padding-bottom:10px">
+        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9Im9nIiBjeD0iMzYlIiBjeT0iMzMlIiByPSI3OCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM0RjZFRjciLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMwRDFGM0MiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSIzOSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNEY2RUY3IiBzdHJva2Utb3BhY2l0eT0iMC4xOCIgc3Ryb2tlLXdpZHRoPSIxIi8+PGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iMjgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzRGNkVGNyIgc3Ryb2tlLW9wYWNpdHk9IjAuMzUiIHN0cm9rZS13aWR0aD0iMSIvPjxjaXJjbGUgY3g9IjQwIiBjeT0iNDAiIHI9IjEzIiBmaWxsPSJ1cmwoI29nKSIvPjx0ZXh0IHg9IjQwIiB5PSI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSI4MDAiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IiNmZmZmZmYiPkE8L3RleHQ+PGNpcmNsZSBjeD0iNDAiIGN5PSIxLjUiIHI9IjMiIGZpbGw9IiM0RjZFRjciLz48Y2lyY2xlIGN4PSIxMyIgY3k9IjY0IiByPSIyLjIiIGZpbGw9IiM4MThjZjgiIG9wYWNpdHk9IjAuOCIvPjxjaXJjbGUgY3g9IjY4IiBjeT0iMTgiIHI9IjIuNSIgZmlsbD0iIzYzNjZmMSIvPjwvc3ZnPg==" width="72" height="72" alt="Arena" style="display:block;margin:0 auto">
+      </td></tr>
       <tr><td align="center">
         <div style="display:inline-block">
           <span style="font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:26px;font-weight:800;color:#4F6EF7;letter-spacing:-0.04em">Arena</span>
