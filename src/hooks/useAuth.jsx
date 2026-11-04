@@ -3,9 +3,10 @@ import { supabase } from "../lib/supabase.js";
 import { logEvent } from "../lib/utils.js";
 
 function useAuth() {
-  const [user, setUser]       = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser]                     = useState(null);
+  const [profile, setProfile]               = useState(null);
+  const [loading, setLoading]               = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -13,7 +14,14 @@ function useAuth() {
       if (session?.user) fetchProfile(session.user.id);
       else setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+        setUser(session?.user ?? null);
+        setLoading(false);
+        return;
+      }
+      setIsPasswordRecovery(false);
       setUser(session?.user ?? null);
       if (session?.user) fetchProfile(session.user.id);
       else { setProfile(null); setLoading(false); }
@@ -111,7 +119,8 @@ function useAuth() {
     : user?.id;
 
   return {
-    user, profile, loading,
+    user, profile, loading, isPasswordRecovery,
+    clearPasswordRecovery: () => setIsPasswordRecovery(false),
     role: profile?.role ?? null,
     billingUserId,
     signIn, signUp, signOut,

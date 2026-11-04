@@ -558,6 +558,66 @@ function StartDateMonitor({ auth }) {
   return null;
 }
 
+function SetNewPasswordScreen({ onDone }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm]   = useState('');
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState('');
+  const [done, setDone]         = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    if (password !== confirm) { setError("Passwords don't match."); return; }
+    setSaving(true); setError('');
+    const { error: err } = await supabase.auth.updateUser({ password });
+    setSaving(false);
+    if (err) { setError(err.message); return; }
+    setDone(true);
+    setTimeout(() => onDone(), 1500);
+  }
+
+  return (
+    <div className="arena-dark min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div style={{ background: '#6366f1', padding: '20px', textAlign: 'center' }}>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>Arena Solutions Platform</span>
+        </div>
+        <div className="p-6">
+          {done ? (
+            <div className="text-center py-4">
+              <div className="text-green-600 text-4xl mb-3">✓</div>
+              <p className="font-semibold text-gray-800">Password updated!</p>
+              <p className="text-sm text-gray-500 mt-1">Signing you in…</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <h2 className="text-lg font-bold text-gray-900">Set New Password</h2>
+              {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Min 6 characters" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+                <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Repeat password" required />
+              </div>
+              <button type="submit" disabled={saving}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl disabled:opacity-50 transition-colors">
+                {saving ? 'Saving…' : 'Update Password'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Intercept /join/:token before any auth flow
 const _joinMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/join\/([^/?#]+)/);
 // Intercept /share/:token — public read-only project view, no auth required
@@ -687,6 +747,10 @@ export default function App() {
         <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );
+  }
+
+  if (auth.isPasswordRecovery) {
+    return <SetNewPasswordScreen onDone={() => { auth.clearPasswordRecovery(); setAuthed(true); setShowAuth(false); }} />;
   }
 
   if (!authed || !auth.user) {
