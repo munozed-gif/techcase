@@ -36,6 +36,7 @@ function ConsultantProfileView({ userId, onBack }) {
   const cvCarouselRef = useRef(null);
   const cvCarouselScrolling = useRef(false);
   const cvScrollDebounce = useRef(null);
+  const cvClickLock = useRef(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -480,6 +481,11 @@ function ConsultantProfileView({ userId, onBack }) {
               </button>
             )}
             <div ref={cvCarouselRef} onScroll={onScroll}
+              onClickCapture={isMobile ? () => {
+                cvCarouselScrolling.current = true;
+                clearTimeout(cvClickLock.current);
+                cvClickLock.current = setTimeout(() => { cvCarouselScrolling.current = false; }, 600);
+              } : undefined}
               style={isMobile
                 ? { display:'flex', flexDirection:'column', overflowY:'scroll', scrollSnapType:'y mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', height:700 }
                 : { display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
