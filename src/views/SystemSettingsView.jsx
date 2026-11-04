@@ -951,17 +951,19 @@ function SettingsPlatformTab({ ssCtx }) {
 }
 
 const NAV_ITEMS_CONFIG = [
-  { id: 'dashboard',     label: 'Dashboard' },
-  { id: 'cases',         label: 'Cases / My Cases' },
-  { id: 'projects',      label: 'Projects' },
-  { id: 'kanban',        label: 'Kanban' },
-  { id: 'arena',         label: 'Arena' },
-  { id: 'time',          label: 'Time Entries' },
-  { id: 'invoices',      label: 'Invoices' },
-  { id: 'reports',       label: 'Reports' },
-  { id: 'notifications', label: 'Notifications' },
-  { id: 'my-reviews',    label: 'My Reviews' },
+  { id: 'dashboard',     label: 'Dashboard',       icon: Activity },
+  { id: 'cases',         label: 'Cases / My Cases', icon: FolderKanban },
+  { id: 'projects',      label: 'Projects',         icon: Briefcase },
+  { id: 'kanban',        label: 'Kanban',            icon: ClipboardList },
+  { id: 'arena',         label: 'Arena',             icon: Trophy },
+  { id: 'time',          label: 'Time Entries',      icon: Calendar },
+  { id: 'invoices',      label: 'Invoices',          icon: Receipt },
+  { id: 'reports',       label: 'Reports',           icon: BarChart2 },
+  { id: 'notifications', label: 'Notifications',     icon: Zap },
+  { id: 'my-reviews',    label: 'My Reviews',        icon: BadgeCheck },
 ];
+
+const WIZARD_TYPE_ICONS = { case: FolderKanban, project: Briefcase };
 
 const NAV_VIS_ROLES = ["manager", "consultant", "internal_consultant", "project_manager", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
 
@@ -1219,7 +1221,12 @@ function SettingsRolesTab({ ssCtx }) {
             <tbody>
               {WIZARD_TYPES.map((type, idx) => (
                 <tr key={type} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
-                  <td className="py-3 pr-4 font-medium text-gray-700 dark:text-gray-300 text-xs">{t("roles.wizard_type_" + type)}</td>
+                  <td className="py-3 pr-4 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      {WIZARD_TYPE_ICONS[type] && (() => { const WIcon = WIZARD_TYPE_ICONS[type]; return <WIcon size={11} className="text-blue-400 dark:text-blue-500 flex-shrink-0" />; })()}
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{t("roles.wizard_type_" + type)}</span>
+                    </div>
+                  </td>
                   {WIZARD_ROLES.map(role => (
                     <td key={role} className="text-center py-2 px-1.5">
                       <select
@@ -1266,7 +1273,12 @@ function SettingsRolesTab({ ssCtx }) {
             <tbody>
               {NAV_ITEMS_CONFIG.map((nav, idx) => (
                 <tr key={nav.id} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
-                  <td className="py-2.5 pr-4 font-medium text-gray-700 dark:text-gray-300 text-xs">{nav.label}</td>
+                  <td className="py-2.5 pr-4 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      {nav.icon && <nav.icon size={11} className="text-blue-400 dark:text-blue-500 flex-shrink-0" />}
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{nav.label}</span>
+                    </div>
+                  </td>
                   {NAV_VIS_ROLES.map(role => {
                     const visible = (navVisibility[role] ?? {})[nav.id] !== false;
                     return (
