@@ -243,7 +243,7 @@ serve(async (req) => {
       const rawSecret = hookSecret.startsWith("v1,whsec_")
         ? hookSecret.slice("v1,whsec_".length)
         : hookSecret;
-      const keyBytes = Uint8Array.from(atob(rawSecret), c => c.charCodeAt(0));
+      const keyBytes = Uint8Array.from(atob(rawSecret.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
       const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
       const sig = Uint8Array.from(atob(sigB64.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
       const valid = await crypto.subtle.verify("HMAC", key, sig, data);
