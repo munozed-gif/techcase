@@ -577,64 +577,91 @@ function SetNewPasswordScreen({ onDone }) {
     setTimeout(() => onDone(), 1500);
   }
 
+  const NAV_CSS = `
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+    .snp-nav{position:sticky;top:0;z-index:10;height:60px;padding:0 24px;
+      background:rgba(11,15,26,.95);backdrop-filter:blur(12px);
+      border-bottom:1px solid rgba(255,255,255,.07);
+      display:flex;align-items:center;}
+    .snp-nav-arena{font-family:'Plus Jakarta Sans',sans-serif;font-size:1.45rem;font-weight:800;color:#4F6EF7;letter-spacing:-.04em;}
+    .snp-nav-rest{font-family:'Plus Jakarta Sans',sans-serif;font-size:.85rem;font-weight:600;color:rgba(255,255,255,.55);margin-left:6px;}
+    .snp-input{width:100%;background:#1a2437;border:1px solid rgba(79,110,247,.2);border-radius:10px;padding:11px 14px;font-size:14px;color:#f1f5f9;outline:none;box-sizing:border-box;font-family:'Plus Jakarta Sans',Arial,sans-serif;}
+    .snp-input:focus{border-color:rgba(79,110,247,.6);box-shadow:0 0 0 3px rgba(79,110,247,.12);}
+    .snp-input::placeholder{color:#475569;}
+  `;
+
   return (
     <div style={{
       minHeight: "100vh", background: "#0B0F1A",
       backgroundImage: "radial-gradient(circle at 70% -10%,rgba(79,110,247,.22) 0%,transparent 65%),linear-gradient(rgba(79,110,247,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,.07) 1px,transparent 1px)",
       backgroundSize: "100% 100%,48px 48px,48px 48px",
-      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 16px",
     }}>
-      {/* Orbital logo */}
-      <div style={{ marginBottom: 24 }}>
-        <NovaLandingMark size={176} />
-      </div>
-      {/* Title */}
-      <div style={{ textAlign: "center", marginBottom: 32 }}>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: "#f1f5f9", letterSpacing: "-0.02em" }}>
-          <span style={{ color: "#4F6EF7" }}>Arena</span> Solutions Platform
-        </h1>
-      </div>
-      {/* Card */}
-      <div style={{
-        width: "100%", maxWidth: 400,
-        background: "#0f1826", borderRadius: 20,
-        border: "1px solid rgba(79,110,247,0.25)",
-        overflow: "hidden",
-      }}>
-        <div style={{ background: "linear-gradient(90deg,#4F6EF7,#3b55d4)", height: 4 }} />
-        <div style={{ padding: "28px 28px 32px" }}>
-          {done ? (
-            <div style={{ textAlign: "center", padding: "16px 0" }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>✓</div>
-              <p style={{ fontWeight: 700, color: "#f1f5f9", margin: "0 0 6px" }}>Password updated!</p>
-              <p style={{ fontSize: 14, color: "#94a3b8", margin: 0 }}>Signing you in…</p>
+      <style>{NAV_CSS}</style>
+
+      {/* Nav bar — matches AuthScreen */}
+      <nav className="snp-nav">
+        <NovaLandingMark size={32} />
+        <span className="snp-nav-arena">Arena</span>
+        <span className="snp-nav-rest">Solutions Platform</span>
+      </nav>
+
+      {/* Centered content */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"16px", minHeight:"calc(100vh - 60px)" }}>
+        <div style={{ width:"100%", maxWidth:448 }}>
+
+          {/* Logo block — matches AuthScreen */}
+          <div style={{ textAlign:"center", marginBottom:32 }}>
+            <div style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", marginBottom:16 }}>
+              <NovaLandingMark size={176} />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit}>
-              <h2 style={{ margin: "0 0 20px", fontSize: 20, fontWeight: 700, color: "#f1f5f9" }}>Set New Password</h2>
-              {error && (
-                <div style={{ background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#fca5a5" }}>
-                  {error}
+            <h1 style={{ margin:"0 0 4px", fontSize:24, fontWeight:800, color:"#f1f5f9", letterSpacing:"-0.02em" }}>
+              <span style={{ color:"#4F6EF7" }}>Arena</span> Solutions Platform
+            </h1>
+            <p style={{ margin:0, color:"#4F6EF7", fontSize:14 }}>Consultant Case Management</p>
+          </div>
+
+          {/* Card — matches AuthScreen rounded-2xl shadow-xl p-8 */}
+          <div style={{ background:"#131c2e", borderRadius:16, padding:32, boxShadow:"0 25px 50px rgba(0,0,0,.35)" }}>
+
+            {/* Tab row — matches AuthScreen tabs, display-only */}
+            <div style={{ display:"flex", borderRadius:12, padding:4, background:"#0d1424", marginBottom:24 }}>
+              <span style={{ flex:1, textAlign:"center", padding:"8px 0", borderRadius:8, background:"#1a2642", color:"#f1f5f9", fontWeight:600, fontSize:14, fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
+                Sign in to TechCase
+              </span>
+              <span style={{ flex:1, textAlign:"center", padding:"8px 0", color:"#475569", fontSize:14 }}>
+                Create Account
+              </span>
+            </div>
+
+            {done ? (
+              <div style={{ textAlign:"center", padding:"16px 0" }}>
+                <div style={{ fontSize:40, marginBottom:12, color:"#10b981" }}>✓</div>
+                <p style={{ fontWeight:700, color:"#f1f5f9", margin:"0 0 6px", fontSize:16 }}>Password updated!</p>
+                <p style={{ fontSize:13, color:"#94a3b8", margin:0 }}>Signing you in…</p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit}>
+                <p style={{ margin:"0 0 20px", fontSize:14, color:"#94a3b8" }}>Enter your new password below.</p>
+                {error && (
+                  <div style={{ background:"rgba(239,68,68,.1)", border:"1px solid rgba(239,68,68,.25)", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#fca5a5" }}>
+                    {error}
+                  </div>
+                )}
+                <div style={{ marginBottom:16 }}>
+                  <label style={{ display:"block", fontSize:13, fontWeight:600, color:"#94a3b8", marginBottom:6 }}>New password</label>
+                  <input className="snp-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 6 characters" required autoFocus />
                 </div>
-              )}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#94a3b8", marginBottom: 6 }}>New password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                  placeholder="Min 6 characters" required autoFocus
-                  style={{ width: "100%", background: "#0d1424", border: "1px solid rgba(79,110,247,.25)", borderRadius: 10, padding: "11px 14px", fontSize: 14, color: "#f1f5f9", outline: "none", boxSizing: "border-box" }} />
-              </div>
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#94a3b8", marginBottom: 6 }}>Confirm password</label>
-                <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
-                  placeholder="Repeat password" required
-                  style={{ width: "100%", background: "#0d1424", border: "1px solid rgba(79,110,247,.25)", borderRadius: 10, padding: "11px 14px", fontSize: 14, color: "#f1f5f9", outline: "none", boxSizing: "border-box" }} />
-              </div>
-              <button type="submit" disabled={saving}
-                style={{ width: "100%", background: "#4F6EF7", color: "#fff", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 12, padding: "13px", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1, transition: "opacity .15s" }}>
-                {saving ? 'Saving…' : 'Update Password'}
-              </button>
-            </form>
-          )}
+                <div style={{ marginBottom:24 }}>
+                  <label style={{ display:"block", fontSize:13, fontWeight:600, color:"#94a3b8", marginBottom:6 }}>Confirm password</label>
+                  <input className="snp-input" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Repeat password" required />
+                </div>
+                <button type="submit" disabled={saving}
+                  style={{ width:"100%", background:"#4F6EF7", color:"#fff", fontWeight:700, fontSize:15, border:"none", borderRadius:12, padding:"13px", cursor:saving?"not-allowed":"pointer", opacity:saving?0.6:1, transition:"opacity .15s", fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
+                  {saving ? 'Saving…' : 'Update Password'}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       </div>
     </div>
