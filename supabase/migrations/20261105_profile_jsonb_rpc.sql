@@ -1,12 +1,18 @@
 -- RPC to update JSONB/array columns in consultant_profiles,
 -- bypassing PostgREST schema cache (which silently drops unknown columns on UPDATE).
--- Called from the client whenever certifications, education, or languages change.
 --
--- p_languages is jsonb (not text[]) to avoid type-mismatch errors when the
--- languages column itself is jsonb in some environments. The function detects
--- the actual column type at runtime and casts accordingly.
+-- Pre-req for environments where certifications/education were created as text[]:
+--   alter table consultant_profiles
+--     alter column certifications type jsonb using '[]'::jsonb,
+--     alter column certifications set default '[]'::jsonb;
+--   alter table consultant_profiles
+--     alter column education type jsonb using '[]'::jsonb,
+--     alter column education set default '[]'::jsonb;
+--
+-- languages may be text[] or jsonb depending on env; the function detects at runtime.
 
 drop function if exists update_profile_jsonb_fields(uuid, jsonb, jsonb, text[]);
+drop function if exists update_profile_jsonb_fields(uuid, jsonb, jsonb, jsonb);
 
 create or replace function update_profile_jsonb_fields(
   p_id              uuid,
@@ -29,11 +35,13 @@ begin
   if p_certifications is not null then
     update consultant_profiles set certifications = p_certifications where id = p_id;
   end if;
+
   if p_education is not null then
     update consultant_profiles set education = p_education where id = p_id;
   end if;
+
   if p_languages is not null then
-    -- Detect actual column type to handle both text[] and jsonb environments
+    -- languages is text[] on some envs and jsonb on others; detect and cast
     select udt_name into v_lang_type
     from information_schema.columns
     where table_schema = 'public'
