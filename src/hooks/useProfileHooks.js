@@ -156,7 +156,7 @@ function useConsultantProfile(consultantId, profileId) {
 
   async function addWorkAuth(data) {
     const { error } = await supabase.from("work_authorizations")
-      .insert({ ...data, consultant_id: resolvedId });
+      .insert({ country_code: "", ...data, consultant_id: resolvedId });
     if (error) throw error;
     await fetchProfile(true);
   }
