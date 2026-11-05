@@ -90,6 +90,11 @@ function useConsultantProfile(consultantId, profileId) {
     if (error) {
       setProfileError(error.message);
       console.error("fetchProfile error:", error.message);
+    } else if (silent) {
+      // Merge so that JSONB columns missing from a stale PostgREST schema cache
+      // (certifications, education, languages) are preserved from the
+      // optimistic mergeProfile update that already ran.
+      setProfile(prev => prev ? { ...prev, ...(data ?? {}) } : data ?? null);
     } else {
       setProfile(data ?? null);
     }
