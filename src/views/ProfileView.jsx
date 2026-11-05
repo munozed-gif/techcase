@@ -70,6 +70,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   const [inviteLookup, setInviteLookup] = useState({ loading: false, name: null, exists: false });
   const inviteLookupTimer = useRef(null);
   const [profileTab, setProfileTab] = useState(initialTab ?? "experience");
+  useEffect(() => { if (initialTab) setProfileTab(initialTab); }, [initialTab]);
   const pvCarouselRef = useRef(null);
   const pvCarouselScrolling = useRef(false);
   const pvScrollDebounce = useRef(null);
@@ -214,7 +215,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
     }
     const tid = setTimeout(() => { pvCarouselScrolling.current = false; }, 600);
     return () => clearTimeout(tid);
-  }, [profileTab, isMobile]);
+  }, [profileTab, isMobile, loading]);
 
   if (loading) return <Spinner />;
 
