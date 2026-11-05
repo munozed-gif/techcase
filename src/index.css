@@ -200,8 +200,12 @@
 .arena-dark .bg-indigo-50  { background-color: rgba(99,102,241,0.08)  !important; }
 .arena-dark .bg-indigo-100 { background-color: rgba(99,102,241,0.15)  !important; }
 .arena-dark .bg-indigo-200 { background-color: rgba(99,102,241,0.22)  !important; }
+.arena-dark .text-indigo-800 { color: #A5B4FC !important; }
 .arena-dark .text-indigo-700 { color: #A5B4FC !important; }
 .arena-dark .text-indigo-600 { color: #A5B4FC !important; }
+.arena-dark .text-indigo-500 { color: #818CF8 !important; }
+.arena-dark .text-indigo-400 { color: #A5B4FC !important; }
+.arena-dark .text-indigo-300 { color: #C7D2FE !important; }
 .arena-dark .border-indigo-100 { border-color: rgba(99,102,241,0.18) !important; }
 .arena-dark .border-indigo-200 { border-color: rgba(99,102,241,0.28) !important; }
 .arena-dark .hover\:bg-indigo-100:hover { background-color: rgba(99,102,241,0.20) !important; }
@@ -223,6 +227,8 @@
 .arena-dark .text-purple-600,
 .arena-dark .text-purple-700 { color: #D8B4FE !important; }
 .arena-dark .text-purple-500 { color: #C4B5FD !important; }
+.arena-dark .text-purple-400 { color: #A78BFA !important; }
+.arena-dark .text-purple-300 { color: #8B5CF6 !important; }
 .arena-dark .border-purple-100 { border-color: rgba(168,85,247,0.22) !important; }
 .arena-dark .border-purple-200 { border-color: rgba(168,85,247,0.35) !important; }
 
