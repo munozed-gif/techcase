@@ -504,11 +504,11 @@ function Dashboard({ auth, onNavigate }) {
           const rc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", border: "#e5e7eb" };
           return (
             <div onClick={() => setSelectedCase(c)}
-              className="flex items-center justify-between px-4 py-3 bg-white cursor-pointer transition-all hover:shadow-sm rounded-xl mx-3 my-1.5"
-              style={{ border: `1.5px solid ${rc.border}` }}>
+              className="flex items-center justify-between px-4 py-3 cursor-pointer transition-all hover:shadow-sm rounded-xl mx-3 my-1.5"
+              style={{ background:'var(--t-card-bg)', border: `1.5px solid ${rc.border}` }}>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 text-sm truncate group-hover:text-blue-700">{c.title}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{[c.area_sap, c.area_industry].filter(Boolean).join(" · ") || t("dashboard.no_area")}</p>
+                <p className="font-medium text-sm truncate" style={{ color:'var(--t-text)' }}>{c.title}</p>
+                <p className="text-xs mt-0.5" style={{ color:'var(--t-text2)' }}>{[c.area_sap, c.area_industry].filter(Boolean).join(" · ") || t("dashboard.no_area")}</p>
               </div>
               <div className="flex items-center gap-3 ml-4 flex-shrink-0">
                 <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
@@ -520,28 +520,28 @@ function Dashboard({ auth, onNavigate }) {
           );
         };
         return (
-          <div className="bg-white rounded-2xl shadow-sm border border-blue-200 mb-6 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-blue-50/60">
+          <div className="rounded-2xl shadow-sm mb-6 overflow-hidden" style={{ background:'var(--t-card-bg)', border:'1px solid var(--t-border)' }}>
+            <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom:'1px solid var(--t-border)', background:'var(--t-tab-inactive)' }}>
               <div>
-                <span className="font-semibold text-gray-900 text-sm">{clientFilter.name}</span>
-                <span className="ml-2 text-xs text-gray-400">{clientCases.length} {clientCases.length === 1 ? t("dashboard.case_single") : t("dashboard.case_plural")} total</span>
+                <span className="font-semibold text-sm" style={{ color:'var(--t-text)' }}>{clientFilter.name}</span>
+                <span className="ml-2 text-xs" style={{ color:'var(--t-text2)' }}>{clientCases.length} {clientCases.length === 1 ? t("dashboard.case_single") : t("dashboard.case_plural")} total</span>
               </div>
-              <button onClick={() => setClientFilter(null)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
+              <button onClick={() => setClientFilter(null)} style={{ color:'var(--t-text2)' }}><X size={16} /></button>
             </div>
 
             {clientCases.length === 0 ? (
-              <p className="px-5 py-6 text-sm text-gray-400 text-center">{t("dashboard.no_cases_client")}</p>
+              <p className="px-5 py-6 text-sm text-center" style={{ color:'var(--t-text2)' }}>{t("dashboard.no_cases_client")}</p>
             ) : (
               <>
                 {activeCsCases.length > 0 && (
                   <div>
-                    <div className="px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-gray-400 bg-gray-50 border-b border-gray-100">{t("dashboard.active")}</div>
+                    <div className="px-4 py-1.5 text-xs font-bold uppercase tracking-wide" style={{ color:'var(--t-text2)', background:'var(--t-tab-inactive)', borderBottom:'1px solid var(--t-border)' }}>{t("dashboard.active")}</div>
                     {activeCsCases.map(c => <CaseRow key={c.id} c={c} />)}
                   </div>
                 )}
                 {pastCsCases.length > 0 && (
                   <div>
-                    <div className="px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-gray-400 bg-gray-50 border-b border-gray-100">{t("dashboard.past")}</div>
+                    <div className="px-4 py-1.5 text-xs font-bold uppercase tracking-wide" style={{ color:'var(--t-text2)', background:'var(--t-tab-inactive)', borderBottom:'1px solid var(--t-border)' }}>{t("dashboard.past")}</div>
                     {pastCsCases.map(c => <CaseRow key={c.id} c={c} />)}
                   </div>
                 )}
