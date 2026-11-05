@@ -167,7 +167,7 @@ function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t, onDownloadPdf, 
   );
 }
 
-function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
+function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack, onCaseUpdate }) {
   const { t } = useT();
   const { settings: cdSettings } = useSystemSettings();
   const visCfg        = useVisibilitySettings();
@@ -2263,6 +2263,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
         }}
         onDelete={() => { setDrillDownCase(null); refetchSubCases(); }}
         onUpdate={(id, updates) => { setDrillDownCase(prev => ({ ...prev, ...updates })); }}
+        onCaseUpdate={() => refetchSubCases()}
       />
     );
   }

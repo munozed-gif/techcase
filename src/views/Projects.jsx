@@ -2056,6 +2056,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         onStatusChange={async (cid, status) => { await updateCase(cid, { status }); setProjSelectedCase(p => ({ ...p, status })); await loadProjCases(); }}
         onDelete={async () => { await deleteCase(projSelectedCase.id); setProjSelectedCase(null); await loadProjCases(); }}
         onUpdate={async (payload) => { await updateCase(projSelectedCase.id, payload); setProjSelectedCase(p => ({ ...p, ...payload })); }}
+        onCaseUpdate={() => loadProjCases()}
       />
     );
   }

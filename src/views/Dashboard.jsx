@@ -31,7 +31,7 @@ function Dashboard({ auth, onNavigate }) {
   const { t } = useT();
   const { isDark } = useTheme();
   const { settings: catalogSettings } = useSystemSettings();
-  const { cases: _rawCases, loading: casesLoading, updateCase, deleteCase } = useCases();
+  const { cases: _rawCases, loading: casesLoading, updateCase, deleteCase, refetch: refetchCases } = useCases();
   const _dashVisCfg = useVisibilitySettings();
   const cases = filterCasesByVisibility(_rawCases, auth, _dashVisCfg);
   const { templates: lcTemplates } = useLifecycleTemplates();
@@ -48,6 +48,13 @@ function Dashboard({ auth, onNavigate }) {
   const [feedFilter, setFeedFilter]     = useState("all");
   const [showFeedPrefs, setShowFeedPrefs] = useState(false);
   const [selectedCase, setSelectedCase] = useState(null);
+  // keep selectedCase in sync when cases refetch (e.g. after co-assign / release)
+  useEffect(() => {
+    if (!selectedCase) return;
+    const fresh = cases.find(c => c.id === selectedCase.id);
+    if (fresh) setSelectedCase(fresh);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cases]);
   const { followed, isFollowing, toggle: toggleFollow } = useFollowedClients();
   const { prefs, savePrefs } = useFeedPrefs(auth.user?.id);
   const { markRead } = useNotifications();
@@ -308,6 +315,7 @@ function Dashboard({ auth, onNavigate }) {
         }}
         onDelete={async () => { await deleteCase(selectedCase.id); setSelectedCase(null); }}
         onUpdate={async (id, payload) => { await updateCase(id, payload); setSelectedCase(p => ({ ...p, ...payload })); }}
+        onCaseUpdate={() => refetchCases()}
       />
     );
   }

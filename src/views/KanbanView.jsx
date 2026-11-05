@@ -116,7 +116,7 @@ function KanbanCard({ c, cardSize, cols, canMove, movingId, onSelect, onMove }) 
 // ============================================================
 function KanbanView({ auth }) {
   const { t } = useT();
-  const { cases: _rawCasesKB, loading, updateCase } = useCases();
+  const { cases: _rawCasesKB, loading, updateCase, refetch: refetchKB } = useCases();
   const _kanbanVisCfg = useVisibilitySettings();
   const cases = filterCasesByVisibility(_rawCasesKB, auth, _kanbanVisCfg);
   const { templates: lcTemplates } = useLifecycleTemplates();
@@ -189,6 +189,7 @@ function KanbanView({ auth }) {
           await updateCase(id, payload);
           setSelectedCase(prev => ({ ...prev, ...payload }));
         }}
+        onCaseUpdate={() => refetchKB()}
       />
     );
   }

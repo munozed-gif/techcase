@@ -282,6 +282,7 @@ function CasesView({ auth, initialCaseId }) {
             await updateCase(id, payload);
             setSelected(prev => ({ ...prev, ...payload }));
           }}
+          onCaseUpdate={() => refetch()}
         />
       </>
     );
