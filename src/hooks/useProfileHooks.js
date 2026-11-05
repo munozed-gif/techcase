@@ -103,6 +103,10 @@ function useConsultantProfile(consultantId, profileId) {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
+  function mergeProfile(fields) {
+    setProfile(p => p ? { ...p, ...fields } : p);
+  }
+
   async function updateProfile(updates) {
     const { data: updated, error } = await supabase.from("consultant_profiles")
       .update(updates).eq("id", resolvedId).select("id");
@@ -113,7 +117,11 @@ function useConsultantProfile(consultantId, profileId) {
         .insert({ id: resolvedId, ...updates });
       if (ie) throw new Error(`Profile create failed: ${ie.message}`);
     }
-    await fetchProfile(true); // silent — no spinner, keeps carousel mounted
+    // Apply updates to local state immediately so JSONB columns
+    // (certifications, education, languages) are visible even if the
+    // PostgREST schema cache hasn't refreshed yet.
+    mergeProfile(updates);
+    await fetchProfile(true); // silent refresh — mergeProfile already updated UI
   }
 
   async function addCustomer(data) {
