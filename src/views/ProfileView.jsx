@@ -957,29 +957,34 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                     </div>}
                 <div className="space-y-2">
                   <select value={certForm.name} onChange={e => setCertForm(p => ({ ...p, name: e.target.value, customName: "" }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    style={{background:'var(--t-input-bg,var(--t-card-bg))',color:'var(--t-text)'}}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
                     <option value="">Select certification…</option>
                     {(sysSettings['catalog_certifications'] ?? DEFAULT_CERTIFICATIONS).map(c => <option key={c} value={c}>{c}</option>)}
                     <option value="__custom__">Other…</option>
                   </select>
                   {certForm.name === "__custom__" && (
                     <input placeholder="Certification name" value={certForm.customName} onChange={e => setCertForm(p => ({ ...p, customName: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
                   )}
                   <div className="flex gap-2">
-                    <input placeholder="Issuer" value={certForm.issuer} onChange={e => setCertForm(p => ({ ...p, issuer: e.target.value }))}
-                      className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <input placeholder="Year" value={certForm.year} onChange={e => setCertForm(p => ({ ...p, year: e.target.value }))}
-                      type="number" min="1990" max="2030"
-                      className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input placeholder="Issuer (optional)" value={certForm.issuer} onChange={e => setCertForm(p => ({ ...p, issuer: e.target.value }))}
+                      className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                    <select value={certForm.year} onChange={e => setCertForm(p => ({ ...p, year: e.target.value }))}
+                      style={{background:'var(--t-input-bg,var(--t-card-bg))',color:'var(--t-text)'}}
+                      className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                      <option value="">Year</option>
+                      {Array.from({length: 36}, (_, i) => 2030 - i).map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
                     <button disabled={savingExp || !(certForm.name === "__custom__" ? certForm.customName.trim() : certForm.name)}
                       onClick={async () => {
                         const name = certForm.name === "__custom__" ? certForm.customName.trim() : certForm.name;
                         if (!name) return;
                         setSavingExp(true);
                         try {
-                          const entry = { name, ...(certForm.issuer.trim() ? { issuer: certForm.issuer.trim() } : {}), ...(certForm.year ? { year: Number(certForm.year) } : {}) };
-                          await updateProfile({ certifications: [...(profile?.certifications ?? []), entry] });
+                          const existing = Array.isArray(profile?.certifications) ? profile.certifications : [];
+                          const entry = { name, ...(certForm.issuer?.trim() ? { issuer: certForm.issuer.trim() } : {}), ...(certForm.year ? { year: Number(certForm.year) } : {}) };
+                          await updateProfile({ certifications: [...existing, entry] });
                           setCertForm({ name: "", year: "", issuer: "", customName: "" });
                         } catch (e) { alert(e.message); }
                         setSavingExp(false);

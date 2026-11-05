@@ -1348,7 +1348,7 @@ function ConsultantProfileView({ userId, onBack }) {
                 {(cpData?.certifications?.length ?? 0) === 0
                   ? <p className="text-sm text-gray-400 mb-3">No certifications added yet.</p>
                   : <div className="space-y-2 mb-3">
-                      {(cpData.certifications ?? []).map((c, i) => (
+                      {(cpData.certifications ?? []).filter(c => c?.name).map((c, i) => (
                         <div key={i} className="flex items-center justify-between bg-purple-50 border border-purple-100 rounded-xl px-3 py-2">
                           <div className="min-w-0 flex-1">
                             <span className="text-sm font-medium text-purple-800">{c.name}</span>
@@ -1359,7 +1359,8 @@ function ConsultantProfileView({ userId, onBack }) {
                             <button onClick={async () => {
                               setCpSaving(true);
                               try {
-                                const next = (cpData?.certifications ?? []).filter((_,j) => j !== i);
+                                const filtered = (Array.isArray(cpData?.certifications) ? cpData.certifications : []).filter(x => x?.name);
+                                const next = filtered.filter((_,j) => j !== i);
                                 await supabase.from('consultant_profiles').update({ certifications: next }).eq('id', targetUserId);
                                 setCpData(p => p ? { ...p, certifications: next } : p);
                               } catch (e) { alert(e.message); }
@@ -1372,29 +1373,34 @@ function ConsultantProfileView({ userId, onBack }) {
                 {isOwnProfile && (
                   <div className="space-y-2">
                     <select value={cvCertForm.name} onChange={e => setCvCertForm(p => ({ ...p, name: e.target.value, customName: "" }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      style={{background:'var(--t-input-bg,var(--t-card-bg))',color:'var(--t-text)'}}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
                       <option value="">Select certification…</option>
                       {(sysSettings['catalog_certifications'] ?? CV_DEFAULT_CERTIFICATIONS).map(c => <option key={c} value={c}>{c}</option>)}
                       <option value="__custom__">Other…</option>
                     </select>
                     {cvCertForm.name === "__custom__" && (
                       <input placeholder="Certification name" value={cvCertForm.customName} onChange={e => setCvCertForm(p => ({ ...p, customName: e.target.value }))}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
                     )}
                     <div className="flex gap-2">
-                      <input placeholder="Issuer" value={cvCertForm.issuer} onChange={e => setCvCertForm(p => ({ ...p, issuer: e.target.value }))}
-                        className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      <input placeholder="Year" value={cvCertForm.year} onChange={e => setCvCertForm(p => ({ ...p, year: e.target.value }))}
-                        type="number" min="1990" max="2030"
-                        className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input placeholder="Issuer (optional)" value={cvCertForm.issuer} onChange={e => setCvCertForm(p => ({ ...p, issuer: e.target.value }))}
+                        className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                      <select value={cvCertForm.year} onChange={e => setCvCertForm(p => ({ ...p, year: e.target.value }))}
+                        style={{background:'var(--t-input-bg,var(--t-card-bg))',color:'var(--t-text)'}}
+                        className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">Year</option>
+                        {Array.from({length: 36}, (_, i) => 2030 - i).map(y => <option key={y} value={y}>{y}</option>)}
+                      </select>
                       <button disabled={cpSaving || !(cvCertForm.name === "__custom__" ? cvCertForm.customName.trim() : cvCertForm.name)}
                         onClick={async () => {
                           const name = cvCertForm.name === "__custom__" ? cvCertForm.customName.trim() : cvCertForm.name;
                           if (!name) return;
                           setCpSaving(true);
                           try {
-                            const entry = { name, ...(cvCertForm.issuer.trim() ? { issuer: cvCertForm.issuer.trim() } : {}), ...(cvCertForm.year ? { year: Number(cvCertForm.year) } : {}) };
-                            const next = [...(cpData?.certifications ?? []), entry];
+                            const existing = Array.isArray(cpData?.certifications) ? cpData.certifications : [];
+                            const entry = { name, ...(cvCertForm.issuer?.trim() ? { issuer: cvCertForm.issuer.trim() } : {}), ...(cvCertForm.year ? { year: Number(cvCertForm.year) } : {}) };
+                            const next = [...existing, entry];
                             await supabase.from('consultant_profiles').update({ certifications: next }).eq('id', targetUserId);
                             setCpData(p => p ? { ...p, certifications: next } : p);
                             setCvCertForm({ name: "", year: "", issuer: "", customName: "" });
