@@ -37,8 +37,8 @@ function useCases(filters = {}) {
         *, created_by,
         client:client_id(id, full_name, email, avatar_url, client_profiles(company_name)),
         manager:manager_id(id, full_name, email, avatar_url),
-        case_assignments(consultant_id, time_commitment,
-          users:consultant_id(id, full_name, avatar_url)),
+        case_assignments(consultant_id, time_commitment, is_active, released_at,
+          users:consultant_id(id, full_name, email, avatar_url)),
         case_key_users(user_id, area, users:user_id(full_name, email, role)),
         applications(consultant_id, submitted_at, consultant:consultant_id(full_name, avatar_url)),
         project:project_id(id, name, avatar_url, client:client_id(id, avatar_url))
