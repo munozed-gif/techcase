@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase.js";
-import { notify } from "../lib/utils.js";
+import { notify, sendEmail, buildEmailHtml } from "../lib/utils.js";
 
 function useConsultantTeams(userId) {
   const [teams, setTeams] = useState([]);
@@ -127,7 +127,7 @@ function useConsultantTeams(userId) {
     }
     const { data: existingUser } = await supabase
       .from("users")
-      .select("id")
+      .select("id, full_name, email")
       .ilike("email", norm)
       .maybeSingle();
     const { error } = await supabase.from("consultant_team_members").insert({
@@ -144,8 +144,38 @@ function useConsultantTeams(userId) {
         "Team Invitation",
         `You've been invited to join the team "${teamName}". Open your profile → Teams tab to respond.`,
       );
+      await sendEmail(
+        existingUser.email ?? norm,
+        `You've been invited to join "${teamName}"`,
+        buildEmailHtml({
+          title: "Team Invitation",
+          preheader: `You've been invited to join the team "${teamName}" on Arena Solutions Platform.`,
+          bodyHtml: `<p>Hi ${existingUser.full_name ?? "there"},</p>
+<p>You've been invited to join the team <strong>${teamName}</strong> on Arena Solutions Platform.</p>
+<p>Open your profile and go to the <strong>Teams</strong> tab to accept or decline the invitation.</p>`,
+          ctaText: "View Invitation",
+          ctaUrl: "https://www.arenasolutionsplatform.com/",
+          footerNote: "If you didn't expect this invitation, you can safely ignore this email.",
+        }),
+      );
+    } else {
+      await sendEmail(
+        norm,
+        `You've been invited to join "${teamName}" on Arena Solutions Platform`,
+        buildEmailHtml({
+          title: "You're Invited!",
+          preheader: `Join the team "${teamName}" on Arena Solutions Platform.`,
+          bodyHtml: `<p>Hi there,</p>
+<p>You've been invited to join the team <strong>${teamName}</strong> on Arena Solutions Platform.</p>
+<p>Create your free account to accept the invitation and start collaborating.</p>`,
+          ctaText: "Create Account & Accept",
+          ctaUrl: "https://www.arenasolutionsplatform.com/",
+          footerNote: "If you didn't expect this invitation, you can safely ignore this email.",
+        }),
+      );
     }
     await fetchAll(true);
+    return { existingUser: existingUser ?? null };
   }
 
   async function respondToInvite(memberId, accept) {

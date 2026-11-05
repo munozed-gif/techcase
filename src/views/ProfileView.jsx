@@ -67,6 +67,8 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [inviteLookup, setInviteLookup] = useState({ loading: false, name: null, exists: false });
+  const inviteLookupTimer = useRef(null);
   const [profileTab, setProfileTab] = useState(initialTab ?? "experience");
   const pvCarouselRef = useRef(null);
   const pvCarouselScrolling = useRef(false);
@@ -1227,7 +1229,23 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                                     type="email"
                                     placeholder="colleague@email.com"
                                     value={inviteEmail}
-                                    onChange={e => { setInviteEmail(e.target.value); setInviteError(""); }}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      setInviteEmail(val);
+                                      setInviteError("");
+                                      clearTimeout(inviteLookupTimer.current);
+                                      const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                      if (!emailRe.test(val.trim())) {
+                                        setInviteLookup({ loading: false, name: null, exists: false });
+                                        return;
+                                      }
+                                      setInviteLookup(p => ({ ...p, loading: true }));
+                                      inviteLookupTimer.current = setTimeout(async () => {
+                                        const norm = val.trim().toLowerCase();
+                                        const { data } = await supabase.from("users").select("id, full_name").ilike("email", norm).maybeSingle();
+                                        setInviteLookup({ loading: false, name: data?.full_name ?? null, exists: !!data });
+                                      }, 400);
+                                    }}
                                     className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
                                   />
                                   <button disabled={!inviteEmail.trim() || inviting}
@@ -1237,6 +1255,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                                       try {
                                         await inviteMember(team.id, team.name, inviteEmail);
                                         setInviteEmail("");
+                                        setInviteLookup({ loading: false, name: null, exists: false });
                                       } catch (e) { setInviteError(e.message); }
                                       setInviting(false);
                                     }}
@@ -1244,10 +1263,23 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                                     <Mail size={11} /> {inviting ? "…" : "Invite"}
                                   </button>
                                 </div>
+                                {inviteLookup.loading && (
+                                  <p className="text-[10px] text-gray-400 mt-1">Checking…</p>
+                                )}
+                                {!inviteLookup.loading && inviteLookup.exists && (
+                                  <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1">
+                                    <span className="inline-block w-3 h-3 rounded-full bg-emerald-500 text-white text-[8px] flex items-center justify-center font-bold">✓</span>
+                                    {inviteLookup.name ? <><strong>{inviteLookup.name}</strong> already has an account on Arena</> : "This person already has an account on Arena"}
+                                  </p>
+                                )}
                                 {inviteError && <p className="text-xs text-red-500 mt-1">{inviteError}</p>}
-                                <p className="text-[10px] text-gray-400 mt-1">
-                                  If they're not on the platform yet, they'll see the invitation when they sign up.
-                                </p>
+                                {!inviteLookup.loading && !inviteLookup.exists && !inviteError && (
+                                  <p className="text-[10px] text-gray-400 mt-1">
+                                    {inviteLookup.name === null && inviteEmail.trim()
+                                      ? "They'll receive an email invitation to join the platform."
+                                      : "If they're not on the platform yet, they'll receive an invitation to sign up."}
+                                  </p>
+                                )}
                               </div>
                             )}
 
