@@ -1208,9 +1208,12 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                               {pending.map(m => (
                                 <div key={m.id} className="flex items-center gap-2 opacity-60">
                                   <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0">
-                                    {m.email[0].toUpperCase()}
+                                    {(m.member?.full_name ?? m.email)[0].toUpperCase()}
                                   </div>
-                                  <span className="text-xs text-gray-500 flex-1 min-w-0 truncate">{m.email}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-xs text-gray-700 block truncate">{m.member?.full_name ?? m.email}</span>
+                                    {m.member?.full_name && <span className="text-[10px] text-gray-400 block truncate">{m.email}</span>}
+                                  </div>
                                   <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full flex-shrink-0">Pending</span>
                                   {isOwner && (
                                     <button onClick={() => removeMember(m.id)}
