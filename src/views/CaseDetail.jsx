@@ -20,7 +20,7 @@ import {
 import { useCases, useApplications, useRatings } from "../hooks/useCaseHooks.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings, usePermissions } from "../hooks/useSystemSettings.jsx";
-import { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent } from "../lib/utils.js";
+import { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, sendEmailToUser } from "../lib/utils.js";
 import { Badge, ROLE_LABELS, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Modal, Input, Textarea, Select } from "../components/ui.jsx";
 import { CaseFeedbackModal, ApplicantRankingSection } from "../components/RankingComponents.jsx";
@@ -2289,10 +2289,11 @@ ${tableHtml(['Role','Name','Signature','Date'],[
     );
     if (error) return;
     notify(user.id, "Case Assignment", `You have been assigned to "${caseData.title}" as a co-consultant.`, "case_assignment");
+    sendEmailToUser(user.id, `Case Assignment: ${caseData.title}`, `You have been assigned to "${caseData.title}" as a co-consultant.`, "case_assignment");
     setShowCoAssign(false);
     setCoAssignSearch("");
     setCoAssignResults([]);
-    onCaseUpdate?.();
+    await onCaseUpdate?.();
   }
 
   async function releaseConsultant(consultantId) {
@@ -2311,8 +2312,9 @@ ${tableHtml(['Role','Name','Signature','Date'],[
       await supabase.from("cases").update({ status: arenaKey }).eq("id", caseData.id);
     }
     notify(consultantId, "Assignment Released", `Your assignment to "${caseData.title}" has been released.`, "case_assignment");
+    sendEmailToUser(consultantId, `Assignment Released: ${caseData.title}`, `Your assignment to "${caseData.title}" has been released.`, "case_assignment");
     setReleasingId(null);
-    onCaseUpdate?.();
+    await onCaseUpdate?.();
   }
 
   return (
