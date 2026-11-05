@@ -122,11 +122,11 @@ function useConsultantProfile(consultantId, profileId) {
         .insert({ id: resolvedId, ...updates });
       if (ie) throw new Error(`Profile create failed: ${ie.message}`);
     }
-    // Apply updates to local state immediately so JSONB columns
-    // (certifications, education, languages) are visible even if the
-    // PostgREST schema cache hasn't refreshed yet.
+    // Apply updates to local state immediately. Don't call fetchProfile(true)
+    // here — a stale PostgREST write-cache can cause the UPDATE to not persist
+    // while the SELECT returns the old empty value, overwriting this merge.
+    // Relational data (work_authorizations, etc.) has its own fetch calls.
     mergeProfile(updates);
-    await fetchProfile(true); // silent refresh — mergeProfile already updated UI
   }
 
   async function addCustomer(data) {
