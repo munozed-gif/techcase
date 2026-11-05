@@ -150,9 +150,9 @@ function useConsultantTeams(userId) {
         buildEmailHtml({
           title: "Team Invitation",
           preheader: `You've been invited to join the team "${teamName}" on Arena Solutions Platform.`,
-          bodyHtml: `<p>Hi ${existingUser.full_name ?? "there"},</p>
-<p>You've been invited to join the team <strong>${teamName}</strong> on Arena Solutions Platform.</p>
-<p>Open your profile and go to the <strong>Teams</strong> tab to accept or decline the invitation.</p>`,
+          bodyHtml: `<p style="margin:0 0 12px;color:#cbd5e1">Hi ${existingUser.full_name ?? "there"},</p>
+<p style="margin:0 0 12px;color:#94a3b8">You've been invited to join the team <strong>${teamName}</strong> on Arena Solutions Platform.</p>
+<p style="margin:0;color:#94a3b8">Open your profile and go to the <strong>Teams</strong> tab to accept or decline the invitation.</p>`,
           ctaText: "View Invitation",
           ctaUrl: "https://www.arenasolutionsplatform.com/",
           footerNote: "If you didn't expect this invitation, you can safely ignore this email.",
@@ -165,9 +165,9 @@ function useConsultantTeams(userId) {
         buildEmailHtml({
           title: "You're Invited!",
           preheader: `Join the team "${teamName}" on Arena Solutions Platform.`,
-          bodyHtml: `<p>Hi there,</p>
-<p>You've been invited to join the team <strong>${teamName}</strong> on Arena Solutions Platform.</p>
-<p>Create your free account to accept the invitation and start collaborating.</p>`,
+          bodyHtml: `<p style="margin:0 0 12px;color:#cbd5e1">Hi there,</p>
+<p style="margin:0 0 12px;color:#94a3b8">You've been invited to join the team <strong>${teamName}</strong> on Arena Solutions Platform.</p>
+<p style="margin:0;color:#94a3b8">Create your free account to accept the invitation and start collaborating.</p>`,
           ctaText: "Create Account & Accept",
           ctaUrl: "https://www.arenasolutionsplatform.com/",
           footerNote: "If you didn't expect this invitation, you can safely ignore this email.",

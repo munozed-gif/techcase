@@ -31,39 +31,66 @@ async function notifyCaseParticipants(caseId, excludeUserId, title, body, opts =
   } catch (_) {}
 }
 // ── Email helpers ─────────────────────────────────────────────
-function buildEmailHtml({ title, preheader = '', bodyHtml, ctaText, ctaUrl, footerNote = '', platformName = 'Arena Solutions Platform', logoUrl = '' }) {
+function buildEmailHtml({ title, preheader = '', bodyHtml, ctaText, ctaUrl, footerNote = '', platformName = 'Arena Solutions Platform' }) {
+  const cta = ctaText && ctaUrl
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0 20px">
+         <tr><td align="center">
+           <a href="${ctaUrl}" style="display:inline-block;background:#4F6EF7;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:700;letter-spacing:0.01em;font-family:'Plus Jakarta Sans',Arial,sans-serif">${ctaText}</a>
+         </td></tr>
+       </table>`
+    : '';
+  const footer = footerNote
+    ? `<p style="font-size:12px;color:#4a5568;margin:20px 0 0;line-height:1.6;text-align:center">${footerNote}</p>`
+    : '';
+  const preheaderHtml = preheader
+    ? `<span style="display:none;max-height:0;overflow:hidden;mso-hide:all">${preheader}</span>`
+    : '';
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="color-scheme:dark">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
 <title>${title}</title>
-${preheader ? `<span style="display:none;max-height:0;overflow:hidden;mso-hide:all">${preheader}</span>` : ''}
+<style>:root{color-scheme:dark}body{background-color:#0B0F1A!important}</style>
+${preheaderHtml}
 </head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px">
-  <tr><td align="center">
-    <table width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">
-      <!-- Header -->
-      <tr><td style="background:#1d4ed8;padding:28px 32px;text-align:center">
-        ${logoUrl ? `<img src="${logoUrl}" alt="${platformName}" style="height:36px;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto">` : ''}
-        <div style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-0.3px">${platformName}</div>
+<body style="margin:0;padding:0;background:#0B0F1A!important;font-family:'Plus Jakarta Sans',Arial,sans-serif;color-scheme:dark">
+<!--[if mso]><table width="100%" bgcolor="#0B0F1A" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0B0F1A;min-height:100vh">
+  <tr><td align="center" style="padding:40px 16px">
+
+    <!-- Logo -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin-bottom:28px">
+      <tr><td align="center" style="padding-bottom:10px">
+        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9Im9nIiBjeD0iMzYlIiBjeT0iMzMlIiByPSI3OCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM0RjZFRjciLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMwRDFGM0MiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSIzOSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNEY2RUY3IiBzdHJva2Utb3BhY2l0eT0iMC4xOCIgc3Ryb2tlLXdpZHRoPSIxIi8+PGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iMjgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzRGNkVGNyIgc3Ryb2tlLW9wYWNpdHk9IjAuMzUiIHN0cm9rZS13aWR0aD0iMSIvPjxjaXJjbGUgY3g9IjQwIiBjeT0iNDAiIHI9IjEzIiBmaWxsPSJ1cmwoI29nKSIvPjx0ZXh0IHg9IjQwIiB5PSI0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSI4MDAiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IiNmZmZmZmYiPkE8L3RleHQ+PGNpcmNsZSBjeD0iNDAiIGN5PSIxLjUiIHI9IjMiIGZpbGw9IiM0RjZFRjciLz48Y2lyY2xlIGN4PSIxMyIgY3k9IjY0IiByPSIyLjIiIGZpbGw9IiM4MThjZjgiIG9wYWNpdHk9IjAuOCIvPjxjaXJjbGUgY3g9IjY4IiBjeT0iMTgiIHI9IjIuNSIgZmlsbD0iIzYzNjZmMSIvPjwvc3ZnPg==" width="72" height="72" alt="Arena" style="display:block;margin:0 auto">
       </td></tr>
-      <!-- Body -->
-      <tr><td style="padding:32px 32px 24px">
-        <h1 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111827;line-height:1.3">${title}</h1>
-        <div style="font-size:15px;line-height:1.6;color:#374151">${bodyHtml}</div>
-        ${ctaText && ctaUrl ? `
-        <div style="margin:28px 0">
-          <a href="${ctaUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600">${ctaText}</a>
-        </div>` : ''}
-        ${footerNote ? `<p style="font-size:13px;color:#6b7280;margin:16px 0 0;line-height:1.5">${footerNote}</p>` : ''}
-      </td></tr>
-      <!-- Footer -->
-      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:16px 32px;text-align:center">
-        <p style="margin:0;font-size:12px;color:#9ca3af">You received this because you have an account on ${platformName}.</p>
+      <tr><td align="center">
+        <div style="display:inline-block">
+          <span style="font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:26px;font-weight:800;color:#4F6EF7;letter-spacing:-0.04em">Arena</span>
+          <span style="font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:14px;font-weight:600;color:#94a3b8;letter-spacing:0.01em;margin-left:6px;vertical-align:middle">Solutions Platform</span>
+        </div>
       </td></tr>
     </table>
+
+    <!-- Card -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#0f1826;border-radius:18px;border:1px solid rgba(79,110,247,0.25);overflow:hidden">
+      <tr><td style="background:linear-gradient(90deg,#4F6EF7 0%,#3b55d4 100%);height:4px;font-size:0;line-height:0">&nbsp;</td></tr>
+      <tr><td style="padding:36px 36px 28px">
+        <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#f1f5f9;line-height:1.3;letter-spacing:-0.02em;font-family:'Plus Jakarta Sans',Arial,sans-serif">${title}</h1>
+        <div style="font-size:15px;line-height:1.7;color:#94a3b8;font-family:'Plus Jakarta Sans',Arial,sans-serif">${bodyHtml}</div>
+        ${cta}
+        ${footer}
+      </td></tr>
+      <tr><td style="background:#080d16;border-top:1px solid rgba(79,110,247,0.15);padding:16px 36px;text-align:center">
+        <p style="margin:0;font-size:12px;color:#334155;font-family:'Plus Jakarta Sans',Arial,sans-serif">
+          You received this because you have an account on <span style="color:#4F6EF7">${platformName}</span>.
+        </p>
+      </td></tr>
+    </table>
+
   </td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </body></html>`;
 }
 
