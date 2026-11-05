@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase.js";
-import { notify, sendEmail, buildEmailHtml } from "../lib/utils.js";
+import { notify, sendEmail, sendEmailToUser, buildEmailHtml } from "../lib/utils.js";
 
 function useConsultantTeams(userId) {
   const [teams, setTeams] = useState([]);
@@ -143,9 +143,10 @@ function useConsultantTeams(userId) {
         existingUser.id,
         "Team Invitation",
         `You've been invited to join the team "${teamName}". Open your profile → Teams tab to respond.`,
+        'team_invitation',
       );
-      await sendEmail(
-        existingUser.email ?? norm,
+      await sendEmailToUser(
+        existingUser.id,
         `You've been invited to join "${teamName}"`,
         buildEmailHtml({
           title: "Team Invitation",
@@ -157,6 +158,7 @@ function useConsultantTeams(userId) {
           ctaUrl: "https://www.arenasolutionsplatform.com/",
           footerNote: "If you didn't expect this invitation, you can safely ignore this email.",
         }),
+        'team_invitation',
       );
     } else {
       await sendEmail(

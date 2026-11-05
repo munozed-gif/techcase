@@ -1,9 +1,14 @@
 import { supabase } from "./supabase.js";
 
 // ── Notification helpers ─────────────────────────────────────
-async function notify(userId, title, body) {
+async function notify(userId, title, body, type = 'general') {
   if (!userId) return;
-  try { await supabase.from("notifications").insert({ user_id: userId, title, body, is_read: false }); } catch (_) {}
+  try {
+    const { data: u } = await supabase.from('users')
+      .select('notification_prefs').eq('id', userId).maybeSingle();
+    if (u?.notification_prefs?.[type]?.in_app === false) return;
+    await supabase.from("notifications").insert({ user_id: userId, title, body, is_read: false });
+  } catch (_) {}
 }
 async function notifyManagers(title, body) {
   try {
@@ -101,11 +106,14 @@ async function sendEmail(toEmail, subject, html) {
   } catch (_) {}
 }
 
-async function sendEmailToUser(userId, subject, html) {
+async function sendEmailToUser(userId, subject, html, type = 'general') {
   if (!userId) return;
   try {
-    const { data } = await supabase.from("users").select("email").eq("id", userId).maybeSingle();
-    if (data?.email) await sendEmail(data.email, subject, html);
+    const { data } = await supabase.from("users")
+      .select("email, notification_prefs").eq("id", userId).maybeSingle();
+    if (!data?.email) return;
+    if (data.notification_prefs?.[type]?.email === false) return;
+    await sendEmail(data.email, subject, html);
   } catch (_) {}
 }
 

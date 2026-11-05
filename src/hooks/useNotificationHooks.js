@@ -168,4 +168,34 @@ function useLeaderboard() {
   return { leaderboard, loading };
 }
 
-export { useCaseSpecification, useUnreadCount, useNotifications, useLeaderboard };
+function useNotificationPrefs() {
+  const [prefs, setPrefs] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      const { data } = await supabase.from('users')
+        .select('notification_prefs').eq('id', user.id).maybeSingle();
+      setPrefs(data?.notification_prefs ?? {});
+      setLoading(false);
+    })();
+  }, []);
+
+  async function setPref(type, channel, value) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const next = { ...prefs, [type]: { ...(prefs[type] ?? {}), [channel]: value } };
+    setPrefs(next);
+    await supabase.from('users').update({ notification_prefs: next }).eq('id', user.id);
+  }
+
+  function getPref(type, channel) {
+    return prefs[type]?.[channel] !== false; // default true
+  }
+
+  return { prefs, loading, setPref, getPref };
+}
+
+export { useCaseSpecification, useUnreadCount, useNotifications, useLeaderboard, useNotificationPrefs };

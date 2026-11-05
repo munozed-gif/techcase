@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase.js";
-import { logEvent, notify, notifyCaseParticipants, notifyManagers, buildEmailHtml, sendEmail, sendEmailToManagers } from "../lib/utils.js";
+import { logEvent, notify, notifyCaseParticipants, notifyManagers, buildEmailHtml, sendEmail, sendEmailToUser, sendEmailToManagers } from "../lib/utils.js";
 
 // useCases, useApplications, useRatings
 
@@ -232,32 +232,32 @@ function useApplications(caseId = null) {
           case_id: app.case_id, consultant_id: app.consultant_id,
           time_commitment: app.time_commitment,
         });
-        notify(app.consultant_id, "Application accepted", "Your application has been accepted. You are now assigned to the case.");
-        if (app.consultant?.email) sendEmail(app.consultant.email, "Your Application Was Accepted", buildEmailHtml({
+        notify(app.consultant_id, "Application accepted", "Your application has been accepted. You are now assigned to the case.", 'case_assignment');
+        sendEmailToUser(app.consultant_id, "Your Application Was Accepted", buildEmailHtml({
           title: "Application Accepted 🎉",
           preheader: "Great news — you have been assigned to a case",
           bodyHtml: `<p>Hi ${app.consultant.full_name ?? 'there'},</p><p>Your application has been accepted and you have been assigned to the case. Log in to get started.</p>`,
           ctaText: "View My Case",
           ctaUrl: window.location.origin,
-        }));
+        }), 'case_assignment');
         const hhId = app.consultant?.headhunter_id;
         if (hhId) {
           const consultantName = app.consultant?.full_name ?? "A candidate";
           const caseTitle = app.case?.title ?? "a case";
-          notify(hhId, "Candidate placed", `${consultantName} was accepted on "${caseTitle}". A commission may be due.`);
+          notify(hhId, "Candidate placed", `${consultantName} was accepted on "${caseTitle}". A commission may be due.`, 'headhunter');
         }
       }
     } else if (status === "rejected") {
       const app = applications.find(a => a.id === appId);
       if (app) {
-        notify(app.consultant_id, "Application not selected", "Your application was reviewed but was not selected for this case.");
-        if (app.consultant?.email) sendEmail(app.consultant.email, "Application Update", buildEmailHtml({
+        notify(app.consultant_id, "Application not selected", "Your application was reviewed but was not selected for this case.", 'case_assignment');
+        sendEmailToUser(app.consultant_id, "Application Update", buildEmailHtml({
           title: "Application Status Update",
           preheader: "An update on your recent application",
           bodyHtml: `<p>Hi ${app.consultant.full_name ?? 'there'},</p><p>Thank you for applying. After careful review, your application was not selected for this case. We encourage you to apply to other open cases on the platform.</p>`,
           ctaText: "Browse Open Cases",
           ctaUrl: window.location.origin,
-        }));
+        }), 'case_assignment');
       }
     }
     await fetchApps();

@@ -1130,7 +1130,7 @@ function VouchingPanel({ targetUserId, targetName }) {
       });
       if (!error) {
         await supabase.rpc('recalculate_trust_level', { p_user_id: targetUserId });
-        notify(targetUserId, 'Someone vouched for you', `${auth.profile?.full_name ?? 'A platinum consultant'} vouched for you.`);
+        notify(targetUserId, 'Someone vouched for you', `${auth.profile?.full_name ?? 'A platinum consultant'} vouched for you.`, 'vouch');
         logEvent('vouch.submitted', { entityType: 'user', entityId: targetUserId, entityName: targetName });
         // Refresh vouches
         const { data } = await supabase.from('user_vouches')

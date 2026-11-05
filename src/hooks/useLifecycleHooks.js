@@ -62,14 +62,14 @@ async function runStartDateMonitor(auth, cases) {
         localStorage.setItem(key, todayStr);
         const msg1 = `"${c.title}" starts in ${daysUntil} day${daysUntil !== 1 ? "s" : ""} (${c.start_date}). Please be ready to begin on time.`;
         for (const uid of consultants) {
-          await notify(uid, "Case Starting Soon", msg1);
+          await notify(uid, "Case Starting Soon", msg1, 'case_lifecycle');
           sendEmailToUser(uid, `Case Starting in ${daysUntil} Day${daysUntil !== 1 ? 's' : ''}`, buildEmailHtml({
             title: `Case Starting Soon`,
             preheader: `"${c.title}" starts in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
             bodyHtml: `<p>${msg1}</p>`,
             ctaText: 'View Case',
             ctaUrl: window.location.origin,
-          }));
+          }), 'case_lifecycle');
         }
       }
     }
@@ -81,14 +81,14 @@ async function runStartDateMonitor(auth, cases) {
         const title2 = daysUntil === 1 ? "Case Starts Tomorrow" : "Case Starting Today";
         const msg2 = `"${c.title}" must start by ${c.start_date}. If not started in time it may be auto-progressed or reassigned.`;
         for (const uid of consultants) {
-          await notify(uid, title2, msg2);
+          await notify(uid, title2, msg2, 'case_lifecycle');
           sendEmailToUser(uid, title2, buildEmailHtml({
             title: title2,
             preheader: msg2,
             bodyHtml: `<p>${msg2}</p>`,
             ctaText: 'View Case',
             ctaUrl: window.location.origin,
-          }));
+          }), 'case_lifecycle');
         }
         await notifyManagers("Case Starting Soon",
           `"${c.title}" is set to begin in ${daysUntil} day${daysUntil !== 1 ? "s" : ""}. Current status: Assigned.`);

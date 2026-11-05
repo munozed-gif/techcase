@@ -7,7 +7,7 @@ import {
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { useNotifications, useLeaderboard } from "../hooks/useNotificationHooks.js";
+import { useNotifications, useLeaderboard, useNotificationPrefs } from "../hooks/useNotificationHooks.js";
 import { useClientTeamMembers, useDbConnections, useInvoices, useSlaConfig, useTimeEntries } from "../hooks/useCoreHooks.js";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent, notify, resolveNavigation } from "../lib/utils.js";
@@ -21,6 +21,7 @@ import { PersonAvatar } from "./Projects.jsx";
 function NotificationsView() {
   const { t } = useT();
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
+  const { getPref, setPref, loading: prefsLoading } = useNotificationPrefs();
   const [filter, setFilter] = useState("all");
   const [showPrefs, setShowPrefs] = useState(false);
   const [hiddenTypes, setHiddenTypes] = useState(() => {
@@ -43,6 +44,17 @@ function NotificationsView() {
     { id: "status_change", label: t("feed.status") },
     { id: "assignment",  label: t("feed.assignments") },
     { id: "alert",       label: t("feed.alerts") },
+  ];
+
+  const DELIVERY_TYPES = [
+    { key: "team_invitation", label: t("notif.type_team_invite") },
+    { key: "case_assignment",  label: t("notif.type_case_assign") },
+    { key: "case_lifecycle",   label: t("notif.type_case_lifecycle") },
+    { key: "vouch",            label: t("notif.type_vouch") },
+    { key: "rating",           label: t("notif.type_rating") },
+    { key: "headhunter",       label: t("notif.type_headhunter") },
+    { key: "invoice",          label: t("notif.type_invoice") },
+    { key: "general",          label: t("notif.type_general") },
   ];
 
   const NOTIF_PREF_TYPES = [
@@ -95,20 +107,65 @@ function NotificationsView() {
 
           {/* Preferences panel */}
           {showPrefs && (
-            <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">{t("feed.show_in_feed")}</p>
-              <div className="grid grid-cols-2 gap-2">
-                {NOTIF_PREF_TYPES.map(({ key, label }) => (
-                  <label key={key} className="flex items-center justify-between gap-3 cursor-pointer py-1">
-                    <span className="text-sm text-gray-700">{label}</span>
-                    <button
-                      onClick={() => toggleHideType(key)}
-                      className={`relative rounded-full transition-colors flex-shrink-0 ${!hiddenTypes.includes(key) ? "bg-blue-600" : "bg-gray-200"}`}
-                      style={{ width: 40, height: 22 }}>
-                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${!hiddenTypes.includes(key) ? "translate-x-5" : "translate-x-0.5"}`} style={{ transitionProperty: "transform" }} />
-                    </button>
-                  </label>
-                ))}
+            <div className="mb-4 bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+              {/* Delivery channels section */}
+              <div className="p-4 border-b border-gray-100">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">{t("notif.pref_delivery")}</p>
+                {prefsLoading ? (
+                  <div className="py-2 text-xs text-gray-400">Loading…</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[320px]">
+                      <thead>
+                        <tr>
+                          <th className="text-left text-xs font-semibold text-gray-400 pb-2 pr-4 w-full" />
+                          <th className="text-center text-xs font-semibold text-gray-500 pb-2 px-3 whitespace-nowrap">{t("notif.pref_in_app")}</th>
+                          <th className="text-center text-xs font-semibold text-gray-500 pb-2 px-3 whitespace-nowrap">{t("notif.pref_email")}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {DELIVERY_TYPES.map(({ key, label }) => (
+                          <tr key={key}>
+                            <td className="py-2 pr-4 text-sm text-gray-700">{label}</td>
+                            <td className="py-2 px-3 text-center">
+                              <button
+                                onClick={() => setPref(key, 'in_app', !getPref(key, 'in_app'))}
+                                className={`relative rounded-full transition-colors inline-flex flex-shrink-0 ${getPref(key, 'in_app') ? "bg-blue-600" : "bg-gray-200"}`}
+                                style={{ width: 36, height: 20 }}>
+                                <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform ${getPref(key, 'in_app') ? "translate-x-4" : "translate-x-0.5"}`} style={{ transitionProperty: "transform" }} />
+                              </button>
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              <button
+                                onClick={() => setPref(key, 'email', !getPref(key, 'email'))}
+                                className={`relative rounded-full transition-colors inline-flex flex-shrink-0 ${getPref(key, 'email') ? "bg-blue-600" : "bg-gray-200"}`}
+                                style={{ width: 36, height: 20 }}>
+                                <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform ${getPref(key, 'email') ? "translate-x-4" : "translate-x-0.5"}`} style={{ transitionProperty: "transform" }} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              {/* Feed display section */}
+              <div className="p-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">{t("notif.pref_feed")}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {NOTIF_PREF_TYPES.map(({ key, label }) => (
+                    <label key={key} className="flex items-center justify-between gap-3 cursor-pointer py-1">
+                      <span className="text-sm text-gray-700">{label}</span>
+                      <button
+                        onClick={() => toggleHideType(key)}
+                        className={`relative rounded-full transition-colors flex-shrink-0 ${!hiddenTypes.includes(key) ? "bg-blue-600" : "bg-gray-200"}`}
+                        style={{ width: 36, height: 20 }}>
+                        <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform ${!hiddenTypes.includes(key) ? "translate-x-4" : "translate-x-0.5"}`} style={{ transitionProperty: "transform" }} />
+                      </button>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           )}

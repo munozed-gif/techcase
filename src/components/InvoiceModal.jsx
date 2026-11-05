@@ -119,7 +119,7 @@ function InvoiceModal({ isOpen, onClose, caseData, auth }) {
       if (insErr) throw insErr;
       logEvent('invoice.created', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { invoice_number: invoiceNumber, total } });
       if (caseData.client_id) {
-        try { await notify(caseData.client_id, t('invoice.title'), `Invoice ${invoiceNumber} has been created for "${caseData.title}"`); } catch (_) {}
+        try { await notify(caseData.client_id, t('invoice.title'), `Invoice ${invoiceNumber} has been created for "${caseData.title}"`, 'invoice'); } catch (_) {}
       }
       setSavedOk(true);
     } catch (e) {

@@ -2567,7 +2567,7 @@ function ClientRatingModal({ isOpen, onClose, caseId, caseTitle, clientId, clien
         await supabase.rpc('recalculate_trust_level', { p_user_id: clientId });
         logEvent('rating.submitted', { entityType: 'case', entityId: caseId, entityName: caseTitle,
           metadata: { ratee_id: clientId, ratee_role: 'client' } });
-        notify(clientId, 'You received a rating', `A consultant submitted a rating for case "${caseTitle}".`);
+        notify(clientId, 'You received a rating', `A consultant submitted a rating for case "${caseTitle}".`, 'rating');
         setToast(t('rating.client_success'));
         setTimeout(() => { setToast(null); onClose(); }, 1500);
       }
@@ -2665,7 +2665,7 @@ function RatingModal({ caseId, caseTitle, rateeId, rateeName, rateeRole, raterRo
     });
     if (!error) {
       await supabase.rpc('recalculate_trust_level', { p_user_id: rateeId });
-      notify(rateeId, 'You received a new rating', `A rating was submitted for case "${caseTitle}".`);
+      notify(rateeId, 'You received a new rating', `A rating was submitted for case "${caseTitle}".`, 'rating');
       logEvent('case.rated', { entityType: 'case', entityId: caseId, entityName: caseTitle, metadata: { ratee_id: rateeId, ratee_role: rateeRole } });
       onSubmitted?.();
     }
