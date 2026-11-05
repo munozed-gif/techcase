@@ -348,15 +348,15 @@ function Dashboard({ auth, onNavigate }) {
 
       {/* ── Client strip ── */}
       {showClientStrip && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4 mb-6">
+        <div style={{ background:'var(--t-card-bg)', borderRadius:16, boxShadow:'0 1px 3px rgba(0,0,0,.08)', border:'1px solid var(--t-border)', padding:'16px 20px', marginBottom:24 }}>
           <style>{`
             @keyframes _stripSpin  { to { transform: rotate(360deg);  } }
             @keyframes _stripStill { to { transform: rotate(-360deg); } }
           `}</style>
 
           <div className="flex items-center gap-2 mb-4">
-            <Users className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t("dashboard.clients")}</span>
+            <Users className="w-3.5 h-3.5" style={{ color:'var(--t-text2)' }} />
+            <span style={{ fontSize:11, fontWeight:700, color:'var(--t-text2)', textTransform:'uppercase', letterSpacing:'.07em' }}>{t("dashboard.clients")}</span>
           </div>
 
           <div style={{ display:'flex', alignItems:'flex-start', gap:0, overflowX:'auto', padding:'4px 4px 6px 4px', margin:'-4px -4px 0 -4px', scrollbarWidth:'none' }}>
@@ -374,11 +374,11 @@ function Dashboard({ auth, onNavigate }) {
                       {/* spinning ring wrapper */}
                       <div style={{ padding:3, borderRadius:'50%', background:'conic-gradient(#1A4B8C 0%, #5B9BD5 55%, #10b981 100%)', animation:'_stripSpin 4s linear infinite' }}>
                         {/* counter-rotating avatar keeps avatar still */}
-                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', position:'relative', animation:'_stripStill 4s linear infinite', overflow:'hidden' }}>
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid var(--t-card-bg)', position:'relative', animation:'_stripStill 4s linear infinite', overflow:'hidden' }}>
                           {cl.avatarUrl
                             ? <img src={cl.avatarUrl} alt={cl.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} />
                             : cl.initials}
-                          <div style={{ width:9, height:9, background:'#10b981', border:'1.5px solid #ffffff', borderRadius:'50%', position:'absolute', bottom:1, right:1 }} />
+                          <div style={{ width:9, height:9, background:'#10b981', border:'1.5px solid var(--t-card-bg)', borderRadius:'50%', position:'absolute', bottom:1, right:1 }} />
                         </div>
                       </div>
                       <div style={{ fontSize:10.5, fontWeight:600, color:'var(--t-subtext)', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
@@ -405,7 +405,7 @@ function Dashboard({ auth, onNavigate }) {
                                outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
                       title={t("dash.view_cases").replace("{name}", cl.name)}>
                       <div style={{ padding:3, borderRadius:'50%', background:'conic-gradient(#93c5fd 0%, #5B9BD5 50%, #bfdbfe 100%)', animation:'_stripSpin 5s linear infinite' }}>
-                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', position:'relative', animation:'_stripStill 5s linear infinite', overflow:'hidden' }}>
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid var(--t-card-bg)', position:'relative', animation:'_stripStill 5s linear infinite', overflow:'hidden' }}>
                           {cl.avatarUrl
                             ? <img src={cl.avatarUrl} alt={cl.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} />
                             : cl.initials}
@@ -436,7 +436,7 @@ function Dashboard({ auth, onNavigate }) {
                                outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
                       title={t("dash.view_cases").replace("{name}", cl.name)}>
                       <div style={{ padding:3, borderRadius:'50%', background:'var(--t-progress-track)' }}>
-                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', overflow:'hidden' }}>
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid var(--t-card-bg)', overflow:'hidden' }}>
                           {cl.avatarUrl
                             ? <img src={cl.avatarUrl} alt={cl.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} />
                             : cl.initials}
@@ -466,7 +466,7 @@ function Dashboard({ auth, onNavigate }) {
                                outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
                       title={t("dash.view_cases").replace("{name}", cl.name)}>
                       <div style={{ padding:3, borderRadius:'50%', background:'var(--t-divider)' }}>
-                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', overflow:'hidden' }}>
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid var(--t-card-bg)', overflow:'hidden' }}>
                           {cl.avatarUrl
                             ? <img src={cl.avatarUrl} alt={cl.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} />
                             : cl.initials}
