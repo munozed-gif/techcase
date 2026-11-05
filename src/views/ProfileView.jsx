@@ -937,7 +937,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                 {(profile?.certifications?.length ?? 0) === 0
                   ? <p className="text-sm text-gray-400 mb-3">No certifications added yet.</p>
                   : <div className="space-y-2 mb-3">
-                      {(profile.certifications ?? []).map((c, i) => (
+                      {(profile.certifications ?? []).filter(c => c?.name).map((c, i) => (
                         <div key={i} className="flex items-center justify-between bg-purple-50 border border-purple-100 rounded-xl px-3 py-2">
                           <div className="min-w-0 flex-1">
                             <span className="text-sm font-medium text-purple-800">{c.name}</span>
@@ -946,7 +946,10 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                           </div>
                           <button onClick={async () => {
                             setSavingExp(true);
-                            try { await updateProfile({ certifications: (profile?.certifications ?? []).filter((_,j) => j !== i) }); } catch (e) { alert(e.message); }
+                            try {
+                              const filtered = (profile?.certifications ?? []).filter(x => x?.name);
+                              await updateProfile({ certifications: filtered.filter((_,j) => j !== i) });
+                            } catch (e) { alert(e.message); }
                             setSavingExp(false);
                           }} className="text-purple-300 hover:text-red-500 transition-colors ml-2 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
                         </div>

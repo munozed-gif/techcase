@@ -158,13 +158,13 @@ function useConsultantProfile(consultantId, profileId) {
     const { error } = await supabase.from("work_authorizations")
       .insert({ ...data, consultant_id: resolvedId });
     if (error) throw error;
-    await fetchProfile();
+    await fetchProfile(true);
   }
 
   async function deleteWorkAuth(id) {
     const { error } = await supabase.from("work_authorizations").delete().eq("id", id);
     if (error) throw error;
-    await fetchProfile();
+    await fetchProfile(true);
   }
 
   async function uploadPhoto(file) {
