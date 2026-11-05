@@ -168,7 +168,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   const [editingCust, setEditingCust] = useState(null); // { id, company_name, role_held, start_date, end_date, description }
   const [editingProj, setEditingProj] = useState(null); // { id, title, consulting_company, client_name, role, description, tech_stack, url, _tech }
   const [projForm, setProjForm] = useState({ title: "", consulting_company: "", client_name: "", role: "", url: "", description: "", _tech: "" });
-  const [authForm, setAuthForm] = useState({ country_name: "", country_code: "", auth_type: "citizen" });
+  const [authForm, setAuthForm] = useState({ country_name: "", auth_type: "citizen" });
   const [savingExp, setSavingExp] = useState(false);
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
   const [skillPickerCat, setSkillPickerCat] = useState("technical");
@@ -263,7 +263,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
 
   async function handleAddWorkAuth() {
     setSavingExp(true);
-    try { await addWorkAuth(authForm); setAuthForm({ country_name: "", country_code: "", auth_type: "citizen" }); }
+    try { await addWorkAuth(authForm); setAuthForm({ country_name: "", auth_type: "citizen" }); }
     catch (e) { alert(e.message); }
     setSavingExp(false);
   }
