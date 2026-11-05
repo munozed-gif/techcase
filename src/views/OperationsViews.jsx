@@ -131,16 +131,16 @@ function NotificationsView() {
                               <button
                                 onClick={() => setPref(key, 'in_app', !getPref(key, 'in_app'))}
                                 className={`relative rounded-full transition-colors inline-flex flex-shrink-0 ${getPref(key, 'in_app') ? "bg-blue-600" : "bg-gray-200"}`}
-                                style={{ width: 36, height: 20 }}>
-                                <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform ${getPref(key, 'in_app') ? "translate-x-4" : "translate-x-0.5"}`} style={{ transitionProperty: "transform" }} />
+                                style={{ width: 40, height: 22 }}>
+                                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${getPref(key, 'in_app') ? "translate-x-5" : "translate-x-0.5"}`} style={{ transitionProperty: "transform" }} />
                               </button>
                             </td>
                             <td className="py-2 px-3 text-center">
                               <button
                                 onClick={() => setPref(key, 'email', !getPref(key, 'email'))}
                                 className={`relative rounded-full transition-colors inline-flex flex-shrink-0 ${getPref(key, 'email') ? "bg-blue-600" : "bg-gray-200"}`}
-                                style={{ width: 36, height: 20 }}>
-                                <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform ${getPref(key, 'email') ? "translate-x-4" : "translate-x-0.5"}`} style={{ transitionProperty: "transform" }} />
+                                style={{ width: 40, height: 22 }}>
+                                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${getPref(key, 'email') ? "translate-x-5" : "translate-x-0.5"}`} style={{ transitionProperty: "transform" }} />
                               </button>
                             </td>
                           </tr>
@@ -153,15 +153,15 @@ function NotificationsView() {
               {/* Feed display section */}
               <div className="p-4">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">{t("notif.pref_feed")}</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
                   {NOTIF_PREF_TYPES.map(({ key, label }) => (
                     <label key={key} className="flex items-center justify-between gap-3 cursor-pointer py-1">
                       <span className="text-sm text-gray-700">{label}</span>
                       <button
                         onClick={() => toggleHideType(key)}
                         className={`relative rounded-full transition-colors flex-shrink-0 ${!hiddenTypes.includes(key) ? "bg-blue-600" : "bg-gray-200"}`}
-                        style={{ width: 36, height: 20 }}>
-                        <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform ${!hiddenTypes.includes(key) ? "translate-x-4" : "translate-x-0.5"}`} style={{ transitionProperty: "transform" }} />
+                        style={{ width: 40, height: 22 }}>
+                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${!hiddenTypes.includes(key) ? "translate-x-5" : "translate-x-0.5"}`} style={{ transitionProperty: "transform" }} />
                       </button>
                     </label>
                   ))}
