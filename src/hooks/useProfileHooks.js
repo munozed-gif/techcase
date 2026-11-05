@@ -113,19 +113,47 @@ function useConsultantProfile(consultantId, profileId) {
   }
 
   async function updateProfile(updates) {
-    const { data: updated, error } = await supabase.from("consultant_profiles")
-      .update(updates).eq("id", resolvedId).select("id");
-    if (error) throw error;
-    if (!updated || updated.length === 0) {
-      // No row exists yet — insert for first time
-      const { error: ie } = await supabase.from("consultant_profiles")
-        .insert({ id: resolvedId, ...updates });
-      if (ie) throw new Error(`Profile create failed: ${ie.message}`);
+    // certifications/education/languages are JSONB/array columns added after the
+    // initial schema. PostgREST silently drops unknown columns on UPDATE, so we
+    // route them through an RPC that writes them directly in PL/pgSQL.
+    const JSONB_KEYS = new Set(['certifications', 'education', 'languages']);
+    const jsonbPart = {};
+    const restPart  = {};
+    for (const [k, v] of Object.entries(updates)) {
+      if (JSONB_KEYS.has(k)) jsonbPart[k] = v;
+      else restPart[k] = v;
     }
-    // Apply updates to local state immediately. Don't call fetchProfile(true)
-    // here — a stale PostgREST write-cache can cause the UPDATE to not persist
-    // while the SELECT returns the old empty value, overwriting this merge.
-    // Relational data (work_authorizations, etc.) has its own fetch calls.
+
+    if (Object.keys(restPart).length > 0) {
+      const { data: updated, error } = await supabase.from("consultant_profiles")
+        .update(restPart).eq("id", resolvedId).select("id");
+      if (error) throw error;
+      if (!updated || updated.length === 0) {
+        const { error: ie } = await supabase.from("consultant_profiles")
+          .insert({ id: resolvedId, ...restPart });
+        if (ie) throw new Error(`Profile create failed: ${ie.message}`);
+      }
+    } else if (Object.keys(jsonbPart).length > 0) {
+      // Only JSONB fields — ensure the profile row exists first
+      const { data: existing } = await supabase.from("consultant_profiles")
+        .select("id").eq("id", resolvedId).maybeSingle();
+      if (!existing) {
+        const { error: ie } = await supabase.from("consultant_profiles")
+          .insert({ id: resolvedId });
+        if (ie) throw new Error(`Profile create failed: ${ie.message}`);
+      }
+    }
+
+    if (Object.keys(jsonbPart).length > 0) {
+      const { error } = await supabase.rpc('update_profile_jsonb_fields', {
+        p_id:             resolvedId,
+        p_certifications: 'certifications' in jsonbPart ? jsonbPart.certifications : null,
+        p_education:      'education'      in jsonbPart ? jsonbPart.education      : null,
+        p_languages:      'languages'      in jsonbPart ? jsonbPart.languages      : null,
+      });
+      if (error) throw error;
+    }
+
     mergeProfile(updates);
   }
 
