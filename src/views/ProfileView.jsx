@@ -33,7 +33,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   // Extract the real consultant_profiles id from auth (useAuth already fetched it via FK join)
   const cpRaw = auth.profile?.consultant_profiles;
   const realProfileId = Array.isArray(cpRaw) ? cpRaw[0]?.id : cpRaw?.id;
-  const { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, updateCustomer, deleteCustomer, addProject, updateProject, deleteProject, addWorkAuth, refetch } =
+  const { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, updateCustomer, deleteCustomer, addProject, updateProject, deleteProject, addWorkAuth, deleteWorkAuth, refetch } =
     useConsultantProfile(auth.user?.id, realProfileId);
   const { ratings, avgRating } = useRatings(auth.user?.id);
   const { teams, pendingInvites, createTeam, inviteMember, respondToInvite, removeMember, leaveTeam, deleteTeam } = useConsultantTeams(auth.user?.id);
@@ -1047,18 +1047,21 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                       {profile.work_authorizations.map(w => (
                         <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
                           <div className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : <Globe size={18} />}</div>
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium">{w.country_name}</div>
                             <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
                           </div>
+                          <button onClick={async () => { try { await deleteWorkAuth(w.id); } catch(e) { alert(e.message); } }}
+                            className="text-gray-300 hover:text-red-500 transition-colors ml-auto">
+                            <X size={14} />
+                          </button>
                         </div>
                       ))}
                     </div>}
                 <div className="border-t border-gray-100 pt-4">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_auth")}</p>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <Input label={t("profile.country")} value={authForm.country_name} onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))} />
-                    <Input label={t("profile.country_code")} value={authForm.country_code} onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))} placeholder="US" />
                     <Select label={t("profile.auth_type")} value={authForm.auth_type} onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
                       options={[{ value: "citizen", label: t("profile.auth_citizen") }, { value: "permanent_resident", label: t("profile.auth_perm_resident") }, { value: "work_visa", label: t("profile.auth_work_visa") }, { value: "other", label: t("profile.auth_other") }]} />
                   </div>

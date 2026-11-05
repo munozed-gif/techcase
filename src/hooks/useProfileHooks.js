@@ -161,6 +161,12 @@ function useConsultantProfile(consultantId, profileId) {
     await fetchProfile();
   }
 
+  async function deleteWorkAuth(id) {
+    const { error } = await supabase.from("work_authorizations").delete().eq("id", id);
+    if (error) throw error;
+    await fetchProfile();
+  }
+
   async function uploadPhoto(file) {
     const ext = file.name.split(".").pop().toLowerCase();
     const path = `consultant-avatars/${consultantId}.${ext}`;
@@ -172,7 +178,7 @@ function useConsultantProfile(consultantId, profileId) {
     return publicUrl;
   }
 
-  return { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, updateCustomer, deleteCustomer, addProject, updateProject, deleteProject, addWorkAuth, refetch: fetchProfile };
+  return { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, updateCustomer, deleteCustomer, addProject, updateProject, deleteProject, addWorkAuth, deleteWorkAuth, refetch: fetchProfile };
 }
 
 export { useFavorites, useFollowedClients, useConsultantProfile };
