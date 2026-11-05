@@ -71,6 +71,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   const inviteLookupTimer = useRef(null);
   const [profileTab, setProfileTab] = useState(initialTab ?? "experience");
   useEffect(() => { if (initialTab) setProfileTab(initialTab); }, [initialTab]);
+  const [aiProExpanded, setAiProExpanded] = useState(false);
   const pvCarouselRef = useRef(null);
   const pvCarouselScrolling = useRef(false);
   const pvScrollDebounce = useRef(null);
@@ -1409,22 +1410,49 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
 
               {/* Upgrade to Pro */}
               {!aiIsPro && (
-                <div className="border border-violet-200 dark:border-violet-700 bg-violet-50 dark:bg-violet-900/20 rounded-2xl p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap size={15} className="text-violet-500" />
-                    <span className="font-semibold text-sm text-violet-900 dark:text-violet-200">{t("profile.ai_pro_title")}</span>
-                    <span className="ml-auto text-sm font-bold text-violet-700 dark:text-violet-300">$19/mo</span>
-                  </div>
-                  <p className="text-xs text-violet-700 dark:text-violet-300 mb-4">{t("profile.ai_pro_desc")}</p>
+                <div className="border border-violet-500/40 bg-[#1a1340]/60 rounded-2xl overflow-hidden">
+                  {/* Header — always visible, clickable to expand */}
                   <button
-                    onClick={() => {
-                      if (!priceIds['user_ai_pro']) { alert('AI Pro is not yet configured. Contact your admin.'); return; }
-                      startCheckout(auth.user.id, auth.user.email, 'user', 'ai_pro');
-                    }}
-                    className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                    className="w-full flex items-center gap-2 px-5 pt-5 pb-3 text-left"
+                    onClick={() => setAiProExpanded(p => !p)}
                   >
-                    {t("profile.ai_upgrade_btn")}
+                    <Zap size={15} className="text-violet-400 shrink-0" />
+                    <span className="font-semibold text-sm text-violet-200">{t("profile.ai_pro_title")}</span>
+                    <span className="ml-auto text-sm font-bold text-violet-300 mr-2">$19/mo</span>
+                    {aiProExpanded
+                      ? <ChevronUp size={15} className="text-violet-400 shrink-0" />
+                      : <ChevronDown size={15} className="text-violet-400 shrink-0" />}
                   </button>
+
+                  <p className="px-5 pb-3 text-xs text-violet-300/80">{t("profile.ai_pro_desc")}</p>
+
+                  {/* Expandable details */}
+                  {aiProExpanded && (
+                    <div className="px-5 pb-4">
+                      <div className="border-t border-violet-500/20 pt-4 mb-4 space-y-2.5">
+                        {[1,2,3,4,5,6].map(i => (
+                          <div key={i} className="flex items-start gap-2.5">
+                            <div className="mt-0.5 w-4 h-4 rounded-full bg-violet-600/40 flex items-center justify-center shrink-0">
+                              <Check size={9} className="text-violet-300" strokeWidth={3} />
+                            </div>
+                            <span className="text-xs text-violet-200/90 leading-snug">{t(`profile.ai_pro_benefit_${i}`)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="px-5 pb-5">
+                    <button
+                      onClick={() => {
+                        if (!priceIds['user_ai_pro']) { alert('AI Pro is not yet configured. Contact your admin.'); return; }
+                        startCheckout(auth.user.id, auth.user.email, 'user', 'ai_pro');
+                      }}
+                      className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                    >
+                      {t("profile.ai_upgrade_btn")}
+                    </button>
+                  </div>
                 </div>
               )}
 
