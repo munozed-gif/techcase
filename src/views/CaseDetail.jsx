@@ -3220,32 +3220,35 @@ ${tableHtml(['Role','Name','Signature','Date'],[
                   )}
                   {/* Co-assign panel */}
                   {(auth.isManager || auth.isAdmin) && showCoAssign && (
-                    <div className="mt-2 border border-blue-100 rounded-lg p-2.5 bg-blue-50/50">
+                    <div className="mt-2 rounded-lg p-2.5" style={{ border:'1px solid var(--t-border)', background:'var(--t-tab-inactive)' }}>
                       <div className="flex items-center gap-2 mb-2">
                         <input autoFocus value={coAssignSearch}
                           onChange={e => { setCoAssignSearch(e.target.value); searchCoAssign(e.target.value); }}
                           placeholder="Search consultants…"
-                          className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                          className="flex-1 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          style={{ border:'1px solid var(--t-border)', background:'var(--t-card-bg)', color:'var(--t-text)' }} />
                         <button onClick={() => { setShowCoAssign(false); setCoAssignSearch(""); setCoAssignResults([]); }}
-                          className="p-1 hover:bg-gray-100 rounded-lg">
+                          className="p-1 rounded-lg" style={{ color:'var(--t-text2)' }}>
                           <X className="w-3.5 h-3.5 text-gray-400" />
                         </button>
                       </div>
-                      {coAssignLoading && <div className="text-[10px] text-gray-400 px-1">Searching…</div>}
+                      {coAssignLoading && <div className="text-[10px] px-1" style={{ color:'var(--t-text2)' }}>Searching…</div>}
                       {coAssignResults.map(u => (
                         <button key={u.id} onClick={() => addCoConsultant(u)}
-                          className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-blue-100 rounded-lg text-left transition-colors">
-                          <div className="w-6 h-6 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors hover:opacity-80"
+                          style={{ background:'transparent' }}>
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                            style={{ background:'rgba(37,99,235,0.15)', color:'var(--t-text-accent)' }}>
                             {(u.full_name ?? u.email ?? "?")[0].toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <div className="text-xs font-medium text-gray-900 truncate">{u.full_name ?? "—"}</div>
-                            <div className="text-[10px] text-gray-400 truncate">{u.email}</div>
+                            <div className="text-xs font-medium truncate" style={{ color:'var(--t-text)' }}>{u.full_name ?? "—"}</div>
+                            <div className="text-[10px] truncate" style={{ color:'var(--t-text2)' }}>{u.email}</div>
                           </div>
                         </button>
                       ))}
                       {!coAssignLoading && coAssignSearch && coAssignResults.length === 0 && (
-                        <div className="text-[10px] text-gray-400 px-1">No consultants found.</div>
+                        <div className="text-[10px] px-1" style={{ color:'var(--t-text2)' }}>No consultants found.</div>
                       )}
                     </div>
                   )}
