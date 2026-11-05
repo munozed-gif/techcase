@@ -2,6 +2,15 @@ import { useState, useEffect, useRef } from "react";
 import { Bell } from "lucide-react";
 import { useNotifications } from "../hooks/useNotificationHooks.js";
 
+function resolveNavigation(n) {
+  const title = n.title ?? "";
+  if (/team invitation/i.test(title)) return { view: "profile", tab: "teams" };
+  if (/vouched for you/i.test(title)) return { view: "profile", tab: "experience" };
+  if (/you received a.*rating/i.test(title)) return { view: "profile", tab: "experience" };
+  if (n.case_id) return { view: "cases", caseId: n.case_id };
+  return null;
+}
+
 function NotificationBell({ auth }) {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
@@ -12,6 +21,13 @@ function NotificationBell({ auth }) {
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, []);
+
+  function handleClick(n) {
+    if (!n.is_read) markRead(n.id);
+    setOpen(false);
+    const dest = resolveNavigation(n);
+    if (dest) window.dispatchEvent(new CustomEvent("nav-from-notification", { detail: dest }));
+  }
 
   return (
     <div className="relative" ref={ref}>
@@ -39,18 +55,24 @@ function NotificationBell({ auth }) {
           <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
             {notifications.length === 0 ? (
               <p className="py-8 text-center text-sm text-gray-400">No notifications yet</p>
-            ) : notifications.map(n => (
-              <div key={n.id}
-                onClick={() => !n.is_read && markRead(n.id)}
-                className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors flex items-start gap-2.5 ${!n.is_read ? 'bg-blue-50' : ''}`}>
-                {!n.is_read && <span className="mt-2 w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
-                <div className={!n.is_read ? '' : 'pl-4'}>
-                  <p className="text-sm font-medium text-gray-800 leading-snug">{n.title}</p>
-                  {n.body && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{n.body}</p>}
-                  <p className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</p>
+            ) : notifications.map(n => {
+              const nav = resolveNavigation(n);
+              return (
+                <div key={n.id}
+                  onClick={() => handleClick(n)}
+                  className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors flex items-start gap-2.5 ${!n.is_read ? 'bg-blue-50' : ''}`}>
+                  {!n.is_read && <span className="mt-2 w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
+                  <div className={`flex-1 min-w-0 ${!n.is_read ? '' : 'pl-4'}`}>
+                    <p className="text-sm font-medium text-gray-800 leading-snug">{n.title}</p>
+                    {n.body && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{n.body}</p>}
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-xs text-gray-400">{new Date(n.created_at).toLocaleString()}</p>
+                      {nav && <span className="text-[10px] text-blue-500">Tap to view →</span>}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

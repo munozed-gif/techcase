@@ -719,6 +719,26 @@ export default function App() {
     return () => window.removeEventListener("nav-to-consultant-profile", onNavToConsultantProfile);
   }, []);
 
+  // Navigate from notification bell click
+  useEffect(() => {
+    function onNavFromNotification(e) {
+      const { view, tab, caseId } = e.detail ?? {};
+      if (!view) return;
+      if (view === "profile") {
+        setProfileInitialTab(tab ?? null);
+        setPendingUserId(null);
+        setActiveView("profile");
+      } else if (view === "cases" && caseId) {
+        setPendingCaseId(caseId);
+        setActiveView("cases");
+      } else {
+        setActiveView(view);
+      }
+    }
+    window.addEventListener("nav-from-notification", onNavFromNotification);
+    return () => window.removeEventListener("nav-from-notification", onNavFromNotification);
+  }, []);
+
   // Sync authed state with auth session
   useEffect(() => {
     if (!auth.loading) {
