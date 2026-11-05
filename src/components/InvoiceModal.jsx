@@ -7,7 +7,7 @@ import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx
 import { Badge } from "../components/ProfileComponents.jsx";
 import { fmtDate, INVOICE_STATUS_COLORS, INV_STATUS_LABEL_KEYS } from "../lib/uiUtils.jsx";
 import { Spinner } from "./ProfileComponents.jsx";
-import { logEvent, notify } from "../lib/utils.js";
+import { logEvent, notify, sendEmailToUser } from "../lib/utils.js";
 
 function InvoiceModal({ isOpen, onClose, caseData, auth }) {
   const { t } = useT();
@@ -120,6 +120,7 @@ function InvoiceModal({ isOpen, onClose, caseData, auth }) {
       logEvent('invoice.created', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { invoice_number: invoiceNumber, total } });
       if (caseData.client_id) {
         try { await notify(caseData.client_id, t('invoice.title'), `Invoice ${invoiceNumber} has been created for "${caseData.title}"`, 'invoice'); } catch (_) {}
+        try { sendEmailToUser(caseData.client_id, `Invoice ${invoiceNumber} — ${caseData.title}`, `Invoice ${invoiceNumber} has been created for "${caseData.title}".`, 'invoice'); } catch (_) {}
       }
       setSavedOk(true);
     } catch (e) {

@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT, LanguageContext } from "../i18n/index.jsx";
-import { callClaude, logEvent } from "../lib/utils.js";
+import { callClaude, logEvent, notify, sendEmailToUser } from "../lib/utils.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
@@ -1131,6 +1131,7 @@ function VouchingPanel({ targetUserId, targetName }) {
       if (!error) {
         await supabase.rpc('recalculate_trust_level', { p_user_id: targetUserId });
         notify(targetUserId, 'Someone vouched for you', `${auth.profile?.full_name ?? 'A platinum consultant'} vouched for you.`, 'vouch');
+        sendEmailToUser(targetUserId, 'Someone vouched for you', `${auth.profile?.full_name ?? 'A platinum consultant'} vouched for you on the platform.`, 'vouch');
         logEvent('vouch.submitted', { entityType: 'user', entityId: targetUserId, entityName: targetName });
         // Refresh vouches
         const { data } = await supabase.from('user_vouches')

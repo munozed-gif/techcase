@@ -368,12 +368,14 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           .eq("case_id", caseData.id).neq("id", proposalId).eq("status", "pending");
         onUpdate?.({ ...caseData, head_hunter_id: proposal.headhunter_id });
         notify(proposal.headhunter_id, "Proposal accepted", `Your proposal to manage "${caseData.title}" has been accepted.`, 'headhunter');
+        sendEmailToUser(proposal.headhunter_id, `Proposal Accepted — ${caseData.title}`, `Your proposal to manage "${caseData.title}" has been accepted. Log in to get started.`, 'headhunter');
       }
     }
     if (newStatus === "rejected") {
       const proposal = hhProposals.find(p => p.id === proposalId);
       if (proposal) {
         notify(proposal.headhunter_id, "Proposal not selected", `Your proposal for "${caseData.title}" was not selected.`, 'headhunter');
+        sendEmailToUser(proposal.headhunter_id, `Proposal Not Selected — ${caseData.title}`, `Your proposal for "${caseData.title}" was reviewed but not selected.`, 'headhunter');
       }
     }
     const { data } = await supabase.from("hh_proposals")

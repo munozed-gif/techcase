@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Briefcase, Check, ChevronLeft, ChevronRight, Crosshair, Send, X } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { notify } from "../lib/utils.js";
+import { notify, sendEmailToUser } from "../lib/utils.js";
 import { Spinner } from "./ProfileComponents.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 
@@ -45,6 +45,7 @@ export function HHProposalWizard({ caseData, auth, onComplete, onCancel }) {
       return;
     }
     await notify(caseData.client_id ?? null, "New headhunter proposal", `${auth.user.full_name ?? "A headhunter"} submitted a proposal for "${title}".`, 'headhunter').catch(() => {});
+    sendEmailToUser(caseData.client_id ?? null, `New headhunter proposal — ${title}`, `${auth.user.full_name ?? "A headhunter"} submitted a proposal to manage "${title}". Log in to review it.`, 'headhunter');
     onComplete?.();
   }
 

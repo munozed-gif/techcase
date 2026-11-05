@@ -245,6 +245,7 @@ function useApplications(caseId = null) {
           const consultantName = app.consultant?.full_name ?? "A candidate";
           const caseTitle = app.case?.title ?? "a case";
           notify(hhId, "Candidate placed", `${consultantName} was accepted on "${caseTitle}". A commission may be due.`, 'headhunter');
+          sendEmailToUser(hhId, `Candidate Placed — ${caseTitle}`, `${consultantName} was accepted on "${caseTitle}". A commission may be due.`, 'headhunter');
         }
       }
     } else if (status === "rejected") {

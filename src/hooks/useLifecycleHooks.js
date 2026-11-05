@@ -110,7 +110,8 @@ async function runStartDateMonitor(auth, cases) {
         if (s.start_overdue_action === "auto_start") {
           await supabase.from("cases").update({ status: "in_progress" }).eq("id", c.id);
           for (const uid of consultants)
-            await notify(uid, "Case Auto-Started", `"${c.title}" was automatically moved to In Progress as the start date has passed.`);
+            await notify(uid, "Case Auto-Started", `"${c.title}" was automatically moved to In Progress as the start date has passed.`, 'case_lifecycle');
+            sendEmailToUser(uid, `Case Auto-Started: ${c.title}`, `"${c.title}" was automatically moved to In Progress as the start date has passed.`, 'case_lifecycle');
           await notifyManagers("Case Auto-Started", `"${c.title}" was automatically moved to In Progress — start date ${c.start_date} has passed.`);
         } else if (s.start_overdue_action === "auto_unassign") {
           await supabase.from("case_assignments")
@@ -118,7 +119,8 @@ async function runStartDateMonitor(auth, cases) {
             .eq("case_id", c.id).eq("is_active", true);
           await supabase.from("cases").update({ status: "open" }).eq("id", c.id);
           for (const uid of consultants)
-            await notify(uid, "Assignment Removed", `Your assignment to "${c.title}" was removed — work was not started by the planned date (${c.start_date}).`);
+            await notify(uid, "Assignment Removed", `Your assignment to "${c.title}" was removed — work was not started by the planned date (${c.start_date}).`, 'case_lifecycle');
+            sendEmailToUser(uid, `Assignment Removed: ${c.title}`, `Your assignment to "${c.title}" was removed — work was not started by the planned date (${c.start_date}).`, 'case_lifecycle');
           await notifyManagers("Case Unassigned", `"${c.title}" was unassigned — consultant did not start by ${c.start_date}.`);
         } else {
           await notifyManagers("Case Start Overdue",
