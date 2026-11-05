@@ -310,6 +310,11 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [approvalBypass, setApprovalBypass]   = useState("");
   const [ratingModal, setRatingModal]         = useState(null); // { caseId, caseTitle, rateeId, rateeName, rateeRole, raterRole }
   const [clientRatingModal, setClientRatingModal] = useState(null); // { caseId, caseTitle, clientId, clientName }
+  const [coAssignSearch, setCoAssignSearch]   = useState("");
+  const [coAssignResults, setCoAssignResults] = useState([]);
+  const [coAssignLoading, setCoAssignLoading] = useState(false);
+  const [showCoAssign, setShowCoAssign]       = useState(false);
+  const [releasingId, setReleasingId]         = useState(null);
   const [generatingClosure, setGeneratingClosure] = useState(false);
   const [generatingDevPlan, setGeneratingDevPlan] = useState(false);
   const [devPlanPreview, setDevPlanPreview]   = useState(null);
@@ -2262,6 +2267,53 @@ ${tableHtml(['Role','Name','Signature','Date'],[
     );
   }
 
+  async function searchCoAssign(q) {
+    if (!q.trim()) { setCoAssignResults([]); return; }
+    setCoAssignLoading(true);
+    const { data } = await supabase.from("users")
+      .select("id, full_name, email, avatar_url")
+      .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
+      .in("role", ["consultant", "internal_consultant"])
+      .limit(8);
+    const activeIds = new Set((caseData.case_assignments ?? [])
+      .filter(a => a.is_active !== false).map(a => a.consultant_id));
+    setCoAssignResults((data ?? []).filter(u => !activeIds.has(u.id)));
+    setCoAssignLoading(false);
+  }
+
+  async function addCoConsultant(user) {
+    const { error } = await supabase.from("case_assignments").upsert(
+      { case_id: caseData.id, consultant_id: user.id, time_commitment: 100, is_active: true },
+      { onConflict: "case_id,consultant_id" }
+    );
+    if (error) return;
+    notify(user.id, "Case Assignment", `You have been assigned to "${caseData.title}" as a co-consultant.`, "case_assignment");
+    setShowCoAssign(false);
+    setCoAssignSearch("");
+    setCoAssignResults([]);
+    onCaseUpdate?.();
+  }
+
+  async function releaseConsultant(consultantId) {
+    if (!window.confirm("Release this consultant? Their assignment will be kept for records and the case will return to the arena stage.")) return;
+    setReleasingId(consultantId);
+    const { data: lcs } = await supabase.from("lifecycle_templates").select("stages").eq("id", caseData.case_lifecycle?.id ?? "").maybeSingle().catch(() => ({ data: null }));
+    const stages = lcs?.stages ?? [];
+    const arenaKey = stages.find(s => s.is_arena)?.key ?? "estimated";
+    await supabase.from("case_assignments")
+      .update({ is_active: false, released_at: new Date().toISOString() })
+      .eq("case_id", caseData.id)
+      .eq("consultant_id", consultantId);
+    const remaining = (caseData.case_assignments ?? [])
+      .filter(a => a.consultant_id !== consultantId && a.is_active !== false);
+    if (remaining.length === 0) {
+      await supabase.from("cases").update({ status: arenaKey }).eq("id", caseData.id);
+    }
+    notify(consultantId, "Assignment Released", `Your assignment to "${caseData.title}" has been released.`, "case_assignment");
+    setReleasingId(null);
+    onCaseUpdate?.();
+  }
+
   return (
     <div className="space-y-4">
 
@@ -3106,7 +3158,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
 
           {/* Case Team card */}
           {(() => {
-            const consultant = caseData.case_assignments?.[0];
+            const consultant = (caseData.case_assignments ?? []).find(a => a.is_active !== false);
             const reviewerMember = (caseData.case_key_users ?? []).find(ku => ku.area === 'reviewer');
             const teamMembers = (caseData.case_key_users ?? []).filter(ku => ku.area !== 'reviewer');
             const reviewerDisplay = caseData.reviewer_name ?? reviewerMember?.users?.full_name ?? caseData.reviewer_email;
@@ -3130,14 +3182,71 @@ ${tableHtml(['Role','Name','Signature','Date'],[
               <div className="border border-gray-100 rounded-xl p-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Case Team</p>
                 <div className="space-y-1.5">
-                  {consultant && (
-                    <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-lg px-2.5 py-1.5">
+                  {/* Active consultants */}
+                  {(caseData.case_assignments ?? []).filter(a => a.is_active !== false).map(a => (
+                    <div key={a.consultant_id} className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-lg px-2.5 py-1.5">
                       <Briefcase className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <div className="font-medium text-gray-900 text-xs truncate">{consultant.users?.full_name ?? "—"}</div>
-                        <div className="text-[10px] text-gray-400 truncate">{consultant.users?.email}</div>
+                        <div className="font-medium text-gray-900 text-xs truncate">{a.users?.full_name ?? "—"}</div>
+                        <div className="text-[10px] text-gray-400 truncate">{a.users?.email}</div>
                       </div>
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-green-100 text-green-700 rounded flex-shrink-0">Consultant</span>
+                      {(auth.isManager || auth.isAdmin) && (
+                        <button onClick={() => releaseConsultant(a.consultant_id)} disabled={releasingId === a.consultant_id}
+                          title="Release consultant"
+                          className="ml-1 p-0.5 rounded hover:bg-red-100 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {/* Released consultants (history) */}
+                  {(caseData.case_assignments ?? []).filter(a => a.is_active === false).map(a => (
+                    <div key={a.consultant_id} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1.5 opacity-60">
+                      <Briefcase className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-gray-500 text-xs truncate line-through">{a.users?.full_name ?? "—"}</div>
+                        <div className="text-[10px] text-gray-400 truncate">{a.released_at ? `Released ${fmtDate(a.released_at)}` : "Released"}</div>
+                      </div>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded flex-shrink-0">Released</span>
+                    </div>
+                  ))}
+                  {/* Add co-consultant button */}
+                  {(auth.isManager || auth.isAdmin) && !showCoAssign && (
+                    <button onClick={() => setShowCoAssign(true)}
+                      className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-semibold mt-1 px-1">
+                      <UserPlus className="w-3.5 h-3.5" /> Add co-consultant
+                    </button>
+                  )}
+                  {/* Co-assign panel */}
+                  {(auth.isManager || auth.isAdmin) && showCoAssign && (
+                    <div className="mt-2 border border-blue-100 rounded-lg p-2.5 bg-blue-50/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <input autoFocus value={coAssignSearch}
+                          onChange={e => { setCoAssignSearch(e.target.value); searchCoAssign(e.target.value); }}
+                          placeholder="Search consultants…"
+                          className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                        <button onClick={() => { setShowCoAssign(false); setCoAssignSearch(""); setCoAssignResults([]); }}
+                          className="p-1 hover:bg-gray-100 rounded-lg">
+                          <X className="w-3.5 h-3.5 text-gray-400" />
+                        </button>
+                      </div>
+                      {coAssignLoading && <div className="text-[10px] text-gray-400 px-1">Searching…</div>}
+                      {coAssignResults.map(u => (
+                        <button key={u.id} onClick={() => addCoConsultant(u)}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-blue-100 rounded-lg text-left transition-colors">
+                          <div className="w-6 h-6 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                            {(u.full_name ?? u.email ?? "?")[0].toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium text-gray-900 truncate">{u.full_name ?? "—"}</div>
+                            <div className="text-[10px] text-gray-400 truncate">{u.email}</div>
+                          </div>
+                        </button>
+                      ))}
+                      {!coAssignLoading && coAssignSearch && coAssignResults.length === 0 && (
+                        <div className="text-[10px] text-gray-400 px-1">No consultants found.</div>
+                      )}
                     </div>
                   )}
                   {teamMembers.map(ku => {

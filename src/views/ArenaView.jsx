@@ -952,7 +952,7 @@ function ArenaView({ auth, onNavigate }) {
     const arenaKeys = lcStages.filter(s => s.is_arena).map(s => s.key);
     // Fall back to "estimated" for templates that predate the is_arena field
     const isArenaStage = arenaKeys.length > 0 ? arenaKeys.includes(c.status) : c.status === "estimated";
-    if (!isArenaStage || (c.case_assignments && c.case_assignments.length > 0)) return false;
+    if (!isArenaStage || c.case_assignments?.some(a => a.is_active !== false)) return false;
     // Clients only see their own cases unless arena_see_all_cases is enabled
     if (auth.isClient && !can('arena_see_all_cases') && c.client_id !== auth.user?.id) return false;
     const vis = visCfg.getCaseVisibility(c.id, c.client_id);

@@ -99,7 +99,7 @@ function Dashboard({ auth, onNavigate }) {
     const arenaKeys = lcStages.filter(s => s.is_arena).map(s => s.key);
     const isArenaStage = arenaKeys.length > 0 ? arenaKeys.includes(c.status) : c.status === 'estimated';
     if (!isArenaStage) return false;
-    if (c.case_assignments && c.case_assignments.length > 0) return false;
+    if (c.case_assignments?.some(a => a.is_active !== false)) return false;
     if (_hasApplied(c)) return false;
     const vis = _dashVisCfg.getCaseVisibility(c.id, c.client_id);
     if (vis === 'private') return false;
@@ -116,7 +116,7 @@ function Dashboard({ auth, onNavigate }) {
     const isArenaStage = arenaKeys.length > 0 ? arenaKeys.includes(c.status) : c.status === 'estimated';
     return isArenaStage &&
       !_hasApplied(c) &&
-      !(c.case_assignments && c.case_assignments.length > 0) &&
+      !c.case_assignments?.some(a => a.is_active !== false) &&
       c.min_trust_level &&
       TRUST_ORDER.indexOf(c.min_trust_level) > _userTrustIdx;
   });

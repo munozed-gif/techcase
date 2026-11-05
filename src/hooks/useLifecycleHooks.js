@@ -113,7 +113,9 @@ async function runStartDateMonitor(auth, cases) {
             await notify(uid, "Case Auto-Started", `"${c.title}" was automatically moved to In Progress as the start date has passed.`);
           await notifyManagers("Case Auto-Started", `"${c.title}" was automatically moved to In Progress — start date ${c.start_date} has passed.`);
         } else if (s.start_overdue_action === "auto_unassign") {
-          await supabase.from("case_assignments").delete().eq("case_id", c.id);
+          await supabase.from("case_assignments")
+            .update({ is_active: false, released_at: new Date().toISOString() })
+            .eq("case_id", c.id).eq("is_active", true);
           await supabase.from("cases").update({ status: "open" }).eq("id", c.id);
           for (const uid of consultants)
             await notify(uid, "Assignment Removed", `Your assignment to "${c.title}" was removed — work was not started by the planned date (${c.start_date}).`);
