@@ -206,12 +206,20 @@ function Dashboard({ auth, onNavigate }) {
       clientStripMap.get(c.client_id).isFollowed = true;
     });
   }
-  // 3. seed ALL clients with active cases visible on the platform
-  cases.forEach(c => {
-    if (!c.client_id || !['in_progress', 'open'].includes(c.status)) return;
-    stripClientEntry(c, clientStripMap);
-    clientStripMap.get(c.client_id).hasActivePlatformCase = true;
-  });
+  // 3. seed only clients with cases the consultant can actually apply to
+  if (auth.isConsultant) {
+    availableCases.forEach(c => {
+      if (!c.client_id) return;
+      stripClientEntry(c, clientStripMap);
+      clientStripMap.get(c.client_id).hasActivePlatformCase = true;
+    });
+  } else {
+    cases.forEach(c => {
+      if (!c.client_id || !['in_progress', 'open'].includes(c.status)) return;
+      stripClientEntry(c, clientStripMap);
+      clientStripMap.get(c.client_id).hasActivePlatformCase = true;
+    });
+  }
   const activeClients    = [...clientStripMap.values()].filter(cl => cl.activeCases > 0);
   const followedClients  = [...clientStripMap.values()].filter(cl => cl.activeCases === 0 && cl.pastCases === 0 && cl.isFollowed);
   const platformClients  = [...clientStripMap.values()].filter(cl => cl.activeCases === 0 && !cl.isFollowed && cl.hasActivePlatformCase);
