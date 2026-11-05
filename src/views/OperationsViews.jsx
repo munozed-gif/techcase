@@ -10,7 +10,7 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { useNotifications, useLeaderboard } from "../hooks/useNotificationHooks.js";
 import { useClientTeamMembers, useDbConnections, useInvoices, useSlaConfig, useTimeEntries } from "../hooks/useCoreHooks.js";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
-import { logEvent, notify } from "../lib/utils.js";
+import { logEvent, notify, resolveNavigation } from "../lib/utils.js";
 import { Badge, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_TIER_LABEL_KEYS, STATUS_LABEL_KEYS, SlaMatrixEditor, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
@@ -143,18 +143,28 @@ function NotificationsView() {
               <p className="text-sm font-medium">{t("notif.none")}</p>
               <p className="text-xs mt-1">{t("notif.none_hint")}</p>
             </div>
-          ) : filtered.map(n => (
-            <div key={n.id} onClick={() => !n.is_read && markRead(n.id)}
-              className={`flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-colors ${
-                n.is_read ? "bg-white border-gray-100 hover:bg-gray-50" : "bg-blue-50 border-blue-100 hover:bg-blue-100"}`}>
-              <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${n.is_read ? "bg-gray-200" : "bg-blue-500"}`} />
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm text-gray-900">{n.title}</div>
-                {n.body && <div className="text-sm text-gray-500 mt-0.5">{n.body}</div>}
-                <div className="text-xs text-gray-400 mt-1">{fmtDate(n.created_at)}</div>
+          ) : filtered.map(n => {
+            const nav = resolveNavigation(n);
+            function handleNotifClick() {
+              if (!n.is_read) markRead(n.id);
+              if (nav) window.dispatchEvent(new CustomEvent("nav-from-notification", { detail: nav }));
+            }
+            return (
+              <div key={n.id} onClick={handleNotifClick}
+                className={`flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-colors ${
+                  n.is_read ? "bg-white border-gray-100 hover:bg-gray-50" : "bg-blue-50 border-blue-100 hover:bg-blue-100"}`}>
+                <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${n.is_read ? "bg-gray-200" : "bg-blue-500"}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-gray-900">{n.title}</div>
+                  {n.body && <div className="text-sm text-gray-500 mt-0.5">{n.body}</div>}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-gray-400">{fmtDate(n.created_at)}</span>
+                    {nav && <span className="text-[10px] text-blue-500">Tap to view →</span>}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

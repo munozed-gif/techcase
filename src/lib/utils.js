@@ -227,4 +227,13 @@ async function logEvent(eventType, opts = {}) {
   } catch (_) {}
 }
 
-export { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, clearAuditConfigCache, buildEmailHtml, sendEmail, sendEmailToUser, sendEmailToManagers };
+function resolveNavigation(n) {
+  const title = n.title ?? "";
+  if (/team invitation/i.test(title)) return { view: "profile", tab: "teams" };
+  if (/vouched for you/i.test(title)) return { view: "profile", tab: "experience" };
+  if (/you received a.*rating/i.test(title)) return { view: "profile", tab: "experience" };
+  if (n.case_id) return { view: "cases", caseId: n.case_id };
+  return null;
+}
+
+export { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, clearAuditConfigCache, buildEmailHtml, sendEmail, sendEmailToUser, sendEmailToManagers, resolveNavigation };

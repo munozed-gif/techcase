@@ -6,6 +6,7 @@ import { useT } from "../i18n/index.jsx";
 import { Badge } from "./ProfileComponents.jsx";
 import { STATUS_COLORS } from "../lib/businessConstants.js";
 import { STATUS_LABEL_KEYS, cap, fmt, timeAgo } from "../lib/uiUtils.jsx";
+import { resolveNavigation } from "../lib/utils.js";
 
 // FEED_TYPE_STYLES, FeedCard, FeedPreferencesModal, stars
 
@@ -29,7 +30,12 @@ function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
 
   function handleClick() {
     if (item.is_unread && item._key?.startsWith('notif-') && onMarkRead) onMarkRead(item.id);
-    if (caseData && onOpenCase) onOpenCase(caseData);
+    if (caseData && onOpenCase) {
+      onOpenCase(caseData);
+    } else if (item._key?.startsWith('notif-')) {
+      const dest = resolveNavigation(item);
+      if (dest) window.dispatchEvent(new CustomEvent("nav-from-notification", { detail: dest }));
+    }
   }
 
   return (

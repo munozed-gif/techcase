@@ -1,15 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Bell } from "lucide-react";
 import { useNotifications } from "../hooks/useNotificationHooks.js";
-
-function resolveNavigation(n) {
-  const title = n.title ?? "";
-  if (/team invitation/i.test(title)) return { view: "profile", tab: "teams" };
-  if (/vouched for you/i.test(title)) return { view: "profile", tab: "experience" };
-  if (/you received a.*rating/i.test(title)) return { view: "profile", tab: "experience" };
-  if (n.case_id) return { view: "cases", caseId: n.case_id };
-  return null;
-}
+import { resolveNavigation } from "../lib/utils.js";
 
 function NotificationBell({ auth }) {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
