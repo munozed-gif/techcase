@@ -987,6 +987,11 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [additionalCtx, setAdditionalCtx]           = useState('');
   const [additionalCtxSaving, setAdditionalCtxSaving] = useState(false);
 
+  // Approval workflow sub-steps (Node 4)
+  const [approvalStep, setApprovalStep]     = useState('generated'); // 'generated'|'checking'|'sending'|'approved'
+  const [specFeedback, setSpecFeedback]     = useState(''); // cumulative per-cycle feedback text
+  const [genLog, setGenLog]                 = useState([]); // mirrors spec.generation_log
+
   // Share-with-customer link state
   const [shareToken, setShareToken]         = useState(null); // loaded spec_review_tokens row
   const [shareCreating, setShareCreating]   = useState(false);
@@ -1021,6 +1026,16 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     }).catch(() => { setProjDocsForDisplay([]); setAbapDocsForDisplay([]); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseData.project_id]);
+
+  // Sync approval step and generation log when spec row changes
+  useEffect(() => {
+    if (!spec) return;
+    if (spec.status === 'approved') setApprovalStep('approved');
+    else if (spec.status === 'submitted') setApprovalStep('sending');
+    // else keep whatever the user navigated to (don't reset 'checking' on refetch)
+    if (Array.isArray(spec.generation_log)) setGenLog(spec.generation_log);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spec?.id, spec?.status]);
 
   // ── Document helpers ─────────────────────────────────────────
   function blobToBase64(blob) {
@@ -3155,10 +3170,10 @@ CRITICAL HTML STRUCTURE — follow exactly:
 OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No explanation, no markdown fences, no text before or after the HTML.`;
   }
 
-  async function handleGenerateSpecs({ autoSubmit = false, genProfile = null } = {}) {
+  async function handleGenerateSpecs({ autoSubmit = false, genProfile = null, fromApprovalReview = false } = {}) {
     if (!genProfile) {
       // Show profile picker modal; actual generation runs after modal confirm
-      setPendingGenOpts({ autoSubmit });
+      setPendingGenOpts({ autoSubmit, fromApprovalReview });
       setShowGenModal(true);
       return;
     }
@@ -3183,7 +3198,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const _baseCtx = sanitizeForJson(genCtxResult);
       const summaryCtx = requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '';
       const additionalCtxStr = additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '';
-      const contextStr = _baseCtx + summaryCtx + additionalCtxStr;
+      const reviewFeedbackStr = specFeedback?.trim() ? `\n\nREVIEW FEEDBACK (apply to this generation — cumulative notes from previous review rounds):\n${sanitizeForJson(specFeedback.trim())}` : '';
+      const contextStr = _baseCtx + summaryCtx + additionalCtxStr + reviewFeedbackStr;
       const hasLiveSap = contextStr.includes('SAP Live System:');
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       const sysLiveNote = hasLiveSap
@@ -3276,10 +3292,19 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       setProtoError(false);
       setViewingProto(false);
       const saveStatus = autoSubmit ? 'submitted' : 'draft';
+      const newLogEntry = {
+        iteration: (genLog.length + 1),
+        timestamp: new Date().toISOString(),
+        feedback: specFeedback?.trim() || null,
+        specs: [specA && 'A', specB && 'B', specC && 'C', specD && 'D'].filter(Boolean),
+      };
+      const updatedLog = [...genLog, newLogEntry];
       try {
-        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
+        setGenLog(updatedLog);
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (_) {}
+      if (fromApprovalReview) setApprovalStep('sending');
       await saveAllSpecsAsDocuments(specA, specB, specC, specD, sapCheck, proposalCheck);
 
       // Generate interactive prototype if enabled for this profile
@@ -4615,37 +4640,236 @@ Respond with ONLY a valid JSON object, no markdown fences:
               </div>
             )}
 
-            {/* ── Node 4: Approval ── */}
-            {activeNode === 4 && (
-              <div className="space-y-3">
-                {spec?.status === 'approved' && (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-green-800 text-xs">{t("spec.approved_title")}</p>
-                      {spec.approved_at && <p className="text-xs text-green-600 mt-0.5">{t("spec.approved_on").replace("{n}", fmtDate(spec.approved_at))}</p>}
+            {/* ── Node 4: Approval workflow ── */}
+            {activeNode === 4 && (() => {
+              const STEPS = [
+                { key: 'generated', label: 'Spec Generated' },
+                { key: 'checking',  label: 'Checking Spec'  },
+                { key: 'sending',   label: 'Send for Approval' },
+                { key: 'approved',  label: 'Approved'        },
+              ];
+              const stepIdx = { generated: 0, checking: 1, sending: 2, approved: 3 }[approvalStep] ?? 0;
+
+              // ── Share section (reused in sending + approved steps) ──
+              const ShareSection = () => {
+                const hasSpecDocs = (documents ?? []).some(d =>
+                  d.file_name && ['SpecA_','SpecB_','SpecC_','SpecD_','Prototype_'].some(p => d.file_name.startsWith(p))
+                );
+                const shareUrl = shareToken ? `${window.location.origin}/review/${shareToken.token}` : null;
+                const shareStatus = shareToken?.status;
+                return (
+                  <div className="border border-dashed border-blue-200 dark:border-blue-800 rounded-xl p-3 bg-blue-50/50 dark:bg-blue-900/10">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <Link2 className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">{t("spec.share_btn")}</p>
+                          {shareToken && (
+                            <p className={`text-xs mt-0.5 ${shareStatus === 'approved' ? 'text-green-600' : shareStatus === 'changes_requested' ? 'text-amber-600' : 'text-blue-600'}`}>
+                              {shareStatus === 'approved' ? ('✓ ' + t("spec.share_status_approved"))
+                                : shareStatus === 'changes_requested' ? ('⚠ ' + t("spec.share_status_changes"))
+                                : t("spec.share_link_label")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {!hasSpecDocs && !shareToken && <p className="text-xs text-gray-400">{t("spec.share_no_docs")}</p>}
+                        {shareUrl && (
+                          <input readOnly value={shareUrl}
+                            className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-gray-600 dark:text-gray-300 w-52 truncate cursor-pointer"
+                            onClick={copyShareLink} title={shareUrl} />
+                        )}
+                        {shareUrl && (
+                          <button onClick={copyShareLink}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${shareCopied ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}>
+                            {shareCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            {shareCopied ? t("spec.share_link_copied") : t("spec.share_copy_link")}
+                          </button>
+                        )}
+                        {(hasSpecDocs || shareToken) && (
+                          <button onClick={createShareLink} disabled={shareCreating}
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors">
+                            {shareCreating ? <span className="animate-spin inline-block">↻</span> : <ExternalLink className="w-3 h-3" />}
+                            {shareToken ? t("spec.share_new_link") : (shareCreating ? t("spec.share_creating") : t("spec.share_btn"))}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
-                {spec?.status === 'submitted' && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
-                    <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                    <p className="text-xs text-amber-800 font-medium">{t("spec.awaiting")}</p>
+                );
+              };
+
+              return (
+                <div className="space-y-4">
+
+                  {/* ── Roadmap stepper ── */}
+                  <div className="flex items-center gap-0 overflow-x-auto pb-1">
+                    {STEPS.map((s, i) => {
+                      const done    = i < stepIdx;
+                      const active  = i === stepIdx;
+                      return (
+                        <Fragment key={s.key}>
+                          <div className="flex flex-col items-center gap-1 min-w-0 flex-shrink-0">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-colors
+                              ${done   ? 'bg-blue-600 border-blue-600 text-white'
+                              : active ? 'bg-white border-blue-600 text-blue-600'
+                              :          'bg-white border-gray-300 text-gray-400'}`}>
+                              {done ? <Check className="w-3 h-3" /> : (i + 1)}
+                            </div>
+                            <span className={`text-[10px] font-semibold text-center leading-tight whitespace-nowrap
+                              ${done ? 'text-blue-600' : active ? 'text-blue-700' : 'text-gray-400'}`}>
+                              {s.label}
+                            </span>
+                          </div>
+                          {i < STEPS.length - 1 && (
+                            <div className={`h-0.5 flex-1 mx-1 mt-[-12px] min-w-[12px] transition-colors ${i < stepIdx ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </div>
-                )}
-                {spec && (
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-blue-600" />
-                      <span className="font-semibold text-gray-900 text-xs">{spec.title || t("spec.title_fallback")}</span>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${{ submitted:'bg-amber-100 text-amber-700 border border-amber-200', approved:'bg-green-100 text-green-700 border border-green-200', draft:'bg-gray-100 text-gray-600 border border-gray-200' }[spec.status] ?? ''}`}>
-                        {t("spec.status_" + spec.status) || cap(spec.status)}
-                      </span>
+
+                  {/* ── No spec yet ── */}
+                  {!spec && (
+                    <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
+                      <Award className="w-8 h-8 opacity-40" />
+                      <p className="text-xs">{t("spec.approval_pending_desc")}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {/* Regenerate is intentionally removed after approval — spec is frozen */}
+                  )}
+
+                  {/* ── Step 1: Spec Generated (log) ── */}
+                  {spec && approvalStep === 'generated' && (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 flex items-center justify-between">
+                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                            <FileText className="w-3.5 h-3.5" /> Generation Log
+                          </p>
+                          <span className="text-[10px] text-gray-400">{genLog.length} run{genLog.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        {genLog.length === 0 ? (
+                          <div className="px-3 py-4 text-center text-xs text-gray-400">No generation runs recorded yet.</div>
+                        ) : (
+                          <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                            {[...genLog].reverse().map((entry, ri) => {
+                              const idx = genLog.length - ri;
+                              const ts = new Date(entry.timestamp);
+                              const dateStr = ts.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                              const timeStr = ts.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                              return (
+                                <div key={ri} className="px-3 py-2.5">
+                                  <div className="flex items-center justify-between gap-2 mb-1">
+                                    <span className="text-[11px] font-semibold text-blue-600">Iteration {idx}</span>
+                                    <span className="text-[10px] text-gray-400">{dateStr} · {timeStr}</span>
+                                  </div>
+                                  {entry.specs?.length > 0 && (
+                                    <div className="flex gap-1 flex-wrap mb-1">
+                                      {entry.specs.map(s => (
+                                        <span key={s} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded font-medium border border-blue-100">Spec {s}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {entry.feedback && (
+                                    <p className="text-[11px] text-gray-500 italic mt-0.5 line-clamp-2">"{entry.feedback}"</p>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      {spec.content && (
+                        <div className="overflow-y-auto max-h-[320px]">
+                          <MarkdownAccordion text={spec.content} />
+                        </div>
+                      )}
+                      <div className="flex justify-end">
+                        <button onClick={() => setApprovalStep('checking')}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5">
+                          Review &amp; Refine →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Step 2: Checking Spec ── */}
+                  {spec && approvalStep === 'checking' && (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-blue-800/40 bg-[#0d1b2e] overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 pt-3 pb-1">
+                          <div className="w-2 h-2 rounded-full bg-blue-500 opacity-70" />
+                          <p className="text-[11px] font-semibold text-blue-300">What do you want to change or add to the next generation?</p>
+                        </div>
+                        <textarea
+                          value={specFeedback}
+                          onChange={e => setSpecFeedback(e.target.value)}
+                          rows={6}
+                          placeholder={"e.g. Add more detail to the authorization concept in Spec A. In Spec B, include the RFC function module names. Remove section 4 from Spec C…"}
+                          className="w-full bg-transparent px-3 py-2 text-xs text-gray-200 placeholder-gray-600 resize-none focus:outline-none font-mono leading-relaxed"
+                        />
+                        <div className="px-3 pb-2 flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-400 opacity-70" />
+                          <span className="text-[10px] text-gray-500">Feedback accumulates across iterations — Claude sees the full history</span>
+                        </div>
+                      </div>
+                      {genLog.length > 0 && (
+                        <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                          <span className="font-semibold text-gray-500">Last run:</span>
+                          Iteration {genLog.length} · {new Date(genLog[genLog.length-1]?.timestamp).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                          {genLog[genLog.length-1]?.specs?.length > 0 && ` · Spec ${genLog[genLog.length-1].specs.join(', ')}`}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between gap-2">
+                        <button onClick={() => setApprovalStep('generated')}
+                          className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                          ← Back to log
+                        </button>
+                        <button
+                          onClick={() => handleGenerateSpecs({ genProfile: activeProfile, fromApprovalReview: true })}
+                          disabled={generatingSpecs}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5">
+                          {generatingSpecs ? <><span className="animate-spin inline-block">↻</span> Generating…</> : '↻ Generate Again'}
+                        </button>
+                      </div>
+                      {generatingSpecs && (
+                        <div className="flex items-center gap-2 text-xs text-blue-400 bg-blue-950/40 border border-blue-800/40 rounded-xl px-3 py-2">
+                          <span className="animate-spin inline-block">↻</span>
+                          Generating specs with your feedback — this may take a minute…
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Step 3: Sending for Approval ── */}
+                  {spec && approvalStep === 'sending' && (
+                    <div className="space-y-3">
+                      {spec.status === 'submitted' ? (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
+                          <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                          <p className="text-xs text-amber-800 font-medium">{t("spec.awaiting")}</p>
+                        </div>
+                      ) : (
+                        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{spec.title || t("spec.title_fallback")}</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200 capitalize">{spec.status}</span>
+                          </div>
+                          {genLog.length > 0 && (
+                            <p className="text-[11px] text-gray-500">
+                              {genLog.length} generation run{genLog.length !== 1 ? 's' : ''} completed
+                              {genLog[genLog.length-1]?.feedback ? ' · includes your review feedback' : ''}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <ShareSection />
+
+                      {/* Approve / reject for managers */}
                       {spec.status === 'submitted' && canApprove && (
-                        <Fragment>
+                        <div className="flex items-center gap-2 justify-end">
                           <button onClick={handleApprove} disabled={approving}
                             className="px-3 py-1.5 text-xs font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
                             {approving ? t("state.saving") : t("spec.approve_btn")}
@@ -4654,91 +4878,91 @@ Respond with ONLY a valid JSON object, no markdown fences:
                             className="px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
                             {t("spec.reject_btn")}
                           </button>
-                        </Fragment>
+                        </div>
                       )}
-                    </div>
-                  </div>
-                )}
-                {showRejectInput && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-2">
-                    <label className="block text-xs font-semibold text-red-700">{t("spec.reject_reason")}</label>
-                    <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                      className="w-full border border-red-200 rounded-lg p-2 text-xs resize-none" rows={3}
-                      placeholder={t("spec.ph_rejection")} />
-                    <div className="flex gap-2 justify-end">
-                      <button onClick={() => setShowRejectInput(false)} className="px-3 py-1.5 text-xs text-gray-500">{t("action.cancel")}</button>
-                      <button onClick={handleReject} disabled={!rejectReason.trim() || approving}
-                        className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
-                        {t("spec.confirm_reject")}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {/* ── Share with Customer ── */}
-                {(() => {
-                  const hasSpecDocs = (documents ?? []).some(d =>
-                    d.file_name && ['SpecA_','SpecB_','SpecC_','SpecD_','Prototype_'].some(p => d.file_name.startsWith(p))
-                  );
-                  const shareUrl = shareToken ? `${window.location.origin}/review/${shareToken.token}` : null;
-                  const shareStatus = shareToken?.status;
-                  return (
-                    <div className="border border-dashed border-blue-200 dark:border-blue-800 rounded-xl p-3 bg-blue-50/50 dark:bg-blue-900/10">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <Link2 className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">{t("spec.share_btn")}</p>
-                            {shareToken && (
-                              <p className={`text-xs mt-0.5 ${shareStatus === 'approved' ? 'text-green-600' : shareStatus === 'changes_requested' ? 'text-amber-600' : 'text-blue-600'}`}>
-                                {shareStatus === 'approved' ? ('✓ ' + t("spec.share_status_approved"))
-                                  : shareStatus === 'changes_requested' ? ('⚠ ' + t("spec.share_status_changes"))
-                                  : t("spec.share_link_label")}
-                              </p>
-                            )}
+                      {showRejectInput && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-2">
+                          <label className="block text-xs font-semibold text-red-700">{t("spec.reject_reason")}</label>
+                          <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                            className="w-full border border-red-200 rounded-lg p-2 text-xs resize-none" rows={3}
+                            placeholder={t("spec.ph_rejection")} />
+                          <div className="flex gap-2 justify-end">
+                            <button onClick={() => setShowRejectInput(false)} className="px-3 py-1.5 text-xs text-gray-500">{t("action.cancel")}</button>
+                            <button onClick={handleReject} disabled={!rejectReason.trim() || approving}
+                              className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
+                              {t("spec.confirm_reject")}
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {!hasSpecDocs && !shareToken && (
-                            <p className="text-xs text-gray-400">{t("spec.share_no_docs")}</p>
-                          )}
-                          {shareUrl && (
-                            <input readOnly value={shareUrl}
-                              className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-gray-600 dark:text-gray-300 w-52 truncate cursor-pointer"
-                              onClick={copyShareLink} title={shareUrl} />
-                          )}
-                          {shareUrl && (
-                            <button onClick={copyShareLink}
-                              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${shareCopied ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}>
-                              {shareCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                              {shareCopied ? t("spec.share_link_copied") : t("spec.share_copy_link")}
-                            </button>
-                          )}
-                          {(hasSpecDocs || shareToken) && (
-                            <button onClick={createShareLink} disabled={shareCreating}
-                              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors">
-                              {shareCreating ? <span className="animate-spin inline-block">↻</span> : <ExternalLink className="w-3 h-3" />}
-                              {shareToken ? t("spec.share_new_link") : (shareCreating ? t("spec.share_creating") : t("spec.share_btn"))}
-                            </button>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <button onClick={() => setApprovalStep('checking')}
+                          className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                          ← Back to review
+                        </button>
+                        {spec.status !== 'submitted' && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await saveSpec({ status: 'submitted' });
+                                logEvent('spec.submitted', { entityType: 'case', entityId: caseData.id, entityName: caseData.title });
+                              } catch (_) {}
+                            }}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5">
+                            Send for Approval →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Step 4: Approved ── */}
+                  {spec && approvalStep === 'approved' && (
+                    <div className="space-y-3">
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-green-800 text-sm">{t("spec.approved_title")}</p>
+                          {spec.approved_at && <p className="text-xs text-green-600 mt-0.5">{t("spec.approved_on").replace("{n}", fmtDate(spec.approved_at))}</p>}
+                          {genLog.length > 0 && (
+                            <p className="text-xs text-green-500 mt-1">{genLog.length} generation iteration{genLog.length !== 1 ? 's' : ''} to reach approval</p>
                           )}
                         </div>
                       </div>
+                      <ShareSection />
+                      {spec.content && (
+                        <details className="group">
+                          <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                            <span className="group-open:hidden">▶ Show generation log ({genLog.length} runs)</span>
+                            <span className="hidden group-open:inline">▼ Hide generation log</span>
+                          </summary>
+                          <div className="mt-2 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            {genLog.length === 0 ? (
+                              <div className="px-3 py-3 text-xs text-gray-400 text-center">No log entries.</div>
+                            ) : (
+                              <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                                {genLog.map((entry, i) => (
+                                  <div key={i} className="px-3 py-2">
+                                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                                      <span className="text-[11px] font-semibold text-blue-600">Iteration {entry.iteration ?? (i + 1)}</span>
+                                      <span className="text-[10px] text-gray-400">{new Date(entry.timestamp).toLocaleString()}</span>
+                                    </div>
+                                    {entry.specs?.length > 0 && <div className="flex gap-1 flex-wrap mb-0.5">{entry.specs.map(s => <span key={s} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100">Spec {s}</span>)}</div>}
+                                    {entry.feedback && <p className="text-[11px] text-gray-500 italic">"{entry.feedback}"</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </details>
+                      )}
                     </div>
-                  );
-                })()}
+                  )}
 
-                {spec?.content && (
-                  <div className="overflow-y-auto max-h-[520px]">
-                    <MarkdownAccordion text={spec.content} />
-                  </div>
-                )}
-                {!spec && (
-                  <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
-                    <Award className="w-8 h-8 opacity-40" />
-                    <p className="text-xs">{t("spec.approval_pending_desc")}</p>
-                  </div>
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })()}
 
             {/* ── Node 0: Documents ── */}
             {activeNode === 0 && (() => {
