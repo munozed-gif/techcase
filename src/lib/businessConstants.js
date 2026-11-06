@@ -197,17 +197,17 @@ const LIFECYCLE_PRESETS = {
   },
 };
 
-function getLifecycleStages(lifecycle, templates) {
+function getLifecycleStages(lifecycle, templates, fallbackPreset = "standard") {
   function resolvePreset(preset) {
     if (templates?.length) {
       const tmpl = templates.find(t => t.key === preset);
       if (tmpl) return tmpl.stages;
     }
-    return LIFECYCLE_PRESETS[preset]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
+    return LIFECYCLE_PRESETS[preset]?.stages ?? LIFECYCLE_PRESETS[fallbackPreset]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
   }
-  if (!lifecycle) return resolvePreset("standard");
+  if (!lifecycle) return resolvePreset(fallbackPreset);
   if (lifecycle.preset && lifecycle.preset !== "custom") return resolvePreset(lifecycle.preset);
-  return lifecycle.stages?.length ? lifecycle.stages : resolvePreset("standard");
+  return lifecycle.stages?.length ? lifecycle.stages : resolvePreset(fallbackPreset);
 }
 
 // ── Transition gate condition definitions ──────────────────────

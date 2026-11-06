@@ -417,13 +417,14 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }, [caseData.parent_case_id]);
 
   // Sync lcMode once inherited lifecycle resolves.
-  // Chain: parent case → project → client → standard
+  // Chain: parent case → project → client → system default → "standard"
   useEffect(() => {
     if (!caseData.case_lifecycle) {
-      const effectivePreset = parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard";
+      const sysDefault = ssCtxCD.settings?.["default_lifecycle_config"]?.case?.preset ?? "standard";
+      const effectivePreset = parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? sysDefault;
       setLcMode(effectivePreset);
     }
-  }, [parentCaseLifecycle, projectLifecycle, clientLifecycle]);
+  }, [parentCaseLifecycle, projectLifecycle, clientLifecycle, ssCtxCD.settings]);
 
   const effectiveLifecycle = caseData.case_lifecycle ?? parentCaseLifecycle ?? projectLifecycle ?? clientLifecycle;
   const lifecycleStages = getLifecycleStages(effectiveLifecycle, caseLcTemplates);
@@ -5517,9 +5518,10 @@ ${tableHtml(['Role','Name','Signature','Date'],[
                     {tab.id === "lifecycle" && perms.can("view_lifecycle") && (() => {
         if (lcMode === null) return <div className="flex justify-center py-10"><Spinner /></div>;
         const sysLcDefault = ssCtxCD.settings?.["default_lifecycle_config"];
+        const sysCaseDefault = sysLcDefault?.case?.preset ?? "standard";
         const caseOverrideAllowed = !caseData.client_id ? true : (clientLifecycle?.allow_case_override ?? sysLcDefault?.case?.allow_override ?? true);
         const tmplList = caseLcTemplates.length ? caseLcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
-        const inheritedPreset = caseData.case_lifecycle?.preset ?? parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard";
+        const inheritedPreset = caseData.case_lifecycle?.preset ?? parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? sysCaseDefault;
         const previewStages = getCaseTmplStages(lcMode);
         const previewActive = previewStages.filter(s => !s.is_terminal);
         const previewTerminal = previewStages.filter(s => s.is_terminal);
@@ -5577,7 +5579,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
                   })}
                 </div>
 
-                {lcMode !== (caseData.case_lifecycle?.preset ?? parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard") && (
+                {lcMode !== (caseData.case_lifecycle?.preset ?? parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? sysCaseDefault) && (
                   <LifecycleFlowDiagram stages={previewStages} currentStatus={null} />
                 )}
 

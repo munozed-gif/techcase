@@ -19,10 +19,10 @@ function useLifecycleTemplates() {
 
   useEffect(() => { fetchTemplates(); }, []);
 
-  function getTemplateStages(preset) {
+  function getTemplateStages(preset, fallbackPreset = "standard") {
     const tmpl = templates.find(t => t.key === preset);
     if (tmpl) return tmpl.stages;
-    return LIFECYCLE_PRESETS[preset]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
+    return LIFECYCLE_PRESETS[preset]?.stages ?? LIFECYCLE_PRESETS[fallbackPreset]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
   }
 
   return { templates, loadingTmpl, fetchTemplates, getTemplateStages };

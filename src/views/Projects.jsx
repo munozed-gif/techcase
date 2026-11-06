@@ -1655,7 +1655,8 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
     const all = _importSS["proj_tab_completions"] ?? {};
     ssSetSetting("proj_tab_completions", { ...all, [project.id]: next }).catch(() => {});
   }
-  const [projLcMode, setProjLcMode] = useState(project.case_lifecycle?.preset ?? "standard");
+  const sysLcDefault = _importSS?.["default_lifecycle_config"];
+  const [projLcMode, setProjLcMode] = useState(project.case_lifecycle?.preset ?? null);
   const [savingProjLc, setSavingProjLc] = useState(false);
   const [clientLcConfig, setClientLcConfig] = useState(null);
   const [expandedCase, setExpandedCase] = useState(null);
@@ -1945,6 +1946,16 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
       .single()
       .then(({ data }) => setClientLcConfig(data?.case_lifecycle ?? null));
   }, [project?.client_id]);
+
+  // Resolve projLcMode once async data is available:
+  // saved preset > client lifecycle preset > system default > "standard"
+  useEffect(() => {
+    if (project.case_lifecycle?.preset) return; // project already has a saved preset
+    const resolved = project.client_id
+      ? (clientLcConfig?.preset ?? sysLcDefault?.project?.preset ?? "standard")
+      : (sysLcDefault?.project?.preset ?? "standard");
+    setProjLcMode(resolved);
+  }, [clientLcConfig, sysLcDefault?.project?.preset]);
 
   async function handleStatusChange(newStatus) {
     const terminal = ["completed", "cancelled"];
@@ -3131,10 +3142,10 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
         {/* Lifecycle */}
         {tab.id === "lifecycle" && canEdit && (() => {
-          const sysLcDefault = _importSS?.["default_lifecycle_config"];
           const projOverrideAllowed = !project.client_id ? true : (clientLcConfig?.allow_project_override ?? sysLcDefault?.project?.allow_override ?? true);
           const tmplList = lcTemplates2.length ? lcTemplates2 : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
-          const previewStages = getProjTmplStages(projLcMode);
+          const sysProjDefault = sysLcDefault?.project?.preset ?? "standard";
+          const previewStages = getProjTmplStages(projLcMode, sysProjDefault);
           const previewActive = previewStages.filter(s => !s.is_terminal);
           const previewTerminal = previewStages.filter(s => s.is_terminal);
           return (
