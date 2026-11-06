@@ -1656,7 +1656,10 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
     ssSetSetting("proj_tab_completions", { ...all, [project.id]: next }).catch(() => {});
   }
   const sysLcDefault = _importSS?.["default_lifecycle_config"];
-  const [projLcMode, setProjLcMode] = useState(project.case_lifecycle?.preset ?? null);
+  const [projLcMode, setProjLcMode] = useState(
+    project.case_lifecycle?.preset ?? sysLcDefault?.project?.preset ?? "standard"
+  );
+  const [projLcResolved, setProjLcResolved] = useState(!!project.case_lifecycle?.preset);
   const [savingProjLc, setSavingProjLc] = useState(false);
   const [clientLcConfig, setClientLcConfig] = useState(null);
   const [expandedCase, setExpandedCase] = useState(null);
@@ -1948,17 +1951,22 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
   }, [project?.client_id]);
 
   // Resolve projLcMode once async data is available:
-  // saved preset > client lifecycle preset > system default > null (warning shown in UI)
+  // Resolve projLcMode after async data loads:
+  // saved preset > client lifecycle preset > system default
+  // projLcResolved=false means still loading; warning shown when resolved+no valid preset found
   useEffect(() => {
     if (project.case_lifecycle?.preset) {
       setProjLcMode(project.case_lifecycle.preset);
+      setProjLcResolved(true);
       return;
     }
-    if (ssLoading || (project.client_id && clientLcConfig === null && !ssLoading)) return; // still waiting
+    if (ssLoading) return; // wait for settings
+    if (project.client_id && clientLcConfig === null) return; // wait for client lc config
     const resolved = project.client_id
-      ? (clientLcConfig?.preset ?? sysLcDefault?.project?.preset ?? null)
-      : (sysLcDefault?.project?.preset ?? null);
-    setProjLcMode(resolved);
+      ? (clientLcConfig?.preset ?? sysLcDefault?.project?.preset)
+      : sysLcDefault?.project?.preset;
+    if (resolved) setProjLcMode(resolved);
+    setProjLcResolved(true);
   }, [clientLcConfig, sysLcDefault?.project?.preset, ssLoading]);
 
   async function handleStatusChange(newStatus) {
@@ -3146,7 +3154,9 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
         {/* Lifecycle */}
         {tab.id === "lifecycle" && canEdit && (() => {
-          if (projLcMode === null) return (
+          if (!projLcResolved) return <div className="flex justify-center py-10"><Spinner /></div>;
+          const noDefault = !project.case_lifecycle?.preset && !clientLcConfig?.preset && !sysLcDefault?.project?.preset;
+          if (noDefault) return (
             <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
               <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-500" />
               <div>

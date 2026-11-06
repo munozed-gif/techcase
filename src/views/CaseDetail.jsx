@@ -324,7 +324,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [showDevPlanModal, setShowDevPlanModal] = useState(false);
   const [pendingDevPlanIsRegen, setPendingDevPlanIsRegen] = useState(false);
   const [projectLifecycle, setProjectLifecycle] = useState(null);
-  const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? null);
+  const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? ssCtxCD.settings?.["default_lifecycle_config"]?.case?.preset ?? "standard");
+  const [lcResolved, setLcResolved] = useState(!!caseData.case_lifecycle?.preset);
   const [reopenTo, setReopenTo] = useState(caseData.case_lifecycle?.reopen_to ?? "open");
   const [savingLc, setSavingLc] = useState(false);
   const { templates: caseLcTemplates, getTemplateStages: getCaseTmplStages } = useLifecycleTemplates();
@@ -417,13 +418,15 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }, [caseData.parent_case_id]);
 
   // Sync lcMode once inherited lifecycle resolves.
-  // Chain: parent case → project → client → system default → null (warning shown in UI)
+  // Chain: parent case → project → client → system default
+  // lcResolved=false = still loading; warning shown when resolved + no valid preset found
   useEffect(() => {
     if (!caseData.case_lifecycle) {
-      if (ssCtxCD.loading) return; // wait for settings to load
-      const sysDefault = ssCtxCD.settings?.["default_lifecycle_config"]?.case?.preset ?? null;
+      if (ssCtxCD.loading) return; // wait for settings
+      const sysDefault = ssCtxCD.settings?.["default_lifecycle_config"]?.case?.preset;
       const effectivePreset = parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? sysDefault;
-      setLcMode(effectivePreset); // may be null if nothing configured
+      if (effectivePreset) setLcMode(effectivePreset);
+      setLcResolved(true);
     }
   }, [parentCaseLifecycle, projectLifecycle, clientLifecycle, ssCtxCD.settings, ssCtxCD.loading]);
 
@@ -5517,8 +5520,9 @@ ${tableHtml(['Role','Name','Signature','Date'],[
       )}
 
                     {tab.id === "lifecycle" && perms.can("view_lifecycle") && (() => {
-        if (lcMode === null && ssCtxCD.loading) return <div className="flex justify-center py-10"><Spinner /></div>;
-        if (lcMode === null) return (
+        if (!lcResolved) return <div className="flex justify-center py-10"><Spinner /></div>;
+        const noDefault = !caseData.case_lifecycle && !parentCaseLifecycle?.preset && !projectLifecycle?.preset && !clientLifecycle?.preset && !ssCtxCD.settings?.["default_lifecycle_config"]?.case?.preset;
+        if (noDefault) return (
           <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
             <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-500" />
             <div>
