@@ -2506,7 +2506,20 @@ ${tableHtml(['Role','Name','Signature','Date'],[
         function stageState(s, idx) {
           if (s.key === caseData.status) return "current";
           if (idx < curIdx) return "past";
-          if (canChange && !curStage?.is_terminal && validNextKeys.has(s.key)) return "reachable";
+          if (!curStage?.is_terminal && validNextKeys.has(s.key)) {
+            // Access rules live on the DESTINATION stage: who can enter it
+            const destRoles     = s.allowed_roles?.length     ? s.allowed_roles     : null;
+            const destRelations = s.allowed_relations?.length ? s.allowed_relations : null;
+            const destRoleOk     = !destRoles     || destRoles.includes(auth.role);
+            const destRelationOk = !destRelations || destRelations.includes(caseRelation);
+            const canEnterDest = auth.isAdmin || (
+              (destRoles && destRelations) ? (destRoleOk || destRelationOk) :
+              destRoles                    ? destRoleOk                     :
+              destRelations                ? destRelationOk                 :
+              (isOwner || destRoleOk)
+            );
+            if (canEnterDest) return "reachable";
+          }
           return "future";
         }
 
@@ -2679,7 +2692,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
                         })()}
 
                         {/* Action button — reachable stages only */}
-                        {state === "reachable" && canChange && !curStage?.is_terminal && isActive && (
+                        {state === "reachable" && !curStage?.is_terminal && isActive && (
                           <button
                             onClick={async e => {
                               e.stopPropagation();
@@ -3391,28 +3404,28 @@ ${tableHtml(['Role','Name','Signature','Date'],[
           {/* Status transition buttons — role + allowed_next aware */}
           {onStatusChange && (() => {
             const curStage = lifecycleStages.find(s => s.key === caseData.status);
-            const allowedNext      = curStage?.allowed_next?.length      ? curStage.allowed_next      : null;
-            const allowedRoles     = curStage?.allowed_roles?.length     ? curStage.allowed_roles     : null;
-            const allowedRelations = curStage?.allowed_relations?.length ? curStage.allowed_relations : null;
+            const allowedNext = curStage?.allowed_next?.length ? curStage.allowed_next : null;
             const isOwner2    = caseData.created_by === auth.user?.id;
             const isAssigned2 = applications?.some(a => a.consultant_id === auth.user?.id && a.status === "accepted");
             const caseRelation2 = isOwner2 ? "owner" : isAssigned2 ? "assigned" : "viewer";
-            const roleOk2     = !allowedRoles     || allowedRoles.includes(auth.role);
-            const relationOk2 = !allowedRelations || allowedRelations.includes(caseRelation2);
-            const canChange = auth.isAdmin || (
-              (allowedRoles && allowedRelations) ? (roleOk2 || relationOk2) :
-              allowedRoles                       ? roleOk2                  :
-              allowedRelations                   ? relationOk2              :
-              (isOwner2 || roleOk2)
-            );
-            if (!canChange) return null;
             const statusInLifecycle2 = lifecycleStages.some(s => s.key === caseData.status);
-            const validNext = curStage?.is_terminal ? []
+            const candidateNext = curStage?.is_terminal ? []
               : allowedNext
-                // explicit allowed_next configured — use exactly that (exclude auto-only stages)
                 ? lifecycleStages.filter(s => allowedNext.includes(s.key) && s.trigger !== "auto")
-                // no allowed_next: show all other stages in this lifecycle (exclude auto-only)
                 : lifecycleStages.filter(s => (s.key !== caseData.status || !statusInLifecycle2) && s.trigger !== "auto");
+            // Filter by destination stage access rules (allowed_roles/allowed_relations live on the dest stage)
+            const validNext = candidateNext.filter(s => {
+              const destRoles     = s.allowed_roles?.length     ? s.allowed_roles     : null;
+              const destRelations = s.allowed_relations?.length ? s.allowed_relations : null;
+              const destRoleOk     = !destRoles     || destRoles.includes(auth.role);
+              const destRelationOk = !destRelations || destRelations.includes(caseRelation2);
+              return auth.isAdmin || (
+                (destRoles && destRelations) ? (destRoleOk || destRelationOk) :
+                destRoles                    ? destRoleOk                     :
+                destRelations                ? destRelationOk                 :
+                (isOwner2 || destRoleOk)
+              );
+            });
             if (!validNext.length) return null;
             return (
               <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
