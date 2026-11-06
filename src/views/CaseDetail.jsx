@@ -417,14 +417,15 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }, [caseData.parent_case_id]);
 
   // Sync lcMode once inherited lifecycle resolves.
-  // Chain: parent case → project → client → system default → "standard"
+  // Chain: parent case → project → client → system default → null (warning shown in UI)
   useEffect(() => {
     if (!caseData.case_lifecycle) {
-      const sysDefault = ssCtxCD.settings?.["default_lifecycle_config"]?.case?.preset ?? "standard";
+      if (ssCtxCD.loading) return; // wait for settings to load
+      const sysDefault = ssCtxCD.settings?.["default_lifecycle_config"]?.case?.preset ?? null;
       const effectivePreset = parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? sysDefault;
-      setLcMode(effectivePreset);
+      setLcMode(effectivePreset); // may be null if nothing configured
     }
-  }, [parentCaseLifecycle, projectLifecycle, clientLifecycle, ssCtxCD.settings]);
+  }, [parentCaseLifecycle, projectLifecycle, clientLifecycle, ssCtxCD.settings, ssCtxCD.loading]);
 
   const effectiveLifecycle = caseData.case_lifecycle ?? parentCaseLifecycle ?? projectLifecycle ?? clientLifecycle;
   const lifecycleStages = getLifecycleStages(effectiveLifecycle, caseLcTemplates);
@@ -5516,13 +5517,22 @@ ${tableHtml(['Role','Name','Signature','Date'],[
       )}
 
                     {tab.id === "lifecycle" && perms.can("view_lifecycle") && (() => {
-        if (lcMode === null) return <div className="flex justify-center py-10"><Spinner /></div>;
+        if (lcMode === null && ssCtxCD.loading) return <div className="flex justify-center py-10"><Spinner /></div>;
+        if (lcMode === null) return (
+          <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+            <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-500" />
+            <div>
+              <p className="font-semibold">{t("case.lifecycle_no_default_title") || "Default lifecycle not configured"}</p>
+              <p className="text-amber-700 mt-0.5">{t("case.lifecycle_no_default_msg") || "No default lifecycle has been set. Go to System Settings → Lifecycle to configure a default."}</p>
+            </div>
+          </div>
+        );
         const sysLcDefault = ssCtxCD.settings?.["default_lifecycle_config"];
-        const sysCaseDefault = sysLcDefault?.case?.preset ?? "standard";
+        const sysCaseDefault = sysLcDefault?.case?.preset;
         const caseOverrideAllowed = !caseData.client_id ? true : (clientLifecycle?.allow_case_override ?? sysLcDefault?.case?.allow_override ?? true);
         const tmplList = caseLcTemplates.length ? caseLcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
         const inheritedPreset = caseData.case_lifecycle?.preset ?? parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? sysCaseDefault;
-        const previewStages = getCaseTmplStages(lcMode);
+        const previewStages = getCaseTmplStages(lcMode, sysCaseDefault);
         const previewActive = previewStages.filter(s => !s.is_terminal);
         const previewTerminal = previewStages.filter(s => s.is_terminal);
         const inheritedStages = getCaseTmplStages(inheritedPreset);

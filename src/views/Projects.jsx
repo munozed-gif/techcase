@@ -1625,7 +1625,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const { t } = useT();
   const wizardMode = useWizardMode(auth);
   const { createCase, updateCase, deleteCase } = useCases({});
-  const { settings: _importSS, setSetting: ssSetSetting } = useSystemSettings();
+  const { settings: _importSS, setSetting: ssSetSetting, loading: ssLoading } = useSystemSettings();
   const [projCases, setProjCases] = useState([]);
   const [showCreateCase, setShowCreateCase] = useState(false);
   const [showEditWizard, setShowEditWizard] = useState(false);
@@ -1948,14 +1948,18 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
   }, [project?.client_id]);
 
   // Resolve projLcMode once async data is available:
-  // saved preset > client lifecycle preset > system default > "standard"
+  // saved preset > client lifecycle preset > system default > null (warning shown in UI)
   useEffect(() => {
-    if (project.case_lifecycle?.preset) return; // project already has a saved preset
+    if (project.case_lifecycle?.preset) {
+      setProjLcMode(project.case_lifecycle.preset);
+      return;
+    }
+    if (ssLoading || (project.client_id && clientLcConfig === null && !ssLoading)) return; // still waiting
     const resolved = project.client_id
-      ? (clientLcConfig?.preset ?? sysLcDefault?.project?.preset ?? "standard")
-      : (sysLcDefault?.project?.preset ?? "standard");
+      ? (clientLcConfig?.preset ?? sysLcDefault?.project?.preset ?? null)
+      : (sysLcDefault?.project?.preset ?? null);
     setProjLcMode(resolved);
-  }, [clientLcConfig, sysLcDefault?.project?.preset]);
+  }, [clientLcConfig, sysLcDefault?.project?.preset, ssLoading]);
 
   async function handleStatusChange(newStatus) {
     const terminal = ["completed", "cancelled"];
@@ -3142,9 +3146,18 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
         {/* Lifecycle */}
         {tab.id === "lifecycle" && canEdit && (() => {
+          if (projLcMode === null) return (
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+              <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-500" />
+              <div>
+                <p className="font-semibold">{t("project.lifecycle_no_default_title") || "Default lifecycle not configured"}</p>
+                <p className="text-amber-700 mt-0.5">{t("project.lifecycle_no_default_msg") || "No default lifecycle has been set. Go to System Settings → Lifecycle to configure a default."}</p>
+              </div>
+            </div>
+          );
           const projOverrideAllowed = !project.client_id ? true : (clientLcConfig?.allow_project_override ?? sysLcDefault?.project?.allow_override ?? true);
           const tmplList = lcTemplates2.length ? lcTemplates2 : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
-          const sysProjDefault = sysLcDefault?.project?.preset ?? "standard";
+          const sysProjDefault = sysLcDefault?.project?.preset;
           const previewStages = getProjTmplStages(projLcMode, sysProjDefault);
           const previewActive = previewStages.filter(s => !s.is_terminal);
           const previewTerminal = previewStages.filter(s => s.is_terminal);
