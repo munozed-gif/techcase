@@ -1384,7 +1384,7 @@ function ConnForm({ f, setF, onTypeChange, onSave, onCancel, isEdit, saving, t }
   );
 }
 
-function ProjectConnectionsTab({ projectId, clientId, auth }) {
+function ProjectConnectionsTab({ projectId, clientId, auth, createdBy }) {
   const { t } = useT();
   const { projectConns, clientConns, addConnection, updateConnection, deleteConnection } = useProjectDbConnections(projectId, clientId);
   const [showAdd, setShowAdd] = useState(false);
@@ -1466,7 +1466,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
     setSaving(false);
   }
 
-  const canEdit = auth.isAdmin || auth.isManager;
+  const canEdit = auth.isAdmin || auth.isManager || createdBy === auth.user?.id;
 
   const ConnCard = ({ conn, readOnly }) => {
     if (editingId === conn.id) return (
@@ -1983,7 +1983,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
   }
 
   const canEdit = auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id;
-  const canEditLifecycle = auth.isAdmin || auth.isManager || auth.profile?.role === "project_manager";
+  const canEditLifecycle = auth.isAdmin || auth.isManager || auth.profile?.role === "project_manager" || project.created_by === auth.user?.id;
   const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
   const projProgress = projCases.length === 0 ? 0 : Math.round(projCases.filter(c => TERMINAL.includes(c.status)).length / projCases.length * 100);
 
@@ -3114,7 +3114,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
         {/* Connections */}
         {tab.id === "connections" && (
-          <ProjectConnectionsTab projectId={project.id} clientId={project.client_id} auth={auth} />
+          <ProjectConnectionsTab projectId={project.id} clientId={project.client_id} auth={auth} createdBy={project.created_by} />
         )}
 
         {/* SAP Setup */}
