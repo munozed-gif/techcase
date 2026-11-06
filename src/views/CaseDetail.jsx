@@ -5967,27 +5967,28 @@ function CaseInviteCard({ caseData, auth }) {
     const autoEmail = invCfg.delivery === "email";
 
     if (autoEmail) {
-      const platformName = cdSettings["platform_name"] || "Arena";
+      const platformName = cdSettings["platform_name"] || "Arena Solutions Platform";
       const subject = invCfg.subject?.trim() ||
         `You've been invited to collaborate on a case via ${platformName}`;
       const intro = invCfg.intro?.trim() ||
         `Your consultant has invited you to review your case on ${platformName}. Click the button below to create your account and get started.`;
-      const html = `
-        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
-          <h2 style="color:#1d4ed8;margin-bottom:8px">${platformName}</h2>
-          ${recipientName ? `<p>Hi ${recipientName},</p>` : ""}
-          <p style="color:#374151">${intro}</p>
-          <div style="margin:28px 0">
-            <a href="${joinUrl}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;display:inline-block">
-              ${isResend ? "View My Case" : "Join & View My Case"}
-            </a>
-          </div>
-          <p style="color:#6b7280;font-size:13px">Or copy this link: ${joinUrl}</p>
-          <p style="color:#9ca3af;font-size:12px">This link expires in 7 days.</p>
-        </div>`;
+      const greeting = recipientName
+        ? `<p style="margin:0 0 12px;color:#cbd5e1">Hi ${recipientName},</p>`
+        : "";
       try {
         await supabase.functions.invoke("send-email", {
-          body: { to: email, subject, html },
+          body: {
+            to:      email,
+            subject,
+            title:   isResend ? "Your case invitation" : "You've been invited",
+            bodyHtml: `${greeting}
+              <p style="margin:0 0 12px;color:#94a3b8">${intro}</p>
+              <p style="margin:0;font-size:13px;color:#475569">Or copy this link: <a href="${joinUrl}" style="color:#4F6EF7">${joinUrl}</a></p>
+              <p style="margin:8px 0 0;font-size:12px;color:#334155">This link expires in 7 days.</p>`,
+            ctaText: isResend ? "View My Case" : "Join & View My Case",
+            ctaUrl:  joinUrl,
+            footerNote: "If you weren't expecting this invitation, you can safely ignore this email.",
+          },
         });
         setFeedback({ type: "success", msg: `Invite emailed to ${email}!` });
         return;
