@@ -3258,7 +3258,7 @@ function VpnStatusBanner({ linkedConn, isVpn, mcpUrl, env }) {
 
 // PROJECT-OWNED SAP PANEL (no client linked)
 // ============================================================
-function ProjectOwnSapPanel({ projectId, auth }) {
+function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
   const allConfigs = ssCtx.settings['sap_integration'] ?? {};
@@ -3284,7 +3284,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
   const sapProjectEnv = ssCtx.settings['sap_project_env'] ?? {};
   const selectedEnvId = sapProjectEnv[projectId] ?? '';
 
-  const canEdit = auth.isAdmin || auth.isManager;
+  const canEdit = auth.isAdmin || auth.isManager || createdBy === auth.user?.id;
 
   async function saveEnvironments(envs) {
     setSaving(true);

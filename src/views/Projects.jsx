@@ -3144,7 +3144,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         {tab.id === "sap" && (
           project.client_id
             ? <ProjectSapEnvPanel projectId={project.id} clientId={project.client_id} auth={auth} />
-            : <ProjectOwnSapPanel projectId={project.id} auth={auth} />
+            : <ProjectOwnSapPanel projectId={project.id} auth={auth} createdBy={project.created_by} />
         )}
 
         {/* Transports */}
