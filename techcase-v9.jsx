@@ -798,16 +798,18 @@ export default function App() {
   // /join/:token — show branded join screen before any auth check
   if (_joinMatch) {
     return (
-      <SystemSettingsProvider>
-        <JoinScreen
-          token={_joinMatch[1]}
-          onJoined={() => {
-            // After successful signup, clear the /join path and reload into the app
-            window.history.replaceState(null, "", "/");
-            window.location.reload();
-          }}
-        />
-      </SystemSettingsProvider>
+      <LanguageProvider userId={null}>
+        <SystemSettingsProvider>
+          <JoinScreen
+            token={_joinMatch[1]}
+            onJoined={() => {
+              // After successful signup, clear the /join path and reload into the app
+              window.history.replaceState(null, "", "/");
+              window.location.reload();
+            }}
+          />
+        </SystemSettingsProvider>
+      </LanguageProvider>
     );
   }
 
