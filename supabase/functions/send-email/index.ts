@@ -146,11 +146,8 @@ serve(async (req) => {
         footerNote: body.footerNote ?? "",
       });
     } else if (body.html) {
-      // Legacy: wrap the raw HTML snippet in the branded outer template
-      html = buildEmailHtml({
-        title:    subject,
-        bodyHtml: body.html,
-      });
+      // Legacy: caller already built the full branded HTML — use it as-is
+      html = body.html;
     } else {
       return new Response(JSON.stringify({ error: "Provide either {title, bodyHtml} or {html}" }), {
         status: 400, headers: { ...CORS, "Content-Type": "application/json" },
