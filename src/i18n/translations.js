@@ -86,7 +86,7 @@ const TRANSLATIONS = {
     // Auth
     "auth.tagline":          "Consultant case management platform",
     "auth.welcome":          "Welcome back",
-    "auth.sign_in_title":    "Sign in to Arena Solution Platform",
+    "auth.sign_in_title":    "Log In to Arena",
     "auth.email":            "Email address",
     "auth.password":         "Password",
     "auth.confirm_password": "Confirm Password",
@@ -4174,7 +4174,7 @@ const TRANSLATIONS = {
     // Auth
     "auth.tagline":          "Plataforma de gestión de casos de consultoría",
     "auth.welcome":          "Bienvenido de nuevo",
-    "auth.sign_in_title":    "Inicia sesión en Arena Solution Platform",
+    "auth.sign_in_title":    "Inicia sesión en Arena",
     "auth.email":            "Correo electrónico",
     "auth.password":         "Contraseña",
     "auth.confirm_password": "Confirmar contraseña",
