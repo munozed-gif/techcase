@@ -5888,12 +5888,36 @@ function CaseInviteCard({ caseData, auth }) {
 
   useEffect(() => {
     if (!caseData?.id) return;
-    supabase.from("case_invitations")
-      .select("id, invited_email, invited_name, status, created_at, expires_at, token")
-      .eq("case_id", caseData.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => { setInvites(data ?? []); setLoading(false); });
-  }, [caseData?.id]);
+    (async () => {
+      // Load all invitations for this case
+      const { data: rows } = await supabase.from("case_invitations")
+        .select("id, invited_email, invited_name, status, created_at, expires_at, token")
+        .eq("case_id", caseData.id)
+        .order("created_at", { ascending: false });
+      const invRows = rows ?? [];
+
+      // If the case already has a linked client, auto-accept any pending invitation for that email
+      if (caseData.client_id) {
+        const { data: clientUser } = await supabase.from("users")
+          .select("email").eq("id", caseData.client_id).maybeSingle();
+        if (clientUser?.email) {
+          const clientEmail = clientUser.email.toLowerCase();
+          const toAccept = invRows.filter(
+            i => i.status === "pending" && i.invited_email?.toLowerCase() === clientEmail
+          );
+          if (toAccept.length) {
+            await supabase.from("case_invitations")
+              .update({ status: "accepted" })
+              .in("id", toAccept.map(i => i.id));
+            toAccept.forEach(i => { i.status = "accepted"; });
+          }
+        }
+      }
+
+      setInvites(invRows);
+      setLoading(false);
+    })();
+  }, [caseData?.id, caseData?.client_id]);
 
   // Debounced email lookup — checks users table when a valid email is typed
   function handleEmailChange(val) {
