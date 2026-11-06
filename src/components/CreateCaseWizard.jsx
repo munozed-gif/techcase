@@ -787,11 +787,33 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           }
           // Consultant created case with a new client email → auto-send invite
           if (auth.isConsultant && consultantClientEmail.trim() && consultantClientLookup?.found === false) {
-            await supabase.from("case_invitations").insert({
+            const { data: invData } = await supabase.from("case_invitations").insert({
               case_id:       newCase.id,
               invited_email: consultantClientEmail.trim().toLowerCase(),
               invited_by:    auth.user?.id,
-            });
+            }).select().single();
+            const invCfg = catalogSettings["invitation_config"] ?? {};
+            if (invCfg.delivery === "email" && invData?.token) {
+              const joinUrl = `${window.location.origin}/join/${invData.token}`;
+              const platformName = catalogSettings["platform_name"] || "Arena Solutions Platform";
+              const subject = invCfg.subject?.trim() || `You've been invited to collaborate on a case via ${platformName}`;
+              const intro = invCfg.intro?.trim() || `Your consultant has invited you to review your case on ${platformName}. Click the button below to create your account and get started.`;
+              try {
+                await supabase.functions.invoke("send-email", {
+                  body: {
+                    to: consultantClientEmail.trim().toLowerCase(),
+                    subject,
+                    title: "You've been invited",
+                    bodyHtml: `<p style="margin:0 0 12px;color:#94a3b8">${intro}</p>
+                      <p style="margin:0;font-size:13px;color:#475569">Or copy this link: <a href="${joinUrl}" style="color:#4F6EF7">${joinUrl}</a></p>
+                      <p style="margin:8px 0 0;font-size:12px;color:#334155">This link expires in 7 days.</p>`,
+                    ctaText: "Join & View My Case",
+                    ctaUrl: joinUrl,
+                    footerNote: "If you weren't expecting this invitation, you can safely ignore this email.",
+                  },
+                });
+              } catch (_) {}
+            }
           }
         }
         if (saveAsTemplate && templateName.trim()) {
