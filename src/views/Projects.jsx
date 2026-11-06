@@ -1813,7 +1813,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
         doc.setFontSize(7);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(150, 150, 150);
-        doc.text(`TechCase SAP · ${project.title ?? ''}`, L, 290);
+        doc.text(`Arena Solution Platform · ${project.title ?? ''}`, L, 290);
         doc.text(`Page ${i} / ${pageCount}`, R - 10, 290, { align: 'right' });
         doc.setTextColor(0, 0, 0);
       }

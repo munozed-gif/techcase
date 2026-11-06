@@ -1966,7 +1966,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
         diagSection = `\n\nVM diagnostic data (captured before restart):\nJournal: ${preDiag.journal.slice(0, 600)}\nPort: ${preDiag.portDetail || 'N/A'}\nMemory: ${preDiag.memory || 'N/A'}\nNode procs: ${preDiag.nodeProcs || 'none'}`;
       }
 
-      const prompt = `TechCase infrastructure check failed at: ${nodeMeta[nodeKey]}
+      const prompt = `Arena Solution Platform infrastructure check failed at: ${nodeMeta[nodeKey]}
 Error: ${failedNode.detail}
 Log:
 ${logText}
@@ -1977,7 +1977,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
       const result = await callClaude({
         model: diagnosisModel,
-        system: 'You are a DevOps assistant for TechCase. The stack: Node.js MCP server on AWS EC2 Ubuntu, exposed via Cloudflare Quick Tunnel, FortiClient VPN to SAP. Diagnose and give concrete fix steps.',
+        system: 'You are a DevOps assistant for Arena Solution Platform. The stack: Node.js MCP server on AWS EC2 Ubuntu, exposed via Cloudflare Quick Tunnel, FortiClient VPN to SAP. Diagnose and give concrete fix steps.',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 1200,
       });

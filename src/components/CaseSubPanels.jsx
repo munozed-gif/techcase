@@ -370,7 +370,7 @@ function renderMarkdown(md) {
       </div>
       ${body}
       <div style="background:var(--sap-bar,#dde4f0);border-top:1px solid #b0bbcc;padding:2px 8px;font-size:10px;color:var(--sap-text,#334);display:flex;justify-content:space-between">
-        <span>Sistema: TechCase-DEV &nbsp;|&nbsp; Mandante: 100</span>
+        <span>Sistema: Arena-DEV &nbsp;|&nbsp; Mandante: 100</span>
         <span style="color:#006600;font-weight:700">● Listo</span>
       </div>
     </div>`;
@@ -1203,7 +1203,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
           if(/^COL:/i.test(l))    { const p=l.replace(/^COL:\s*/i,'').split('|'); cols.push({label:(p[0]||'').trim()}); return; }
           if(/^ROW:/i.test(l))    { rows.push(l.replace(/^ROW:\s*/i,'').split('|').map(v=>v.trim())); return; }
         });
-        const sapChr = body=>`<div style="border:1px solid #8fa8cc;border-radius:3px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;font-size:12px;margin:14px 0;box-shadow:0 2px 8px rgba(0,0,0,0.13)"><div style="background:#1a3764;color:white;padding:5px 10px;font-size:11.5px;font-weight:600">${esc(title||'SAP')}</div><div style="background:#dde4f0;border-bottom:1px solid #b0bbcc;padding:2px 8px;font-size:10px;display:flex;gap:12px">${['Sistema','Editar','Pasar a','Extras','Ayuda'].map(m=>`<span>${m}</span>`).join('')}</div>${body}<div style="background:#dde4f0;border-top:1px solid #b0bbcc;padding:2px 8px;font-size:10px;display:flex;justify-content:space-between"><span>TechCase-DEV | 100</span><span style="color:#006600;font-weight:700">● Listo</span></div></div>`;
+        const sapChr = body=>`<div style="border:1px solid #8fa8cc;border-radius:3px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;font-size:12px;margin:14px 0;box-shadow:0 2px 8px rgba(0,0,0,0.13)"><div style="background:#1a3764;color:white;padding:5px 10px;font-size:11.5px;font-weight:600">${esc(title||'SAP')}</div><div style="background:#dde4f0;border-bottom:1px solid #b0bbcc;padding:2px 8px;font-size:10px;display:flex;gap:12px">${['Sistema','Editar','Pasar a','Extras','Ayuda'].map(m=>`<span>${m}</span>`).join('')}</div>${body}<div style="background:#dde4f0;border-top:1px solid #b0bbcc;padding:2px 8px;font-size:10px;display:flex;justify-content:space-between"><span>Arena-DEV | 100</span><span style="color:#006600;font-weight:700">● Listo</span></div></div>`;
         if (isConfig || isConfig) {
           const stps = (steps.length ? steps : ['Acceder a la ruta de customizing indicada','Ejecutar la actividad de configuración']).map((s,i)=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #edf0f7"><div style="background:#1a3764;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">${i+1}</div><div style="font-size:12px;color:#1a2a4a;line-height:1.5">${esc(s)}</div></div>`).join('');
           return `<div style="border:1px solid #c8d4e8;border-radius:6px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;margin:14px 0"><div style="background:#1a3764;color:white;padding:7px 14px;font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:8px"><span style="background:rgba(255,255,255,0.2);border-radius:3px;padding:1px 6px;font-size:9.5px;font-family:monospace">SPRO</span>${esc(title||'Customizing')}</div><div style="background:#f5f7fc;padding:12px 16px">${stps}</div></div>`;
@@ -1705,7 +1705,7 @@ ${mdToHtml(markdownContent)}
       doc.setFillColor(...gray1); doc.rect(L, sbY, BW, 6, 'F');
       doc.setDrawColor(...bord); doc.setLineWidth(0.3); doc.line(L, sbY, L+BW, sbY);
       doc.setTextColor(40,60,115); doc.setFont('helvetica','normal'); doc.setFontSize(5.5);
-      doc.text('Sistema: TechCase-DEV  |  Mandante: 100  |  Usuario: CONSULTOR', L+3, sbY+4);
+      doc.text('Sistema: Arena-DEV  |  Mandante: 100  |  Usuario: CONSULTOR', L+3, sbY+4);
       doc.setTextColor(0,130,0); doc.setFont('helvetica','bold');
       doc.text('● Listo', L+BW-18, sbY+4);
 
@@ -1810,7 +1810,7 @@ ${mdToHtml(markdownContent)}
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
       doc.setTextColor(160, 170, 190);
-      doc.text('TechCase  ·  ' + t('spec.html_title') + '  ·  ' + (caseData.title ?? '').substring(0, 50), L, 290);
+      doc.text('Arena Solution Platform  ·  ' + t('spec.html_title') + '  ·  ' + (caseData.title ?? '').substring(0, 50), L, 290);
       doc.text(t('spec.doc_page') + ' ' + i + ' ' + t('spec.doc_of') + ' ' + pageCount, R, 290, { align: 'right' });
     }
 
@@ -3747,7 +3747,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
       let createdBy = null;
       try { const { data: { user } } = await supabase.auth.getUser(); createdBy = user?.id ?? null; } catch (_) {}
       const platformMeta = {
-        name:    ssCtx.settings['platform_name']    || 'TechCase',
+        name:    ssCtx.settings['platform_name']    || 'Arena Solution Platform',
         tagline: ssCtx.settings['platform_tagline'] || 'SAP Solutions',
       };
       const { data, error } = await supabase

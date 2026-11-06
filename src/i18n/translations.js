@@ -4535,7 +4535,7 @@ const TRANSLATIONS = {
     "profile.ai_pro_benefit_3": "Recomendaciones inteligentes de brechas de habilidades",
     "profile.ai_pro_benefit_4": "Acceso prioritario a los últimos modelos Claude",
     "profile.ai_pro_benefit_5": "Sin clave API de Anthropic necesaria — nunca",
-    "profile.ai_pro_benefit_6": "Facturado de forma segura por TechCase. Cancela cuando quieras.",
+    "profile.ai_pro_benefit_6": "Facturado de forma segura por Arena Solution Platform. Cancela cuando quieras.",
     "profile.tab_ratings":    "Calificaciones",
     "profile.no_bio":         "Sin biografía aún. Edita tu perfil para agregar una.",
     "profile.linkedin":       "Perfil de LinkedIn",
@@ -4842,7 +4842,7 @@ const TRANSLATIONS = {
     "team.empty":             "No hay miembros del equipo aún.",
     // Lifecycle (ClientProfileView)
     "lifecycle.title":        "Ciclo de Vida de Casos",
-    "lifecycle.subtitle":     "Elige la plantilla de ciclo de vida para los casos de tu cuenta. Las secuencias de etapas son administradas por tu administrador de TechCase.",
+    "lifecycle.subtitle":     "Elige la plantilla de ciclo de vida para los casos de tu cuenta. Las secuencias de etapas son administradas por tu administrador de Arena Solution Platform.",
     "lifecycle.flow_preview": "Vista Previa del Flujo",
     "lifecycle.override_title":"Permisos de Anulación",
     "lifecycle.allow_proj":   "Permitir que los proyectos cambien la plantilla",

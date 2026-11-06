@@ -695,7 +695,7 @@ function SettingsCatalogTab({ ssCtx }) {
 
 function SettingsPlatformTab({ ssCtx }) {
   const DEFAULTS = {
-    platform_name:              "TechCase",
+    platform_name:              "Arena Solution Platform",
     platform_tagline:           "Consultant case management platform",
     brand_logo_url:             "",
     default_currency:           "USD",
@@ -777,7 +777,7 @@ function SettingsPlatformTab({ ssCtx }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Platform Name</label>
             <input value={form.platform_name}
               onChange={e => setForm(p => ({ ...p, platform_name: e.target.value }))}
-              placeholder="TechCase"
+              placeholder="Arena Solution Platform"
               className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
           </div>
           <div>
@@ -1896,7 +1896,7 @@ function SettingsGenerationTab({ ssCtx }) {
                     { value: 'fiori',     label: 'SAP Fiori',  desc: 'Fiori shell bar, cards & tables' },
                     { value: 'sapgui',    label: 'SAP GUI',    desc: 'Classic GUI: ALV grid + detail panel' },
                     { value: 'wireframe', label: 'Wireframe',  desc: 'Low-fidelity grey boxes & labels' },
-                    { value: 'branded',   label: 'Branded',    desc: 'TechCase Arena dark theme' },
+                    { value: 'branded',   label: 'Branded',    desc: 'Arena Solution Platform dark theme' },
                   ].map(s => {
                     const sel = (form.profiles[activeProfile].prototype_style ?? 'auto') === s.value;
                     return (

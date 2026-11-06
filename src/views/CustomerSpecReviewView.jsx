@@ -93,7 +93,7 @@ export default function CustomerSpecReviewView({ token }) {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
   const [activeTab, setActiveTab]     = useState(null); // null = overview screen
-  const [branding, setBranding]       = useState({ name: 'TechCase', tagline: 'SAP Solutions' });
+  const [branding, setBranding]       = useState({ name: 'Arena Solution Platform', tagline: 'SAP Solutions' });
   const [submitting, setSubmitting]   = useState(false);
   const [feedback, setFeedback]       = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
@@ -142,7 +142,7 @@ export default function CustomerSpecReviewView({ token }) {
           setBranding({ name: tokenPlatform.name, tagline: tokenPlatform.tagline || 'SAP Solutions' });
         } else if (brandRes.data?.length) {
           const map = Object.fromEntries(brandRes.data.map(r => [r.key, r.value]));
-          setBranding({ name: map.platform_name || 'TechCase', tagline: map.platform_tagline || 'SAP Solutions' });
+          setBranding({ name: map.platform_name || 'Arena Solution Platform', tagline: map.platform_tagline || 'SAP Solutions' });
         }
 
         // Fetch case details (accessible via anon policy for tokens)
