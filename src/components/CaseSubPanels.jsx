@@ -986,6 +986,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [ctxCollapsed, setCtxCollapsed]             = useState(true);
   const [additionalCtx, setAdditionalCtx]           = useState('');
   const [additionalCtxSaving, setAdditionalCtxSaving] = useState(false);
+  // Per-case SAP live check override: null = use env/global default, true = force on, false = force off
+  const [caseLiveCheck, setCaseLiveCheck]           = useState(null);
 
   // Approval workflow sub-steps (Node 4)
   const [approvalStep, setApprovalStep]     = useState('generated'); // 'generated'|'checking'|'sending'|'approved'
@@ -2358,9 +2360,11 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       const sapCfg = selectedEnvId
         ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
         : (sapEnvs[0] ?? null);
-      // Per-environment toggle overrides the system-level sap_live_check setting
+      // Resolution order: per-case override > per-environment toggle > global setting
       const envLiveCheck = sapCfg?.liveCheckOnGenerate;
-      const shouldLiveCheck = envLiveCheck !== undefined ? envLiveCheck : genCtx.sap_live_check;
+      const shouldLiveCheck = caseLiveCheck !== null ? caseLiveCheck
+        : envLiveCheck !== undefined ? envLiveCheck
+        : genCtx.sap_live_check;
       if (shouldLiveCheck) {
         if (!sapCfg?.host || !sapCfg?.username) {
           throw new Error('SAP live check is enabled but no SAP environment is configured for this case. Configure credentials in SAP Integration settings or disable SAP live check.');
@@ -2407,15 +2411,28 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     return buildContextString(caseData, genCtx, extra);
   }
 
-  // Load additional context per case from Supabase
+  // Load additional context and per-case live check override from Supabase
   useEffect(() => {
     if (!caseData?.id) return;
-    supabase.from('system_settings').select('value').eq('key', 'case_additional_ctx').maybeSingle()
-      .then(({ data }) => {
-        const val = data?.value ?? {};
-        setAdditionalCtx(val[caseData.id] ?? '');
-      }).catch(() => {});
+    Promise.all([
+      supabase.from('system_settings').select('value').eq('key', 'case_additional_ctx').maybeSingle(),
+      supabase.from('system_settings').select('value').eq('key', 'case_sap_live_check').maybeSingle(),
+    ]).then(([{ data: ctxData }, { data: lcData }]) => {
+      setAdditionalCtx((ctxData?.value ?? {})[caseData.id] ?? '');
+      const lcVal = (lcData?.value ?? {})[caseData.id];
+      setCaseLiveCheck(lcVal === undefined ? null : lcVal);
+    }).catch(() => {});
   }, [caseData?.id]);
+
+  async function saveCaseLiveCheck(val) {
+    if (!caseData?.id) return;
+    try {
+      const { data } = await supabase.from('system_settings').select('value').eq('key', 'case_sap_live_check').maybeSingle();
+      const existing = data?.value ?? {};
+      const updated = { ...existing, [caseData.id]: val };
+      await supabase.from('system_settings').upsert({ key: 'case_sap_live_check', value: updated }, { onConflict: 'key' });
+    } catch {}
+  }
 
   async function saveAdditionalCtx(text) {
     if (!caseData?.id) return;
@@ -5308,6 +5325,40 @@ ${result}`;
                           />
                           {additionalCtxSaving && <p className="text-[10px] text-gray-400 mt-0.5">Saving…</p>}
                         </div>
+
+                        {/* Per-case SAP live check override */}
+                        {liveCheckEnabled && (
+                          <div className="pt-1 border-t border-gray-100 mt-2">
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                              SAP Live Check (this case)
+                            </label>
+                            <p className="text-xs text-gray-400 mb-2">Override the global/environment SAP live check setting for this case only.</p>
+                            <div className="flex gap-2">
+                              {[
+                                { val: null,  label: 'Default',  desc: 'Use global / environment setting' },
+                                { val: true,  label: 'Enabled',  desc: 'Always run live check for this case' },
+                                { val: false, label: 'Disabled', desc: 'Skip live check for this case' },
+                              ].map(opt => (
+                                <button key={String(opt.val)}
+                                  onClick={() => { setCaseLiveCheck(opt.val); saveCaseLiveCheck(opt.val); }}
+                                  title={opt.desc}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors
+                                    ${caseLiveCheck === opt.val
+                                      ? opt.val === false ? 'bg-amber-100 border-amber-400 text-amber-800'
+                                        : opt.val === true  ? 'bg-green-100 border-green-400 text-green-800'
+                                        : 'bg-blue-100 border-blue-400 text-blue-800'
+                                      : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}>
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                            {caseLiveCheck !== null && (
+                              <p className="text-[10px] text-gray-400 mt-1">
+                                {caseLiveCheck ? '✓ Live SAP check forced ON for this case' : '⚠ Live SAP check forced OFF for this case'}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
