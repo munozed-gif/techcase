@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Lock, Mail, User } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Loader2, Lock, Mail, User } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { usePlatformBranding } from "../hooks/useSystemSettings.jsx";
+import { usePlatformBranding, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { useT } from "../i18n/index.jsx";
 
 // Standalone screen shown at /join/:token — no sidebar, no auth required yet
 export function JoinScreen({ token, onJoined }) {
   const { t } = useT();
   const branding = usePlatformBranding();
+  const { settings: joinSettings } = useSystemSettings();
   const [invite, setInvite]     = useState(null);   // invitation row
   const [caseData, setCaseData] = useState(null);
-  const [state, setState]       = useState("loading"); // loading | ready | invalid | expired | accepted | error
+  const [state, setState]       = useState("loading"); // loading | ready | invalid | expired | accepted | awaiting_approval | error
   const [form, setForm]         = useState({ full_name: "", password: "", password2: "" });
   const [submitting, setSubmitting] = useState(false);
   const [errMsg, setErrMsg]     = useState("");
@@ -59,24 +60,73 @@ export function JoinScreen({ token, onJoined }) {
         await supabase.from("case_invitations").update({ status: "accepted" }).eq("id", invite.id);
         // Also ensure the case is linked to this user
         await supabase.from("cases").update({ client_id: existingUser.id }).eq("id", invite.case_id);
+        // Notify the person who sent the invite
+        if (invite.invited_by) {
+          supabase.from("notifications").insert({
+            user_id: invite.invited_by,
+            title: "Client accepted invitation",
+            body: `${existingUser.full_name || invite.invited_email} joined the case.`,
+            is_read: false,
+            case_id: invite.case_id,
+            event_type: "case_invitation_accepted",
+          }).catch(() => {});
+        }
         setState("already_has_account");
         setSubmitting(false);
         return;
       }
 
+      // Determine client signup flow from system settings
+      const clientFlow = joinSettings?.["signup_flow_per_role"]?.["client"] ?? "email_verify";
+      const needsApproval = clientFlow === "admin_approval" || clientFlow === "email_and_approval";
+
       // New user — sign up with invited_client role
-      const { error: signUpErr } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
         email: invite.invited_email,
         password: form.password,
         options: { data: { full_name: form.full_name.trim(), role: "invited_client" } },
       });
       if (signUpErr) throw signUpErr;
 
+      // If Supabase returned a session (email auto-confirmed), create the user row
+      // with the correct verification_status before useAuth can auto-approve it
+      const newSession = signUpData?.session;
+      if (newSession) {
+        await supabase.from("users").insert({
+          id: newSession.user.id,
+          email: invite.invited_email,
+          full_name: form.full_name.trim(),
+          role: "invited_client",
+          verification_status: needsApproval ? "pending" : "approved",
+          is_active: true,
+        }).catch(() => {}); // ignore if row already exists
+        // Link the case to the new user
+        await supabase.from("cases").update({ client_id: newSession.user.id }).eq("id", invite.case_id);
+      }
+
       // Mark invitation accepted
       await supabase.from("case_invitations").update({ status: "accepted" }).eq("id", invite.id);
 
-      // Give the auth session a moment to settle, then notify the parent
-      setTimeout(() => onJoined?.(), 800);
+      // Notify the person who sent the invite
+      if (invite.invited_by) {
+        supabase.from("notifications").insert({
+          user_id: invite.invited_by,
+          title: "Client accepted invitation",
+          body: `${form.full_name.trim() || invite.invited_email} joined the case.`,
+          is_read: false,
+          case_id: invite.case_id,
+          event_type: "case_invitation_accepted",
+        }).catch(() => {});
+      }
+
+      if (needsApproval && newSession) {
+        // Sign out so the pending user can't access the app until approved
+        await supabase.auth.signOut();
+        setState("awaiting_approval");
+      } else {
+        // Give the auth session a moment to settle, then notify the parent
+        setTimeout(() => onJoined?.(), 800);
+      }
     } catch (err) {
       setErrMsg(err.message);
       setSubmitting(false);
@@ -119,6 +169,13 @@ export function JoinScreen({ token, onJoined }) {
       body={`${t("join.has_account_body_1")} ${invite?.invited_email}. ${t("join.has_account_body_2")}`}
       platformName={platformName}
       showSignIn onSignIn={() => onJoined?.()} />
+  );
+
+  if (state === "awaiting_approval") return (
+    <JoinMessageScreen icon={<Clock className="w-10 h-10 text-amber-500" />}
+      title={t("join.awaiting_approval_title")}
+      body={t("join.awaiting_approval_body")}
+      platformName={platformName} />
   );
 
   return (

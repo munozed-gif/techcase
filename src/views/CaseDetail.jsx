@@ -6099,8 +6099,8 @@ function CaseInviteCard({ caseData, auth }) {
             return (
               <div key={inv.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-t border-gray-50">
                 <div className="min-w-0 flex-1">
-                  <span className="font-medium text-gray-800 truncate block">{inv.invited_email}</span>
-                  {inv.invited_name && <span className="text-xs text-gray-400">{inv.invited_name}</span>}
+                  <span className="font-medium text-gray-800 truncate block">{inv.invited_name || inv.invited_email}</span>
+                  {inv.invited_name && <span className="text-xs text-gray-400">{inv.invited_email}</span>}
                 </div>
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${statusColors[displayStatus]}`}>
                   {displayStatus}

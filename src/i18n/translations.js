@@ -2935,6 +2935,8 @@ const TRANSLATIONS = {
     "join.has_account_title": "You already have an account",
     "join.has_account_body_1": "An account already exists for",
     "join.has_account_body_2": "Sign in with your existing password to access this case — it's been linked to your account.",
+    "join.awaiting_approval_title": "Account created — pending approval",
+    "join.awaiting_approval_body": "Your account has been created and is pending administrator approval. You'll be able to sign in once an admin reviews your request.",
     // ProjectShareView (share.*)
     "share.project_status":    "Project Status",
     "share.total_cases":       "Total Cases",
@@ -6251,6 +6253,8 @@ const TRANSLATIONS = {
     "join.has_account_title": "Ya tienes una cuenta",
     "join.has_account_body_1": "Ya existe una cuenta para",
     "join.has_account_body_2": "Inicia sesión con tu contraseña existente para acceder a este caso — ya fue vinculado a tu cuenta.",
+    "join.awaiting_approval_title": "Cuenta creada — pendiente de aprobación",
+    "join.awaiting_approval_body": "Tu cuenta ha sido creada y está pendiente de aprobación por un administrador. Podrás iniciar sesión una vez que un admin revise tu solicitud.",
     // ProjectShareView (share.*)
     "share.project_status":    "Estado del Proyecto",
     "share.total_cases":       "Total Casos",
