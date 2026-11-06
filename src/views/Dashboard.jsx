@@ -31,7 +31,9 @@ function Dashboard({ auth, onNavigate }) {
   const { t } = useT();
   const { isDark } = useTheme();
   const { settings: catalogSettings } = useSystemSettings();
-  const { cases: _rawCases, loading: casesLoading, updateCase, deleteCase, refetch: refetchCases } = useCases();
+  const { cases: _rawCases, loading: casesLoading, updateCase, deleteCase, refetch: refetchCases } = useCases({
+    client_id: (auth.isClient || auth.isInvitedClient) ? auth.user?.id : undefined,
+  });
   const _dashVisCfg = useVisibilitySettings();
   const cases = filterCasesByVisibility(_rawCases, auth, _dashVisCfg);
   const { templates: lcTemplates } = useLifecycleTemplates();
