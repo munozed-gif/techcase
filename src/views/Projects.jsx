@@ -1625,6 +1625,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const { t } = useT();
   const wizardMode = useWizardMode(auth);
   const { createCase, updateCase, deleteCase } = useCases({});
+  const { settings: _importSS, setSetting: ssSetSetting } = useSystemSettings();
   const [projCases, setProjCases] = useState([]);
   const [showCreateCase, setShowCreateCase] = useState(false);
   const [showEditWizard, setShowEditWizard] = useState(false);
@@ -1664,7 +1665,6 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef(null);
   // Import cases from document
-  const { settings: _importSS, setSetting: ssSetSetting } = useSystemSettings();
   const importGenModel = _importSS["ai_model"] ?? 'claude-haiku-5-5';
   const [showImportPanel, setShowImportPanel] = useState(false);
   const [importFile, setImportFile] = useState(null);
