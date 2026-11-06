@@ -1106,92 +1106,86 @@ function SettingsRolesTab({ ssCtx }) {
     area_leader:         'border border-orange-500 text-orange-400 bg-orange-500/10',
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <Shield size={16} className="text-blue-600" /> {t("roles.title")}
-          </h3>
-        </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-5">{t("roles.subtitle")} {" "}
-          <span className="text-red-500 font-medium">Admin always has full access and cannot be restricted.</span>
-        </p>
+  const SIGNUP_ROLES = [
+    { key: "consultant",          label: "Consultant",          color: "border-purple-500 text-purple-600 bg-purple-50 dark:bg-purple-500/10 dark:text-purple-300" },
+    { key: "headhunter",          label: "Headhunter",          color: "border-pink-500 text-pink-600 bg-pink-50 dark:bg-pink-500/10 dark:text-pink-300" },
+    { key: "client",              label: "Client",              color: "border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-500/10 dark:text-blue-300" },
+    { key: "key_user",            label: "Key User",            color: "border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-300" },
+    { key: "final_user",          label: "Final User",          color: "border-teal-500 text-teal-600 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-300" },
+    { key: "internal_consultant", label: "Internal Consultant", color: "border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 dark:text-indigo-300" },
+    { key: "project_manager",     label: "Project Manager",     color: "border-rose-500 text-rose-600 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-300" },
+  ];
+  const ALL_SIGNUP_KEYS = SIGNUP_ROLES.map(r => r.key);
+  const visibleRoles = ssCtx.settings["signup_roles_visible"] ?? ALL_SIGNUP_KEYS;
+  async function toggleSignupRole(key) {
+    const next = visibleRoles.includes(key) ? visibleRoles.filter(k => k !== key) : [...visibleRoles, key];
+    await ssCtx.setSetting("signup_roles_visible", next);
+  }
 
-        {/* Permission matrix */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="text-left py-2 pr-4 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide w-48">
-                  {t("roles.capability")}
+  const PERM_GROUPS = [
+    { label: "Cases",               icon: FolderOpen,  caps: ["create_cases","view_all_cases","apply_to_cases","arena_see_all_cases","reopen_cases"] },
+    { label: "Documents & Specs",   icon: FileText,    caps: ["upload_docs","view_docs","approve_specs","regen_specs","submit_specs","generate_dev_plan","export_pdf_docs"] },
+    { label: "Activities & Time",   icon: ListChecks,  caps: ["add_activities","log_time","approve_time","edit_activity_phase","edit_activity_predecessors","bulk_delete_activities","bulk_delete_subcases"] },
+    { label: "Lifecycle",           icon: Zap,         caps: ["view_lifecycle","edit_lifecycle"] },
+    { label: "Projects",            icon: Briefcase,   caps: ["create_projects","upload_project_docs"] },
+    { label: "Invoices & Reports",  icon: Receipt,     caps: ["manage_invoices","view_reports"] },
+    { label: "Team & Audit",        icon: Users,       caps: ["require_team_signup","view_audit_log"] },
+  ];
+
+  function PermTable({ caps, leaderboard = false }) {
+    return (
+      <div className="overflow-x-auto mt-4">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="border-b border-gray-200 dark:border-gray-700">
+              <th className="text-left py-2 pr-4 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide w-48">
+                {t("roles.capability")}
+              </th>
+              {ALL_ROLES.map(r => (
+                <th key={r} className="text-center py-2 px-2 min-w-[80px]">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${ROLE_COLORS[r]}`}>
+                    {t("role." + r)}
+                  </span>
                 </th>
-                {ALL_ROLES.map(r => (
-                  <th key={r} className="text-center py-2 px-2 min-w-[80px]">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${ROLE_COLORS[r]}`}>
-                      {t("role." + r)}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { label: "Cases", icon: FolderOpen, caps: ["create_cases","view_all_cases","apply_to_cases","arena_see_all_cases","reopen_cases"] },
-                { label: "Documents & Specs", icon: FileText, caps: ["upload_docs","view_docs","approve_specs","regen_specs","submit_specs","generate_dev_plan","export_pdf_docs"] },
-                { label: "Activities & Time", icon: ListChecks, caps: ["add_activities","log_time","approve_time","edit_activity_phase","edit_activity_predecessors","bulk_delete_activities","bulk_delete_subcases"] },
-                { label: "Lifecycle", icon: Zap, caps: ["view_lifecycle","edit_lifecycle"] },
-                { label: "Projects", icon: Briefcase, caps: ["create_projects","upload_project_docs"] },
-                { label: "Invoices & Reports", icon: Receipt, caps: ["manage_invoices","view_reports"] },
-                { label: "Team & Audit", icon: Users, caps: ["require_team_signup","view_audit_log"] },
-              ].flatMap(group => {
-                const GIcon = group.icon;
-                return [
-                  <tr key={`grp-${group.label}`}>
-                    <td colSpan={ALL_ROLES.length + 1} className="pt-4 pb-1 pr-4">
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                        <GIcon size={10} />
-                        {group.label}
-                      </div>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {caps.map((cap, idx) => {
+              const CapIcon = CAP_ICONS[cap];
+              return (
+                <tr key={cap} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
+                  <td className="py-2.5 pr-4 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      {CapIcon && <CapIcon size={11} className="text-blue-400 dark:text-blue-500 flex-shrink-0" />}
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{t("roles.cap." + cap)}</span>
+                    </div>
+                  </td>
+                  {ALL_ROLES.map(role => (
+                    <td key={role} className="text-center py-2.5 px-2">
+                      {role === 'admin' ? (
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-red-500 bg-red-500/20 text-red-500" title="Admin always has access">
+                          <Check size={11} />
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => toggle(cap, role)}
+                          className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                            matrix[cap]?.[role]
+                              ? 'bg-blue-600 border-blue-600 text-white'
+                              : 'bg-transparent border-gray-400 dark:border-gray-500 text-transparent hover:border-blue-400'
+                          }`}
+                        >
+                          <Check size={11} />
+                        </button>
+                      )}
                     </td>
-                  </tr>,
-                  ...group.caps.map((cap, idx) => {
-                    const CapIcon = CAP_ICONS[cap];
-                    return (
-                      <tr key={cap} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
-                        <td className="py-2.5 pr-4 text-xs">
-                          <div className="flex items-center gap-1.5">
-                            {CapIcon && <CapIcon size={11} className="text-blue-400 dark:text-blue-500 flex-shrink-0" />}
-                            <span className="font-medium text-gray-700 dark:text-gray-300">{t("roles.cap." + cap)}</span>
-                          </div>
-                        </td>
-                        {ALL_ROLES.map(role => (
-                          <td key={role} className="text-center py-2.5 px-2">
-                            {role === 'admin' ? (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-red-500 bg-red-500/20 text-red-500" title="Admin always has access">
-                                <Check size={11} />
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => toggle(cap, role)}
-                                className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
-                                  matrix[cap]?.[role]
-                                    ? 'bg-blue-600 border-blue-600 text-white'
-                                    : 'bg-transparent border-gray-400 dark:border-gray-500 text-transparent hover:border-blue-400'
-                                }`}
-                              >
-                                <Check size={11} />
-                              </button>
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  }),
-                ];
-              })}
-              {/* Arena Leaderboard Carousel row */}
-              <tr className={`border-b border-gray-100 dark:border-gray-700 ${CAPABILITIES.length % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
+                  ))}
+                </tr>
+              );
+            })}
+            {leaderboard && (
+              <tr className={`border-b border-gray-100 dark:border-gray-700 ${caps.length % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
                 <td className="py-2.5 pr-4 text-xs">
                   <div className="flex items-center gap-1.5">
                     <Trophy size={11} className="text-purple-500 flex-shrink-0" />
@@ -1219,9 +1213,69 @@ function SettingsRolesTab({ ssCtx }) {
                   </td>
                 ))}
               </tr>
-            </tbody>
-          </table>
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+
+      {/* ── Sign-up Access ── FIRST */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <UserPlus size={16} className="text-green-600" />
+          <h3 className="font-semibold text-gray-900 dark:text-white">Sign-up Access</h3>
         </div>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+          Control which roles are available on the sign-up screen. Disabled roles are hidden from new registrants.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {SIGNUP_ROLES.map(({ key, label, color }) => {
+            const enabled = visibleRoles.includes(key);
+            return (
+              <button key={key} onClick={() => toggleSignupRole(key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 text-xs font-semibold transition-all ${
+                  enabled ? color : "border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 bg-transparent"
+                }`}>
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${enabled ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-3">
+          {visibleRoles.length} of {SIGNUP_ROLES.length} roles active for sign-up
+        </p>
+      </div>
+
+      {/* ── Permission cards — one per group ── */}
+      <p className="text-xs text-gray-400 dark:text-gray-500 px-1">
+        {t("roles.subtitle")}{" "}
+        <span className="text-red-500 font-medium">Admin always has full access and cannot be restricted.</span>
+      </p>
+      {PERM_GROUPS.map(group => {
+        const GIcon = group.icon;
+        return (
+          <div key={group.label} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+            <div className="flex items-center gap-2">
+              <GIcon size={15} className="text-blue-500" />
+              <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{group.label}</h3>
+            </div>
+            <PermTable caps={group.caps} />
+          </div>
+        );
+      })}
+
+      {/* Display / Platform — leaderboard carousel */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+        <div className="flex items-center gap-2">
+          <Trophy size={15} className="text-purple-500" />
+          <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Display</h3>
+        </div>
+        <PermTable caps={[]} leaderboard={true} />
       </div>
 
       {/* Wizard Mode Defaults */}
@@ -1330,58 +1384,6 @@ function SettingsRolesTab({ ssCtx }) {
         </div>
       </div>
 
-      {/* ── Sign-up Access card ── */}
-      {(() => {
-        const SIGNUP_ROLES = [
-          { key: "consultant",          label: "Consultant",          color: "border-purple-500 text-purple-600 bg-purple-50 dark:bg-purple-500/10 dark:text-purple-300" },
-          { key: "headhunter",          label: "Headhunter",          color: "border-pink-500 text-pink-600 bg-pink-50 dark:bg-pink-500/10 dark:text-pink-300" },
-          { key: "client",              label: "Client",              color: "border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-500/10 dark:text-blue-300" },
-          { key: "key_user",            label: "Key User",            color: "border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-300" },
-          { key: "final_user",          label: "Final User",          color: "border-teal-500 text-teal-600 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-300" },
-          { key: "internal_consultant", label: "Internal Consultant", color: "border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 dark:text-indigo-300" },
-          { key: "project_manager",     label: "Project Manager",     color: "border-rose-500 text-rose-600 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-300" },
-        ];
-        const ALL_SIGNUP_KEYS = SIGNUP_ROLES.map(r => r.key);
-        const visibleRoles = ssCtx.settings["signup_roles_visible"] ?? ALL_SIGNUP_KEYS;
-
-        async function toggleSignupRole(key) {
-          const next = visibleRoles.includes(key)
-            ? visibleRoles.filter(k => k !== key)
-            : [...visibleRoles, key];
-          await ssCtx.setSetting("signup_roles_visible", next);
-        }
-
-        return (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
-            <div className="flex items-center gap-2 mb-1">
-              <UserPlus size={16} className="text-green-600" />
-              <h3 className="font-semibold text-gray-900 dark:text-white">Sign-up Access</h3>
-            </div>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
-              Control which roles are available on the sign-up screen. Disabled roles are hidden from new registrants.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {SIGNUP_ROLES.map(({ key, label, color }) => {
-                const enabled = visibleRoles.includes(key);
-                return (
-                  <button key={key} onClick={() => toggleSignupRole(key)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 text-xs font-semibold transition-all ${
-                      enabled
-                        ? color
-                        : "border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 bg-transparent"
-                    }`}>
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${enabled ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`} />
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-3">
-              {visibleRoles.length} of {SIGNUP_ROLES.length} roles active for sign-up
-            </p>
-          </div>
-        );
-      })()}
 
       {toast && (
         <div className={`px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${toast.startsWith("Error") ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
