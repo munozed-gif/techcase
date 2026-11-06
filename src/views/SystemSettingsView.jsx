@@ -1136,38 +1136,59 @@ function SettingsRolesTab({ ssCtx }) {
               </tr>
             </thead>
             <tbody>
-              {CAPABILITIES.map((cap, idx) => {
-                const CapIcon = CAP_ICONS[cap];
-                return (
-                <tr key={cap} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
-                  <td className="py-2.5 pr-4 text-xs">
-                    <div className="flex items-center gap-1.5">
-                      {CapIcon && <CapIcon size={11} className="text-blue-400 dark:text-blue-500 flex-shrink-0" />}
-                      <span className="font-medium text-gray-700 dark:text-gray-300">{t("roles.cap." + cap)}</span>
-                    </div>
-                  </td>
-                  {ALL_ROLES.map(role => (
-                    <td key={role} className="text-center py-2.5 px-2">
-                      {role === 'admin' ? (
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-red-500 bg-red-500/20 text-red-500" title="Admin always has access">
-                          <Check size={11} />
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => toggle(cap, role)}
-                          className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
-                            matrix[cap]?.[role]
-                              ? 'bg-blue-600 border-blue-600 text-white'
-                              : 'bg-transparent border-gray-400 dark:border-gray-500 text-transparent hover:border-blue-400'
-                          }`}
-                        >
-                          <Check size={11} />
-                        </button>
-                      )}
+              {[
+                { label: "Cases", icon: FolderOpen, caps: ["create_cases","view_all_cases","apply_to_cases","arena_see_all_cases","reopen_cases"] },
+                { label: "Documents & Specs", icon: FileText, caps: ["upload_docs","view_docs","approve_specs","regen_specs","submit_specs","generate_dev_plan","export_pdf_docs"] },
+                { label: "Activities & Time", icon: ListChecks, caps: ["add_activities","log_time","approve_time","edit_activity_phase","edit_activity_predecessors","bulk_delete_activities","bulk_delete_subcases"] },
+                { label: "Lifecycle", icon: Zap, caps: ["view_lifecycle","edit_lifecycle"] },
+                { label: "Projects", icon: Briefcase, caps: ["create_projects","upload_project_docs"] },
+                { label: "Invoices & Reports", icon: Receipt, caps: ["manage_invoices","view_reports"] },
+                { label: "Team & Audit", icon: Users, caps: ["require_team_signup","view_audit_log"] },
+              ].flatMap(group => {
+                const GIcon = group.icon;
+                return [
+                  <tr key={`grp-${group.label}`}>
+                    <td colSpan={ALL_ROLES.length + 1} className="pt-4 pb-1 pr-4">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                        <GIcon size={10} />
+                        {group.label}
+                      </div>
                     </td>
-                  ))}
-                </tr>
-                );
+                  </tr>,
+                  ...group.caps.map((cap, idx) => {
+                    const CapIcon = CAP_ICONS[cap];
+                    return (
+                      <tr key={cap} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
+                        <td className="py-2.5 pr-4 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            {CapIcon && <CapIcon size={11} className="text-blue-400 dark:text-blue-500 flex-shrink-0" />}
+                            <span className="font-medium text-gray-700 dark:text-gray-300">{t("roles.cap." + cap)}</span>
+                          </div>
+                        </td>
+                        {ALL_ROLES.map(role => (
+                          <td key={role} className="text-center py-2.5 px-2">
+                            {role === 'admin' ? (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-red-500 bg-red-500/20 text-red-500" title="Admin always has access">
+                                <Check size={11} />
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => toggle(cap, role)}
+                                className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                                  matrix[cap]?.[role]
+                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                    : 'bg-transparent border-gray-400 dark:border-gray-500 text-transparent hover:border-blue-400'
+                                }`}
+                              >
+                                <Check size={11} />
+                              </button>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  }),
+                ];
               })}
               {/* Arena Leaderboard Carousel row */}
               <tr className={`border-b border-gray-100 dark:border-gray-700 ${CAPABILITIES.length % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
