@@ -1113,6 +1113,7 @@ const TRANSLATIONS = {
     "roles.cap.bulk_delete_activities":     "Bulk-delete activities",
     "roles.cap.bulk_delete_subcases":       "Bulk-delete sub-cases",
     "roles.cap.create_projects":            "Create projects",
+    "roles.cap.arena_see_all_cases":        "See all cases in Arena",
     "roles.cap.upload_project_docs":        "Upload project documents",
     // Wizard mode defaults
     "roles.wizard_modes_title":   "Wizard Mode Defaults",
@@ -5201,6 +5202,7 @@ const TRANSLATIONS = {
     "roles.cap.bulk_delete_activities":     "Eliminación masiva de actividades",
     "roles.cap.bulk_delete_subcases":       "Eliminación masiva de sub-casos",
     "roles.cap.create_projects":            "Crear proyectos",
+    "roles.cap.arena_see_all_cases":        "Ver todos los casos en Arena",
     "roles.cap.upload_project_docs":        "Subir documentos de proyecto",
     // Wizard mode defaults
     "roles.wizard_modes_title":   "Modos por Defecto del Asistente",
