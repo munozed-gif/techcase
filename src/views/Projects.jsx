@@ -1187,7 +1187,11 @@ function ProjectDocsTab({ projectId, auth, createdBy }) {
     }
     if (added.length) {
       const current = (ssCtx.settings["project_docs"] ?? {})[projectId] ?? [];
-      await saveDocs([...current, ...added]);
+      try {
+        await saveDocs([...current, ...added]);
+      } catch (err) {
+        alert(`Failed to save document records: ${err.message}`);
+      }
     }
     setUploading(false);
     setUploadLabel("");
@@ -1197,7 +1201,11 @@ function ProjectDocsTab({ projectId, auth, createdBy }) {
 
   async function handleDelete(docId) {
     const current = (ssCtx.settings["project_docs"] ?? {})[projectId] ?? [];
-    await saveDocs(current.filter(d => d.id !== docId));
+    try {
+      await saveDocs(current.filter(d => d.id !== docId));
+    } catch (err) {
+      alert(`Failed to delete document: ${err.message}`);
+    }
   }
 
   const filtered    = filter ? docs.filter(d => d.type === filter) : docs;
@@ -1633,14 +1641,20 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   }, []);
   const [projMountedSlides, setProjMountedSlides] = useState(() => new Set(["overview"]));
   const [projManualCompletions, setProjManualCompletionsRaw] = useState(() => {
+    const fromDb = _importSS["proj_tab_completions"]?.[project.id];
+    if (fromDb && Object.keys(fromDb).length > 0) return fromDb;
     try { return JSON.parse(localStorage.getItem(`tc_pmc_${project.id}`) ?? "{}"); } catch { return {}; }
   });
+  useEffect(() => {
+    const fromDb = _importSS["proj_tab_completions"]?.[project.id];
+    if (fromDb && Object.keys(fromDb).length > 0) setProjManualCompletionsRaw(fromDb);
+  }, [_importSS["proj_tab_completions"]]);
   function setProjManualComplete(tabId, done) {
-    setProjManualCompletionsRaw(prev => {
-      const next = { ...prev, [tabId]: done };
-      try { localStorage.setItem(`tc_pmc_${project.id}`, JSON.stringify(next)); } catch {}
-      return next;
-    });
+    const next = { ...projManualCompletions, [tabId]: done };
+    setProjManualCompletionsRaw(next);
+    try { localStorage.setItem(`tc_pmc_${project.id}`, JSON.stringify(next)); } catch {}
+    const all = _importSS["proj_tab_completions"] ?? {};
+    ssSetSetting("proj_tab_completions", { ...all, [project.id]: next }).catch(() => {});
   }
   const [projLcMode, setProjLcMode] = useState(project.case_lifecycle?.preset ?? "standard");
   const [savingProjLc, setSavingProjLc] = useState(false);
@@ -1652,7 +1666,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef(null);
   // Import cases from document
-  const { settings: _importSS } = useSystemSettings();
+  const { settings: _importSS, setSetting: ssSetSetting } = useSystemSettings();
   const importGenModel = _importSS["ai_model"] ?? 'claude-haiku-5-5';
   const [showImportPanel, setShowImportPanel] = useState(false);
   const [importFile, setImportFile] = useState(null);
