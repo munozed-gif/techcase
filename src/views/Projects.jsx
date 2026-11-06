@@ -1641,8 +1641,6 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   }, []);
   const [projMountedSlides, setProjMountedSlides] = useState(() => new Set(["overview"]));
   const [projManualCompletions, setProjManualCompletionsRaw] = useState(() => {
-    const fromDb = _importSS["proj_tab_completions"]?.[project.id];
-    if (fromDb && Object.keys(fromDb).length > 0) return fromDb;
     try { return JSON.parse(localStorage.getItem(`tc_pmc_${project.id}`) ?? "{}"); } catch { return {}; }
   });
   useEffect(() => {
