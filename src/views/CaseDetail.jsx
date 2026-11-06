@@ -2747,7 +2747,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
             )}
 
             {/* Persistent next-stage CTA — always visible below carousel regardless of scroll */}
-            {canChange && !curStage?.is_terminal && (() => {
+            {!curStage?.is_terminal && (() => {
               const curDisplayIdx = displayStages.findIndex(ds => ds.key === caseData.status);
               if (curDisplayIdx < 0) return null;
               const afterCurrent = displayStages.slice(curDisplayIdx + 1);
@@ -2761,6 +2761,18 @@ ${tableHtml(['Role','Name','Signature','Date'],[
               const directOk = !allowedNext || allowedNext.includes(target.key);
               const viaAutoOk = autosBetween.length > 0 && (!allowedNext || autoKeys.some(k => allowedNext.includes(k)));
               if (!directOk && !viaAutoOk) return null;
+              // Check destination access rules
+              const tRoles     = target.allowed_roles?.length     ? target.allowed_roles     : null;
+              const tRelations = target.allowed_relations?.length ? target.allowed_relations : null;
+              const tRoleOk     = !tRoles     || tRoles.includes(auth.role);
+              const tRelationOk = !tRelations || tRelations.includes(caseRelation);
+              const canEnterTarget = auth.isAdmin || (
+                (tRoles && tRelations) ? (tRoleOk || tRelationOk) :
+                tRoles                 ? tRoleOk                  :
+                tRelations             ? tRelationOk              :
+                (isOwner || tRoleOk)
+              );
+              if (!canEnterTarget) return null;
               const fColor = target.color ?? "#6B7280";
               const { blockers: fgb, warnings: fgw } = checkTransitionGates(target.key);
               return (
