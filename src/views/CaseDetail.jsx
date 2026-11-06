@@ -5882,6 +5882,7 @@ function CaseInviteCard({ caseData, auth }) {
   const [name, setName]       = useState("");
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type: "success"|"error", msg }
+  const [linkedClient, setLinkedClient] = useState(null); // { full_name, email } of accepted client
   // Existing-user lookup
   const [lookup, setLookup]   = useState(null);  // null | "searching" | { found, user, alreadyLinked }
   const debounceRef           = useRef(null);
@@ -5899,9 +5900,10 @@ function CaseInviteCard({ caseData, auth }) {
       // If the case already has a linked client, auto-accept any pending invitation for that email
       if (caseData.client_id) {
         const { data: clientUser } = await supabase.from("users")
-          .select("email").eq("id", caseData.client_id).maybeSingle();
+          .select("email, full_name").eq("id", caseData.client_id).maybeSingle();
         if (clientUser?.email) {
           const clientEmail = clientUser.email.toLowerCase();
+          setLinkedClient({ full_name: clientUser.full_name || null, email: clientEmail });
           const toAccept = invRows.filter(
             i => i.status === "pending" && i.invited_email?.toLowerCase() === clientEmail
           );
@@ -6058,6 +6060,7 @@ function CaseInviteCard({ caseData, auth }) {
   }
 
   const caseIsActive = !["closed","completed","cancelled"].includes(caseData?.status);
+  const hasAccepted  = invites.some(i => i.status === "accepted");
   const isAlreadyLinked = lookup?.found && lookup.alreadyLinked;
   const isExistingUser  = lookup?.found && !lookup.alreadyLinked && lookup.user;
 
@@ -6067,8 +6070,8 @@ function CaseInviteCard({ caseData, auth }) {
         <UserPlus size={12} className="text-blue-400" /> Invite Client
       </p>
 
-      {/* Form */}
-      {caseIsActive && (
+      {/* Form — hidden once a client invitation has been accepted */}
+      {caseIsActive && !hasAccepted && (
         <form onSubmit={handleSubmit} className="space-y-2 mb-4">
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="flex-1 relative">
@@ -6148,8 +6151,21 @@ function CaseInviteCard({ caseData, auth }) {
             return (
               <div key={inv.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-t border-gray-50">
                 <div className="min-w-0 flex-1">
-                  <span className="font-medium text-gray-800 truncate block">{inv.invited_name || inv.invited_email}</span>
-                  {inv.invited_name && <span className="text-xs text-gray-400">{inv.invited_email}</span>}
+                  {inv.status === "accepted" ? (
+                    <>
+                      <span className="font-medium text-gray-800 truncate block">
+                        {linkedClient?.full_name || inv.invited_name || inv.invited_email}
+                      </span>
+                      {(linkedClient?.full_name || inv.invited_name) && (
+                        <span className="text-xs text-gray-400">{linkedClient?.email || inv.invited_email}</span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium text-gray-800 truncate block">{inv.invited_name || inv.invited_email}</span>
+                      {inv.invited_name && <span className="text-xs text-gray-400">{inv.invited_email}</span>}
+                    </>
+                  )}
                 </div>
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${statusColors[displayStatus]}`}>
                   {displayStatus}
