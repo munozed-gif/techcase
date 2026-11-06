@@ -60,7 +60,7 @@ function CasesView({ auth, initialCaseId }) {
 
   const { cases: _rawCasesCV, loading: _loadingCV, createCase, updateCase, deleteCase, refetch: _refetchCV, hasMore, loadMore } = useCases({
     search: debouncedSearch || undefined,
-    client_id: auth.isClient ? auth.user?.id : undefined,
+    client_id: (auth.isClient || auth.isInvitedClient) ? auth.user?.id : undefined,
     key_user_id: auth.isKeyUser ? auth.user?.id : undefined,
   });
   const _casesViewVisCfg = useVisibilitySettings();

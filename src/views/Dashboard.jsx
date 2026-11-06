@@ -151,7 +151,7 @@ function Dashboard({ auth, onNavigate }) {
   const { items: feedItems, loading: feedLoading, refresh: refreshFeed } = useActivityFeed(
     prefs.scope === 'all' ? visibleCaseIds
       : auth.isConsultant ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id)).map(c => c.id)
-      : auth.isClient ? cases.filter(c => c.client_id === auth.user?.id).map(c => c.id)
+      : (auth.isClient || auth.isInvitedClient) ? cases.filter(c => c.client_id === auth.user?.id).map(c => c.id)
       : visibleCaseIds,
     auth.user?.id
   );
