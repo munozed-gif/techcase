@@ -7,7 +7,7 @@ import {
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent } from "../lib/utils.js";
 import { Badge, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { ConsultantProfileView } from "../components/ConsultantProfileView.jsx";
@@ -32,6 +32,8 @@ function ConsultantsView({ auth, onNavigate }) {
   const { leaderboard, loading }      = useLeaderboard();
   const { cases: allCases }           = useCases({});
   const { shortlist, toggle: toggleShortlist, isShortlisted } = useConsultantShortlist();
+  const visCfg = useVisibilitySettings();
+  const authCtx = useAuth();
 
   const openCases = allCases.filter(c => c.status === 'estimated' || c.status === 'open');
   const matchCase = openCases.find(c => c.id === matchCaseId) ?? null;
@@ -51,9 +53,11 @@ function ConsultantsView({ auth, onNavigate }) {
     return Math.round(skillScore + expScore + ratingScore);
   }
 
+  const isAdminOrManager = authCtx.isAdmin || authCtx.isManager;
   let filtered = leaderboard.filter(c =>
-    !search || c.user?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.skills?.some(s => s.toLowerCase().includes(search.toLowerCase()))
+    (isAdminOrManager || visCfg.getCompanyVisibility(c.id) !== 'internal') &&
+    (!search || c.user?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.skills?.some(s => s.toLowerCase().includes(search.toLowerCase())))
   );
   if (showShortlist) filtered = filtered.filter(c => isShortlisted(c.id));
   if (matchCase) filtered = [...filtered].sort((a, b) => (matchScore(b) ?? 0) - (matchScore(a) ?? 0));

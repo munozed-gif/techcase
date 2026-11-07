@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext.jsx";
 import {
-  Briefcase, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, DollarSign, Globe,
+  Briefcase, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, DollarSign, Eye, Globe,
   GraduationCap, Key, Mail, Pencil, Plane, Plus, Star, Trash2, UserMinus, Users, X, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useConsultantProfile } from "../hooks/useProfileHooks.js";
-import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent, callClaude } from "../lib/utils.js";
 import {
   Badge, Spinner, ResumeImporter, ConsultantProjectsHierarchy,
@@ -39,6 +39,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   const { teams, pendingInvites, createTeam, inviteMember, respondToInvite, removeMember, leaveTeam, deleteTeam } = useConsultantTeams(auth.user?.id);
   const { startCheckout, priceIds } = usePlanConfig();
   const { settings: sysSettings } = useSystemSettings();
+  const visCfg = useVisibilitySettings();
   const FREE_LIMIT = sysSettings['ai_free_monthly_limit'] ?? 10;
   const [teamForm, setTeamForm] = useState({ name: "", desc: "" });
   const [showCreateTeam, setShowCreateTeam] = useState(false);
@@ -1452,6 +1453,44 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                     >
                       {t("profile.ai_upgrade_btn")}
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Visibility Mode — consultant & headhunter only */}
+              {(auth.role === 'consultant' || auth.role === 'headhunter') && (
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-5">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                    <Eye size={11} />{t('company.vis_mode')}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      {
+                        id: 'open',
+                        label: t('company.vis_open'),
+                        desc: auth.role === 'headhunter' ? t('company.vis_open_desc_headhunter') : t('company.vis_open_desc_consultant'),
+                        cls: 'border-blue-500 bg-blue-50 dark:bg-blue-900/20',
+                        lbl: 'text-blue-700 dark:text-blue-300',
+                      },
+                      {
+                        id: 'internal',
+                        label: t('company.vis_internal'),
+                        desc: auth.role === 'headhunter' ? t('company.vis_int_desc_headhunter') : t('company.vis_int_desc_consultant'),
+                        cls: 'border-amber-500 bg-amber-50 dark:bg-amber-900/20',
+                        lbl: 'text-amber-700 dark:text-amber-300',
+                      },
+                    ].map(opt => {
+                      const current = visCfg.getCompanyVisibility(auth.user?.id);
+                      const isActive = current === opt.id;
+                      return (
+                        <button key={opt.id} type="button"
+                          onClick={() => visCfg.setCompanyVisibility(auth.user?.id, opt.id)}
+                          className={`p-3 text-left rounded-xl border-2 transition-all ${isActive ? opt.cls : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500'}`}>
+                          <div className={`text-sm font-bold mb-0.5 ${isActive ? opt.lbl : 'text-gray-700 dark:text-gray-300'}`}>{opt.label}</div>
+                          <p className={`text-xs leading-tight ${isActive ? opt.lbl + ' opacity-70' : 'text-gray-400 dark:text-gray-500'}`}>{opt.desc}</p>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

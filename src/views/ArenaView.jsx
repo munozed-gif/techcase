@@ -887,6 +887,9 @@ function ArenaView({ auth, onNavigate }) {
   const [profileView, setProfileView]       = useState(null);  // consultant id for drawer
   const [compareSet, setCompareSet]         = useState([]);    // ids selected for compare
   const { leaderboard, loading: lbLoading } = useLeaderboard();
+  const visibleLeaderboard = (auth.isAdmin || auth.isManager)
+    ? leaderboard
+    : leaderboard.filter(c => visCfg.getCompanyVisibility(c.id) !== 'internal');
   const { cases, loading: casesLoading, updateCase } = useCases();
   const { shortlist, toggle: toggleShortlist, isShortlisted } = useConsultantShortlist();
   const { applications, reviewApplication, refetch: refetchApps } = useApplications();
@@ -1471,7 +1474,7 @@ function ArenaView({ auth, onNavigate }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {leaderboard.map((c, i) => (
+            {visibleLeaderboard.map((c, i) => (
               <tr key={c.id} className="hover:bg-gray-50 transition-colors cursor-pointer"
                 onClick={() => setProfileView(c.id)}>
                 <td className="px-5 py-4">
@@ -1514,7 +1517,7 @@ function ArenaView({ auth, onNavigate }) {
                 </td>
               </tr>
             ))}
-            {leaderboard.length === 0 && (
+            {visibleLeaderboard.length === 0 && (
               <tr><td colSpan={6} className="px-5 py-12 text-center text-gray-400 text-sm">{t("arena.no_consultants")}</td></tr>
             )}
           </tbody>
@@ -1525,7 +1528,7 @@ function ArenaView({ auth, onNavigate }) {
 
   const renderCards = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {leaderboard.map((c, i) => {
+      {visibleLeaderboard.map((c, i) => {
         const inCompare = compareSet.includes(c.id);
         const winRate = c.totalApps > 0 ? Math.round((c.acceptedCases / c.totalApps) * 100) : 0;
         return (
@@ -1615,8 +1618,8 @@ function ArenaView({ auth, onNavigate }) {
 
   const renderCompare = () => {
     const selected = compareSet.length >= 2
-      ? leaderboard.filter(c => compareSet.includes(c.id))
-      : leaderboard.slice(0, Math.min(3, leaderboard.length));
+      ? visibleLeaderboard.filter(c => compareSet.includes(c.id))
+      : visibleLeaderboard.slice(0, Math.min(3, visibleLeaderboard.length));
 
     if (selected.length < 2) return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
@@ -1661,7 +1664,7 @@ function ArenaView({ auth, onNavigate }) {
             const isBestExp     = (c.years_experience ?? 0) > 0 && (c.years_experience ?? 0) === bestExp;
             const isCheapest    = (c.hourly_rate ?? 0) > 0 && (c.hourly_rate ?? 0) < bestRate;
 
-            const rank = leaderboard.findIndex(l => l.id === c.id);
+            const rank = visibleLeaderboard.findIndex(l => l.id === c.id);
             const rankColor = rank === 0 ? "border-yellow-300" : rank === 1 ? "border-gray-300" : rank === 2 ? "border-orange-300" : "border-gray-100";
 
             return (
