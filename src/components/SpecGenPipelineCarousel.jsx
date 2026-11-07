@@ -85,7 +85,7 @@ export function SpecGenPipelineCarousel({ stages }) {
   const { Icon } = info;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-1/2 min-w-[260px]">
       <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Pipeline preview</p>
 
       {/* Step pill row */}
