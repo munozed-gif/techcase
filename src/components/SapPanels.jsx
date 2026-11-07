@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import mcpScript from '../../sap-mcp-server/index.js?raw';
 import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronDown, ChevronRight,
-  Clock, Code2, Copy, Eye, FileCode2, FileText, FolderOpen, LayoutGrid, Loader2,
-  Link2, Mail, RefreshCw,
+  Clock, Code2, Copy, Eye, FileCode2, FileText, FolderOpen, History, LayoutGrid, Loader2,
+  Link2, Mail, MessageSquare, RefreshCw, RotateCcw,
   Laptop, Monitor, Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -6574,6 +6574,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     if (saved.implMode         !== undefined) setImplModeRaw(saved.implMode);
     if (saved.includeViewer    !== undefined) setIncludeViewerRaw(saved.includeViewer);
     if (saved.notifyOnComplete !== undefined) setNotifyRaw(saved.notifyOnComplete);
+    setImplFeedback((settings['sap_impl_feedback'] ?? {})[caseData.id] ?? '');
   }, [settingsLoading, caseData.id]);
 
   // Debounced auto-save for transport and package (fires 700ms after user stops typing)
@@ -6606,6 +6607,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [logTab, setLogTab] = useState('platform');
   const [expandedManual, setExpandedManual] = useState(new Set());
   const [expandedAuto,   setExpandedAuto]   = useState(new Set());
+  const [expandedRun,    setExpandedRun]    = useState(null);
   const [manualSpecs, setManualSpecs] = useState(settings['sap_impl_specs']?.[caseData.id] ?? {});
   const [bcsetSysType, setBcsetSysType] = useState('s4_onprem'); // 'ecc' | 's4_onprem' | 's4_cloud'
 
@@ -6814,6 +6816,7 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
       const isModification = !!existingSource;
       const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
       const standardsBlock = buildAbapStandardsPrompt(standards, obj.objectType ?? 'program', obj.objectName, act, caseData, transportReq, isModification);
+      const feedbackBlock = implFeedback?.trim() ? `\n\nFEEDBACK FROM PREVIOUS RUNS (apply to this generation):\n${implFeedback.trim()}` : '';
       const prompt = `You are an SAP ABAP developer. ${isModification ? 'MODIFY' : 'CREATE'} ${obj.objectType ?? 'ABAP program'} code for SAP object ${obj.objectName}.
 
 Activity: ${act.title}
@@ -6822,7 +6825,7 @@ Case: ${caseData.title}
 SAP Module: ${caseData.area_sap ?? 'general'}
 ${isModification ? `\nExisting source to MODIFY:\n\`\`\`abap\n${existingSource.slice(0, 3000)}\n\`\`\`` : '\nThis is a NEW object — generate complete source.'}
 
-${standardsBlock}
+${standardsBlock}${feedbackBlock}
 
 Output ONLY the ABAP source code, no explanations. Follow the coding standards above exactly.`;
       const resp = await callClaude({
@@ -6893,6 +6896,86 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
   function toggleActCheckAll() {
     if (checkedActIds.size === implActivities.length) setCheckedActIds(new Set());
     else setCheckedActIds(new Set(implActivities.map(a => a.id)));
+  }
+
+  async function saveImplFeedback(text) {
+    const cur = settings['sap_impl_feedback'] ?? {};
+    await ssCtx.setSetting('sap_impl_feedback', { ...cur, [caseData.id]: text });
+  }
+
+  function buildRunRecord() {
+    const objects = sortedActivities.map(act => {
+      const obj = objectMap[act.id] ?? {};
+      const as  = actState[act.id] ?? {};
+      const isApplied = as.applied || implLog.some(l => l.activityId === act.id);
+      return {
+        activityId: act.id, activityTitle: act.title,
+        objectName: obj.objectName, objectType: obj.objectType,
+        status: isApplied ? 'done' : as.applyError ? 'error' : MANUAL_TYPES.has(obj.objectType ?? '') ? 'manual' : 'pending',
+        error: as.applyError ?? null,
+        appliedAt: isApplied ? (implLog.find(l => l.activityId === act.id)?.appliedAt ?? null) : null,
+      };
+    });
+    return {
+      runId: crypto.randomUUID(),
+      runNumber: implRuns.length + 1,
+      startedAt: new Date().toISOString(),
+      feedback: implFeedback?.trim() || null,
+      objects,
+    };
+  }
+
+  async function saveRunRecord(record) {
+    const cur = settings['sap_impl_runs'] ?? {};
+    const caseRuns = cur[caseData.id] ?? [];
+    await ssCtx.setSetting('sap_impl_runs', { ...cur, [caseData.id]: [...caseRuns, record] });
+  }
+
+  async function handleRunAgain() {
+    await saveImplFeedback(implFeedback);
+    const record = buildRunRecord();
+    await saveRunRecord(record);
+    // Reset non-applied actState
+    const newActState = {};
+    for (const act of implActivities) {
+      const isApplied = actState[act.id]?.applied || implLog.some(l => l.activityId === act.id);
+      if (isApplied) {
+        newActState[act.id] = actState[act.id];
+      } else {
+        newActState[act.id] = { ...(actState[act.id] ?? {}), applying: false, applyError: null, generatedCode: null, generating: false, expanded: false };
+      }
+    }
+    setActState(newActState);
+    // Reset blueprint objects back to planned for non-done
+    if (bpObjects.length > 0) {
+      const newBpObjects = bpObjects.map(o => o.status === 'done' ? o : { ...o, status: 'planned', error: null, generatedCode: null });
+      const cur = settings['sap_blueprint'] ?? {};
+      await ssCtx.setSetting('sap_blueprint', { ...cur, [caseData.id]: { ...(cur[caseData.id] ?? {}), objects: newBpObjects } });
+    }
+    setImplStep(4);
+  }
+
+  async function handleMarkManualDone(actId) {
+    const obj  = objectMap[actId];
+    const act  = implActivities.find(a => a.id === actId);
+    if (!obj?.objectName) return;
+    setActField(actId, { applied: true, applying: false, applyError: null });
+    const cur = settings['sap_impl_log'] ?? {};
+    const caseLog = cur[caseData.id] ?? [];
+    await ssCtx.setSetting('sap_impl_log', {
+      ...cur,
+      [caseData.id]: [...caseLog, {
+        activityId: actId, activityTitle: act?.title ?? '',
+        objectName: obj.objectName, objectType: obj.objectType,
+        appliedAt: new Date().toISOString(), transport: transportReq,
+        markedManual: true,
+      }],
+    });
+    if (act) await updateActivity(actId, { progress_pct: 100 });
+  }
+
+  function handleResetObject(actId) {
+    setActField(actId, { applied: false, applying: false, applyError: null, generatedCode: null });
   }
   async function handleGenerateManualSpec(obj) {
     const typeMeta = BP_TYPES[obj.type] ?? {};
@@ -7100,8 +7183,10 @@ FALLBACK:
 
   // ── Derived data ────────────────────────────────────────
   const implLog      = (settings['sap_impl_log'] ?? {})[caseData.id] ?? [];
+  const implRuns     = (settings['sap_impl_runs'] ?? {})[caseData.id] ?? [];
   const appliedCount = implLog.length;
   const totalCount   = implActivities.length;
+  const [implFeedback, setImplFeedback] = useState(() => (settings['sap_impl_feedback'] ?? {})[caseData.id] ?? '');
 
   // Blueprint canvas objects (primary source for Sequence step)
   const bpObjects = (settings['sap_blueprint'] ?? {})[caseData.id]?.objects ?? [];
@@ -7745,6 +7830,7 @@ FALLBACK:
         <Panel icon={<CheckCircle2 size={15} />} title="Results"
           sub={appliedCount > 0 ? `Last applied ${new Date(implLog[implLog.length - 1]?.appliedAt).toLocaleString()}` : 'No objects applied yet'}>
 
+          {/* Stats grid */}
           <div className="grid grid-cols-3 gap-3">
             {[
               { label: 'Total',        value: totalCount,   color: 'text-blue-400' },
@@ -7755,38 +7841,105 @@ FALLBACK:
               { label: 'Remaining',    value: Math.max(0, totalCount - appliedCount), color: totalCount - appliedCount > 0 ? 'text-amber-400' : 'text-white/30' },
             ].map(s => (
               <div key={s.label} className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
-                <p className={`text-2xl font-bold font-variant-numeric-tabular ${s.color}`}>{s.value}</p>
+                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
                 <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>
 
-          {implLog.length > 0 && (
+          {/* Full object list with status + manual override */}
+          {sortedActivities.length > 0 && (
             <>
-              <SectionLabel>Applied Objects</SectionLabel>
+              <SectionLabel>Objects</SectionLabel>
               <div className="space-y-1.5">
-                {implLog.map((entry, i) => (
-                  <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-green-500/30 bg-green-500/10">
-                    <CheckCircle2 size={12} className="text-green-400 flex-shrink-0" />
-                    <span className="font-mono text-xs font-semibold text-white flex-shrink-0">{entry.objectName}</span>
-                    <span className="text-xs text-white/50 truncate flex-1">{entry.activityTitle}</span>
-                    {entry.transport && <span className="text-[10px] text-white/30 font-mono flex-shrink-0">{entry.transport}</span>}
-                    <span className="text-[10px] text-white/25 flex-shrink-0">{new Date(entry.appliedAt).toLocaleDateString()}</span>
-                  </div>
-                ))}
+                {sortedActivities.map(act => {
+                  const obj = objectMap[act.id] ?? {};
+                  const as  = actState[act.id] ?? {};
+                  const isApplied = as.applied || implLog.some(l => l.activityId === act.id);
+                  const isManual  = MANUAL_TYPES.has(obj.objectType ?? '');
+                  const hasError  = !!as.applyError;
+                  const canEdit   = auth.isAdmin || auth.isManager || auth.isConsultant;
+                  const statusLabel = isApplied ? 'Done' : hasError ? 'Error' : isManual ? 'Manual' : 'Pending';
+                  return (
+                    <div key={act.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                      isApplied ? 'border-green-500/30 bg-green-500/10'
+                      : hasError ? 'border-red-500/30 bg-red-500/10'
+                      : isManual ? 'border-amber-500/30 bg-amber-500/10'
+                      : 'border-white/10 bg-white/5'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isApplied ? 'bg-green-400' : hasError ? 'bg-red-400' : isManual ? 'bg-amber-400' : 'bg-gray-500'}`} />
+                      <span className="font-mono text-xs font-semibold text-white flex-shrink-0 truncate max-w-[120px]">{obj.objectName || act.title}</span>
+                      <span className="text-xs text-white/40 truncate flex-1">{act.title}</span>
+                      {hasError && <span className="text-[10px] text-red-400 truncate max-w-[100px]" title={as.applyError}>{as.applyError}</span>}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${
+                        isApplied ? 'bg-green-900/50 border-green-500/50 text-green-300'
+                        : hasError ? 'bg-red-900/50 border-red-500/50 text-red-300'
+                        : isManual ? 'bg-amber-900/50 border-amber-500/50 text-amber-300'
+                        : 'bg-gray-800 border-gray-600 text-gray-400'
+                      }`}>{statusLabel}</span>
+                      {canEdit && !isApplied && (
+                        <button onClick={() => handleMarkManualDone(act.id)} title="Mark as manually completed"
+                          className="text-[10px] text-green-400 hover:text-green-300 flex-shrink-0 px-1.5 py-0.5 rounded border border-green-500/30 hover:bg-green-500/10 transition-colors">
+                          ✓ Done
+                        </button>
+                      )}
+                      {canEdit && !isApplied && (hasError || isManual) && (
+                        <button onClick={() => handleResetObject(act.id)} title="Reset to pending for next run"
+                          className="text-[10px] text-gray-400 hover:text-gray-200 flex-shrink-0 px-1.5 py-0.5 rounded border border-gray-600 hover:bg-white/5 transition-colors">
+                          ↺
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
 
-          <StepNav prev={4} next={6} nextLabel="View Logs →" />
+          {/* Feedback for next run */}
+          <div>
+            <label className="text-xs font-semibold text-white/50 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+              <MessageSquare size={11} /> What do you want to change or add to the next run?
+            </label>
+            <textarea
+              value={implFeedback}
+              onChange={e => setImplFeedback(e.target.value)}
+              onBlur={() => saveImplFeedback(implFeedback)}
+              rows={4}
+              placeholder={'e.g. Add error handling to ZMM_GOODS_RECEIPT. For ZBAPI_INVOICE change the number range to use NUMBER_GET_NEXT instead of hard-coded…'}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+            {implFeedback?.trim() && (
+              <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
+                <History size={9} /> Feedback accumulates across runs — Claude sees the full history
+              </p>
+            )}
+          </div>
+
+          {/* Last run info */}
+          {implRuns.length > 0 && (
+            <p className="text-xs text-white/30">
+              Last run: Run {implRuns[implRuns.length - 1].runNumber} · {new Date(implRuns[implRuns.length - 1].startedAt).toLocaleString()}
+            </p>
+          )}
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-2 pt-2">
+            <button onClick={() => setImplStep(4)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">← Back</button>
+            <button onClick={() => setImplStep(6)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">View Logs →</button>
+            <button onClick={handleRunAgain}
+              className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
+              <RotateCcw size={12} /> Run Again
+            </button>
+          </div>
         </Panel>
       )}
 
       {/* ── STEP 6: Logs ──────────────────────────────── */}
       {implStep === 6 && (
-        <Panel icon={<FileText size={15} />} title="Implementation Logs" sub="Platform events · AI code generation trace">
+        <Panel icon={<FileText size={15} />} title="Implementation Logs" sub="Platform events · Run history · AI code generation trace">
           <div className="flex gap-0 border-b border-white/10 -mt-2 mb-4">
-            {[['platform', 'Platform Logs'], ['ai', 'AI Code Trace']].map(([key, label]) => (
+            {[['platform', 'Platform Logs'], ['runs', 'Run History'], ['ai', 'AI Code Trace']].map(([key, label]) => (
               <button key={key} onClick={() => setLogTab(key)}
                 className={`px-4 py-2 text-xs font-semibold border-b-2 transition-colors -mb-px
                   ${logTab === key ? 'border-blue-500 text-blue-400' : 'border-transparent text-white/30 hover:text-white/60'}`}>
@@ -7806,10 +7959,59 @@ FALLBACK:
                     <span className="text-green-400 font-bold flex-shrink-0 w-8"> OK </span>
                     <span className="text-white/60">
                       <span className="text-blue-400">{entry.objectName}</span>
-                      {' '}applied{entry.transport ? ` → ${entry.transport}` : ''}
+                      {' '}{entry.markedManual ? 'marked done manually' : 'applied'}{entry.transport ? ` → ${entry.transport}` : ''}
                     </span>
                   </div>
                 ))}
+              </div>
+            )
+          )}
+
+          {logTab === 'runs' && (
+            implRuns.length === 0 ? (
+              <p className="text-sm text-white/40 text-center py-6">No runs recorded yet. Click <strong className="text-white/60">Run Again</strong> from the Results step to start tracking run history.</p>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {[...implRuns].reverse().map(run => {
+                  const doneObjs   = (run.objects ?? []).filter(o => o.status === 'done');
+                  const errorObjs  = (run.objects ?? []).filter(o => o.status === 'error');
+                  const manualObjs = (run.objects ?? []).filter(o => o.status === 'manual');
+                  const isExpanded = expandedRun === run.runId;
+                  return (
+                    <div key={run.runId} className="rounded-xl border border-white/10 overflow-hidden">
+                      <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-white/5 hover:bg-white/8 transition-colors text-left"
+                        onClick={() => setExpandedRun(isExpanded ? null : run.runId)}>
+                        <ChevronRight size={12} className={`text-white/40 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        <span className="text-xs font-bold text-white/70">Run {run.runNumber}</span>
+                        <span className="text-[10px] text-white/35 truncate">{new Date(run.startedAt).toLocaleString()}</span>
+                        <div className="flex gap-2 ml-auto flex-shrink-0">
+                          {doneObjs.length   > 0 && <span className="text-[10px] font-bold text-green-400">{doneObjs.length} done</span>}
+                          {errorObjs.length  > 0 && <span className="text-[10px] font-bold text-red-400">{errorObjs.length} error</span>}
+                          {manualObjs.length > 0 && <span className="text-[10px] font-bold text-amber-400">{manualObjs.length} manual</span>}
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="px-3 py-2.5 space-y-1.5 bg-black/20 border-t border-white/5">
+                          {run.feedback && (
+                            <div className="text-xs text-white/50 italic bg-blue-500/10 rounded-lg px-2.5 py-2 border border-blue-500/20 mb-2 flex items-start gap-1.5">
+                              <MessageSquare size={11} className="flex-shrink-0 mt-0.5 text-blue-400" />
+                              <span>"{run.feedback}"</span>
+                            </div>
+                          )}
+                          {(run.objects ?? []).map((o, j) => (
+                            <div key={j} className="flex items-center gap-2 font-mono text-xs">
+                              <span className={`flex-shrink-0 font-bold ${o.status === 'done' ? 'text-green-400' : o.status === 'error' ? 'text-red-400' : 'text-amber-400'}`}>
+                                {o.status === 'done' ? '✓' : o.status === 'error' ? '✗' : '⊘'}
+                              </span>
+                              <span className="text-white/60 font-mono truncate">{o.objectName || o.activityTitle}</span>
+                              {o.error && <span className="text-red-300/60 text-[10px] truncate flex-1" title={o.error}>{o.error}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )
           )}
