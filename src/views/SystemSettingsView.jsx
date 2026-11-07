@@ -1860,7 +1860,6 @@ function SettingsGenerationTab({ ssCtx }) {
             { key: "include_project_ctx",   labelKey: "gen.ctx_project_ctx",      descKey: "gen.ctx_project_ctx_desc" },
             { key: "include_project_docs",  labelKey: "gen.ctx_project_docs",     descKey: "gen.ctx_project_docs_desc" },
             { key: "include_related_cases", labelKey: "gen.ctx_related_cases",    descKey: "gen.ctx_related_cases_desc" },
-            { key: "sap_live_check",        labelKey: "gen.ctx_sap_live_check",   descKey: "gen.ctx_sap_live_check_desc" },
           ].map(({ key, labelKey, descKey }) => (
             <label key={key} className="flex items-center justify-between gap-4 cursor-pointer select-none">
               <div className="flex-1 min-w-0">

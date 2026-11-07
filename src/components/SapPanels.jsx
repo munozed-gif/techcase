@@ -829,6 +829,36 @@ function SapIntegrationPanel({ clientId, auth }) {
         )}
       </div>
 
+      {/* Global live check on generation toggle */}
+      {(() => {
+        const genCtxRaw = ssCtx.settings['generation_context'] ?? {};
+        const globalLiveCheck = genCtxRaw.sap_live_check === true;
+        async function toggleGlobalLiveCheck() {
+          await ssCtx.setSetting('generation_context', { ...genCtxRaw, sap_live_check: !globalLiveCheck });
+        }
+        return (
+          <div className="border border-gray-100 dark:border-gray-700 rounded-xl p-4 bg-gray-50/50 dark:bg-gray-800/30">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
+                  <Zap size={13} className="text-blue-500" />{t('sap.live_check_label')}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">{t('sap.live_check_desc')}</p>
+              </div>
+              <button type="button" onClick={canEdit ? toggleGlobalLiveCheck : undefined}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${globalLiveCheck ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${globalLiveCheck ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </div>
+            {globalLiveCheck && environments.length === 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+                <AlertTriangle size={11} /> Add an SAP environment below so the live check has a system to connect to.
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
       {environments.length === 0 ? (
         <div className="text-center py-10 border border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
           {t('sap.no_environments')}

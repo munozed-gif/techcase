@@ -4457,27 +4457,27 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 onClick={() => setActiveNode(0)}
               />
 
-              {/* Node 5: Live SAP Connection (only when live check is enabled in settings) */}
-              {liveCheckEnabled && (
-                <NodeBtn id={5} icon={Zap}
-                  title={t("spec.sap_conn_node_lbl")}
-                  sub={sapConnLoading ? t("spec.checking")
-                    : sapConnInfo?.notFound ? t("spec.sap_conn_not_cfg")
-                    : sapConnInfo?.error ? t("spec.sap_conn_not_cfg")
-                    : sapConnInfo ? (sapConnInfo.host ?? t("spec.pending"))
-                    : t("spec.pending")}
-                  status={sapConnLoading ? 'running'
-                    : sapConnInfo?.notFound || sapConnInfo?.error ? 'skipped'
-                    : sapConnInfo ? 'complete'
-                    : 'pending'}
-                  isActive={activeNode===5}
-                  canClick={true}
-                  onClick={() => {
-                    setActiveNode(5);
-                    if (!sapConnInfo && !sapConnLoading) loadSapConnInfo();
-                  }}
-                />
-              )}
+              {/* Node 5: Live SAP Connection — always visible so the per-case override is reachable */}
+              <NodeBtn id={5} icon={Zap}
+                title={t("spec.sap_conn_node_lbl")}
+                sub={!liveCheckEnabled && caseLiveCheck !== true ? 'Disabled (override here)'
+                  : sapConnLoading ? t("spec.checking")
+                  : sapConnInfo?.notFound ? t("spec.sap_conn_not_cfg")
+                  : sapConnInfo?.error ? t("spec.sap_conn_not_cfg")
+                  : sapConnInfo ? (sapConnInfo.host ?? t("spec.pending"))
+                  : t("spec.pending")}
+                status={!liveCheckEnabled && caseLiveCheck !== true ? 'skipped'
+                  : sapConnLoading ? 'running'
+                  : sapConnInfo?.notFound || sapConnInfo?.error ? 'skipped'
+                  : sapConnInfo ? 'complete'
+                  : 'pending'}
+                isActive={activeNode===5}
+                canClick={true}
+                onClick={() => {
+                  setActiveNode(5);
+                  if (liveCheckEnabled && !sapConnInfo && !sapConnLoading) loadSapConnInfo();
+                }}
+              />
 
               {/* Node 6: Compiled Context — turns green when analysis results exist */}
               <NodeBtn id={6} icon={Code2}
@@ -4592,33 +4592,41 @@ Respond with ONLY a valid JSON object, no markdown fences:
             )}
 
             {/* ── Node 5: Live SAP Connection ── */}
-            {activeNode === 5 && liveCheckEnabled && (
+            {activeNode === 5 && (
               <div className="space-y-3">
-                <div className="border border-blue-800 rounded-xl p-3 flex items-start gap-2">
-                  <Zap className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-gray-400">{t("spec.sap_conn_desc")}</p>
-                </div>
+                {(liveCheckEnabled || caseLiveCheck === true) && (
+                  <div className="border border-blue-800 rounded-xl p-3 flex items-start gap-2">
+                    <Zap className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-gray-400">{t("spec.sap_conn_desc")}</p>
+                  </div>
+                )}
+                {!(liveCheckEnabled || caseLiveCheck === true) && (
+                  <div className="border border-gray-700 rounded-xl p-3 flex items-start gap-2 opacity-60">
+                    <Zap className="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-gray-500">SAP live check is currently disabled. Enable it globally in the client's SAP Setup tab, or set the override below to "Enabled" for this case.</p>
+                  </div>
+                )}
 
-                {(sapConnLoading || !sapConnInfo) && (
+                {(liveCheckEnabled || caseLiveCheck === true) && (sapConnLoading || !sapConnInfo) && (
                   <div className="flex items-center justify-center py-8 gap-2 text-gray-400">
                     <Spinner /><span className="text-sm">{t("spec.checking")}</span>
                   </div>
                 )}
 
-                {!sapConnLoading && sapConnInfo?.notFound && (
+                {(liveCheckEnabled || caseLiveCheck === true) && !sapConnLoading && sapConnInfo?.notFound && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-amber-700">{t("spec.sap_conn_none")}</p>
                   </div>
                 )}
 
-                {!sapConnLoading && sapConnInfo?.error && (
+                {(liveCheckEnabled || caseLiveCheck === true) && !sapConnLoading && sapConnInfo?.error && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">
                     {sapConnInfo.error}
                   </div>
                 )}
 
-                {!sapConnLoading && sapConnInfo && !sapConnInfo.notFound && !sapConnInfo.error && (
+                {(liveCheckEnabled || caseLiveCheck === true) && !sapConnLoading && sapConnInfo && !sapConnInfo.notFound && !sapConnInfo.error && (
                   <div className="rounded-xl overflow-hidden border border-gray-200 divide-y divide-gray-200">
                     {[
                       { label: t("spec.sap_conn_host"),    value: sapConnInfo.host },
@@ -4636,7 +4644,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   </div>
                 )}
 
-                {!sapConnLoading && sapConnInfo && !sapConnInfo.notFound && !sapConnInfo.error && (
+                {(liveCheckEnabled || caseLiveCheck === true) && !sapConnLoading && sapConnInfo && !sapConnInfo.notFound && !sapConnInfo.error && (
                   <div className="space-y-2">
                     {/* VPN mode badge */}
                     {sapConnCfg?.vpn_mode === 'user' && (
@@ -4723,7 +4731,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   </div>
                 )}
 
-                {!sapConnLoading && sapConnInfo && (sapConnInfo.notFound || sapConnInfo.error) && (
+                {(liveCheckEnabled || caseLiveCheck === true) && !sapConnLoading && sapConnInfo && (sapConnInfo.notFound || sapConnInfo.error) && (
                   <div className="flex justify-end pt-1">
                     <button onClick={() => setActiveNode(1)}
                       className="px-4 py-2 bg-[#1A4B8C] text-white text-xs font-semibold rounded-xl hover:bg-blue-900">
@@ -4731,6 +4739,38 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </button>
                   </div>
                 )}
+
+                {/* Per-case SAP live check override */}
+                <div className="pt-3 border-t border-gray-700 mt-1">
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                    SAP Live Check (this case)
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">Override the global/environment live check setting for this case only.</p>
+                  <div className="flex gap-2">
+                    {[
+                      { val: null,  label: 'Default',  desc: 'Use global / environment setting' },
+                      { val: true,  label: 'Enabled',  desc: 'Always run live check for this case' },
+                      { val: false, label: 'Disabled', desc: 'Skip live check for this case' },
+                    ].map(opt => (
+                      <button key={String(opt.val)}
+                        onClick={() => { setCaseLiveCheck(opt.val); saveCaseLiveCheck(opt.val); }}
+                        title={opt.desc}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors
+                          ${caseLiveCheck === opt.val
+                            ? opt.val === false ? 'bg-amber-900/60 border-amber-500 text-amber-300'
+                              : opt.val === true  ? 'bg-green-900/60 border-green-500 text-green-300'
+                              : 'bg-blue-900/60 border-blue-500 text-blue-300'
+                            : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-400'}`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {caseLiveCheck !== null && (
+                    <p className="text-[10px] text-gray-500 mt-1.5">
+                      {caseLiveCheck ? '✓ Live SAP check forced ON for this case' : '⚠ Live SAP check forced OFF for this case'}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -5430,39 +5470,6 @@ ${result}`;
                           {additionalCtxSaving && <p className="text-[10px] text-gray-400 mt-0.5">Saving…</p>}
                         </div>
 
-                        {/* Per-case SAP live check override */}
-                        {liveCheckEnabled && (
-                          <div className="pt-1 border-t border-gray-100 mt-2">
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                              SAP Live Check (this case)
-                            </label>
-                            <p className="text-xs text-gray-400 mb-2">Override the global/environment SAP live check setting for this case only.</p>
-                            <div className="flex gap-2">
-                              {[
-                                { val: null,  label: 'Default',  desc: 'Use global / environment setting' },
-                                { val: true,  label: 'Enabled',  desc: 'Always run live check for this case' },
-                                { val: false, label: 'Disabled', desc: 'Skip live check for this case' },
-                              ].map(opt => (
-                                <button key={String(opt.val)}
-                                  onClick={() => { setCaseLiveCheck(opt.val); saveCaseLiveCheck(opt.val); }}
-                                  title={opt.desc}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors
-                                    ${caseLiveCheck === opt.val
-                                      ? opt.val === false ? 'bg-amber-100 border-amber-400 text-amber-800'
-                                        : opt.val === true  ? 'bg-green-100 border-green-400 text-green-800'
-                                        : 'bg-blue-100 border-blue-400 text-blue-800'
-                                      : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}>
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
-                            {caseLiveCheck !== null && (
-                              <p className="text-[10px] text-gray-400 mt-1">
-                                {caseLiveCheck ? '✓ Live SAP check forced ON for this case' : '⚠ Live SAP check forced OFF for this case'}
-                              </p>
-                            )}
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
