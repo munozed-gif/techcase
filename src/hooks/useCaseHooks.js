@@ -35,7 +35,6 @@ function useCases(filters = {}) {
       .from("cases")
       .select(`
         *, created_by,
-        creator:created_by(id, full_name, avatar_url),
         client:client_id(id, full_name, email, avatar_url, client_profiles(company_name)),
         manager:manager_id(id, full_name, email, avatar_url),
         case_assignments(consultant_id, time_commitment, is_active, released_at,
