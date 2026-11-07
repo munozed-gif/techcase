@@ -1531,6 +1531,15 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
     await ssCtx.setSetting('sap_project_env_overrides', { ...sapProjectOverrides, [projectId]: updated });
   }
 
+  // Project-level live check override: null = inherit from client/global, true = on, false = off
+  const sapProjectLiveCheck = settings['sap_project_live_check'] ?? {};
+  const projectLiveCheck = sapProjectLiveCheck[projectId] ?? null;
+  async function saveProjectLiveCheck(val) {
+    await ssCtx.setSetting('sap_project_live_check', { ...sapProjectLiveCheck, [projectId]: val });
+  }
+
+  const canEdit = auth.isAdmin || auth.isManager;
+
   if (!rawEnvs.length) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center space-y-2">
@@ -1543,6 +1552,41 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
 
   return (
     <div className="space-y-4">
+      {/* Project-level SAP live check override */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-3">
+        <div>
+          <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+            <Zap size={16} className="text-blue-600" />{t('sap.live_check_label')}
+          </h3>
+          <p className="text-xs text-gray-400 mt-0.5">Override the client-level live check default for this project only.</p>
+        </div>
+        <div className="flex gap-2">
+          {[
+            { val: null,  label: 'Default',  desc: 'Inherit from client / global setting' },
+            { val: true,  label: 'Enabled',  desc: 'Always run live check for cases in this project' },
+            { val: false, label: 'Disabled', desc: 'Skip live check for all cases in this project' },
+          ].map(opt => (
+            <button key={String(opt.val)}
+              onClick={canEdit ? () => saveProjectLiveCheck(opt.val) : undefined}
+              disabled={!canEdit}
+              title={opt.desc}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                ${projectLiveCheck === opt.val
+                  ? opt.val === false ? 'bg-amber-100 border-amber-400 text-amber-800'
+                    : opt.val === true  ? 'bg-green-100 border-green-400 text-green-800'
+                    : 'bg-blue-100 border-blue-400 text-blue-800'
+                  : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {projectLiveCheck !== null && (
+          <p className="text-xs text-gray-500">
+            {projectLiveCheck ? '✓ Live SAP check forced ON for this project' : '⚠ Live SAP check forced OFF for this project'}
+          </p>
+        )}
+      </div>
+
       {/* Active environment card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
         <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">

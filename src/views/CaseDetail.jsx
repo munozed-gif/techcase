@@ -1630,9 +1630,12 @@ canvas{display:block;width:100%}
       const sapCfg = selectedEnvId
         ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
         : (sapEnvs[0] ?? null);
-      // Per-environment toggle overrides the system-level sap_live_check setting
+      // Resolution order: per-environment > project > global
       const envLiveCheck = sapCfg?.liveCheckOnGenerate;
-      const shouldLiveCheck = envLiveCheck !== undefined ? envLiveCheck : genCtx.sap_live_check;
+      const projectLiveCheckVal = (cdSettings['sap_project_live_check'] ?? {})[caseData.project_id] ?? null;
+      const shouldLiveCheck = envLiveCheck !== undefined ? envLiveCheck
+        : projectLiveCheckVal !== null ? projectLiveCheckVal
+        : genCtx.sap_live_check;
       if (shouldLiveCheck) {
         if (!sapCfg?.host || !sapCfg?.username) {
           throw new Error('SAP live check is enabled but no SAP environment is configured for this case. Configure credentials in SAP Integration settings or disable SAP live check.');

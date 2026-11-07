@@ -2378,11 +2378,13 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       const sapCfg = selectedEnvId
         ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
         : (sapEnvs[0] ?? null);
-      // Resolution order: template disable > per-case override > per-environment toggle > global setting
+      // Resolution order: template disable > per-case > per-environment > project > global
       const envLiveCheck = sapCfg?.liveCheckOnGenerate;
+      const projectLiveCheckVal = (ssCtx.settings['sap_project_live_check'] ?? {})[caseData.project_id] ?? null;
       const shouldLiveCheck = !isSgNodeEnabled("sap_verification") ? false
         : caseLiveCheck !== null ? caseLiveCheck
         : envLiveCheck !== undefined ? envLiveCheck
+        : projectLiveCheckVal !== null ? projectLiveCheckVal
         : genCtx.sap_live_check;
       if (shouldLiveCheck) {
         if (!sapCfg?.host || !sapCfg?.username) {
