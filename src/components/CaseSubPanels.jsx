@@ -2008,7 +2008,11 @@ ${mdToHtml(markdownContent)}
   }
 
   const perms = usePermissions(auth);
-  const canApprove = perms.can('approve_specs');
+  const isCaseOwner = auth.user?.id && (
+    caseData.created_by === auth.user.id ||
+    (caseData.case_assignments ?? []).some(a => a.consultant_id === auth.user.id && a.is_active !== false)
+  );
+  const canApprove = perms.can('approve_specs') || isCaseOwner;
   const canSubmit  = perms.can('submit_specs');
   const planCfg    = usePlanConfig();
   const userPlan   = planCfg.getUserPlan(auth.user?.id ?? '');
@@ -3797,6 +3801,35 @@ Respond with ONLY a valid JSON object, no markdown fences:
       logEvent('spec.approved', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, oldValue: { status: 'ai' }, newValue: { status: 'estimated' } });
       await refetch();
       onUpdate?.(caseData.id, { status: 'estimated' });
+
+      // Notify + email for records
+      const caseTitle   = caseData.title ?? 'a case';
+      const approverName = auth.profile?.full_name ?? 'A manager';
+      const notifTitle  = 'Spec approved';
+      const notifBody   = `The functional spec for "${caseTitle}" was approved by ${approverName}.`;
+      const emailHtml   = buildEmailHtml({
+        title:    notifTitle,
+        bodyHtml: `<p>The functional specification for <strong>${caseTitle}</strong> has been <strong>approved</strong> by ${approverName}.</p><p>The case has been moved to Estimated status.</p>`,
+        footerNote: 'This is an automatic record of the spec approval.',
+      });
+      // Notify all managers as a record
+      notifyManagers(notifTitle, notifBody).catch(() => {});
+      sendEmailToManagers('Spec approved — ' + caseTitle, emailHtml).catch(() => {});
+      // Notify the case creator / owner
+      if (caseData.created_by && caseData.created_by !== auth.user?.id) {
+        notify(caseData.created_by, notifTitle, notifBody, 'spec_approved').catch(() => {});
+        sendEmailToUser(caseData.created_by, 'Spec approved — ' + caseTitle, emailHtml, 'spec_approved').catch(() => {});
+      }
+      // Notify the linked client
+      if (caseData.client_id) {
+        const clientHtml = buildEmailHtml({
+          title:    'Your spec has been approved',
+          bodyHtml: `<p>The functional specification for <strong>${caseTitle}</strong> has been officially approved.</p><p>Your project is now moving forward to the next stage.</p>`,
+          footerNote: 'You are receiving this as the client linked to this case.',
+        });
+        notify(caseData.client_id, 'Spec approved', `The spec for "${caseTitle}" has been approved.`, 'spec_approved').catch(() => {});
+        sendEmailToUser(caseData.client_id, 'Spec approved — ' + caseTitle, clientHtml, 'spec_approved').catch(() => {});
+      }
     } catch (e) { alert(e.message); }
     setApproving(false);
   }
