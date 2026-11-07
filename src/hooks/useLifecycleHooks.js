@@ -3,7 +3,17 @@ import { supabase } from "../lib/supabase.js";
 import { notify, notifyManagers, notifyCaseParticipants, buildEmailHtml, sendEmailToUser, sendEmailToManagers } from "../lib/utils.js";
 import { LIFECYCLE_PRESETS } from "../lib/businessConstants.js";
 
-// useLifecycleTemplates, runStartDateMonitor, useStartDateMonitor, runDueDateMonitor
+// useLifecycleTemplates, useSpecGenTemplates, runStartDateMonitor, useStartDateMonitor, runDueDateMonitor
+
+const SPEC_GEN_NODE_DEFAULTS = [
+  { type: "documents",           label: "Documents",           enabled: true,  order: 0 },
+  { type: "sap_connection",      label: "SAP Connection",      enabled: true,  order: 1 },
+  { type: "compiled_context",    label: "Compiled Context",    enabled: true,  order: 2 },
+  { type: "sap_verification",    label: "SAP Verification",    enabled: true,  order: 3 },
+  { type: "proposal_validation", label: "Proposal Validation", enabled: true,  order: 4 },
+  { type: "generate_specs",      label: "Generate Specs",      enabled: true,  order: 5 },
+  { type: "approval",            label: "Approval",            enabled: true,  order: 6 },
+];
 
 function useLifecycleTemplates() {
   const [templates, setTemplates] = useState([]);
@@ -26,6 +36,32 @@ function useLifecycleTemplates() {
   }
 
   return { templates, loadingTmpl, fetchTemplates, getTemplateStages };
+}
+
+function useSpecGenTemplates() {
+  const [templates, setTemplates] = useState([]);
+  const [loadingTmpl, setLoadingTmpl] = useState(true);
+
+  async function fetchTemplates() {
+    setLoadingTmpl(true);
+    const { data } = await supabase.from("spec_generation_templates")
+      .select("*").eq("is_active", true).order("sort_order");
+    setTemplates(data ?? []);
+    setLoadingTmpl(false);
+  }
+
+  useEffect(() => { fetchTemplates(); }, []);
+
+  function getTemplateStages(preset) {
+    const tmpl = templates.find(t => t.key === preset) ?? templates.find(t => t.is_default);
+    if (!tmpl) return SPEC_GEN_NODE_DEFAULTS;
+    return SPEC_GEN_NODE_DEFAULTS.map(def => {
+      const s = (tmpl.stages ?? []).find(st => st.type === def.type);
+      return s ? { ...def, ...s } : { ...def };
+    });
+  }
+
+  return { templates, loadingTmpl, fetchTemplates, getTemplateStages, SPEC_GEN_NODE_DEFAULTS };
 }
 
 async function runStartDateMonitor(auth, cases) {
@@ -176,6 +212,8 @@ async function runDueDateMonitor(cases) {
 
 export {
   useLifecycleTemplates,
+  useSpecGenTemplates,
+  SPEC_GEN_NODE_DEFAULTS,
   runStartDateMonitor,
   useStartDateMonitor,
   runDueDateMonitor,

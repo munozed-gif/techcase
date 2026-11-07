@@ -4,7 +4,7 @@ import {
   Activity, AlertCircle, Building2, Camera, Check, CheckCircle2, ChevronLeft,
   ChevronRight, ClipboardList, Clock, Code2, CreditCard, Database,
   DollarSign, Eye, FileText, Globe, Layers, Link, Loader2, Lock, Mail,
-  Pencil, Phone, Settings, Shield, SlidersHorizontal, Trash2, TrendingUp, User,
+  Pencil, Phone, Settings, Shield, SlidersHorizontal, Sparkles, Trash2, TrendingUp, User,
   UserCheck, Users, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -21,7 +21,7 @@ import { DbConnectionsList, SapProfileFields, SapProfileBadges } from "../views/
 import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_TIER_LABEL_KEYS, SlaMatrixEditor, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
 import { DEFAULT_ACTIVITY_PHASES, ROLE_COLORS, STATUS_COLORS, GATE_CONDITIONS } from "../lib/businessConstants.js";
 import { CaseDefaultsPanel, AssignmentSettingsPanel } from "../views/SettingsSubViews.jsx";
-import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
+import { useLifecycleTemplates, useSpecGenTemplates } from "../hooks/useLifecycleHooks.js";
 import { getStageIcon } from "../components/CaseSubPanels.jsx";
 
 function RequestFullAccessBanner({ auth }) {
@@ -198,6 +198,13 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   const [allowCaseOverride, setAllowCaseOverride] = useState(true);
   const [savingLifecycle, setSavingLifecycle]   = useState(false);
 
+  // Spec gen template config
+  const { templates: sgTemplates } = useSpecGenTemplates();
+  const [sgPreset,         setSgPreset]         = useState("standard");
+  const [sgAllowProjOvr,   setSgAllowProjOvr]   = useState(true);
+  const [sgAllowCaseOvr,   setSgAllowCaseOvr]   = useState(true);
+  const [savingSg,         setSavingSg]         = useState(false);
+
   useEffect(() => {
     if (!editing) setForm({
       company_name:          profile?.company_name ?? "",
@@ -268,6 +275,12 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       setAllowProjOverride(lc.allow_project_override ?? true);
       setAllowCaseOverride(lc.allow_case_override ?? true);
     }
+    if (profile?.spec_gen_lifecycle) {
+      const sg = profile.spec_gen_lifecycle;
+      setSgPreset(sg.preset ?? "standard");
+      setSgAllowProjOvr(sg.allow_proj_override ?? true);
+      setSgAllowCaseOvr(sg.allow_case_override ?? true);
+    }
   }, [profile]);
 
   async function handleSaveLifecycle() {
@@ -280,6 +293,18 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       }});
     } catch (e) { alert(e.message); }
     setSavingLifecycle(false);
+  }
+
+  async function handleSaveSgLifecycle() {
+    setSavingSg(true);
+    try {
+      await updateProfile({ spec_gen_lifecycle: {
+        preset: sgPreset,
+        allow_proj_override: sgAllowProjOvr,
+        allow_case_override: sgAllowCaseOvr,
+      }});
+    } catch (e) { alert(e.message); }
+    setSavingSg(false);
   }
 
   const isSapConnType = t => ["sap_gui","sap_hana","sap_rfc","sap_odata"].includes(t);
@@ -363,6 +388,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
     { id: "connections",  label: t("client_tab.connections"), icon: Database,          count: connections.length },
     { id: "team",         label: t("client_tab.team"),        icon: Users,             count: members.length },
     { id: "lifecycle",    label: t("client_tab.lifecycle"),   icon: TrendingUp,        count: null },
+    { id: "spec_gen",     label: "Spec Generation",           icon: Sparkles,          count: null },
     { id: "phases",       label: t("client_tab.phases"),      icon: Layers,            count: null },
     { id: "defaults",     label: t("client_tab.defaults"),    icon: ClipboardList,     count: null },
     { id: "assignment",   label: t("client_tab.assignment"),  icon: UserCheck,         count: null },
@@ -1292,6 +1318,79 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
             <button onClick={handleSaveLifecycle} disabled={savingLifecycle}
               className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
               {savingLifecycle ? t("state.saving") : t("lifecycle.save")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Spec Generation Template */}
+      {tabItem.id === "spec_gen" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-1">Spec Generation Template</h3>
+            <p className="text-sm text-gray-500 leading-relaxed">Choose which spec generation pipeline template is used for cases under this client.</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {sgTemplates.map(tmpl => {
+              const isSelected  = sgPreset === tmpl.key;
+              const enabledCnt  = (tmpl.stages ?? []).filter(s => s.enabled).length;
+              return (
+                <button key={tmpl.key} onClick={() => setSgPreset(tmpl.key)}
+                  className={`text-left p-4 rounded-xl border-2 transition-all ${isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
+                  <span className="font-semibold text-sm text-gray-900">{tmpl.name}</span>
+                  <p className="text-xs text-gray-500 mt-1">{tmpl.description || `${enabledCnt} nodes enabled`}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          {(() => {
+            const tmpl = sgTemplates.find(t => t.key === sgPreset);
+            if (!tmpl) return null;
+            return (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pipeline preview</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(tmpl.stages ?? []).map(s => (
+                    <span key={s.type}
+                      className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${s.enabled ? "border-blue-200 bg-blue-50 text-blue-700" : "border-gray-100 bg-gray-50 text-gray-400 line-through"}`}>
+                      {s.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          <div className="space-y-3 border-t border-gray-100 pt-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Override permissions</p>
+            <label className="flex items-center justify-between cursor-pointer select-none">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Allow projects to override</p>
+                <p className="text-xs text-gray-400">Projects can assign their own spec gen template</p>
+              </div>
+              <div className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ml-4 ${sgAllowProjOvr ? "bg-[#1A4B8C]" : "bg-gray-200"}`}
+                onClick={() => setSgAllowProjOvr(p => !p)}>
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${sgAllowProjOvr ? "translate-x-5" : "translate-x-0.5"}`} />
+              </div>
+            </label>
+            <label className="flex items-center justify-between cursor-pointer select-none">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Allow cases to override</p>
+                <p className="text-xs text-gray-400">Individual cases can assign their own spec gen template</p>
+              </div>
+              <div className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ml-4 ${sgAllowCaseOvr ? "bg-[#1A4B8C]" : "bg-gray-200"}`}
+                onClick={() => setSgAllowCaseOvr(p => !p)}>
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${sgAllowCaseOvr ? "translate-x-5" : "translate-x-0.5"}`} />
+              </div>
+            </label>
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-gray-100">
+            <button onClick={handleSaveSgLifecycle} disabled={savingSg}
+              className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+              {savingSg ? t("state.saving") : "Save"}
             </button>
           </div>
         </div>

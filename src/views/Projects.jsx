@@ -14,7 +14,7 @@ import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useProjects, useProjectDbConnections, useProjectTemplates } from "../hooks/useCoreHooks.js";
 import { useCases } from "../hooks/useCaseHooks.js";
-import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
+import { useLifecycleTemplates, useSpecGenTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings, usePermissions, useWizardMode } from "../hooks/useSystemSettings.jsx";
 import { callClaude, logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
@@ -1666,6 +1666,9 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const [expandedConsultant, setExpandedConsultant] = useState(null);
   const [projSelectedCase, setProjSelectedCase] = useState(null);
   const { templates: lcTemplates2, getTemplateStages: getProjTmplStages } = useLifecycleTemplates();
+  const { templates: sgTemplates2 } = useSpecGenTemplates();
+  const [projSgPreset,  setProjSgPreset]  = useState(project.spec_gen_lifecycle?.preset ?? "standard");
+  const [savingProjSg,  setSavingProjSg]  = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef(null);
   // Import cases from document
@@ -2030,6 +2033,14 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     setSavingProjLc(false);
   }
 
+  async function handleSaveProjSg() {
+    setSavingProjSg(true);
+    try {
+      await onUpdate(project.id, { spec_gen_lifecycle: { preset: projSgPreset } });
+    } catch (e) { alert(e.message); }
+    setSavingProjSg(false);
+  }
+
   const projectTabs = [
     { id: "overview",     label: t("project.tab_overview"),      icon: BarChart2,         count: null },
     { id: "objectives",   label: t("project.tab_objectives"),    icon: Target,            count: null },
@@ -2040,6 +2051,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "documents",    label: t("project.tab_documents"),     icon: FileText,          count: null },
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
+    ...(canEdit ? [{ id: "spec_gen",  label: "Spec Gen",                 icon: Sparkles,   count: null }] : []),
     ...((auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id || consultants.some(c => c.user_id === auth.user?.id)) ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
     ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) ? [{ id: "transport", label: "Transports", icon: Truck, count: null }] : []),
   ];
@@ -3315,6 +3327,55 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             </div>
           );
         })()}
+
+        {/* Spec Gen Template tab */}
+        {tab.id === "spec_gen" && canEdit && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-sm font-semibold text-gray-800 mb-1">Spec Generation Template</p>
+              <p className="text-sm text-gray-500">Choose which spec gen pipeline template is used for cases in this project.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {sgTemplates2.map(tmpl => {
+                const isSelected = projSgPreset === tmpl.key;
+                const enabledCnt = (tmpl.stages ?? []).filter(s => s.enabled).length;
+                return (
+                  <button key={tmpl.key} onClick={() => setProjSgPreset(tmpl.key)}
+                    className={`text-left p-3 rounded-xl border-2 transition-all ${isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
+                    <p className="font-semibold text-sm text-gray-900">{tmpl.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{tmpl.description || `${enabledCnt} nodes enabled`}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {(() => {
+              const tmpl = sgTemplates2.find(t => t.key === projSgPreset);
+              if (!tmpl) return null;
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pipeline preview</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(tmpl.stages ?? []).map(s => (
+                      <span key={s.type}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${s.enabled ? "border-blue-200 bg-blue-50 text-blue-700" : "border-gray-100 bg-gray-50 text-gray-400 line-through"}`}>
+                        {s.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end pt-2 border-t border-gray-100">
+              <button onClick={handleSaveProjSg} disabled={savingProjSg}
+                className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                {savingProjSg ? t("state.saving") : "Save"}
+              </button>
+            </div>
+          </div>
+        )}
                         </div>
                       ) : (
                         <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>

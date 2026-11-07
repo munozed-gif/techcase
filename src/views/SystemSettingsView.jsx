@@ -13,7 +13,7 @@ import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useSystemSettings, useVisibilitySettings, usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
-import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
+import { useLifecycleTemplates, useSpecGenTemplates, SPEC_GEN_NODE_DEFAULTS } from "../hooks/useLifecycleHooks.js";
 import { logEvent, notify, clearAuditConfigCache, buildEmailHtml, sendEmailToUser } from "../lib/utils.js";
 import { Badge, PlanUsageCard, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
@@ -4820,11 +4820,280 @@ function SettingsMigrationTab({ ssCtx }) {
   );
 }
 
+// ── Spec Generation Templates ─────────────────────────────────
+const SPEC_GEN_REQUIRED_TYPES = new Set(["documents", "compiled_context", "generate_specs", "approval"]);
+
+function SettingsSpecGenTemplatesTab({ ssCtx, auth }) {
+  const { templates, loadingTmpl, fetchTemplates } = useSpecGenTemplates();
+  const { settings, setSetting } = ssCtx;
+
+  const [selectedKey, setSelectedKey] = useState(null);
+  const [editingTmpl, setEditingTmpl] = useState(null);
+  const [saving, setSaving]   = useState(false);
+  const [saved, setSaved]     = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  const cfg = settings["default_spec_gen_config"] ?? {};
+  const [clientPreset,       setClientPreset]       = useState(cfg.client?.preset           ?? "standard");
+  const [clientAllowProjOvr, setClientAllowProjOvr] = useState(cfg.client?.allow_proj_override ?? true);
+  const [clientAllowCaseOvr, setClientAllowCaseOvr] = useState(cfg.client?.allow_case_override ?? true);
+  const [projPreset,         setProjPreset]         = useState(cfg.project?.preset          ?? "standard");
+  const [savingCfg, setSavingCfg] = useState(false);
+  const [savedCfg, setSavedCfg]   = useState(false);
+
+  useEffect(() => {
+    const c = settings["default_spec_gen_config"] ?? {};
+    setClientPreset(c.client?.preset ?? "standard");
+    setClientAllowProjOvr(c.client?.allow_proj_override ?? true);
+    setClientAllowCaseOvr(c.client?.allow_case_override ?? true);
+    setProjPreset(c.project?.preset ?? "standard");
+  }, [settings]);
+
+  function startEdit(tmpl) {
+    setSelectedKey(tmpl.key);
+    setEditingTmpl({
+      key:         tmpl.key,
+      name:        tmpl.name,
+      description: tmpl.description ?? "",
+      stages: SPEC_GEN_NODE_DEFAULTS.map(def => {
+        const s = (tmpl.stages ?? []).find(st => st.type === def.type);
+        return s ? { ...def, ...s } : { ...def };
+      }),
+    });
+  }
+
+  function toggleStage(type) {
+    if (SPEC_GEN_REQUIRED_TYPES.has(type)) return;
+    setEditingTmpl(e => ({
+      ...e,
+      stages: e.stages.map(s => s.type === type ? { ...s, enabled: !s.enabled } : s),
+    }));
+  }
+
+  function updateStageLabel(type, label) {
+    setEditingTmpl(e => ({
+      ...e,
+      stages: e.stages.map(s => s.type === type ? { ...s, label } : s),
+    }));
+  }
+
+  async function handleSaveTmpl() {
+    if (!editingTmpl) return;
+    setSaving(true);
+    await supabase.from("spec_generation_templates").upsert({
+      key:         editingTmpl.key,
+      name:        editingTmpl.name,
+      description: editingTmpl.description,
+      stages:      editingTmpl.stages,
+      updated_at:  new Date().toISOString(),
+    }, { onConflict: "key" });
+    await fetchTemplates();
+    setSaving(false); setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function handleCreateTmpl() {
+    if (!newName.trim()) return;
+    const key = `custom_${Date.now()}`;
+    await supabase.from("spec_generation_templates").insert({
+      key, name: newName.trim(), description: "", is_default: false, is_active: true,
+      sort_order: (templates.length + 1) * 10, stages: SPEC_GEN_NODE_DEFAULTS,
+    });
+    await fetchTemplates();
+    setNewName(""); setCreating(false);
+  }
+
+  async function handleDeleteTmpl(key) {
+    if (["standard","lightweight"].includes(key)) return;
+    await supabase.from("spec_generation_templates").update({ is_active: false }).eq("key", key);
+    if (selectedKey === key) { setSelectedKey(null); setEditingTmpl(null); }
+    await fetchTemplates();
+  }
+
+  async function handleSaveCfg() {
+    setSavingCfg(true);
+    await setSetting("default_spec_gen_config", {
+      client:  { preset: clientPreset,  allow_proj_override: clientAllowProjOvr, allow_case_override: clientAllowCaseOvr },
+      project: { preset: projPreset },
+    });
+    setSavingCfg(false); setSavedCfg(true);
+    setTimeout(() => setSavedCfg(false), 2000);
+  }
+
+  const NODE_TYPE_LABELS = {
+    documents: "Documents", sap_connection: "SAP Connection", compiled_context: "Compiled Context",
+    sap_verification: "SAP Verification", proposal_validation: "Proposal Validation",
+    generate_specs: "Generate Specs", approval: "Approval",
+  };
+
+  const OvrToggle = ({ label, desc, value, onChange }) => (
+    <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-100">
+      <div>
+        <p className="text-sm font-semibold text-gray-800">{label}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+      </div>
+      <button onClick={() => onChange(!value)}
+        className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${value ? "bg-blue-600" : "bg-gray-300"}`}>
+        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${value ? "translate-x-5" : "translate-x-0"}`} />
+      </button>
+    </div>
+  );
+
+  if (loadingTmpl) return <div className="flex justify-center py-10"><Spinner /></div>;
+
+  return (
+    <div className="space-y-8 max-w-3xl">
+      <p className="text-sm text-gray-500">Define named templates that control which spec generation pipeline nodes are active. Assign templates at the client and project level.</p>
+
+      {/* Template list */}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 mb-4">
+        {templates.map(tmpl => {
+          const isBuiltin  = ["standard","lightweight"].includes(tmpl.key);
+          const isSelected = selectedKey === tmpl.key;
+          const enabledCnt = (tmpl.stages ?? SPEC_GEN_NODE_DEFAULTS).filter(s => s.enabled).length;
+          return (
+            <div key={tmpl.key}
+              className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}
+              onClick={() => startEdit(tmpl)}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-gray-900 truncate">{tmpl.name}</p>
+                  {isBuiltin && <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Built-in</span>}
+                  <p className="text-xs text-gray-500 mt-0.5">{enabledCnt}/{SPEC_GEN_NODE_DEFAULTS.length} nodes enabled</p>
+                </div>
+                {!isBuiltin && (
+                  <button onClick={e => { e.stopPropagation(); handleDeleteTmpl(tmpl.key); }}
+                    className="shrink-0 p-1 text-gray-300 hover:text-red-500 transition-colors">
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {creating ? (
+          <div className="p-3 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
+            <input autoFocus value={newName} onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleCreateTmpl(); if (e.key === "Escape") setCreating(false); }}
+              placeholder="Template name…"
+              className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            <div className="flex gap-2">
+              <button onClick={handleCreateTmpl} disabled={!newName.trim()}
+                className="text-xs font-semibold px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">Create</button>
+              <button onClick={() => { setCreating(false); setNewName(""); }}
+                className="text-xs text-gray-500 hover:text-gray-700 px-2">Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setCreating(true)}
+            className="p-3 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center justify-center gap-1.5">
+            <Plus size={14} /> New template
+          </button>
+        )}
+      </div>
+
+      {/* Template editor */}
+      {editingTmpl && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
+          <div className="space-y-2">
+            <input value={editingTmpl.name} onChange={e => setEditingTmpl(et => ({ ...et, name: e.target.value }))}
+              className="w-full text-sm font-semibold border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Template name" />
+            <input value={editingTmpl.description} onChange={e => setEditingTmpl(et => ({ ...et, description: e.target.value }))}
+              className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Description (optional)" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Pipeline Nodes</p>
+            <div className="space-y-2">
+              {editingTmpl.stages.map(stage => {
+                const isRequired = SPEC_GEN_REQUIRED_TYPES.has(stage.type);
+                return (
+                  <div key={stage.type}
+                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${stage.enabled ? "border-gray-200 bg-white" : "border-gray-100 bg-gray-50 opacity-60"}`}>
+                    <button onClick={() => toggleStage(stage.type)} disabled={isRequired}
+                      title={isRequired ? "Required — cannot be disabled" : ""}
+                      className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${stage.enabled ? "bg-blue-600" : "bg-gray-300"} ${isRequired ? "opacity-50 cursor-not-allowed" : ""}`}>
+                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${stage.enabled ? "translate-x-4" : "translate-x-0"}`} />
+                    </button>
+                    <input value={stage.label} onChange={e => updateStageLabel(stage.type, e.target.value)}
+                      className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                    <span className="text-xs text-gray-400 shrink-0 w-36 truncate text-right">{NODE_TYPE_LABELS[stage.type] ?? stage.type}</span>
+                    {isRequired && <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">Required</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+            <button onClick={handleSaveTmpl} disabled={saving}
+              className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+              {saving ? "Saving…" : "Save template"}
+            </button>
+            {saved && <span className="text-sm text-green-600 font-semibold">Saved</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Default assignment */}
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-5">
+        <p className="text-sm font-bold text-gray-800">Default Assignment</p>
+        <p className="text-xs text-gray-500">Set which template is used by default when no client or project override is configured.</p>
+
+        <div>
+          <p className="text-xs font-semibold text-gray-500 mb-2">Default template for clients</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {templates.map(tmpl => (
+              <button key={tmpl.key} onClick={() => setClientPreset(tmpl.key)}
+                className={`text-left p-3 rounded-xl border-2 transition-all ${clientPreset === tmpl.key ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
+                <p className="font-semibold text-sm text-gray-900">{tmpl.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{(tmpl.stages ?? []).filter(s => s.enabled).length} nodes</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <OvrToggle
+          label="Allow projects to override template"
+          desc="Projects under a client can assign their own spec gen template"
+          value={clientAllowProjOvr} onChange={setClientAllowProjOvr}
+        />
+        <OvrToggle
+          label="Allow cases to override template"
+          desc="Individual cases can assign their own spec gen template"
+          value={clientAllowCaseOvr} onChange={setClientAllowCaseOvr}
+        />
+
+        <div className="border-t border-gray-100 pt-5">
+          <p className="text-xs font-semibold text-gray-500 mb-2">Default template for projects (when no client is set)</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {templates.map(tmpl => (
+              <button key={tmpl.key} onClick={() => setProjPreset(tmpl.key)}
+                className={`text-left p-3 rounded-xl border-2 transition-all ${projPreset === tmpl.key ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
+                <p className="font-semibold text-sm text-gray-900">{tmpl.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{(tmpl.stages ?? []).filter(s => s.enabled).length} nodes</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+          <button onClick={handleSaveCfg} disabled={savingCfg}
+            className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+            {savingCfg ? "Saving…" : "Save defaults"}
+          </button>
+          {savedCfg && <span className="text-sm text-green-600 font-semibold">Saved</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsWorkflowTab({ auth, ssCtx }) {
   const [wTab, setWTab] = useState("lifecycle");
   const WTABS = [
-    { id: "lifecycle", label: "Lifecycle Templates", Icon: TrendingUp },
-    { id: "defaults",  label: "Defaults",            Icon: Settings },
+    { id: "lifecycle",  label: "Lifecycle Templates",   Icon: TrendingUp },
+    { id: "spec_gen",   label: "Spec Gen Templates",    Icon: Sparkles },
+    { id: "defaults",   label: "Defaults",              Icon: Settings },
     { id: "gates",     label: "Transition Gates",    Icon: Lock },
     { id: "phases",    label: "Activity Phases",     Icon: ListChecks },
     { id: "sla",       label: "SLA",                 Icon: Shield },
@@ -4843,6 +5112,7 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
         ))}
       </div>
       {wTab === "lifecycle"  && <LifecycleSettingsView auth={auth} />}
+      {wTab === "spec_gen"   && <SettingsSpecGenTemplatesTab ssCtx={ssCtx} auth={auth} />}
       {wTab === "defaults"   && <SettingsDefaultLifecycleTab ssCtx={ssCtx} />}
       {wTab === "gates"      && <TransitionGatesPanel auth={auth} />}
       {wTab === "phases"     && <SettingsPhasesTab ssCtx={ssCtx} />}

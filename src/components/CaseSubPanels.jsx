@@ -13,6 +13,7 @@ import { usePlanConfig, useSystemSettings, usePermissions } from "../hooks/useSy
 import { callClaude, logEvent } from "../lib/utils.js";
 import { useCaseDocuments } from "../hooks/useCoreHooks.js";
 import { useCaseSpecification } from "../hooks/useNotificationHooks.js";
+import { useSpecGenTemplates } from "../hooks/useLifecycleHooks.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Textarea } from "../components/ui.jsx";
 import { fmtDate, fmt, cap } from "../lib/uiUtils.jsx";
@@ -988,6 +989,19 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [additionalCtxSaving, setAdditionalCtxSaving] = useState(false);
   // Per-case SAP live check override: null = use env/global default, true = force on, false = force off
   const [caseLiveCheck, setCaseLiveCheck]           = useState(null);
+
+  // Spec gen template
+  const { templates: _sgTmpls, getTemplateStages: _getSgStages } = useSpecGenTemplates();
+  const [sgPresetKey, setSgPresetKey] = useState("standard");
+  const activeStages = _getSgStages(sgPresetKey);
+  function isSgNodeEnabled(nodeType) {
+    const s = activeStages.find(st => st.type === nodeType);
+    return s?.enabled !== false;
+  }
+  function getSgNodeLabel(nodeType, fallback) {
+    const s = activeStages.find(st => st.type === nodeType);
+    return s?.label ?? fallback;
+  }
 
   // Approval workflow sub-steps (Node 4)
   const [approvalStep, setApprovalStep]     = useState('generated'); // 'generated'|'checking'|'sending'|'approved'
@@ -2360,9 +2374,10 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       const sapCfg = selectedEnvId
         ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
         : (sapEnvs[0] ?? null);
-      // Resolution order: per-case override > per-environment toggle > global setting
+      // Resolution order: template disable > per-case override > per-environment toggle > global setting
       const envLiveCheck = sapCfg?.liveCheckOnGenerate;
-      const shouldLiveCheck = caseLiveCheck !== null ? caseLiveCheck
+      const shouldLiveCheck = !isSgNodeEnabled("sap_verification") ? false
+        : caseLiveCheck !== null ? caseLiveCheck
         : envLiveCheck !== undefined ? envLiveCheck
         : genCtx.sap_live_check;
       if (shouldLiveCheck) {
@@ -2422,6 +2437,31 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       const lcVal = (lcData?.value ?? {})[caseData.id];
       setCaseLiveCheck(lcVal === undefined ? null : lcVal);
     }).catch(() => {});
+  }, [caseData?.id]);
+
+  // Load active spec gen template for this case (project → client → system default)
+  useEffect(() => {
+    if (!caseData?.id) return;
+    (async () => {
+      let preset = null;
+      try {
+        if (caseData.project_id) {
+          const { data: proj } = await supabase.from('projects').select('spec_gen_lifecycle').eq('id', caseData.project_id).maybeSingle();
+          if (proj?.spec_gen_lifecycle?.preset) preset = proj.spec_gen_lifecycle.preset;
+        }
+        if (!preset && caseData.client_id) {
+          const { data: cp } = await supabase.from('client_profiles').select('spec_gen_lifecycle').eq('id', caseData.client_id).maybeSingle();
+          if (cp?.spec_gen_lifecycle?.preset) preset = cp.spec_gen_lifecycle.preset;
+        }
+        if (!preset) {
+          const { data: ss } = await supabase.from('system_settings').select('value').eq('key', 'default_spec_gen_config').maybeSingle();
+          const cfgPreset = ss?.value?.client?.preset;
+          if (cfgPreset) preset = cfgPreset;
+        }
+      } catch {}
+      if (preset) setSgPresetKey(preset);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseData?.id]);
 
   async function saveCaseLiveCheck(val) {
@@ -4417,24 +4457,28 @@ Respond with ONLY a valid JSON object, no markdown fences:
               />
 
               {/* Node 1: SAP Verification */}
+              <div className={isSgNodeEnabled("sap_verification") ? "" : "opacity-40"}>
               <NodeBtn id={1} icon={CheckCircle2}
-                title={t("spec.ai_step1_h")}
-                sub={sapCheck ? sapCheck.coverage : sapStatus==='running' ? t("spec.checking") : sapStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
-                status={sapStatus}
+                title={getSgNodeLabel("sap_verification", t("spec.ai_step1_h"))}
+                sub={!isSgNodeEnabled("sap_verification") ? "Disabled by template" : sapCheck ? sapCheck.coverage : sapStatus==='running' ? t("spec.checking") : sapStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
+                status={!isSgNodeEnabled("sap_verification") ? "skipped" : sapStatus}
                 isActive={activeNode===1}
-                canClick={true}
-                onClick={() => setActiveNode(1)}
+                canClick={isSgNodeEnabled("sap_verification")}
+                onClick={() => { if (isSgNodeEnabled("sap_verification")) setActiveNode(1); }}
               />
+              </div>
 
               {/* Node 2: Proposal Validation */}
+              <div className={isSgNodeEnabled("proposal_validation") ? "" : "opacity-40"}>
               <NodeBtn id={2} icon={Target}
-                title={t("spec.ai_step2_h")}
-                sub={proposalCheck ? `Score ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? t("spec.locked") : propStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
-                status={propStatus}
+                title={getSgNodeLabel("proposal_validation", t("spec.ai_step2_h"))}
+                sub={!isSgNodeEnabled("proposal_validation") ? "Disabled by template" : proposalCheck ? `Score ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? t("spec.locked") : propStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
+                status={!isSgNodeEnabled("proposal_validation") ? "skipped" : propStatus}
                 isActive={activeNode===2}
-                canClick={propStatus !== 'locked'}
-                onClick={() => { if (propStatus !== 'locked') setActiveNode(2); }}
+                canClick={isSgNodeEnabled("proposal_validation") && propStatus !== 'locked'}
+                onClick={() => { if (isSgNodeEnabled("proposal_validation") && propStatus !== 'locked') setActiveNode(2); }}
               />
+              </div>
 
               {/* Node 3: Generate Specification + sub-nodes */}
               <NodeBtn id={3} icon={Sparkles}
