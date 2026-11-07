@@ -10,7 +10,7 @@ import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
-import { callClaude, logEvent } from "../lib/utils.js";
+import { callClaude, logEvent, notify, notifyManagers, sendEmailToUser, sendEmailToManagers, buildEmailHtml } from "../lib/utils.js";
 import { useCaseDocuments } from "../hooks/useCoreHooks.js";
 import { useCaseSpecification } from "../hooks/useNotificationHooks.js";
 import { useSpecGenTemplates } from "../hooks/useLifecycleHooks.js";
@@ -4972,6 +4972,29 @@ Respond with ONLY a valid JSON object, no markdown fences:
                               try {
                                 await saveSpec({ status: 'submitted' });
                                 logEvent('spec.submitted', { entityType: 'case', entityId: caseData.id, entityName: caseData.title });
+
+                                const caseTitle = caseData.title ?? 'a case';
+                                const notifTitle = 'Spec submitted for approval';
+                                const notifBody  = `The functional spec for "${caseTitle}" has been submitted and is awaiting your approval.`;
+                                const emailHtml  = buildEmailHtml({
+                                  title:    notifTitle,
+                                  bodyHtml: `<p>The functional specification for <strong>${caseTitle}</strong> has been submitted for approval.</p><p>Please review it and approve or request changes.</p>`,
+                                  footerNote: 'You are receiving this because you are a platform manager.',
+                                });
+                                // Notify + email all managers
+                                notifyManagers(notifTitle, notifBody).catch(() => {});
+                                sendEmailToManagers('Spec submitted for approval — ' + caseTitle, emailHtml).catch(() => {});
+
+                                // Notify + email the linked client if one exists
+                                if (caseData.client_id) {
+                                  const clientEmailHtml = buildEmailHtml({
+                                    title:    'Your spec is ready for review',
+                                    bodyHtml: `<p>The functional specification for <strong>${caseTitle}</strong> has been submitted for your approval.</p><p>Please log in to review and sign off on the spec.</p>`,
+                                    footerNote: 'You are receiving this as the client linked to this case.',
+                                  });
+                                  notify(caseData.client_id, 'Spec ready for your approval', notifBody, 'spec_submitted').catch(() => {});
+                                  sendEmailToUser(caseData.client_id, 'Spec submitted for approval — ' + caseTitle, clientEmailHtml, 'spec_submitted').catch(() => {});
+                                }
                               } catch (_) {}
                             }}
                             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5">
