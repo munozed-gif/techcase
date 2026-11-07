@@ -65,8 +65,9 @@ export function SpecGenPipelineCarousel({ stages }) {
           return (
             <div key={s.type} className="flex-shrink-0 flex items-stretch gap-0">
               <div
-                className="w-64 rounded-xl overflow-hidden relative"
+                className="w-64 rounded-xl overflow-hidden relative flex flex-col"
                 style={{
+                  height: 440,
                   border: `1px solid ${color}40`,
                   background: color + "18",
                   opacity: s.enabled ? 1 : 0.5,
@@ -74,10 +75,10 @@ export function SpecGenPipelineCarousel({ stages }) {
               >
                 {/* Watermark icon */}
                 <Icon
-                  size={96}
+                  size={180}
                   style={{
                     position: "absolute",
-                    bottom: 8,
+                    bottom: 12,
                     right: 8,
                     opacity: 0.15,
                     color,
@@ -88,7 +89,7 @@ export function SpecGenPipelineCarousel({ stages }) {
 
                 {/* Card header */}
                 <div
-                  className="px-3 py-2 flex items-center gap-2 relative z-10"
+                  className="flex-shrink-0 px-3 py-2 flex items-center gap-2 relative z-10"
                   style={{ borderBottom: `1px solid ${color}30`, background: color + "28" }}
                 >
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
@@ -101,7 +102,7 @@ export function SpecGenPipelineCarousel({ stages }) {
                 </div>
 
                 {/* Card body */}
-                <div className="px-3 py-2.5 relative z-10 min-h-[120px]">
+                <div className="flex-1 px-3 py-2.5 relative z-10 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
                   {!s.enabled && (
                     <span
                       className="inline-block mb-2 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded"
