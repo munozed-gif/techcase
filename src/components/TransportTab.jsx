@@ -257,7 +257,7 @@ function TrStepper({ step, onStep }) {
 function BpStepper({ step, onStep }) {
   return (
     <div className="bg-gray-900/60 rounded-2xl border border-violet-500/20 px-4 py-3">
-      <div className="flex items-start gap-0 pb-0.5">
+      <div className="flex items-start overflow-x-auto gap-0 pb-0.5">
         {BP_STEPS.map((s, i) => {
           const n = i + 1, isActive = step === n, isDone = step > n;
           return (
@@ -749,19 +749,19 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     <div className="space-y-4">
 
       {/* ── Mode toggle ────────────────────────────────────── */}
-      <div className="flex gap-1 p-1 bg-gray-900/60 border border-white/10 rounded-xl">
+      <div className="flex flex-wrap gap-1 p-1 bg-gray-900/60 border border-white/10 rounded-xl">
         <button onClick={() => setTabMode('tr')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
+          className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
             ${tabMode === 'tr' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}>
           <Package size={12} />Transport Requests
         </button>
         <button onClick={() => setTabMode('pipeline')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
+          className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
             ${tabMode === 'pipeline' ? 'bg-emerald-600 text-white shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}>
           <Play size={12} />Dev→QA→Prod Pipeline
         </button>
         <button onClick={() => setTabMode('bcset')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
+          className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
             ${tabMode === 'bcset' ? 'bg-violet-600 text-white shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}>
           <Zap size={12} />BCset &amp; Building Blocks
           {bpTotal > 0 && <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${tabMode === 'bcset' ? 'bg-white/20' : 'bg-violet-500/30 text-violet-300'}`}>{bpTotal}</span>}
