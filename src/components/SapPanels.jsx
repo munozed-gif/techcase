@@ -4,7 +4,7 @@ import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronDown, ChevronRight,
   Clock, Code2, Copy, Eye, FileCode2, FileText, FolderOpen, LayoutGrid, Loader2,
   Link2, Mail, RefreshCw,
-  Laptop, Monitor, Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle,
+  Laptop, Monitor, Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
