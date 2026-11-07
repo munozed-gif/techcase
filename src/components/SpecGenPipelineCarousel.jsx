@@ -67,7 +67,7 @@ export function SpecGenPipelineCarousel({ stages }) {
               <div
                 className="w-64 rounded-xl overflow-hidden relative flex flex-col"
                 style={{
-                  height: 440,
+                  height: 350,
                   border: `1px solid ${color}40`,
                   background: color + "18",
                   opacity: s.enabled ? 1 : 0.5,
@@ -102,7 +102,7 @@ export function SpecGenPipelineCarousel({ stages }) {
                 </div>
 
                 {/* Card body */}
-                <div className="flex-1 px-3 py-2.5 relative z-10 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+                <div className="flex-1 px-3 py-2.5 relative z-10 overflow-hidden">
                   {!s.enabled && (
                     <span
                       className="inline-block mb-2 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded"
