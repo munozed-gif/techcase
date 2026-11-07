@@ -3076,6 +3076,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
               {caseData.budget && <div><span className="text-gray-400">{t("label.budget")}: </span><span className="font-medium">${Number(caseData.budget).toLocaleString()}</span></div>}
               {caseData.due_date && <div><span className="text-gray-400">{t("label.due")}</span><span className="font-medium">{fmtDate(caseData.due_date)}</span></div>}
               {caseData.start_date && <div><span className="text-gray-400">{t("label.starts")}</span><span className="font-medium">{fmtDate(caseData.start_date)}</span></div>}
+              {caseData.creator?.full_name && <div><span className="text-gray-400">{t("case.created_by")}: </span><span className="font-medium">{caseData.creator.full_name}</span></div>}
               {caseData.client?.full_name && <div><span className="text-gray-400">{t("label.client")}: </span><span className="font-medium">{caseData.client.full_name}</span></div>}
               {caseData.manager?.full_name && <div><span className="text-gray-400">{t("case.manager")}</span><span className="font-medium">{caseData.manager.full_name}</span></div>}
               {caseData.area_sap && <div><span className="text-gray-400">{t("case.sap_area")}</span><span className="font-medium">{caseData.area_sap}</span></div>}

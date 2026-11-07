@@ -1313,6 +1313,7 @@ const TRANSLATIONS = {
     "case.lc_default":       "Default (Standard)",
     "case.override_locked":  "Override locked",
     "case.lifecycle_source": "Lifecycle source:",
+    "case.created_by":       "Created by",
     "case.manager":          "Manager:",
     "case.sap_area":         "SAP Area:",
     // CaseDetail buttons
@@ -5415,6 +5416,7 @@ const TRANSLATIONS = {
     "case.lc_default":       "Por defecto (Estándar)",
     "case.override_locked":  "Sobreescritura bloqueada",
     "case.lifecycle_source": "Fuente de ciclo de vida:",
+    "case.created_by":       "Creado por",
     "case.manager":          "Gerente:",
     "case.sap_area":         "Área SAP:",
     // CaseDetail buttons
