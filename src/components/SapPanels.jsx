@@ -829,32 +829,74 @@ function SapIntegrationPanel({ clientId, auth }) {
         )}
       </div>
 
-      {/* Global live check on generation toggle */}
+      {/* Client-level live check override + permissions */}
       {(() => {
-        const genCtxRaw = ssCtx.settings['generation_context'] ?? {};
-        const globalLiveCheck = genCtxRaw.sap_live_check === true;
-        async function toggleGlobalLiveCheck() {
-          await ssCtx.setSetting('generation_context', { ...genCtxRaw, sap_live_check: !globalLiveCheck });
+        const clientLiveCheckAll = ssCtx.settings['sap_client_live_check'] ?? {};
+        const clientLiveCheck = clientLiveCheckAll[clientId] ?? null;
+        const clientPermsAll = ssCtx.settings['sap_client_live_check_perms'] ?? {};
+        const clientPerms = clientPermsAll[clientId] ?? {};
+        const allowProjectOverride = clientPerms.allowProject !== false;
+        const allowCaseOverride = clientPerms.allowCase !== false;
+
+        async function saveClientLiveCheck(val) {
+          await ssCtx.setSetting('sap_client_live_check', { ...clientLiveCheckAll, [clientId]: val });
         }
+        async function togglePerm(key) {
+          const current = clientPerms[key] !== false;
+          await ssCtx.setSetting('sap_client_live_check_perms', {
+            ...clientPermsAll,
+            [clientId]: { ...clientPerms, [key]: !current },
+          });
+        }
+
         return (
-          <div className="border border-gray-100 dark:border-gray-700 rounded-xl p-4 bg-gray-50/50 dark:bg-gray-800/30">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
-                  <Zap size={13} className="text-blue-500" />{t('sap.live_check_label')}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">{t('sap.live_check_desc')}</p>
-              </div>
-              <button type="button" onClick={canEdit ? toggleGlobalLiveCheck : undefined}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${globalLiveCheck ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${globalLiveCheck ? 'translate-x-5' : 'translate-x-0'}`} />
-              </button>
+          <div className="border border-gray-100 dark:border-gray-700 rounded-xl p-4 bg-gray-50/50 dark:bg-gray-800/30 space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-1.5 mb-0.5">
+                <Zap size={13} className="text-blue-500" />{t('sap.live_check_label')}
+              </p>
+              <p className="text-xs text-gray-400">{t('sap.live_check_desc')}</p>
             </div>
-            {globalLiveCheck && environments.length === 0 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+            <div className="flex gap-2">
+              {[
+                { val: null,  label: 'Default',  desc: 'Use system-level setting' },
+                { val: true,  label: 'Enabled',  desc: 'Force live check ON for this client' },
+                { val: false, label: 'Disabled', desc: 'Force live check OFF for this client' },
+              ].map(opt => (
+                <button key={String(opt.val)}
+                  onClick={canEdit ? () => saveClientLiveCheck(opt.val) : undefined}
+                  disabled={!canEdit}
+                  title={opt.desc}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                    ${clientLiveCheck === opt.val
+                      ? opt.val === false ? 'bg-amber-100 border-amber-400 text-amber-800'
+                        : opt.val === true  ? 'bg-green-100 border-green-400 text-green-800'
+                        : 'bg-blue-100 border-blue-400 text-blue-800'
+                      : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-400'}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {clientLiveCheck === true && environments.length === 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                 <AlertTriangle size={11} /> Add an SAP environment below so the live check has a system to connect to.
               </p>
             )}
+            <div className="border-t border-gray-100 dark:border-gray-700 pt-3 space-y-2">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Override Permissions</p>
+              {[
+                { key: 'allowProject', label: 'Allow project-level override', value: allowProjectOverride },
+                { key: 'allowCase',    label: 'Allow case-level override',    value: allowCaseOverride },
+              ].map(({ key, label, value }) => (
+                <div key={key} className="flex items-center justify-between gap-4">
+                  <span className="text-xs text-gray-600 dark:text-gray-300">{label}</span>
+                  <button type="button" onClick={canEdit ? () => togglePerm(key) : undefined}
+                    className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${value ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${value ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         );
       })()}
@@ -1538,6 +1580,21 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
     await ssCtx.setSetting('sap_project_live_check', { ...sapProjectLiveCheck, [projectId]: val });
   }
 
+  // Check if client permits project-level override
+  const clientPerms = (settings['sap_client_live_check_perms'] ?? {})[clientId] ?? {};
+  const clientAllowsProjectOverride = clientPerms.allowProject !== false;
+  const clientAllowsCaseOverride = clientPerms.allowCase !== false;
+
+  // Project-level "allow case override" permission
+  const sapProjectAllowCaseOverride = settings['sap_project_allow_case_override'] ?? {};
+  const projectAllowsCaseOverride = sapProjectAllowCaseOverride[projectId] !== false;
+  async function toggleProjectAllowCaseOverride() {
+    await ssCtx.setSetting('sap_project_allow_case_override', {
+      ...sapProjectAllowCaseOverride,
+      [projectId]: !projectAllowsCaseOverride,
+    });
+  }
+
   const canEdit = auth.isAdmin || auth.isManager;
 
   if (!rawEnvs.length) {
@@ -1560,30 +1617,47 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">Override the client-level live check default for this project only.</p>
         </div>
-        <div className="flex gap-2">
-          {[
-            { val: null,  label: 'Default',  desc: 'Inherit from client / global setting' },
-            { val: true,  label: 'Enabled',  desc: 'Always run live check for cases in this project' },
-            { val: false, label: 'Disabled', desc: 'Skip live check for all cases in this project' },
-          ].map(opt => (
-            <button key={String(opt.val)}
-              onClick={canEdit ? () => saveProjectLiveCheck(opt.val) : undefined}
-              disabled={!canEdit}
-              title={opt.desc}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-                ${projectLiveCheck === opt.val
-                  ? opt.val === false ? 'bg-amber-100 border-amber-400 text-amber-800'
-                    : opt.val === true  ? 'bg-green-100 border-green-400 text-green-800'
-                    : 'bg-blue-100 border-blue-400 text-blue-800'
-                  : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}>
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        {projectLiveCheck !== null && (
-          <p className="text-xs text-gray-500">
-            {projectLiveCheck ? '✓ Live SAP check forced ON for this project' : '⚠ Live SAP check forced OFF for this project'}
+        {clientAllowsProjectOverride ? (
+          <>
+            <div className="flex gap-2">
+              {[
+                { val: null,  label: 'Default',  desc: 'Inherit from client / global setting' },
+                { val: true,  label: 'Enabled',  desc: 'Always run live check for cases in this project' },
+                { val: false, label: 'Disabled', desc: 'Skip live check for all cases in this project' },
+              ].map(opt => (
+                <button key={String(opt.val)}
+                  onClick={canEdit ? () => saveProjectLiveCheck(opt.val) : undefined}
+                  disabled={!canEdit}
+                  title={opt.desc}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                    ${projectLiveCheck === opt.val
+                      ? opt.val === false ? 'bg-amber-100 border-amber-400 text-amber-800'
+                        : opt.val === true  ? 'bg-green-100 border-green-400 text-green-800'
+                        : 'bg-blue-100 border-blue-400 text-blue-800'
+                      : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {projectLiveCheck !== null && (
+              <p className="text-xs text-gray-500">
+                {projectLiveCheck ? '✓ Live SAP check forced ON for this project' : '⚠ Live SAP check forced OFF for this project'}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-xs text-amber-600 flex items-center gap-1.5">
+            <AlertTriangle size={12} /> The client has not allowed project-level overrides for SAP live check.
           </p>
+        )}
+        {clientAllowsCaseOverride && (
+          <div className="border-t border-gray-100 pt-3 flex items-center justify-between gap-4">
+            <span className="text-xs text-gray-600">Allow case-level override</span>
+            <button type="button" onClick={canEdit ? toggleProjectAllowCaseOverride : undefined}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${projectAllowsCaseOverride ? 'bg-blue-600' : 'bg-gray-300'}`}>
+              <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${projectAllowsCaseOverride ? 'translate-x-4' : 'translate-x-0'}`} />
+            </button>
+          </div>
         )}
       </div>
 

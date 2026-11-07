@@ -1630,11 +1630,19 @@ canvas{display:block;width:100%}
       const sapCfg = selectedEnvId
         ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
         : (sapEnvs[0] ?? null);
-      // Resolution order: per-environment > project > global
+      // Resolution order: per-case (if allowed) > per-environment > project (if allowed) > client > global
       const envLiveCheck = sapCfg?.liveCheckOnGenerate;
       const projectLiveCheckVal = (cdSettings['sap_project_live_check'] ?? {})[caseData.project_id] ?? null;
-      const shouldLiveCheck = envLiveCheck !== undefined ? envLiveCheck
-        : projectLiveCheckVal !== null ? projectLiveCheckVal
+      const clientLiveCheckVal = (cdSettings['sap_client_live_check'] ?? {})[caseData.client_id] ?? null;
+      const clientPermsCD = (cdSettings['sap_client_live_check_perms'] ?? {})[caseData.client_id] ?? {};
+      const projectAllowsCaseCD = (cdSettings['sap_project_allow_case_override'] ?? {})[caseData.project_id] !== false;
+      const caseAllowedCD = clientPermsCD.allowCase !== false && projectAllowsCaseCD;
+      const clientAllowsProjectCD = clientPermsCD.allowProject !== false;
+      const caseLiveCheckCD = (cdSettings['case_sap_live_check'] ?? {})[caseData.id] ?? null;
+      const shouldLiveCheck = (caseAllowedCD && caseLiveCheckCD !== null) ? caseLiveCheckCD
+        : envLiveCheck !== undefined ? envLiveCheck
+        : (clientAllowsProjectCD && projectLiveCheckVal !== null) ? projectLiveCheckVal
+        : clientLiveCheckVal !== null ? clientLiveCheckVal
         : genCtx.sap_live_check;
       if (shouldLiveCheck) {
         if (!sapCfg?.host || !sapCfg?.username) {
