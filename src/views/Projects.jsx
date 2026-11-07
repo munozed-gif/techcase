@@ -26,6 +26,7 @@ import { getStageIcon } from "../components/CaseSubPanels.jsx";
 import { SapProfileBadges, SapProfileFields, VpnProfileFields, VpnProfileBadges } from "./OperationsViews.jsx";
 import { ProjectSapEnvPanel, ProjectOwnSapPanel } from "../components/SapPanels.jsx";
 import { TransportTab } from "../components/TransportTab.jsx";
+import { SpecGenPipelineCarousel } from "../components/SpecGenPipelineCarousel.jsx";
 import { ApplyTemplateModal, SaveTemplateModal, BUILT_IN_PROJECT_TEMPLATES } from "./CaseTemplates.jsx";
 import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, ROLE_COLORS, PROJECT_TYPES,
@@ -3353,19 +3354,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             {(() => {
               const tmpl = sgTemplates2.find(t => t.key === projSgPreset);
               if (!tmpl) return null;
-              return (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pipeline preview</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(tmpl.stages ?? []).map(s => (
-                      <span key={s.type}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${s.enabled ? "border-blue-200 bg-blue-50 text-blue-700" : "border-gray-100 bg-gray-50 text-gray-400 line-through"}`}>
-                        {s.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              );
+              return <SpecGenPipelineCarousel stages={tmpl.stages ?? []} />;
             })()}
 
             <div className="flex justify-end pt-2 border-t border-gray-100">

@@ -23,6 +23,7 @@ import { DEFAULT_ACTIVITY_PHASES, ROLE_COLORS, STATUS_COLORS, GATE_CONDITIONS } 
 import { CaseDefaultsPanel, AssignmentSettingsPanel } from "../views/SettingsSubViews.jsx";
 import { useLifecycleTemplates, useSpecGenTemplates } from "../hooks/useLifecycleHooks.js";
 import { getStageIcon } from "../components/CaseSubPanels.jsx";
+import { SpecGenPipelineCarousel } from "../components/SpecGenPipelineCarousel.jsx";
 
 function RequestFullAccessBanner({ auth }) {
   const [status, setStatus] = useState("idle"); // idle | requesting | done | already
@@ -1348,19 +1349,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
           {(() => {
             const tmpl = sgTemplates.find(t => t.key === sgPreset);
             if (!tmpl) return null;
-            return (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pipeline preview</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(tmpl.stages ?? []).map(s => (
-                    <span key={s.type}
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${s.enabled ? "border-blue-200 bg-blue-50 text-blue-700" : "border-gray-100 bg-gray-50 text-gray-400 line-through"}`}>
-                      {s.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            );
+            return <SpecGenPipelineCarousel stages={tmpl.stages ?? []} />;
           })()}
 
           <div className="space-y-3 border-t border-gray-100 pt-4">
