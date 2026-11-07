@@ -4704,10 +4704,10 @@ Respond with ONLY a valid JSON object, no markdown fences:
             {/* ── Node 4: Approval workflow ── */}
             {activeNode === 4 && (() => {
               const STEPS = [
-                { key: 'generated', label: 'Spec Generated' },
-                { key: 'checking',  label: 'Checking Spec'  },
-                { key: 'sending',   label: 'Send for Approval' },
-                { key: 'approved',  label: 'Approved'        },
+                { key: 'generated', label: 'Spec Generated',    icon: <Sparkles size={13} /> },
+                { key: 'checking',  label: 'Checking Spec',     icon: <Search size={13} />   },
+                { key: 'sending',   label: 'Send for Approval', icon: <Flag size={13} />     },
+                { key: 'approved',  label: 'Approved',          icon: <Award size={13} />    },
               ];
               const stepIdx = { generated: 0, checking: 1, sending: 2, approved: 3 }[approvalStep] ?? 0;
 
@@ -4765,30 +4765,34 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 <div className="space-y-4">
 
                   {/* ── Roadmap stepper ── */}
-                  <div className="flex items-center gap-0 overflow-x-auto pb-1">
-                    {STEPS.map((s, i) => {
-                      const done    = i < stepIdx;
-                      const active  = i === stepIdx;
-                      return (
-                        <Fragment key={s.key}>
-                          <div className="flex flex-col items-center gap-1 min-w-0 flex-shrink-0">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-colors
-                              ${done   ? 'bg-blue-600 border-blue-600 text-white'
-                              : active ? 'bg-white border-blue-600 text-blue-600'
-                              :          'bg-white border-gray-300 text-gray-400'}`}>
-                              {done ? <Check className="w-3 h-3" /> : (i + 1)}
+                  <div className="bg-gray-100 dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm px-4 py-3">
+                    <div className="flex items-start overflow-x-auto gap-0 pb-0.5">
+                      {STEPS.map((s, i) => {
+                        const done   = i < stepIdx;
+                        const active = i === stepIdx;
+                        const canNav = spec && (s.key !== 'approved' || spec?.status === 'approved');
+                        return (
+                          <button key={s.key}
+                            onClick={() => canNav && setApprovalStep(s.key)}
+                            disabled={!canNav}
+                            className="flex flex-col items-center flex-1 min-w-[52px] relative disabled:cursor-not-allowed">
+                            {i > 0 && (
+                              <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${done ? 'bg-blue-500' : 'bg-gray-300 dark:bg-white/15'}`} />
+                            )}
+                            <div className={`w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center relative z-10 transition-all
+                              ${active ? 'border-blue-500 bg-blue-500/20 text-blue-500'
+                              : done   ? 'border-green-500 bg-green-500/20 text-green-500'
+                                       : 'border-gray-300 dark:border-white/20 bg-white dark:bg-white/5 text-gray-400 dark:text-white/30'}`}>
+                              {done ? <Check size={12} /> : s.icon}
                             </div>
-                            <span className={`text-[10px] font-semibold text-center leading-tight whitespace-nowrap
-                              ${done ? 'text-blue-600' : active ? 'text-blue-700' : 'text-gray-400'}`}>
+                            <span className={`text-[9px] font-bold mt-1 uppercase tracking-wider text-center leading-tight
+                              ${active ? 'text-blue-500' : done ? 'text-green-500' : 'text-gray-400 dark:text-white/30'}`}>
                               {s.label}
                             </span>
-                          </div>
-                          {i < STEPS.length - 1 && (
-                            <div className={`h-0.5 flex-1 mx-1 mt-[-12px] min-w-[12px] transition-colors ${i < stepIdx ? 'bg-blue-500' : 'bg-gray-200'}`} />
-                          )}
-                        </Fragment>
-                      );
-                    })}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* ── No spec yet ── */}
