@@ -133,6 +133,12 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   const cpvCarouselRef = useRef(null);
   const cpvCarouselScrolling = useRef(false);
   const [cpvMountedSlides, setCpvMountedSlides] = useState(() => new Set(["overview"]));
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
   const [cpvManualCompletions, setCpvManualCompletionsRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`tc_cpvmc_${effectiveClientId ?? 'me'}`) ?? "{}"); } catch { return {}; }
   });
@@ -410,6 +416,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   // Scroll-sync effect must be declared before any early return (Rules of Hooks)
   useEffect(() => {
     setCpvMountedSlides(prev => { const s = new Set(prev); s.add(tab); return s; });
+    if (isMobile) return; // vertical layout — no scroll needed
     const el = cpvCarouselRef.current;
     if (!el) return;
     const idx = tabs.findIndex(t => t.id === tab);
@@ -627,7 +634,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
         );
       })()}
 
-      {/* Section Carousel */}
+      {/* Section Carousel — horizontal on desktop, vertical (single-tab) on mobile */}
       {(() => {
         const carouselIdx = Math.max(0, tabs.findIndex(t => t.id === tab));
         function scrollTo(idx) {
@@ -646,30 +653,35 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
           const t2 = tabs[closest];
           if (t2 && t2.id !== tab) setTab(t2.id);
         }
+
         return (
           <div style={{ position:'relative' }}>
-            {carouselIdx > 0 && (
+            {!isMobile && carouselIdx > 0 && (
               <button onClick={() => scrollTo(carouselIdx - 1)}
                 style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
                 <ChevronLeft size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
-            {carouselIdx < tabs.length - 1 && (
+            {!isMobile && carouselIdx < tabs.length - 1 && (
               <button onClick={() => scrollTo(carouselIdx + 1)}
                 style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
                 <ChevronRight size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
-            <div ref={cpvCarouselRef} onScroll={onScroll}
-              style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
+            <div ref={cpvCarouselRef} onScroll={isMobile ? undefined : onScroll}
+              style={isMobile
+                ? { display:'flex', flexDirection:'column', gap:0 }
+                : { display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
               {tabs.map((tabItem, i) => {
                 const isActive = tabItem.id === tab;
                 const Icon = tabItem.icon;
                 const st = cpvTabStatus[tabItem.id];
                 return (
                   <div key={tabItem.id}
-                    style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
-                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
+                    style={isMobile
+                      ? { display: isActive ? 'block' : 'none', width:'100%', minWidth:0, overflow:'hidden' }
+                      : { flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
+                    <div style={{ borderRadius:isMobile?12:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', ...(isMobile ? {} : { height:700 }), display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid var(--t-tab-border)', background:isActive?'var(--t-tab-active)':'var(--t-tab-inactive)', flexShrink:0, cursor:isActive?'default':'pointer' }}
                         onClick={() => !isActive && scrollTo(i)}>
                         {st === "complete"
@@ -690,7 +702,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
                         )}
                       </div>
                       {cpvMountedSlides.has(tabItem.id) ? (
-                        <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
+                        <div style={{ flex:1, overflowY: isMobile ? 'visible' : 'auto', padding: isMobile ? '16px' : '18px 20px' }}>
 
       {/* OVERVIEW TAB */}
       {tabItem.id === "overview" && (
