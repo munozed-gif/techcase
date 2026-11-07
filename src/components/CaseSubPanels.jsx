@@ -3813,7 +3813,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         footerNote: 'This is an automatic record of the spec approval.',
       });
       // Notify all managers as a record
-      notifyManagers(notifTitle, notifBody).catch(() => {});
+      notifyManagers(notifTitle, notifBody, 'spec_approved').catch(() => {});
       sendEmailToManagers('Spec approved — ' + caseTitle, emailHtml).catch(() => {});
       // Notify the case creator / owner
       if (caseData.created_by && caseData.created_by !== auth.user?.id) {
@@ -5015,7 +5015,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                                   footerNote: 'You are receiving this because you are a platform manager.',
                                 });
                                 // Notify + email all managers
-                                notifyManagers(notifTitle, notifBody).catch(() => {});
+                                notifyManagers(notifTitle, notifBody, 'spec_submitted').catch(() => {});
                                 sendEmailToManagers('Spec submitted for approval — ' + caseTitle, emailHtml).catch(() => {});
 
                                 // Notify + email the linked client if one exists

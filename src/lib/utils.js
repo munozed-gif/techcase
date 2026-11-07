@@ -10,11 +10,11 @@ async function notify(userId, title, body, type = 'general') {
     await supabase.from("notifications").insert({ user_id: userId, title, body, is_read: false });
   } catch (_) {}
 }
-async function notifyManagers(title, body) {
+async function notifyManagers(title, body, eventType = 'general') {
   try {
     const { data } = await supabase.from("users").select("id").in("role", ["admin","manager"]).eq("is_active", true);
     if (!data?.length) return;
-    await supabase.from("notifications").insert(data.map(u => ({ user_id: u.id, title, body, is_read: false })));
+    await supabase.from("notifications").insert(data.map(u => ({ user_id: u.id, title, body, is_read: false, event_type: eventType })));
   } catch (_) {}
 }
 async function notifyCaseParticipants(caseId, excludeUserId, title, body, opts = {}) {

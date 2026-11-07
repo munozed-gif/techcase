@@ -54,6 +54,8 @@ function NotificationsView() {
     { key: "rating",           label: t("notif.type_rating") },
     { key: "headhunter",       label: t("notif.type_headhunter") },
     { key: "invoice",          label: t("notif.type_invoice") },
+    { key: "spec_submitted",   label: t("notif.type_spec_submitted") },
+    { key: "spec_approved",    label: t("notif.type_spec_approved") },
     { key: "general",          label: t("notif.type_general") },
   ];
 
