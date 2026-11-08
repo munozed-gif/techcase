@@ -498,8 +498,8 @@ function LifecycleSettingsView({ auth }) {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col sm:flex-row" style={{ minHeight: 420 }}>
-          {/* Left sidebar — template list */}
-          <div className="w-full sm:w-48 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-gray-100 flex flex-col py-2 max-h-48 sm:max-h-none overflow-y-auto">
+          {/* Left sidebar — template list; hidden on mobile when a template is selected */}
+          <div className={`w-full sm:w-48 flex-shrink-0 sm:border-r border-gray-100 flex flex-col py-2 sm:max-h-none overflow-y-auto ${viewTmpl ? "hidden sm:flex" : "flex"}`}>
             {templates.map(tmpl => (
               <div key={tmpl.id}
                 className={`group flex items-start gap-1 pr-2 transition-colors ${viewTmpl?.id === tmpl.id ? "bg-blue-50" : "hover:bg-gray-50"}`}>
@@ -516,11 +516,16 @@ function LifecycleSettingsView({ auth }) {
             ))}
           </div>
 
-          {/* Right panel — vertical flow */}
+          {/* Right panel — vertical flow; full-screen on mobile when selected */}
           {viewTmpl && (
             <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
               <div className="flex items-start justify-between gap-3 flex-wrap mb-6">
                 <div className="min-w-0">
+                  {/* Back button — mobile only */}
+                  <button onClick={() => setViewTmpl(null)}
+                    className="sm:hidden mb-2 text-xs text-blue-600 font-semibold flex items-center gap-1">
+                    ← {t("action.back") || "Back"}
+                  </button>
                   <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <h3 className="font-bold text-gray-900 text-lg">{viewTmpl.name} Lifecycle</h3>
                     {viewTmpl.subtitle && (
