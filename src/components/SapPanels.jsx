@@ -6377,41 +6377,6 @@ Output ONLY the ABAP source code, no explanations.`;
         </div>
       )}
 
-      {/* NL → Blueprint modal */}
-      {showNlModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles size={15} className="text-emerald-600" />Generate Blueprint from Description
-              </h3>
-              <button onClick={() => { setShowNlModal(false); setNlText(''); }} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
-            </div>
-            <p className="text-xs text-gray-500">Describe in plain language what you need to implement in SAP. The AI will generate the full set of required objects.</p>
-            <textarea
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none h-36"
-              placeholder="e.g. We need a custom procurement report that reads open purchase orders by vendor, calculates overdue amounts, and sends automatic email reminders via workflow. The report must save to the database and be accessible via a Fiori tile."
-              value={nlText}
-              onChange={e => setNlText(e.target.value)}
-              disabled={nlGenerating}
-            />
-            {objects.length > 0 && (
-              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                AI-suggested objects will be replaced. Manually added objects are kept.
-              </p>
-            )}
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => { setShowNlModal(false); setNlText(''); }} disabled={nlGenerating}
-                className="px-3 py-1.5 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-50">Cancel</button>
-              <button onClick={handleNlGenerate} disabled={!nlText.trim() || nlGenerating}
-                className="px-4 py-1.5 text-sm font-semibold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
-                {nlGenerating ? <><Loader2 size={12} className="animate-spin" />Generating…</> : <><Sparkles size={12} />Generate Blueprint</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* AI Suggest from Spec modal */}
       {showSpecPickerModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
