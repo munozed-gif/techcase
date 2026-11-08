@@ -5704,10 +5704,6 @@ Output ONLY the ABAP source code, no explanations.`;
           )}
           {canDevelop && (
             <>
-              <button onClick={() => setShowNlModal(true)}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
-                <Sparkles size={11} />From Description
-              </button>
               <button onClick={handleAiSuggest}
                 className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors">
                 <Sparkles size={11} />{objects.length > 0 ? 'AI Regenerate' : 'AI Suggest'}
