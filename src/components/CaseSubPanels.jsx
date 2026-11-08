@@ -4959,7 +4959,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   {/* ── Step 2: Checking Spec ── */}
                   {spec && approvalStep === 'checking' && (
                     <div className="space-y-3">
-                      <div className="rounded-xl border border-blue-800/40 bg-[#0d1b2e] overflow-hidden">
+                      {spec.status === 'approved' && (
+                        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl px-3 py-2 flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                          <p className="text-xs text-green-700 dark:text-green-400 font-medium">This spec has been approved — regeneration is locked.</p>
+                        </div>
+                      )}
+                      <div className={`rounded-xl border border-blue-800/40 bg-[#0d1b2e] overflow-hidden ${spec.status === 'approved' ? 'opacity-50 pointer-events-none' : ''}`}>
                         <div className="flex items-center gap-2 px-3 pt-3 pb-1">
                           <div className="w-2 h-2 rounded-full bg-blue-500 opacity-70" />
                           <p className="text-[11px] font-semibold text-blue-300">What do you want to change or add to the next generation?</p>
@@ -4990,8 +4996,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         </button>
                         <button
                           onClick={() => handleGenerateSpecs({ genProfile: activeProfile, fromApprovalReview: true })}
-                          disabled={generatingSpecs}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5">
+                          disabled={generatingSpecs || spec.status === 'approved'}
+                          title={spec.status === 'approved' ? 'Spec is approved — regeneration is locked' : undefined}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl flex items-center gap-1.5">
                           {generatingSpecs ? <><span className="animate-spin inline-block">↻</span> Generating…</> : '↻ Generate Again'}
                         </button>
                       </div>
@@ -5007,7 +5014,15 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   {/* ── Step 3: Sending for Approval ── */}
                   {spec && approvalStep === 'sending' && (
                     <div className="space-y-3">
-                      {spec.status === 'submitted' ? (
+                      {spec.status === 'approved' ? (
+                        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-3 flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs font-semibold text-green-800 dark:text-green-300">{t("spec.approved_title")}</p>
+                            {spec.approved_at && <p className="text-xs text-green-600 mt-0.5">{t("spec.approved_on").replace("{n}", fmtDate(spec.approved_at))}</p>}
+                          </div>
+                        </div>
+                      ) : spec.status === 'submitted' ? (
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
                           <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
                           <p className="text-xs text-amber-800 font-medium">{t("spec.awaiting")}</p>
@@ -5064,7 +5079,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
                           ← Back to review
                         </button>
-                        {spec.status !== 'submitted' && (
+                        {spec.status !== 'submitted' && spec.status !== 'approved' && (
                           <button
                             onClick={async () => {
                               try {
