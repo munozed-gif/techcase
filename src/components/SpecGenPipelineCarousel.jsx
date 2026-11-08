@@ -67,7 +67,7 @@ export function SpecGenPipelineCarousel({ stages }) {
               <div
                 className="w-64 rounded-xl overflow-hidden relative flex flex-col"
                 style={{
-                  height: 350,
+                  height: 390,
                   border: `1px solid ${color}40`,
                   background: color + "18",
                   opacity: s.enabled ? 1 : 0.5,
@@ -111,25 +111,25 @@ export function SpecGenPipelineCarousel({ stages }) {
                       Disabled
                     </span>
                   )}
-                  <p className="text-[11px] leading-relaxed mb-2.5" style={{ color: color + "cc" }}>
+                  <p className="text-sm leading-relaxed mb-3" style={{ color: color + "cc" }}>
                     {info.description}
                   </p>
                   {info.tasks.length > 0 && (
                     <div>
                       <p
-                        className="text-[9px] font-bold uppercase tracking-wide flex items-center gap-1 mb-1"
+                        className="text-[11px] font-bold uppercase tracking-wide flex items-center gap-1 mb-1.5"
                         style={{ color: color + "bb" }}
                       >
-                        <Lock size={8} /> Required checks ({info.tasks.length})
+                        <Lock size={9} /> Required checks ({info.tasks.length})
                       </p>
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         {info.tasks.map((task, ti) => (
                           <div key={ti} className="flex items-start gap-1.5">
                             <div
-                              className="mt-[3px] w-1.5 h-1.5 rounded-full flex-shrink-0"
+                              className="mt-[4px] w-1.5 h-1.5 rounded-full flex-shrink-0"
                               style={{ background: color }}
                             />
-                            <p className="text-[10px] leading-tight" style={{ color: color + "cc" }}>
+                            <p className="text-xs leading-snug" style={{ color: color + "cc" }}>
                               {task}
                             </p>
                           </div>
