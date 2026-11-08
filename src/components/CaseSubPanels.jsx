@@ -5273,7 +5273,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     );
                   })()}
 
-                  {!specApproved && (
+                  {!specApproved && !sapCheck && (
                     <div className="flex justify-end">
                       <button onClick={() => setActiveNode(1)}
                         className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
@@ -5435,7 +5435,9 @@ ${result}`;
                       <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Request Summary</h4>
                       {!requestSummaryLoading && (
                         <button onClick={handleAnalyzeRequest}
-                          className="px-3 py-1 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700 flex items-center gap-1">
+                          disabled={specApproved}
+                          title={specApproved ? 'Spec is approved — analysis is locked' : undefined}
+                          className="px-3 py-1 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700 flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
                           <Sparkles className="w-3 h-3" />
                           {requestSummary ? 'Re-analyze' : 'Analyze'}
                         </button>
@@ -5514,7 +5516,7 @@ ${result}`;
                     )}
                   </div>
 
-                  {!specApproved && (
+                  {!specApproved && !sapCheck && (
                     <div className="flex justify-end">
                       <button onClick={() => setActiveNode(1)}
                         className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
@@ -5897,12 +5899,10 @@ ${result}`;
                           )}
                           {perms.can('regen_specs') && (
                             <button
-                              onClick={() => {
-                                if (specApproved && !window.confirm(t("spec.regen_approved_confirm"))) return;
-                                handleGenerateSpecs();
-                              }}
+                              onClick={() => { if (!specApproved) handleGenerateSpecs(); }}
+                              disabled={specApproved}
                               title={specApproved ? t("spec.regen_approved_tooltip") : undefined}
-                              className={`px-2.5 py-1 text-xs font-semibold rounded-lg hover:bg-blue-50 border ${specApproved ? 'border-amber-300 text-amber-700 hover:bg-amber-50' : 'border-blue-200 text-blue-700'}`}>
+                              className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent">
                               {t("spec.regen_all")}
                             </button>
                           )}
