@@ -214,13 +214,13 @@ function LifecycleSettingsView({ auth }) {
       )}
 
       {selected ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
               <h3 className="font-semibold text-gray-900">{selected.name}</h3>
               <p className="text-sm text-gray-500">{selected.description}</p>
             </div>
-            <button onClick={cancelEdit} className="text-sm text-gray-400 hover:text-gray-600">{t("action.cancel")}</button>
+            <button onClick={cancelEdit} className="text-sm text-gray-400 hover:text-gray-600 flex-shrink-0">{t("action.cancel")}</button>
           </div>
 
           <div className="space-y-4">
@@ -497,9 +497,9 @@ function LifecycleSettingsView({ auth }) {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex" style={{ minHeight: 420 }}>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col sm:flex-row" style={{ minHeight: 420 }}>
           {/* Left sidebar — template list */}
-          <div className="w-48 flex-shrink-0 border-r border-gray-100 flex flex-col py-2">
+          <div className="w-full sm:w-48 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-gray-100 flex flex-col py-2 max-h-48 sm:max-h-none overflow-y-auto">
             {templates.map(tmpl => (
               <div key={tmpl.id}
                 className={`group flex items-start gap-1 pr-2 transition-colors ${viewTmpl?.id === tmpl.id ? "bg-blue-50" : "hover:bg-gray-50"}`}>
@@ -518,10 +518,10 @@ function LifecycleSettingsView({ auth }) {
 
           {/* Right panel — vertical flow */}
           {viewTmpl && (
-            <div className="flex-1 p-6 overflow-y-auto">
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
+            <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+              <div className="flex items-start justify-between gap-3 flex-wrap mb-6">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <h3 className="font-bold text-gray-900 text-lg">{viewTmpl.name} Lifecycle</h3>
                     {viewTmpl.subtitle && (
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{viewTmpl.subtitle}</span>
@@ -529,7 +529,7 @@ function LifecycleSettingsView({ auth }) {
                   </div>
                   <p className="text-sm text-gray-500">{viewTmpl.description}</p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <button onClick={() => startEdit(viewTmpl)}
                     className="px-4 py-1.5 bg-[#1A4B8C] hover:bg-blue-900 text-white text-sm font-semibold rounded-xl">
                     <Pencil size={13} className="mr-1 inline" />{t("lc.edit_stages")}
