@@ -5483,8 +5483,8 @@ ${result}`;
                       <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Request Summary</h4>
                       {!requestSummaryLoading && (
                         <button onClick={handleAnalyzeRequest}
-                          disabled={specApproved}
-                          title={specApproved ? 'Spec is approved — analysis is locked' : undefined}
+                          disabled={specApproved && !auth.isAdmin}
+                          title={specApproved && !auth.isAdmin ? 'Spec is approved — analysis is locked' : undefined}
                           className="px-3 py-1 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700 flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
                           <Sparkles className="w-3 h-3" />
                           {requestSummary ? 'Re-analyze' : 'Analyze'}
