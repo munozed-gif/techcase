@@ -456,6 +456,17 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     return () => clearTimeout(timer);
   }, [caseData.status, lifecycleStages.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const scrollCarouselToKey = useCallback((key) => {
+    const idx = lifecycleStages.findIndex(s => s.key === key);
+    if (idx < 0) return;
+    setPipelineActiveIdx(idx);
+    const el = pipelineRef.current;
+    if (el) {
+      const child = el.children[idx];
+      if (child) child.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [lifecycleStages]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Resolve the lifecycle key used to look up gates
   const lifecycleKey = effectiveLifecycle?.preset ?? effectiveLifecycle?.key ?? "standard";
 
@@ -2453,7 +2464,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
       )}
 
       {/* Lifecycle Track */}
-      <CaseLifecycleTrack stages={lifecycleStages} currentStatus={caseData.status} />
+      <CaseLifecycleTrack stages={lifecycleStages} currentStatus={caseData.status} onStageClick={scrollCarouselToKey} />
 
       {/* Progress Bar */}
       <div>

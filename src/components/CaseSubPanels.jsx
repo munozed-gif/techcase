@@ -106,7 +106,7 @@ const STAGE_ICON_MAP = {
 };
 function getStageIcon(key) { return STAGE_ICON_MAP[key] ?? Flag; }
 
-function CaseLifecycleTrack({ stages, currentStatus }) {
+function CaseLifecycleTrack({ stages, currentStatus, onStageClick }) {
   const { t } = useT();
   const flow      = stages.filter(s => !s.is_terminal);
   const terminals = stages.filter(s => s.is_terminal);
@@ -135,7 +135,9 @@ function CaseLifecycleTrack({ stages, currentStatus }) {
           const active = !curIsTerminal && i === curIdx;
           const Icon   = getStageIcon(stage.key);
           return (
-            <div key={stage.key} className="relative z-10 flex flex-col items-center flex-1 gap-1.5">
+            <div key={stage.key} className="relative z-10 flex flex-col items-center flex-1 gap-1.5"
+              onClick={onStageClick ? () => onStageClick(stage.key) : undefined}
+              style={onStageClick ? { cursor: 'pointer' } : undefined}>
               <div className={`${circSz} rounded-full flex items-center justify-center transition-all`}
                 style={{
                   background: done || active ? stage.color : 'var(--t-card-bg,#fff)',
