@@ -94,11 +94,17 @@ function buildMarkdownHtmlDoc({ eyebrow, title, caseTitle, date, accentRgb, meta
 <title>${e(title)}</title><style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.6;color:#1a1a2e;background:#fff;max-width:860px;margin:0 auto;padding:32px 24px}
-header{background:${accent};color:#fff;padding:24px 28px 20px;border-radius:8px;margin-bottom:24px}
+header{background:#1A2A4A;color:#fff;padding:24px 28px 20px;border-radius:8px;margin-bottom:24px;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
+header .hdr-left{flex:1;min-width:0}
 header .ey{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;opacity:.75;margin-bottom:6px}
 header h1{font-size:22px;font-weight:700;margin-bottom:4px}
 header .ct{font-size:13px;opacity:.85;margin-bottom:4px}
 header .dt{font-size:11px;opacity:.7}
+.hdr-brand{display:flex;align-items:center;gap:0.5rem;flex-shrink:0}
+.hdr-brand-text{line-height:1.25}
+.hdr-brand-name{font-size:0.6rem;font-weight:700;color:rgba(255,255,255,0.8);white-space:nowrap}
+.hdr-brand-name span{color:#7B9BFF}
+.hdr-brand-tag{font-size:0.5rem;color:#93C5FD;letter-spacing:0.06em;white-space:nowrap}
 table.meta{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:12px}
 table.meta td{padding:6px 10px;border-bottom:1px solid #e5e7eb}
 table.meta td.k{font-weight:600;color:#6b7280;width:160px;background:#f9fafb}
@@ -109,7 +115,7 @@ ul{padding-left:20px;margin:6px 0 10px}
 li{margin:3px 0;color:#374151}
 @media print{body{max-width:none;padding:0}}
 </style></head><body>
-<header><div class="ey">${e(eyebrow)}</div><h1>${e(title)}</h1><p class="ct">${e(caseTitle)}</p><p class="dt">${e(date)}</p></header>
+<header><div class="hdr-left"><div class="ey">${e(eyebrow)}</div><h1>${e(title)}</h1><p class="ct">${e(caseTitle)}</p><p class="dt">${e(date)}</p></div><div class="hdr-brand"><svg width="36" height="36" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="og" cx="36%" cy="33%" r="78%"><stop offset="0%" stop-color="#4F6EF7"/><stop offset="100%" stop-color="#0D1F3C"/></radialGradient></defs><circle cx="40" cy="40" r="39" fill="none" stroke="#4F6EF7" stroke-opacity="0.18" stroke-width="1"/><circle cx="40" cy="40" r="28" fill="none" stroke="#4F6EF7" stroke-opacity="0.35" stroke-width="1"/><circle cx="40" cy="40" r="13" fill="url(#og)"/><text x="40" y="46" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="16" fill="#fff">A</text><circle cx="40" cy="1.5" r="3" fill="#4F6EF7"/><circle cx="13" cy="64" r="2.2" fill="#818cf8" opacity="0.8"/><circle cx="68" cy="18" r="2.5" fill="#6366f1"/></svg><div class="hdr-brand-text"><div class="hdr-brand-name"><span>Arena</span> Solutions Platform</div><div class="hdr-brand-tag">Consultant Case Management</div></div></div></header>
 ${metaHtml ? `<table class="meta">${metaHtml}</table>` : ''}
 ${body}
 </body></html>`;
@@ -1416,6 +1422,7 @@ Approver signature, Date.`;
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:#F6F7FB;color:#1A2A4A;font-size:0.9rem;line-height:1.65}
 .doc-header{background:#1A2A4A;color:#fff;padding:2.5rem 3rem 2rem}
+.doc-header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:1.5rem;margin-bottom:0}
 .doc-header .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:0.5rem}
 .doc-header h1{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(1.5rem,3vw,2.3rem);font-weight:400;line-height:1.15;color:#fff;margin-bottom:0.3rem}
 .doc-header h1 em{font-style:italic;color:rgba(255,255,255,0.65)}
@@ -1508,8 +1515,13 @@ canvas{display:block;width:100%}
 <button class="print-btn" onclick="window.print()">${s.savePdf}</button>
 
 <header class="doc-header">
-  <div class="eyebrow">${s.docEyebrow}</div>
-  <h1>${s.h1}<br><em>${esc(cd.title)}</em></h1>
+  <div class="doc-header-top">
+    <div>
+      <div class="eyebrow">${s.docEyebrow}</div>
+      <h1>${s.h1}<br><em>${esc(cd.title)}</em></h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0"><svg width="36" height="36" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="og" cx="36%" cy="33%" r="78%"><stop offset="0%" stop-color="#4F6EF7"/><stop offset="100%" stop-color="#0D1F3C"/></radialGradient></defs><circle cx="40" cy="40" r="39" fill="none" stroke="#4F6EF7" stroke-opacity="0.18" stroke-width="1"/><circle cx="40" cy="40" r="28" fill="none" stroke="#4F6EF7" stroke-opacity="0.35" stroke-width="1"/><circle cx="40" cy="40" r="13" fill="url(#og)"/><text x="40" y="46" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="16" fill="#fff">A</text><circle cx="40" cy="1.5" r="3" fill="#4F6EF7"/><circle cx="13" cy="64" r="2.2" fill="#818cf8" opacity="0.8"/><circle cx="68" cy="18" r="2.5" fill="#6366f1"/></svg><div style="line-height:1.25"><div style="font-size:0.6rem;font-weight:700;color:rgba(255,255,255,0.8);white-space:nowrap"><span style="color:#7B9BFF">Arena</span> Solutions Platform</div><div style="font-size:0.5rem;color:#93C5FD;letter-spacing:0.06em;white-space:nowrap">Consultant Case Management</div></div></div>
+  </div>
   <div class="meta-row">
     <div class="meta-item"><span class="lbl">${s.metaSapModule}</span><span class="val">${esc(cd.area_sap || 'N/A')}</span></div>
     <div class="meta-item"><span class="lbl">${s.metaIndustry}</span><span class="val">${esc(cd.area_industry || 'N/A')}</span></div>
@@ -2207,7 +2219,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
 <title>${lang === 'es' ? 'Reporte de Cierre' : 'Closure Report'} — ${he(caseData.title ?? '')}</title><style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.6;color:#1a1a2e;background:#fff;max-width:900px;margin:0 auto;padding:32px 24px}
-.cover{background:#1a4b8c;color:#fff;padding:28px;border-radius:8px;margin-bottom:28px;border-bottom:4px solid #10b981}
+.cover{background:#1A2A4A;color:#fff;padding:28px;border-radius:8px;margin-bottom:28px;border-bottom:4px solid #10b981}
+.cover-top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
 .cover .ey{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;opacity:.7;margin-bottom:8px}
 .cover h1{font-size:24px;font-weight:700;margin-bottom:6px}
 .cover .dt{font-size:12px;opacity:.7;margin-top:8px}
@@ -2237,9 +2250,14 @@ table.t tr:nth-child(even) td{background:#f9fafb}
 @media print{body{max-width:none;padding:0}.stats{break-inside:avoid}}
 </style></head><body>
 <div class="cover">
-  <div class="ey">${lang === 'es' ? 'SAP CONSULTING — REPORTE DE CIERRE DE CASO' : 'SAP CONSULTING — CASE CLOSURE REPORT'}</div>
-  <h1>${he(caseData.title ?? 'Case Closure Report')}</h1>
-  <div class="dt">${he(dateStr)}</div>
+  <div class="cover-top">
+    <div>
+      <div class="ey">${lang === 'es' ? 'SAP CONSULTING — REPORTE DE CIERRE DE CASO' : 'SAP CONSULTING — CASE CLOSURE REPORT'}</div>
+      <h1>${he(caseData.title ?? 'Case Closure Report')}</h1>
+      <div class="dt">${he(dateStr)}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0"><svg width="36" height="36" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="og" cx="36%" cy="33%" r="78%"><stop offset="0%" stop-color="#4F6EF7"/><stop offset="100%" stop-color="#0D1F3C"/></radialGradient></defs><circle cx="40" cy="40" r="39" fill="none" stroke="#4F6EF7" stroke-opacity="0.18" stroke-width="1"/><circle cx="40" cy="40" r="28" fill="none" stroke="#4F6EF7" stroke-opacity="0.35" stroke-width="1"/><circle cx="40" cy="40" r="13" fill="url(#og)"/><text x="40" y="46" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="16" fill="#fff">A</text><circle cx="40" cy="1.5" r="3" fill="#4F6EF7"/><circle cx="13" cy="64" r="2.2" fill="#818cf8" opacity="0.8"/><circle cx="68" cy="18" r="2.5" fill="#6366f1"/></svg><div style="line-height:1.25"><div style="font-size:0.6rem;font-weight:700;color:rgba(255,255,255,0.8);white-space:nowrap"><span style="color:#7B9BFF">Arena</span> Solutions Platform</div><div style="font-size:0.5rem;color:#93C5FD;letter-spacing:0.06em;white-space:nowrap">Consultant Case Management</div></div></div>
+  </div>
 </div>
 <div class="meta-grid">
   <div class="mk">${lang === 'es' ? 'Referencia del Caso' : 'Case Reference'}</div><div>${he(caseData.case_ref ?? '—')}</div>
