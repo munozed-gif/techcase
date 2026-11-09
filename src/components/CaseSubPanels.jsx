@@ -990,6 +990,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
 
   // Compiled context preview (Node 6)
   const [compiledCtxPreview, setCompiledCtxPreview] = useState(null);
+  const [compiledCtxExtra,   setCompiledCtxExtra]   = useState(null);
   const [compiledCtxLoading, setCompiledCtxLoading] = useState(false);
   const [requestSummary, setRequestSummary]         = useState(null);
   const [requestSummaryLoading, setRequestSummaryLoading] = useState(false);
@@ -2381,7 +2382,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       const n = genCtx.related_cases_count ?? 3;
       fetches.push(
         supabase.from("cases")
-          .select("title, status, area_sap")
+          .select("title, status, area_sap, description")
           .eq("client_id", caseData.client_id)
           .eq("area_sap", caseData.area_sap)
           .neq("id", caseData.id)
@@ -2466,6 +2467,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       }
     }
 
+    setCompiledCtxExtra(extra);
     return buildContextString(caseData, genCtx, extra);
   }
 
@@ -5564,9 +5566,73 @@ ${result}`;
                             </button>
                           </div>
                         )}
-                        {compiledCtxPreview && !compiledCtxLoading && (
-                          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto bg-gray-50 rounded-lg p-3 border border-gray-100 mt-3">{compiledCtxPreview}</pre>
-                        )}
+                        {compiledCtxPreview && !compiledCtxLoading && (() => {
+                          // Build a display-only version: exclude full doc content and related cases (shown below as cards)
+                          const gcDisp = { ...GENERATION_CONTEXT_DEFAULTS, ...(ssCtx.settings["generation_context"] ?? {}) };
+                          const textOnly = buildContextString(caseData, gcDisp, {
+                            ...(compiledCtxExtra ?? {}),
+                            projectDocs:   undefined,
+                            relatedCases:  undefined,
+                          }).trim();
+
+                          const docs    = compiledCtxExtra?.projectDocs   ?? [];
+                          const related = compiledCtxExtra?.relatedCases  ?? [];
+
+                          return (
+                            <div className="mt-3 space-y-2">
+                              {/* Text-based context lines */}
+                              {textOnly ? (
+                                <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-48 overflow-y-auto bg-gray-50 rounded-lg p-3 border border-gray-100">{textOnly}</pre>
+                              ) : null}
+
+                              {/* Project Documents — checklist */}
+                              {gcDisp.include_project_docs && (
+                                <div className="bg-gray-50 rounded-lg border border-gray-100 p-3">
+                                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Project Documents</p>
+                                  {docs.length === 0 ? (
+                                    <p className="text-xs text-gray-400 italic">No project documents found.</p>
+                                  ) : (
+                                    <ul className="space-y-1">
+                                      {docs.map((d, i) => (
+                                        <li key={i} className="flex items-center gap-2 text-xs text-gray-700">
+                                          <Check size={11} className="text-emerald-500 flex-shrink-0" />
+                                          <span className="font-medium">{d.name}</span>
+                                          {d.type && <span className="text-gray-400">— {d.type}</span>}
+                                          <span className="ml-auto text-[10px] text-gray-400">{d.text ? `${Math.round(d.text.length / 1000)}k chars` : 'binary'}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Related Cases — card list */}
+                              {gcDisp.include_related_cases && (
+                                <div className="bg-gray-50 rounded-lg border border-gray-100 p-3">
+                                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Related Cases</p>
+                                  {related.length === 0 ? (
+                                    <p className="text-xs text-gray-400 italic">No related cases found for this client & SAP module.</p>
+                                  ) : (
+                                    <ul className="space-y-2">
+                                      {related.map((c, i) => (
+                                        <li key={i} className="flex flex-col gap-0.5 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs font-medium text-gray-700">{c.title}</span>
+                                            {c.area_sap && <span className="text-[10px] text-gray-400 bg-gray-100 rounded px-1">{c.area_sap}</span>}
+                                            <span className={`ml-auto text-[10px] font-semibold rounded-full px-1.5 py-0.5 ${c.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : c.status === 'cancelled' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'}`}>{cap(c.status ?? '')}</span>
+                                          </div>
+                                          {c.description && (
+                                            <p className="text-[11px] text-gray-500 leading-snug line-clamp-2">{c.description}</p>
+                                          )}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Additional Considerations — persisted per case */}
                         <div className="pt-1 border-t border-gray-100 mt-2">
