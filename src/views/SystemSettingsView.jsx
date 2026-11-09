@@ -1641,11 +1641,59 @@ function InfraCheckSettingsCard({ ssCtx }) {
 }
 
 
+function buildContextPreview(ctx) {
+  const cfg = { ...GENERATION_CONTEXT_DEFAULTS, ...ctx };
+  const lines = [];
+  if (cfg.include_client_info) {
+    lines.push('Client Company: Seguros Atlas (sample)');
+    lines.push('Client Sector: Insurance (sample)');
+  }
+  if (cfg.include_sap_profile) {
+    lines.push('SAP System: SAP S/4HANA | Release 2023 | Basis 757 (sample)');
+    lines.push('System Role: Production');
+    lines.push('Active SAP Components: FI-GL, CO-CCA, MM-IM (sample)');
+  }
+  if (cfg.include_case_metadata) {
+    lines.push('Priority: High (sample)');
+    lines.push('Budget: $45,000 (sample)');
+    lines.push('Due Date: 2026-12-31 (sample)');
+    lines.push('Skills Required: ABAP, Fiori, BTP (sample)');
+  }
+  if (cfg.include_project_ctx) {
+    lines.push('Project: Digital Transformation 2026 (sample)');
+    lines.push('Project Description: SAP modernization initiative (sample)');
+  }
+  if (cfg.include_project_docs) {
+    lines.push('\nProject Reference Documents:');
+    lines.push('[Document: Technical Architecture — Blueprint]');
+    lines.push('(document content would appear here)');
+    lines.push('[End of Project Documents]');
+  }
+  if (cfg.include_related_cases) {
+    lines.push('Related Cases (same client & SAP module):');
+    for (let i = 1; i <= (cfg.related_cases_count ?? 3); i++) {
+      lines.push(`  ${i}. "Related case #${i} sample" — Closed [FI-GL]`);
+    }
+  }
+  if (cfg.sap_live_check) {
+    lines.push('SAP Live System: S/4HANA 2023 (sample)');
+    lines.push('SAP Available Capabilities: ABAP, Fiori, BTP (sample)');
+  }
+  if (!lines.length) return '(no context fields enabled)';
+  return lines.join('\n');
+}
+
 function SettingsGenerationTab({ ssCtx }) {
   const { t } = useT();
   const [activeProfile, setActiveProfile] = useState("basic");
   const [saving, setSaving] = useState(false);
   const [toast, setToast]   = useState(null);
+  const [metaExpanded, setMetaExpanded] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('genctx_meta_expanded') ?? 'false'); } catch { return false; }
+  });
+  const [ctxPreviewExpanded, setCtxPreviewExpanded] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('genctx_preview_expanded') ?? 'true'); } catch { return true; }
+  });
 
   const [form, setForm] = useState(null);
 
@@ -1707,6 +1755,18 @@ function SettingsGenerationTab({ ssCtx }) {
         },
       };
     });
+  }
+
+  function toggleMetaExpanded() {
+    const next = !metaExpanded;
+    setMetaExpanded(next);
+    try { localStorage.setItem('genctx_meta_expanded', JSON.stringify(next)); } catch {}
+  }
+
+  function toggleCtxPreview() {
+    const next = !ctxPreviewExpanded;
+    setCtxPreviewExpanded(next);
+    try { localStorage.setItem('genctx_preview_expanded', JSON.stringify(next)); } catch {}
   }
 
   async function handleSave() {
@@ -1866,6 +1926,29 @@ function SettingsGenerationTab({ ssCtx }) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-700">{t(labelKey)}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{t(descKey)}</p>
+                {key === "include_case_metadata" && (
+                  <div className="mt-1.5">
+                    <button type="button" onClick={e => { e.preventDefault(); toggleMetaExpanded(); }}
+                      className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors">
+                      {metaExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                      {metaExpanded ? t("gen.ctx_meta_hide") : t("gen.ctx_meta_show")}
+                    </button>
+                    {metaExpanded && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {[
+                          t("gen.ctx_meta_priority"),
+                          t("gen.ctx_meta_budget"),
+                          t("gen.ctx_meta_duedate"),
+                          t("gen.ctx_meta_skills"),
+                        ].map(label => (
+                          <span key={label} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-xs text-indigo-700 font-medium">
+                            <Check size={9} /> {label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {key === "include_related_cases" && form.context.include_related_cases && (
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-xs text-gray-500">{t("gen.ctx_related_count")}:</span>
@@ -1883,6 +1966,35 @@ function SettingsGenerationTab({ ssCtx }) {
               </button>
             </label>
           ))}
+        </div>
+
+        {/* Compiled Context Preview */}
+        <div className="mt-5 border-t border-gray-100 pt-4">
+          <button type="button" onClick={toggleCtxPreview}
+            className="flex items-center justify-between w-full group">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                <Database size={11} className="text-indigo-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-700">{t("gen.ctx_preview_title")}</p>
+                <p className="text-xs text-gray-400">{t("gen.ctx_preview_desc")}</p>
+              </div>
+            </div>
+            {ctxPreviewExpanded
+              ? <ChevronUp size={14} className="text-gray-400 group-hover:text-gray-600 transition-colors" />
+              : <ChevronDown size={14} className="text-gray-400 group-hover:text-gray-600 transition-colors" />}
+          </button>
+          {ctxPreviewExpanded && (
+            <div className="mt-3 bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+              <pre className="p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap leading-relaxed overflow-x-auto">
+                {buildContextPreview(form.context)}
+              </pre>
+              <div className="px-3 py-2 bg-indigo-50 border-t border-indigo-100">
+                <p className="text-[10px] text-indigo-400 italic">{t("gen.ctx_preview_sample_note")}</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
