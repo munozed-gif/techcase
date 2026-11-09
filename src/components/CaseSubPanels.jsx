@@ -5298,12 +5298,19 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
             {/* ── Node 6: Compiled Context Preview ── */}
             {activeNode === 6 && (() => {
+              const clientCompany = caseData.client?.client_profiles?.company_name ?? caseData.client?.name ?? null;
+              const assignedConsultant = (caseData.case_assignments ?? []).find(a => a.is_active !== false)?.profiles?.full_name ?? null;
               const staticFields = [
-                { label: 'Case', value: caseData.title },
-                { label: 'SAP Module', value: caseData.area_sap },
-                { label: 'Industry', value: caseData.area_industry },
-                { label: 'Priority', value: caseData.priority },
-                { label: 'Due Date', value: caseData.due_date },
+                { label: t("gen.ctx_meta_case")     || 'Case',       value: caseData.title },
+                { label: t("gen.ctx_meta_client")   || 'Client',     value: clientCompany },
+                { label: t("gen.ctx_meta_sap")      || 'SAP Module', value: caseData.area_sap },
+                { label: t("gen.ctx_meta_industry") || 'Industry',   value: caseData.area_industry },
+                { label: t("gen.ctx_meta_status")   || 'Status',     value: caseData.status ? cap(caseData.status.replace(/_/g, ' ')) : null },
+                { label: t("gen.ctx_meta_priority") || 'Priority',   value: caseData.priority ? cap(caseData.priority) : null },
+                { label: t("gen.ctx_meta_budget")   || 'Budget',     value: caseData.budget },
+                { label: t("gen.ctx_meta_duedate")  || 'Due Date',   value: caseData.due_date },
+                { label: t("gen.ctx_meta_skills")   || 'Skills',     value: caseData.skills_required?.length ? caseData.skills_required.join(', ') : null },
+                { label: t("gen.ctx_meta_consult")  || 'Consultant', value: assignedConsultant },
               ].filter(f => f.value);
 
               const customerContent = analysisCustomerContent || caseData.description || '';

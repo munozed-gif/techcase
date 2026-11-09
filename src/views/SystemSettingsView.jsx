@@ -1936,10 +1936,12 @@ function SettingsGenerationTab({ ssCtx }) {
                     {metaExpanded && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {[
+                          t("gen.ctx_meta_status"),
                           t("gen.ctx_meta_priority"),
                           t("gen.ctx_meta_budget"),
                           t("gen.ctx_meta_duedate"),
                           t("gen.ctx_meta_skills"),
+                          t("gen.ctx_meta_consult"),
                         ].map(label => (
                           <span key={label} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-xs text-indigo-700 font-medium">
                             <Check size={9} /> {label}
