@@ -317,6 +317,79 @@ const GATE_CONDITIONS = [
     check: (c, d) => !c.is_head_hunter || !!c.head_hunter_id,
     fixHint: "Accept a headhunter proposal in the HH Proposals tab",
   },
+  // ── Test process gates ──────────────────────────────────────
+  {
+    key: "sap_objects_complete",
+    label: "SAP development objects complete",
+    description: "All Development phase activities are marked as completed before entering testing",
+    check: (c, d) => {
+      const devActs = (d.activities ?? []).filter(a => a.phase === "development");
+      return devActs.length > 0 && devActs.every(a => a.status === "completed");
+    },
+    fixHint: "Complete all Development phase activities before moving to technical testing",
+  },
+  {
+    key: "qa_transport_completed",
+    label: "Transport request completed in QA",
+    description: "At least one transport request for this case has been successfully imported in QA. Auto-passes if no transports exist.",
+    check: (c, d) => {
+      const transports = d.transportRequests ?? [];
+      if (transports.length === 0) return true;
+      return transports.some(r => ["done", "in_qa", "qa_at"].includes(r.status));
+    },
+    fixHint: "Import the transport request into the QA environment in the Transport tab",
+  },
+  {
+    key: "tech_test_activity_exists",
+    label: "Technical Test activity exists",
+    description: "At least one activity has been created in the Technical Test phase",
+    check: (c, d) => (d.activities ?? []).some(a => a.phase === "technical_test"),
+    fixHint: "Add at least one activity in the Technical Test phase before entering technical testing",
+  },
+  {
+    key: "func_test_activity_exists",
+    label: "Functional Test activity exists",
+    description: "At least one activity has been created in the Functional Test phase",
+    check: (c, d) => (d.activities ?? []).some(a => a.phase === "functional_test"),
+    fixHint: "Add at least one activity in the Functional Test phase before entering functional testing",
+  },
+  {
+    key: "user_test_activity_exists",
+    label: "User Test activity exists",
+    description: "At least one activity has been created in the User Test phase",
+    check: (c, d) => (d.activities ?? []).some(a => a.phase === "user_test"),
+    fixHint: "Add at least one activity in the User Test phase before entering user testing",
+  },
+  {
+    key: "tech_test_phase_complete",
+    label: "Technical Test phase complete",
+    description: "All activities in the Technical Test phase are completed",
+    check: (c, d) => {
+      const acts = (d.activities ?? []).filter(a => a.phase === "technical_test");
+      return acts.length > 0 && acts.every(a => ["completed", "cancelled"].includes(a.status));
+    },
+    fixHint: "Complete all Technical Test phase activities before advancing to functional testing",
+  },
+  {
+    key: "func_test_phase_complete",
+    label: "Functional Test phase complete",
+    description: "All activities in the Functional Test phase are completed",
+    check: (c, d) => {
+      const acts = (d.activities ?? []).filter(a => a.phase === "functional_test");
+      return acts.length > 0 && acts.every(a => ["completed", "cancelled"].includes(a.status));
+    },
+    fixHint: "Complete all Functional Test phase activities before advancing to user testing",
+  },
+  {
+    key: "user_test_phase_complete",
+    label: "User Test phase complete",
+    description: "All activities in the User Test phase are completed",
+    check: (c, d) => {
+      const acts = (d.activities ?? []).filter(a => a.phase === "user_test");
+      return acts.length > 0 && acts.every(a => ["completed", "cancelled"].includes(a.status));
+    },
+    fixHint: "Complete all User Test phase activities before advancing to transport / production",
+  },
 ];
 
 // ── Stripe / pricing defaults ─────────────────────────────────

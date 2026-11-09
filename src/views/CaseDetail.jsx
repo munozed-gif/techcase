@@ -189,6 +189,13 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [actRefreshKey, setActRefreshKey] = useState(0);
   const { activities, addActivity, updateActivity, deleteActivity, refetch: refetchActivities } = useCaseActivities(caseData.id, actRefreshKey);
 
+  const [caseTransportReqs, setCaseTransportReqs] = useState([]);
+  useEffect(() => {
+    if (!caseData.id) return;
+    supabase.from("transport_requests").select("id, status").eq("case_id", caseData.id)
+      .then(({ data }) => setCaseTransportReqs(data ?? []));
+  }, [caseData.id]);
+
   const [creatorName, setCreatorName] = useState(null);
   useEffect(() => {
     if (!caseData.created_by) return;
@@ -477,7 +484,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const lifecycleKey = effectiveLifecycle?.preset ?? effectiveLifecycle?.key ?? "standard";
 
   // Gate runtime data bundle (same shape as GATE_CONDITIONS checks)
-  const gateData = { milestones, timeEntries, documents, invoices, activities, applications, spec: caseSpec, hhProposals };
+  const gateData = { milestones, timeEntries, documents, invoices, activities, applications, spec: caseSpec, hhProposals, transportRequests: caseTransportReqs };
 
   // Returns { blockers: [...], warnings: [...] } for a given target status
   function checkTransitionGates(toStatus) {
