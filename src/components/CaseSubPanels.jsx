@@ -994,7 +994,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [requestSummary, setRequestSummary]         = useState(null);
   const [requestSummaryLoading, setRequestSummaryLoading] = useState(false);
   const [requestSummaryError, setRequestSummaryError]     = useState(null);
-  const [ctxCollapsed, setCtxCollapsed]             = useState(true);
+  const [ctxCollapsed, setCtxCollapsed]             = useState(false);
   const [metaCollapsed, setMetaCollapsed]           = useState(() => {
     try { return JSON.parse(localStorage.getItem('genctx_casemeta_collapsed') ?? 'false'); } catch { return false; }
   });
@@ -2308,6 +2308,18 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
         : o
     ));
   }
+
+  // Auto-fetch compiled context when Node 6 opens (if not already loaded)
+  useEffect(() => {
+    if (activeNode !== 6) return;
+    if (compiledCtxPreview || compiledCtxLoading) return;
+    setCompiledCtxLoading(true);
+    buildGenContext()
+      .then(ctx => setCompiledCtxPreview(ctx || '(no additional context enabled)'))
+      .catch(e => setCompiledCtxPreview(`Error: ${e.message}`))
+      .finally(() => setCompiledCtxLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeNode]);
 
   async function buildGenContext() {
     const genCtx = { ...GENERATION_CONTEXT_DEFAULTS, ...(ssCtx.settings["generation_context"] ?? {}) };
@@ -5521,33 +5533,39 @@ ${result}`;
                     <button
                       onClick={() => setCtxCollapsed(v => !v)}
                       className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Extra Context (project / SAP / related cases)</h4>
-                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${ctxCollapsed ? '' : 'rotate-180'}`} />
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Compiled AI Context</h4>
+                        {compiledCtxLoading && <Spinner />}
+                        {compiledCtxPreview && !compiledCtxLoading && (
+                          <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 rounded-full px-1.5 py-0.5">Ready</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {compiledCtxPreview && !compiledCtxLoading && (
+                          <button onClick={e => { e.stopPropagation(); handleBuildCtx(); }}
+                            className="text-[10px] font-semibold text-gray-400 border border-gray-200 rounded-lg px-2 py-0.5 hover:bg-gray-50">
+                            Refresh
+                          </button>
+                        )}
+                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${ctxCollapsed ? '' : 'rotate-180'}`} />
+                      </div>
                     </button>
                     {!ctxCollapsed && (
                       <div className="px-4 pb-4 space-y-2 border-t border-gray-100">
-                        <div className="flex justify-end pt-2">
-                          {!compiledCtxPreview && !compiledCtxLoading && (
+                        {compiledCtxLoading && (
+                          <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400"><Spinner /><span>Loading context from enabled sources…</span></div>
+                        )}
+                        {!compiledCtxPreview && !compiledCtxLoading && (
+                          <div className="pt-3">
+                            <p className="text-xs text-gray-400 italic mb-2">Context from Client Info, SAP Profile, Project, Related Cases — based on your Generation Context settings.</p>
                             <button onClick={handleBuildCtx}
                               className="px-3 py-1 text-xs font-semibold bg-gray-700 text-white rounded-lg hover:bg-gray-800">
-                              Fetch Context
+                              Load Context
                             </button>
-                          )}
-                          {compiledCtxLoading && (
-                            <div className="flex items-center gap-1 text-xs text-gray-500"><Spinner /><span>Building…</span></div>
-                          )}
-                          {compiledCtxPreview && !compiledCtxLoading && (
-                            <button onClick={handleBuildCtx}
-                              className="px-2 py-0.5 text-[10px] font-semibold text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">
-                              Refresh
-                            </button>
-                          )}
-                        </div>
-                        {!compiledCtxPreview && !compiledCtxLoading && (
-                          <p className="text-xs text-gray-400 italic">Project metadata, SAP system info, related cases, and other dynamic context — click Fetch to load.</p>
+                          </div>
                         )}
-                        {compiledCtxPreview && (
-                          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto bg-gray-50 rounded-lg p-3 border border-gray-100">{compiledCtxPreview}</pre>
+                        {compiledCtxPreview && !compiledCtxLoading && (
+                          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto bg-gray-50 rounded-lg p-3 border border-gray-100 mt-3">{compiledCtxPreview}</pre>
                         )}
 
                         {/* Additional Considerations — persisted per case */}
