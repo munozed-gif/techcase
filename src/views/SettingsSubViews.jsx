@@ -1149,22 +1149,29 @@ function TransitionGatesPanel({ auth }) {
     updateStageGate(stageKey, g => ({ ...g, enabled: !g.enabled }));
   }
 
+  function mergeConditions(existing) {
+    const base = existing ?? [];
+    const merged = [...base];
+    for (const def of GATE_CONDITIONS) {
+      if (!merged.some(c => c.key === def.key)) {
+        merged.push({ key: def.key, enabled: false, mode: "block" });
+      }
+    }
+    return merged;
+  }
+
   function toggleCondition(stageKey, condKey) {
-    updateStageGate(stageKey, g => ({
-      ...g,
-      conditions: (g.conditions ?? GATE_CONDITIONS.map(c => ({ key: c.key, enabled: false, mode: "block" }))).map(c =>
-        c.key === condKey ? { ...c, enabled: !c.enabled } : c
-      ),
-    }));
+    updateStageGate(stageKey, g => {
+      const merged = mergeConditions(g.conditions);
+      return { ...g, conditions: merged.map(c => c.key === condKey ? { ...c, enabled: !c.enabled } : c) };
+    });
   }
 
   function setConditionMode(stageKey, condKey, mode) {
-    updateStageGate(stageKey, g => ({
-      ...g,
-      conditions: (g.conditions ?? GATE_CONDITIONS.map(c => ({ key: c.key, enabled: false, mode: "block" }))).map(c =>
-        c.key === condKey ? { ...c, mode } : c
-      ),
-    }));
+    updateStageGate(stageKey, g => {
+      const merged = mergeConditions(g.conditions);
+      return { ...g, conditions: merged.map(c => c.key === condKey ? { ...c, mode } : c) };
+    });
   }
 
   function toggleExemptRole(stageKey, role) {
