@@ -995,6 +995,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [requestSummaryLoading, setRequestSummaryLoading] = useState(false);
   const [requestSummaryError, setRequestSummaryError]     = useState(null);
   const [ctxCollapsed, setCtxCollapsed]             = useState(true);
+  const [metaCollapsed, setMetaCollapsed]           = useState(() => {
+    try { return JSON.parse(localStorage.getItem('genctx_casemeta_collapsed') ?? 'false'); } catch { return false; }
+  });
   const [additionalCtx, setAdditionalCtx]           = useState('');
   const [additionalCtxSaving, setAdditionalCtxSaving] = useState(false);
   // Per-case SAP live check override: null = use env/global default, true = force on, false = force off
@@ -5416,6 +5419,17 @@ ${result}`;
                 }
               }
 
+              const gc = { ...GENERATION_CONTEXT_DEFAULTS, ...(ssCtx.settings["generation_context"] ?? {}) };
+              const ctxItems = [
+                { key: 'include_client_info',   label: t("gen.ctx_client_info")    || 'Client Info' },
+                { key: 'include_sap_profile',   label: t("gen.ctx_sap_profile")    || 'SAP Profile' },
+                { key: 'include_case_metadata', label: t("gen.ctx_case_metadata")  || 'Case Metadata' },
+                { key: 'include_project_ctx',   label: t("gen.ctx_project_ctx")    || 'Project' },
+                { key: 'include_project_docs',  label: t("gen.ctx_project_docs")   || 'Project Docs' },
+                { key: 'include_related_cases', label: t("gen.ctx_related_cases")  || 'Related Cases' },
+                { key: 'sap_live_check',        label: t("gen.ctx_sap_live_check") || 'Live SAP' },
+              ];
+
               return (
                 <div className="space-y-3">
                   {/* Header */}
@@ -5424,17 +5438,43 @@ ${result}`;
                     <p className="text-xs text-violet-500">Organised and assembled information that will be sent to the AI before generating specifications</p>
                   </div>
 
-                  {/* Case metadata */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Case Metadata</h4>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                      {staticFields.map(f => (
-                        <div key={f.label} className="flex gap-2">
-                          <span className="text-xs text-gray-400 w-20 flex-shrink-0">{f.label}</span>
-                          <span className="text-xs text-gray-700 font-medium">{f.value}</span>
-                        </div>
+                  {/* Generation Context active settings */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">{t("gen.context_title") || "Generation Context"}</h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ctxItems.map(({ key, label }) => (
+                        <span key={key} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${gc[key] ? 'bg-indigo-50 border-indigo-100 text-indigo-700' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
+                          {gc[key] ? <Check size={9} className="text-indigo-500" /> : <X size={9} />}
+                          {label}
+                        </span>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Case metadata — collapsible */}
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => {
+                        const next = !metaCollapsed;
+                        setMetaCollapsed(next);
+                        try { localStorage.setItem('genctx_casemeta_collapsed', JSON.stringify(next)); } catch {}
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Case Metadata</h4>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${metaCollapsed ? '' : 'rotate-180'}`} />
+                    </button>
+                    {!metaCollapsed && (
+                      <div className="px-4 pb-4 border-t border-gray-100">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-3">
+                          {staticFields.map(f => (
+                            <div key={f.label} className="flex gap-2">
+                              <span className="text-xs text-gray-400 w-20 flex-shrink-0">{f.label}</span>
+                              <span className="text-xs text-gray-700 font-medium">{f.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* AI Request Summary */}
