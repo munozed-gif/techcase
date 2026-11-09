@@ -1328,6 +1328,17 @@ Approver signature, Date.`;
       })),
     ];
 
+    // Executive summary helpers
+    const getPriority = a => a.est_hours >= 10 ? ['High','#FEE2E2','#991B1B'] : a.est_hours >= 6 ? ['Medium','#FEF3C7','#92400E'] : ['Normal','#E0E7FF','#3730A3'];
+    const pBadge = a => { const [l,bg,fg] = getPriority(a); return `<span style="display:inline-block;font-size:0.59rem;font-weight:700;padding:0.13rem 0.45rem;border-radius:20px;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;background:${bg};color:${fg}">${l}</span>`; };
+    const estDesignEnd = designActs.length > 0 ? 1 + (designActs.length / Math.max(designActs.length, 1)) * 2.8 : 3;
+    const estDevStart  = devActs.length > 0 ? 4 : Math.ceil(estDesignEnd);
+    const estDevEnd    = devActs.length > 0 ? 4 + (devActs.length / Math.max(devActs.length, 1)) * 3.8 : estDesignEnd;
+    const estWeeks     = Math.ceil(devActs.length > 0 ? estDevEnd : estDesignEnd);
+    const tlDesignW    = Math.round(estDesignEnd / TOTAL_WEEKS * 100);
+    const tlDevL       = Math.round((estDevStart - 1) / TOTAL_WEEKS * 100);
+    const tlDevW       = Math.min(100 - tlDevL, Math.round((estDevEnd - estDevStart + 0.5) / TOTAL_WEEKS * 100));
+
     return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1383,6 +1394,48 @@ canvas{display:block;width:100%}
 .print-btn{position:fixed;bottom:1.5rem;right:1.5rem;background:#0056A0;color:#fff;border:none;border-radius:8px;padding:0.7rem 1.3rem;font-family:'IBM Plex Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(0,86,160,0.4)}
 .print-btn:hover{background:#004080}
 @media print{.print-btn{display:none}body{background:#fff}.chart-section{margin:2rem 0;border-radius:8px}}
+/* ── Executive Summary ───────────────────────────────── */
+.exec-summ{margin:0 0 1.5rem}
+.es-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#DDE1EE;border:1px solid #DDE1EE;border-radius:10px;overflow:hidden;margin-bottom:1.2rem}
+.es-kpi{background:#fff;padding:0.9rem 1rem}
+.es-num{font-family:'DM Serif Display',serif;font-size:1.8rem;line-height:1;color:#0056A0;font-variant-numeric:tabular-nums}
+.es-unit{font-size:0.75rem;font-weight:500;opacity:0.6}
+.es-lbl{font-size:0.7rem;color:#4A5878;font-weight:500;margin-top:0.25rem}
+.es-bar{height:3px;background:#DDE1EE;border-radius:2px;margin-top:0.5rem;overflow:hidden}
+.es-bar-f{height:100%;background:#0056A0;border-radius:2px}
+.es-timeline{background:#fff;border:1px solid #DDE1EE;border-radius:10px;overflow:hidden;margin-bottom:1.2rem}
+.es-tl-head{background:#1A2A4A;padding:0.7rem 1.1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem}
+.es-tl-title{font-size:0.78rem;font-weight:600;color:#fff}
+.es-tl-sub{font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.35)}
+.es-tl-body{padding:0.9rem 1.1rem;display:flex;flex-direction:column;gap:0.6rem}
+.es-lane-row{display:grid;grid-template-columns:100px 1fr;align-items:center;gap:0.75rem}
+.es-lane-lbl{font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.es-lane-track{position:relative;height:28px;background:#EBF2FA;border-radius:6px;overflow:hidden}
+.es-lane-fill{position:absolute;top:0;bottom:0;border-radius:6px;display:flex;align-items:center;padding:0 0.6rem;font-size:0.61rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden}
+.es-wk-row{display:grid;grid-template-columns:100px 1fr;gap:0.75rem;padding:0 1.1rem 0.7rem}
+.es-wk-ticks{display:flex}
+.es-wk-tick{flex:1;font-family:'IBM Plex Mono',monospace;font-size:0.57rem;color:#8B9AB5;text-align:center;border-top:1px solid #DDE1EE;padding-top:0.25rem}
+.es-acts-wrap{background:#fff;border:1px solid #DDE1EE;border-radius:10px;overflow:hidden;margin-bottom:1.2rem}
+.es-acts-head{background:#EBF2FA;padding:0.55rem 1rem;font-size:0.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#0056A0;border-bottom:1px solid #DDE1EE}
+.es-acts-tbl{width:100%;border-collapse:collapse;font-size:0.76rem}
+.es-acts-tbl thead th{padding:0.42rem 0.9rem;font-size:0.61rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#4A5878;background:#F6F7FB;border-bottom:1.5px solid #DDE1EE;text-align:left;white-space:nowrap}
+.es-acts-tbl tbody td{padding:0.42rem 0.9rem;border-bottom:1px solid #DDE1EE;vertical-align:middle}
+.es-acts-tbl tbody tr:nth-child(even) td{background:#FAFBFD}
+.es-acts-tbl .es-ph-row td{background:inherit}
+.es-act-id{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:#8B9AB5;font-variant-numeric:tabular-nums}
+.es-act-name{font-weight:500;color:#1A2A4A}
+.es-act-ph{font-size:0.63rem;font-weight:600}
+.es-ph-d{color:#1254A0}.es-ph-v{color:#1C6B3A}
+.es-act-h{font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:600;color:#0056A0;white-space:nowrap;font-variant-numeric:tabular-nums}
+.es-tot-row td{background:#1A2A4A !important;color:#fff;font-size:0.76rem}
+.es-risks-wrap{background:#fff;border:1px solid #DDE1EE;border-radius:10px;overflow:hidden}
+.es-risks-head{background:#EBF2FA;padding:0.55rem 1rem;font-size:0.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#0056A0;border-bottom:1px solid #DDE1EE}
+.es-risks-grid{display:grid;grid-template-columns:1fr 1fr;padding:0.6rem;gap:0}
+.es-risk{display:flex;gap:0.6rem;align-items:flex-start;padding:0.6rem;border-radius:6px}
+.es-risk-ico{font-size:0.9rem;line-height:1;flex-shrink:0;margin-top:0.05rem}
+.es-risk-t{font-size:0.72rem;font-weight:600;color:#1A2A4A;margin-bottom:0.18rem}
+.es-risk-b{font-size:0.68rem;color:#4A5878;line-height:1.5}
+@media(max-width:600px){.es-kpis{grid-template-columns:repeat(2,1fr)}.es-lane-row{grid-template-columns:70px 1fr}.es-risks-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1400,6 +1453,60 @@ canvas{display:block;width:100%}
 </header>
 
 <div class="doc-body">
+
+  <!-- ══ Executive Summary ══ -->
+  <div class="exec-summ">
+    <div class="section-band charts" style="margin-top:0;margin-bottom:1.2rem">
+      <span class="num-badge">◆</span>
+      <h2>Executive Summary</h2>
+    </div>
+
+    <div class="es-kpis">
+      <div class="es-kpi"><div class="es-num">${totalHrs}<span class="es-unit">h</span></div><div class="es-lbl">Total estimated effort</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.min(100,Math.round(totalHrs/1.2))}%"></div></div></div>
+      <div class="es-kpi"><div class="es-num">${acts.length}</div><div class="es-lbl">Planned activities</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.min(100,acts.length*7)}%"></div></div></div>
+      <div class="es-kpi"><div class="es-num">${estWeeks}<span class="es-unit">w</span></div><div class="es-lbl">Estimated duration</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.round(estWeeks/12*100)}%"></div></div></div>
+      <div class="es-kpi"><div class="es-num">2</div><div class="es-lbl">Project phases</div><div class="es-bar"><div class="es-bar-f" style="width:20%"></div></div></div>
+    </div>
+
+    <div class="es-timeline">
+      <div class="es-tl-head">
+        <span class="es-tl-title">Phase Timeline</span>
+        <span class="es-tl-sub">W1 → W${estWeeks} · ${estWeeks} weeks estimated</span>
+      </div>
+      <div class="es-tl-body">
+        ${designActs.length > 0 ? `<div class="es-lane-row"><span class="es-lane-lbl" style="color:#1254A0">Design</span><div class="es-lane-track"><div class="es-lane-fill" style="left:0%;width:${tlDesignW}%;background:#1254A0">W1–W${Math.ceil(estDesignEnd)} · ${designHrs}h · ${designActs.length} tasks</div></div></div>` : ''}
+        ${devActs.length > 0 ? `<div class="es-lane-row"><span class="es-lane-lbl" style="color:#1C6B3A">Development</span><div class="es-lane-track"><div class="es-lane-fill" style="left:${tlDevL}%;width:${tlDevW}%;background:#1C6B3A">W${Math.ceil(estDevStart)}–W${estWeeks} · ${devHrs}h · ${devActs.length} tasks</div></div></div>` : ''}
+      </div>
+      <div class="es-wk-row">
+        <div></div>
+        <div class="es-wk-ticks">${Array.from({length: TOTAL_WEEKS}, (_,i) => `<span class="es-wk-tick">W${i+1}</span>`).join('')}</div>
+      </div>
+    </div>
+
+    <div class="es-acts-wrap">
+      <div class="es-acts-head">Activity Register</div>
+      <table class="es-acts-tbl">
+        <thead><tr><th>ID</th><th>Activity</th><th>Phase</th><th>Est. Hours</th><th>Priority</th></tr></thead>
+        <tbody>
+          ${designActs.length > 0 ? `<tr class="es-ph-row"><td colspan="5" style="background:#E6EEF8;color:#1254A0;font-size:0.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:0.3rem 0.9rem">◆ Design Phase — ${designHrs}h · ${designActs.length} activities</td></tr>${designActs.map((a, i) => `<tr><td class="es-act-id">1.${i+1}</td><td class="es-act-name">${esc(a.title)}</td><td class="es-act-ph es-ph-d">Design</td><td class="es-act-h">${a.est_hours}h</td><td>${pBadge(a)}</td></tr>`).join('')}` : ''}
+          ${devActs.length > 0 ? `<tr class="es-ph-row"><td colspan="5" style="background:#E5F0EA;color:#1C6B3A;font-size:0.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:0.3rem 0.9rem">◆ Development Phase — ${devHrs}h · ${devActs.length} activities</td></tr>${devActs.map((a, i) => `<tr><td class="es-act-id">2.${i+1}</td><td class="es-act-name">${esc(a.title)}</td><td class="es-act-ph es-ph-v">Development</td><td class="es-act-h">${a.est_hours}h</td><td>${pBadge(a)}</td></tr>`).join('')}` : ''}
+          <tr class="es-tot-row"><td></td><td colspan="2"><strong>Project Total</strong></td><td class="es-act-h"><strong>${totalHrs}h</strong></td><td style="font-size:0.68rem;color:rgba(255,255,255,0.4)">${acts.length} activities</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="es-risks-wrap">
+      <div class="es-risks-head">Key Dependencies &amp; Risks</div>
+      <div class="es-risks-grid">
+        <div class="es-risk"><span class="es-risk-ico">⚠️</span><div><div class="es-risk-t">Design sign-off gates development start</div><div class="es-risk-b">All design deliverables must be approved before ABAP/configuration development begins. Any delay shifts the entire development phase.</div></div></div>
+        <div class="es-risk"><span class="es-risk-ico">🔗</span><div><div class="es-risk-t">SAP system access required</div><div class="es-risk-b">${esc(cd.area_sap || 'SAP')} connectivity and RFC credentials must be confirmed before development kick-off (W${Math.ceil(estDevStart)}).</div></div></div>
+        <div class="es-risk"><span class="es-risk-ico">📋</span><div><div class="es-risk-t">Test data preparation by client</div><div class="es-risk-b">Client must supply representative ${esc(cd.area_sap || 'SAP')} test data before unit and integration testing begins.</div></div></div>
+        <div class="es-risk"><span class="es-risk-ico">🔄</span><div><div class="es-risk-t">Scope change management</div><div class="es-risk-b">Any functional scope additions after design sign-off will require a change request and may impact the ${estWeeks}-week delivery timeline.</div></div></div>
+      </div>
+    </div>
+  </div>
+  <!-- ══ / Executive Summary ══ -->
+
   <div class="kpi-strip">
     <div class="kpi"><div class="num">${totalHrs}</div><div class="desc">Horas totales estimadas</div></div>
     <div class="kpi"><div class="num">${acts.length}</div><div class="desc">Actividades planificadas</div></div>
@@ -1828,7 +1935,6 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
       const htmlFile = new File([planHtml], fileName, { type: 'text/html' });
       await addDocument(htmlFile, 'Design & Development Plan — auto-generated from approved spec');
       if (refetchDocuments) await refetchDocuments();
-      openHtmlInNewTab(planHtml);
 
       // Insert activities
       const maxNo = activities.reduce((m, a) => Math.max(m, a.task_no ?? 0), 0);
