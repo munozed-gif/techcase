@@ -992,6 +992,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [compiledCtxPreview, setCompiledCtxPreview] = useState(null);
   const [compiledCtxExtra,   setCompiledCtxExtra]   = useState(null);
   const [compiledCtxLoading, setCompiledCtxLoading] = useState(false);
+  const [docSummaries,       setDocSummaries]       = useState({});
   const [requestSummary, setRequestSummary]         = useState(null);
   const [requestSummaryLoading, setRequestSummaryLoading] = useState(false);
   const [requestSummaryError, setRequestSummaryError]     = useState(null);
@@ -2321,6 +2322,24 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       .finally(() => setCompiledCtxLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeNode]);
+
+  // Auto-summarize project docs once they are fetched (progressive — updates per doc)
+  useEffect(() => {
+    const docs = compiledCtxExtra?.projectDocs;
+    if (!docs?.length) return;
+    const unsummarized = docs.filter(d => d.text && !docSummaries[d.name]);
+    if (!unsummarized.length) return;
+    unsummarized.forEach(doc => {
+      callClaude({
+        model: 'claude-haiku-5-5',
+        messages: [{ role: 'user', content: `Summarize this document in 2–3 concise sentences. Focus on what the document is about, its main topic, and any key details relevant to an SAP consulting project. Be specific.\n\nDocument name: ${doc.name}\n\n${doc.text.slice(0, 3000)}` }],
+        max_tokens: 200,
+      })
+        .then(summary => setDocSummaries(prev => ({ ...prev, [doc.name]: summary })))
+        .catch(() => setDocSummaries(prev => ({ ...prev, [doc.name]: '(summary unavailable)' })));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compiledCtxExtra]);
 
   async function buildGenContext() {
     const genCtx = { ...GENERATION_CONTEXT_DEFAULTS, ...(ssCtx.settings["generation_context"] ?? {}) };
@@ -5592,15 +5611,28 @@ ${result}`;
                                   {docs.length === 0 ? (
                                     <p className="text-xs text-gray-400 italic">No project documents found.</p>
                                   ) : (
-                                    <ul className="space-y-1">
-                                      {docs.map((d, i) => (
-                                        <li key={i} className="flex items-center gap-2 text-xs text-gray-700">
-                                          <Check size={11} className="text-emerald-500 flex-shrink-0" />
-                                          <span className="font-medium">{d.name}</span>
-                                          {d.type && <span className="text-gray-400">— {d.type}</span>}
-                                          <span className="ml-auto text-[10px] text-gray-400">{d.text ? `${Math.round(d.text.length / 1000)}k chars` : 'binary'}</span>
-                                        </li>
-                                      ))}
+                                    <ul className="space-y-3">
+                                      {docs.map((d, i) => {
+                                        const summary = docSummaries[d.name];
+                                        return (
+                                          <li key={i} className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2">
+                                              <Check size={11} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                                              <span className="text-xs font-semibold text-gray-700">{d.name}</span>
+                                              {d.type && <span className="text-[10px] text-gray-400 bg-gray-100 rounded px-1">{d.type}</span>}
+                                              <span className="ml-auto text-[10px] text-gray-400 flex-shrink-0">{d.text ? `${Math.round(d.text.length / 1000)}k chars` : 'binary'}</span>
+                                            </div>
+                                            <div className="ml-4 text-[11px] text-gray-500 leading-snug">
+                                              {summary
+                                                ? summary
+                                                : d.text
+                                                  ? <span className="flex items-center gap-1 text-gray-400 italic"><Spinner /><span>Summarizing…</span></span>
+                                                  : <span className="text-gray-400 italic">Binary file — content not extractable as text</span>
+                                              }
+                                            </div>
+                                          </li>
+                                        );
+                                      })}
                                     </ul>
                                   )}
                                 </div>
