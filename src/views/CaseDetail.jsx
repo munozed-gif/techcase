@@ -168,7 +168,7 @@ function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t, onDownloadPdf, 
 }
 
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack, onCaseUpdate }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { settings: cdSettings } = useSystemSettings();
   const visCfg        = useVisibilitySettings();
   const genModel      = cdSettings["ai_model"]       ?? 'claude-haiku-5-5';
@@ -1276,8 +1276,74 @@ Approver signature, Date.`;
     }
   }
 
-  function buildDevPlanHtml(cd, acts, mdNarrative) {
-    const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+  const DEV_PLAN_STRINGS = {
+    en: {
+      locale: 'en-US', htmlLang: 'en',
+      savePdf: '⬇ Save as PDF',
+      docEyebrow: 'SAP Consulting · Project Plan',
+      h1: 'Design &amp; Development Plan',
+      metaSapModule: 'SAP Module', metaIndustry: 'Industry',
+      metaPlanType: 'Plan Type', metaDate: 'Date',
+      metaPlanTypeValue: 'Design &amp; Development',
+      kpiTotalHrs: 'Total estimated hours', kpiActivities: 'Planned activities',
+      kpiDesign: 'Design activities', kpiDev: 'Development activities',
+      phaseBandDesign: 'Design Phase', phaseBandDev: 'Development Phase',
+      phaseBandNarrative: 'Plan Narrative',
+      chartEyebrow: 'Visualization', chartTitle: 'Task & Time Distribution',
+      chartGantt: 'Schedule — Gantt', chartHours: 'Hours by Activity',
+      chartDonut: 'Phase Distribution', chartBar: 'Design vs Development',
+      donutDesign: 'Design', donutDev: 'Development', donutTotal: 'total',
+      barDesign: 'Design', barDev: 'Development', weekPrefix: 'W',
+      execSummary: 'Executive Summary',
+      kpiTotalEffort: 'Total estimated effort', kpiPlannedActs: 'Planned activities',
+      kpiEstDuration: 'Estimated duration', kpiPhases: 'Project phases',
+      tlTitle: 'Phase Timeline',
+      actRegister: 'Activity Register', projTotal: 'Project Total',
+      keysRisks: 'Key Dependencies &amp; Risks',
+      r1t: 'Design sign-off gates development start',
+      r1b: 'All design deliverables must be approved before ABAP/configuration development begins. Any delay shifts the entire development phase.',
+      r2t: 'SAP system access required',
+      r3t: 'Test data preparation by client',
+      r4t: 'Scope change management',
+      pHigh: 'High', pMedium: 'Medium', pNormal: 'Normal',
+      phaseDesign: 'Design', phaseDev: 'Development',
+    },
+    es: {
+      locale: 'es-MX', htmlLang: 'es',
+      savePdf: '⬇ Guardar como PDF',
+      docEyebrow: 'SAP Consulting · Plan de Proyecto',
+      h1: 'Plan de Diseño &amp; Desarrollo',
+      metaSapModule: 'Módulo SAP', metaIndustry: 'Industria',
+      metaPlanType: 'Tipo de Plan', metaDate: 'Fecha',
+      metaPlanTypeValue: 'Diseño &amp; Desarrollo',
+      kpiTotalHrs: 'Horas totales estimadas', kpiActivities: 'Actividades planificadas',
+      kpiDesign: 'Actividades de diseño', kpiDev: 'Actividades de desarrollo',
+      phaseBandDesign: 'Fase de Diseño', phaseBandDev: 'Fase de Desarrollo',
+      phaseBandNarrative: 'Narrativa del Plan',
+      chartEyebrow: 'Visualización', chartTitle: 'Distribución de Tareas y Tiempos',
+      chartGantt: 'Cronograma — Gantt', chartHours: 'Horas por Actividad',
+      chartDonut: 'Distribución por Fase', chartBar: 'Diseño vs Desarrollo',
+      donutDesign: 'Diseño', donutDev: 'Desarrollo', donutTotal: 'total',
+      barDesign: 'Diseño', barDev: 'Desarrollo', weekPrefix: 'S',
+      execSummary: 'Resumen Ejecutivo',
+      kpiTotalEffort: 'Esfuerzo total estimado', kpiPlannedActs: 'Actividades planificadas',
+      kpiEstDuration: 'Duración estimada', kpiPhases: 'Fases del proyecto',
+      tlTitle: 'Cronograma de Fases',
+      actRegister: 'Registro de Actividades', projTotal: 'Total del Proyecto',
+      keysRisks: 'Dependencias Clave y Riesgos',
+      r1t: 'Firma del diseño requerida para iniciar desarrollo',
+      r1b: 'Todos los entregables de diseño deben aprobarse antes de iniciar el desarrollo ABAP/configuración. Cualquier retraso desplaza toda la fase de desarrollo.',
+      r2t: 'Acceso al sistema SAP requerido',
+      r3t: 'Preparación de datos de prueba por el cliente',
+      r4t: 'Gestión de cambios de alcance',
+      pHigh: 'Alta', pMedium: 'Media', pNormal: 'Normal',
+      phaseDesign: 'Diseño', phaseDev: 'Desarrollo',
+    },
+  };
+
+  function buildDevPlanHtml(cd, acts, mdNarrative, lang = 'en') {
+    const s = DEV_PLAN_STRINGS[lang] || DEV_PLAN_STRINGS.en;
+    const date = new Date().toLocaleDateString(s.locale, { year: 'numeric', month: 'long', day: 'numeric' });
     const designActs = acts.filter(a => a.phase === 'design');
     const devActs    = acts.filter(a => a.phase === 'development');
     const totalHrs   = acts.reduce((s, a) => s + (a.est_hours || 0), 0);
@@ -1329,7 +1395,7 @@ Approver signature, Date.`;
     ];
 
     // Executive summary helpers
-    const getPriority = a => a.est_hours >= 10 ? ['High','#FEE2E2','#991B1B'] : a.est_hours >= 6 ? ['Medium','#FEF3C7','#92400E'] : ['Normal','#E0E7FF','#3730A3'];
+    const getPriority = a => a.est_hours >= 10 ? [s.pHigh,'#FEE2E2','#991B1B'] : a.est_hours >= 6 ? [s.pMedium,'#FEF3C7','#92400E'] : [s.pNormal,'#E0E7FF','#3730A3'];
     const pBadge = a => { const [l,bg,fg] = getPriority(a); return `<span style="display:inline-block;font-size:0.59rem;font-weight:700;padding:0.13rem 0.45rem;border-radius:20px;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;background:${bg};color:${fg}">${l}</span>`; };
     const estDesignEnd = designActs.length > 0 ? 1 + (designActs.length / Math.max(designActs.length, 1)) * 2.8 : 3;
     const estDevStart  = devActs.length > 0 ? 4 : Math.ceil(estDesignEnd);
@@ -1340,7 +1406,7 @@ Approver signature, Date.`;
     const tlDevW       = Math.min(100 - tlDevL, Math.round((estDevEnd - estDevStart + 0.5) / TOTAL_WEEKS * 100));
 
     return `<!DOCTYPE html>
-<html lang="es">
+<html lang="${s.htmlLang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1439,16 +1505,16 @@ canvas{display:block;width:100%}
 </style>
 </head>
 <body>
-<button class="print-btn" onclick="window.print()">⬇ Guardar como PDF</button>
+<button class="print-btn" onclick="window.print()">${s.savePdf}</button>
 
 <header class="doc-header">
-  <div class="eyebrow">SAP Consulting · Plan de Proyecto</div>
-  <h1>Plan de Diseño &amp; Desarrollo<br><em>${esc(cd.title)}</em></h1>
+  <div class="eyebrow">${s.docEyebrow}</div>
+  <h1>${s.h1}<br><em>${esc(cd.title)}</em></h1>
   <div class="meta-row">
-    <div class="meta-item"><span class="lbl">Módulo SAP</span><span class="val">${esc(cd.area_sap || 'N/A')}</span></div>
-    <div class="meta-item"><span class="lbl">Industria</span><span class="val">${esc(cd.area_industry || 'N/A')}</span></div>
-    <div class="meta-item"><span class="lbl">Tipo de Plan</span><span class="val">Diseño &amp; Desarrollo</span></div>
-    <div class="meta-item"><span class="lbl">Fecha</span><span class="val">${date}</span></div>
+    <div class="meta-item"><span class="lbl">${s.metaSapModule}</span><span class="val">${esc(cd.area_sap || 'N/A')}</span></div>
+    <div class="meta-item"><span class="lbl">${s.metaIndustry}</span><span class="val">${esc(cd.area_industry || 'N/A')}</span></div>
+    <div class="meta-item"><span class="lbl">${s.metaPlanType}</span><span class="val">${s.metaPlanTypeValue}</span></div>
+    <div class="meta-item"><span class="lbl">${s.metaDate}</span><span class="val">${date}</span></div>
   </div>
 </header>
 
@@ -1458,93 +1524,93 @@ canvas{display:block;width:100%}
   <div class="exec-summ">
     <div class="section-band charts" style="margin-top:0;margin-bottom:1.2rem">
       <span class="num-badge">◆</span>
-      <h2>Executive Summary</h2>
+      <h2>${s.execSummary}</h2>
     </div>
 
     <div class="es-kpis">
-      <div class="es-kpi"><div class="es-num">${totalHrs}<span class="es-unit">h</span></div><div class="es-lbl">Total estimated effort</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.min(100,Math.round(totalHrs/1.2))}%"></div></div></div>
-      <div class="es-kpi"><div class="es-num">${acts.length}</div><div class="es-lbl">Planned activities</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.min(100,acts.length*7)}%"></div></div></div>
-      <div class="es-kpi"><div class="es-num">${estWeeks}<span class="es-unit">w</span></div><div class="es-lbl">Estimated duration</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.round(estWeeks/12*100)}%"></div></div></div>
-      <div class="es-kpi"><div class="es-num">2</div><div class="es-lbl">Project phases</div><div class="es-bar"><div class="es-bar-f" style="width:20%"></div></div></div>
+      <div class="es-kpi"><div class="es-num">${totalHrs}<span class="es-unit">h</span></div><div class="es-lbl">${s.kpiTotalEffort}</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.min(100,Math.round(totalHrs/1.2))}%"></div></div></div>
+      <div class="es-kpi"><div class="es-num">${acts.length}</div><div class="es-lbl">${s.kpiPlannedActs}</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.min(100,acts.length*7)}%"></div></div></div>
+      <div class="es-kpi"><div class="es-num">${estWeeks}<span class="es-unit">w</span></div><div class="es-lbl">${s.kpiEstDuration}</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.round(estWeeks/12*100)}%"></div></div></div>
+      <div class="es-kpi"><div class="es-num">2</div><div class="es-lbl">${s.kpiPhases}</div><div class="es-bar"><div class="es-bar-f" style="width:20%"></div></div></div>
     </div>
 
     <div class="es-timeline">
       <div class="es-tl-head">
-        <span class="es-tl-title">Phase Timeline</span>
-        <span class="es-tl-sub">W1 → W${estWeeks} · ${estWeeks} weeks estimated</span>
+        <span class="es-tl-title">${s.tlTitle}</span>
+        <span class="es-tl-sub">${s.weekPrefix}1 → ${s.weekPrefix}${estWeeks} · ${estWeeks} ${s.weekPrefix === 'S' ? 'semanas' : 'weeks'} estimated</span>
       </div>
       <div class="es-tl-body">
-        ${designActs.length > 0 ? `<div class="es-lane-row"><span class="es-lane-lbl" style="color:#1254A0">Design</span><div class="es-lane-track"><div class="es-lane-fill" style="left:0%;width:${tlDesignW}%;background:#1254A0">W1–W${Math.ceil(estDesignEnd)} · ${designHrs}h · ${designActs.length} tasks</div></div></div>` : ''}
-        ${devActs.length > 0 ? `<div class="es-lane-row"><span class="es-lane-lbl" style="color:#1C6B3A">Development</span><div class="es-lane-track"><div class="es-lane-fill" style="left:${tlDevL}%;width:${tlDevW}%;background:#1C6B3A">W${Math.ceil(estDevStart)}–W${estWeeks} · ${devHrs}h · ${devActs.length} tasks</div></div></div>` : ''}
+        ${designActs.length > 0 ? `<div class="es-lane-row"><span class="es-lane-lbl" style="color:#1254A0">${s.phaseDesign}</span><div class="es-lane-track"><div class="es-lane-fill" style="left:0%;width:${tlDesignW}%;background:#1254A0">${s.weekPrefix}1–${s.weekPrefix}${Math.ceil(estDesignEnd)} · ${designHrs}h · ${designActs.length} tasks</div></div></div>` : ''}
+        ${devActs.length > 0 ? `<div class="es-lane-row"><span class="es-lane-lbl" style="color:#1C6B3A">${s.phaseDev}</span><div class="es-lane-track"><div class="es-lane-fill" style="left:${tlDevL}%;width:${tlDevW}%;background:#1C6B3A">${s.weekPrefix}${Math.ceil(estDevStart)}–${s.weekPrefix}${estWeeks} · ${devHrs}h · ${devActs.length} tasks</div></div></div>` : ''}
       </div>
       <div class="es-wk-row">
         <div></div>
-        <div class="es-wk-ticks">${Array.from({length: TOTAL_WEEKS}, (_,i) => `<span class="es-wk-tick">W${i+1}</span>`).join('')}</div>
+        <div class="es-wk-ticks">${Array.from({length: TOTAL_WEEKS}, (_,i) => `<span class="es-wk-tick">${s.weekPrefix}${i+1}</span>`).join('')}</div>
       </div>
     </div>
 
     <div class="es-acts-wrap">
-      <div class="es-acts-head">Activity Register</div>
+      <div class="es-acts-head">${s.actRegister}</div>
       <table class="es-acts-tbl">
-        <thead><tr><th>ID</th><th>Activity</th><th>Phase</th><th>Est. Hours</th><th>Priority</th></tr></thead>
+        <thead><tr><th>ID</th><th>${lang === 'es' ? 'Actividad' : 'Activity'}</th><th>${lang === 'es' ? 'Fase' : 'Phase'}</th><th>${lang === 'es' ? 'Hrs. Est.' : 'Est. Hours'}</th><th>${lang === 'es' ? 'Prioridad' : 'Priority'}</th></tr></thead>
         <tbody>
-          ${designActs.length > 0 ? `<tr class="es-ph-row"><td colspan="5" style="background:#E6EEF8;color:#1254A0;font-size:0.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:0.3rem 0.9rem">◆ Design Phase — ${designHrs}h · ${designActs.length} activities</td></tr>${designActs.map((a, i) => `<tr><td class="es-act-id">1.${i+1}</td><td class="es-act-name">${esc(a.title)}</td><td class="es-act-ph es-ph-d">Design</td><td class="es-act-h">${a.est_hours}h</td><td>${pBadge(a)}</td></tr>`).join('')}` : ''}
-          ${devActs.length > 0 ? `<tr class="es-ph-row"><td colspan="5" style="background:#E5F0EA;color:#1C6B3A;font-size:0.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:0.3rem 0.9rem">◆ Development Phase — ${devHrs}h · ${devActs.length} activities</td></tr>${devActs.map((a, i) => `<tr><td class="es-act-id">2.${i+1}</td><td class="es-act-name">${esc(a.title)}</td><td class="es-act-ph es-ph-v">Development</td><td class="es-act-h">${a.est_hours}h</td><td>${pBadge(a)}</td></tr>`).join('')}` : ''}
-          <tr class="es-tot-row"><td></td><td colspan="2"><strong>Project Total</strong></td><td class="es-act-h"><strong>${totalHrs}h</strong></td><td style="font-size:0.68rem;color:rgba(255,255,255,0.4)">${acts.length} activities</td></tr>
+          ${designActs.length > 0 ? `<tr class="es-ph-row"><td colspan="5" style="background:#E6EEF8;color:#1254A0;font-size:0.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:0.3rem 0.9rem">◆ ${s.phaseBandDesign} — ${designHrs}h · ${designActs.length} ${lang === 'es' ? 'actividades' : 'activities'}</td></tr>${designActs.map((a, i) => `<tr><td class="es-act-id">1.${i+1}</td><td class="es-act-name">${esc(a.title)}</td><td class="es-act-ph es-ph-d">${s.phaseDesign}</td><td class="es-act-h">${a.est_hours}h</td><td>${pBadge(a)}</td></tr>`).join('')}` : ''}
+          ${devActs.length > 0 ? `<tr class="es-ph-row"><td colspan="5" style="background:#E5F0EA;color:#1C6B3A;font-size:0.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:0.3rem 0.9rem">◆ ${s.phaseBandDev} — ${devHrs}h · ${devActs.length} ${lang === 'es' ? 'actividades' : 'activities'}</td></tr>${devActs.map((a, i) => `<tr><td class="es-act-id">2.${i+1}</td><td class="es-act-name">${esc(a.title)}</td><td class="es-act-ph es-ph-v">${s.phaseDev}</td><td class="es-act-h">${a.est_hours}h</td><td>${pBadge(a)}</td></tr>`).join('')}` : ''}
+          <tr class="es-tot-row"><td></td><td colspan="2"><strong>${s.projTotal}</strong></td><td class="es-act-h"><strong>${totalHrs}h</strong></td><td style="font-size:0.68rem;color:rgba(255,255,255,0.4)">${acts.length} ${lang === 'es' ? 'actividades' : 'activities'}</td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="es-risks-wrap">
-      <div class="es-risks-head">Key Dependencies &amp; Risks</div>
+      <div class="es-risks-head">${s.keysRisks}</div>
       <div class="es-risks-grid">
-        <div class="es-risk"><span class="es-risk-ico">⚠️</span><div><div class="es-risk-t">Design sign-off gates development start</div><div class="es-risk-b">All design deliverables must be approved before ABAP/configuration development begins. Any delay shifts the entire development phase.</div></div></div>
-        <div class="es-risk"><span class="es-risk-ico">🔗</span><div><div class="es-risk-t">SAP system access required</div><div class="es-risk-b">${esc(cd.area_sap || 'SAP')} connectivity and RFC credentials must be confirmed before development kick-off (W${Math.ceil(estDevStart)}).</div></div></div>
-        <div class="es-risk"><span class="es-risk-ico">📋</span><div><div class="es-risk-t">Test data preparation by client</div><div class="es-risk-b">Client must supply representative ${esc(cd.area_sap || 'SAP')} test data before unit and integration testing begins.</div></div></div>
-        <div class="es-risk"><span class="es-risk-ico">🔄</span><div><div class="es-risk-t">Scope change management</div><div class="es-risk-b">Any functional scope additions after design sign-off will require a change request and may impact the ${estWeeks}-week delivery timeline.</div></div></div>
+        <div class="es-risk"><span class="es-risk-ico">⚠️</span><div><div class="es-risk-t">${s.r1t}</div><div class="es-risk-b">${s.r1b}</div></div></div>
+        <div class="es-risk"><span class="es-risk-ico">🔗</span><div><div class="es-risk-t">${s.r2t}</div><div class="es-risk-b">${esc(cd.area_sap || 'SAP')} connectivity and RFC credentials must be confirmed before development kick-off (${s.weekPrefix}${Math.ceil(estDevStart)}).</div></div></div>
+        <div class="es-risk"><span class="es-risk-ico">📋</span><div><div class="es-risk-t">${s.r3t}</div><div class="es-risk-b">Client must supply representative ${esc(cd.area_sap || 'SAP')} test data before unit and integration testing begins.</div></div></div>
+        <div class="es-risk"><span class="es-risk-ico">🔄</span><div><div class="es-risk-t">${s.r4t}</div><div class="es-risk-b">Any functional scope additions after design sign-off will require a change request and may impact the ${estWeeks}-${lang === 'es' ? 'semana' : 'week'} delivery timeline.</div></div></div>
       </div>
     </div>
   </div>
   <!-- ══ / Executive Summary ══ -->
 
   <div class="kpi-strip">
-    <div class="kpi"><div class="num">${totalHrs}</div><div class="desc">Horas totales estimadas</div></div>
-    <div class="kpi"><div class="num">${acts.length}</div><div class="desc">Actividades planificadas</div></div>
-    <div class="kpi"><div class="num">${designActs.length}</div><div class="desc">Actividades de diseño</div></div>
-    <div class="kpi"><div class="num">${devActs.length}</div><div class="desc">Actividades de desarrollo</div></div>
+    <div class="kpi"><div class="num">${totalHrs}</div><div class="desc">${s.kpiTotalHrs}</div></div>
+    <div class="kpi"><div class="num">${acts.length}</div><div class="desc">${s.kpiActivities}</div></div>
+    <div class="kpi"><div class="num">${designActs.length}</div><div class="desc">${s.kpiDesign}</div></div>
+    <div class="kpi"><div class="num">${devActs.length}</div><div class="desc">${s.kpiDev}</div></div>
   </div>
 
   ${designActs.length > 0 ? `
   <div class="section-band design">
     <span class="num-badge">D</span>
-    <h2>Fase de Diseño — ${designHrs}h</h2>
+    <h2>${s.phaseBandDesign} — ${designHrs}h</h2>
   </div>
   ${designActs.map(a => actCard(a, 'design')).join('')}` : ''}
 
   ${devActs.length > 0 ? `
   <div class="section-band dev">
     <span class="num-badge">V</span>
-    <h2>Fase de Desarrollo — ${devHrs}h</h2>
+    <h2>${s.phaseBandDev} — ${devHrs}h</h2>
   </div>
   ${devActs.map(a => actCard(a, 'dev')).join('')}` : ''}
 
   ${mdNarrative ? `
   <div class="section-band design" style="margin-top:2rem">
     <span class="num-badge">≡</span>
-    <h2>Narrativa del Plan</h2>
+    <h2>${s.phaseBandNarrative}</h2>
   </div>
   <div class="narrative">${mdToHtml(mdNarrative)}</div>` : ''}
 </div>
 
 <div class="chart-section">
   <div class="inner">
-    <div class="chart-eyebrow">Visualización</div>
-    <div class="chart-title">Distribución de Tareas y Tiempos</div>
+    <div class="chart-eyebrow">${s.chartEyebrow}</div>
+    <div class="chart-title">${s.chartTitle}</div>
     <div class="charts-grid">
-      <div class="chart-card full"><div class="chart-lbl">Cronograma — Gantt</div><canvas id="ganttC" height="220"></canvas></div>
-      <div class="chart-card full"><div class="chart-lbl">Horas por Actividad</div><canvas id="hoursC" height="${Math.max(160, acts.length * 24)}"></canvas></div>
-      <div class="chart-card"><div class="chart-lbl">Distribución por Fase</div><canvas id="donutC" height="200"></canvas></div>
-      <div class="chart-card"><div class="chart-lbl">Diseño vs Desarrollo</div><canvas id="barC" height="200"></canvas></div>
+      <div class="chart-card full"><div class="chart-lbl">${s.chartGantt}</div><canvas id="ganttC" height="220"></canvas></div>
+      <div class="chart-card full"><div class="chart-lbl">${s.chartHours}</div><canvas id="hoursC" height="${Math.max(160, acts.length * 24)}"></canvas></div>
+      <div class="chart-card"><div class="chart-lbl">${s.chartDonut}</div><canvas id="donutC" height="200"></canvas></div>
+      <div class="chart-card"><div class="chart-lbl">${s.chartBar}</div><canvas id="barC" height="200"></canvas></div>
     </div>
   </div>
 </div>
@@ -1568,7 +1634,7 @@ canvas{display:block;width:100%}
       const x=labelW+(w-1)/weeks*chartW;
       gc.fillStyle='rgba(255,255,255,0.12)'; gc.fillRect(x,18,1,H-18);
       gc.font='500 9px IBM Plex Mono,monospace'; gc.fillStyle='rgba(255,255,255,0.3)';
-      gc.fillText('S'+w,x+2,13);
+      gc.fillText('${s.weekPrefix}'+w,x+2,13);
     }
     ganttItems.forEach((a,i)=>{
       const y=22+i*(rowH+3), color=a.phase==='design'?DC:VC;
@@ -1609,7 +1675,7 @@ canvas{display:block;width:100%}
     cv.width=W*devicePixelRatio; cv.height=H*devicePixelRatio;
     dc.scale(devicePixelRatio,devicePixelRatio);
     const cx=W*0.4, cy=H/2, r=Math.min(cx,cy)*0.72, ri=r*0.58;
-    const slices=[{v:designHrs,label:'Diseño',color:DC},{v:devHrs,label:'Desarrollo',color:VC}];
+    const slices=[{v:designHrs,label:'${s.donutDesign}',color:DC},{v:devHrs,label:'${s.donutDev}',color:VC}];
     let angle=-Math.PI/2;
     slices.forEach(s=>{
       const sweep=(s.v/totalHrs)*Math.PI*2;
@@ -1621,7 +1687,7 @@ canvas{display:block;width:100%}
     dc.font="bold 20px 'DM Serif Display',serif"; dc.fillStyle='rgba(255,255,255,0.9)';
     dc.textAlign='center'; dc.fillText(totalHrs+'h',cx,cy+4);
     dc.font="400 9px 'IBM Plex Mono',monospace"; dc.fillStyle='rgba(255,255,255,0.35)';
-    dc.fillText('total',cx,cy+17); dc.textAlign='left';
+    dc.fillText('${s.donutTotal}',cx,cy+17); dc.textAlign='left';
     const lx=W*0.85;
     slices.forEach((s,i)=>{
       const ly=cy-14+i*26;
@@ -1637,7 +1703,7 @@ canvas{display:block;width:100%}
     const W=cv.offsetWidth, H=200;
     cv.width=W*devicePixelRatio; cv.height=H*devicePixelRatio;
     bc.scale(devicePixelRatio,devicePixelRatio);
-    const data=[{label:'Diseño',h:designHrs,color:DC},{label:'Desarrollo',h:devHrs,color:VC}];
+    const data=[{label:'${s.barDesign}',h:designHrs,color:DC},{label:'${s.barDev}',h:devHrs,color:VC}];
     const pad=24, bw=(W-pad*2)/data.length*0.5, maxH=Math.max(designHrs,devHrs);
     const chartH=H-50;
     data.forEach((d,i)=>{
@@ -1906,7 +1972,7 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
       });
 
       // Build HTML plan preview (PDF will be generated at confirm time)
-      const planHtml = buildDevPlanHtml(caseData, parsedActivities, markdown);
+      const planHtml = buildDevPlanHtml(caseData, parsedActivities, markdown, lang);
 
       // Show preview step — user can edit, reorder type, deselect before confirming
       setDevPlanPreview({ items: parsedActivities, defaultMode: outputMode, markdown, planHtml });
@@ -2101,7 +2167,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       });
 
       // Build HTML closure report
-      const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const crLocale = lang === 'es' ? 'es-MX' : 'en-US';
+      const dateStr = new Date().toLocaleDateString(crLocale, { year: 'numeric', month: 'long', day: 'numeric' });
       const totalHrs = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
       const testPhasesDone = testPhases.filter(pk => activities.some(a => a.phase === pk));
       const adjPhasesDone = adjPhases.filter(pk => activities.some(a => a.phase === pk));
@@ -2136,8 +2203,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         try { const n = JSON.parse(specData.notes); if (n.analysisCustomerContent) customerInput = n.analysisCustomerContent.slice(0,1500); } catch(_){}
       }
 
-      const closureHtml = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Closure Report — ${he(caseData.title ?? '')}</title><style>
+      const closureHtml = `<!DOCTYPE html><html lang="${lang === 'es' ? 'es' : 'en'}"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${lang === 'es' ? 'Reporte de Cierre' : 'Closure Report'} — ${he(caseData.title ?? '')}</title><style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.6;color:#1a1a2e;background:#fff;max-width:900px;margin:0 auto;padding:32px 24px}
 .cover{background:#1a4b8c;color:#fff;padding:28px;border-radius:8px;margin-bottom:28px;border-bottom:4px solid #10b981}
@@ -2170,82 +2237,82 @@ table.t tr:nth-child(even) td{background:#f9fafb}
 @media print{body{max-width:none;padding:0}.stats{break-inside:avoid}}
 </style></head><body>
 <div class="cover">
-  <div class="ey">SAP CONSULTING — CASE CLOSURE REPORT</div>
+  <div class="ey">${lang === 'es' ? 'SAP CONSULTING — REPORTE DE CIERRE DE CASO' : 'SAP CONSULTING — CASE CLOSURE REPORT'}</div>
   <h1>${he(caseData.title ?? 'Case Closure Report')}</h1>
   <div class="dt">${he(dateStr)}</div>
 </div>
 <div class="meta-grid">
-  <div class="mk">Case Reference</div><div>${he(caseData.case_ref ?? '—')}</div>
-  <div class="mk">Client</div><div>${he(caseData.client_name ?? '—')}</div>
-  <div class="mk">SAP Module</div><div>${he(caseData.area_sap ?? '—')}</div>
-  <div class="mk">Industry</div><div>${he(caseData.area_industry ?? '—')}</div>
-  <div class="mk">Priority</div><div>${he(caseData.priority ?? '—')}</div>
-  <div class="mk">Approved</div><div>${he(dateStr)}</div>
-  <div class="mk">${bypass ? 'Approval Note' : 'Approval'}</div><div>${bypass ? he(`Bypassed — ${bypassReason}`) : 'All activities at 100%'}</div>
+  <div class="mk">${lang === 'es' ? 'Referencia del Caso' : 'Case Reference'}</div><div>${he(caseData.case_ref ?? '—')}</div>
+  <div class="mk">${lang === 'es' ? 'Cliente' : 'Client'}</div><div>${he(caseData.client_name ?? '—')}</div>
+  <div class="mk">${lang === 'es' ? 'Módulo SAP' : 'SAP Module'}</div><div>${he(caseData.area_sap ?? '—')}</div>
+  <div class="mk">${lang === 'es' ? 'Industria' : 'Industry'}</div><div>${he(caseData.area_industry ?? '—')}</div>
+  <div class="mk">${lang === 'es' ? 'Prioridad' : 'Priority'}</div><div>${he(caseData.priority ?? '—')}</div>
+  <div class="mk">${lang === 'es' ? 'Aprobado' : 'Approved'}</div><div>${he(dateStr)}</div>
+  <div class="mk">${bypass ? (lang === 'es' ? 'Nota de Aprobación' : 'Approval Note') : (lang === 'es' ? 'Aprobación' : 'Approval')}</div><div>${bypass ? he(`${lang === 'es' ? 'Omitido' : 'Bypassed'} — ${bypassReason}`) : (lang === 'es' ? 'Todas las actividades al 100%' : 'All activities at 100%')}</div>
 </div>
 <div class="stats">
-  <div class="stat"><div class="n">${he(String(activities.length))}</div><div class="l">Total Activities</div></div>
-  <div class="stat"><div class="n">${he(totalHrs.toFixed(1))}h</div><div class="l">Hours Logged</div></div>
-  <div class="stat"><div class="n">${he(String(testPhasesDone.length))}</div><div class="l">Test Phases</div></div>
-  <div class="stat"><div class="n">${he(String(adjPhasesDone.length))}</div><div class="l">Adjustments</div></div>
+  <div class="stat"><div class="n">${he(String(activities.length))}</div><div class="l">${lang === 'es' ? 'Total de Actividades' : 'Total Activities'}</div></div>
+  <div class="stat"><div class="n">${he(totalHrs.toFixed(1))}h</div><div class="l">${lang === 'es' ? 'Horas Registradas' : 'Hours Logged'}</div></div>
+  <div class="stat"><div class="n">${he(String(testPhasesDone.length))}</div><div class="l">${lang === 'es' ? 'Fases de Prueba' : 'Test Phases'}</div></div>
+  <div class="stat"><div class="n">${he(String(adjPhasesDone.length))}</div><div class="l">${lang === 'es' ? 'Ajustes' : 'Adjustments'}</div></div>
 </div>
 
-<h2>1. Initial Request</h2>
-<p>${he(caseData.description ?? '(No description provided.)')}</p>
-${customerInput ? `<p class="subsec">Customer Input</p><p>${he(customerInput)}</p>` : ''}
+<h2>${lang === 'es' ? '1. Solicitud Inicial' : '1. Initial Request'}</h2>
+<p>${he(caseData.description ?? (lang === 'es' ? '(Sin descripción.)' : '(No description provided.)'))}</p>
+${customerInput ? `<p class="subsec">${lang === 'es' ? 'Entrada del Cliente' : 'Customer Input'}</p><p>${he(customerInput)}</p>` : ''}
 
-<h2>2. Functional Specification</h2>
-${specContent ? mdToHtml(specContent.slice(0,4000)) : '<p>(No functional specification was recorded for this case.)</p>'}
+<h2>${lang === 'es' ? '2. Especificación Funcional' : '2. Functional Specification'}</h2>
+${specContent ? mdToHtml(specContent.slice(0,4000)) : `<p>${lang === 'es' ? '(No se registró especificación funcional para este caso.)' : '(No functional specification was recorded for this case.)'}</p>`}
 
-<h2>3. Development Scope</h2>
-${devActs.length > 0 ? tableHtml(['#','Activity','Description','Est. Hours','Progress'],
+<h2>${lang === 'es' ? '3. Alcance de Desarrollo' : '3. Development Scope'}</h2>
+${devActs.length > 0 ? tableHtml(lang === 'es' ? ['#','Actividad','Descripción','Hrs. Est.','Avance'] : ['#','Activity','Description','Est. Hours','Progress'],
   devActs.map((a,i) => [String(i+1), a.title, (a.description??'').slice(0,80), String(a.est_hours??'—'), actEffectivePct(a)+'%'])
-) : '<p>(No development activities recorded.)</p>'}
+) : `<p>${lang === 'es' ? '(Sin actividades de desarrollo registradas.)' : '(No development activities recorded.)'}</p>`}
 
-<h2>4. Quality Assurance — Test Results</h2>
+<h2>${lang === 'es' ? '4. Aseguramiento de Calidad — Resultados de Prueba' : '4. Quality Assurance — Test Results'}</h2>
 ${testPhasesDone.length > 0 ? testPhasesDone.map(pk => {
   const lbl = DEFAULT_ACTIVITY_PHASES.find(p=>p.key===pk)?.label??pk;
   const phActs = activities.filter(a=>a.phase===pk);
   const passed = phActs.filter(a=>a.test_outcome==='passed').length;
   const rows = phActs.map(a => {
     const outcomeHtml = a.test_outcome==='passed'
-      ? '<span class="pass">✓ Passed</span>'
+      ? `<span class="pass">${lang === 'es' ? '✓ Aprobado' : '✓ Passed'}</span>`
       : a.test_outcome==='needs_adjustment'
-      ? '<span class="adj">⚠ Adjustment</span>'
-      : 'Pending';
+      ? `<span class="adj">${lang === 'es' ? '⚠ Ajuste' : '⚠ Adjustment'}</span>`
+      : (lang === 'es' ? 'Pendiente' : 'Pending');
     return `<tr><td>${he(a.title)}</td><td>${outcomeHtml}</td><td>${a.coverage_pct!=null?he(a.coverage_pct+'%'):'—'}</td><td>${he((a.adjustment_notes??'').slice(0,100))}</td></tr>`;
   }).join('');
-  return `<p class="subsec">${he(lbl)} — ${he(String(passed))}/${he(String(phActs.length))} passed</p>
-<table class="t"><thead><tr><th>Activity</th><th style="width:100px">Outcome</th><th style="width:80px">Coverage</th><th>Issue / Notes</th></tr></thead><tbody>${rows}</tbody></table>`;
-}).join('') : '<p>(No test activities recorded.)</p>'}
+  return `<p class="subsec">${he(lbl)} — ${he(String(passed))}/${he(String(phActs.length))} ${lang === 'es' ? 'aprobados' : 'passed'}</p>
+<table class="t"><thead><tr><th>${lang === 'es' ? 'Actividad' : 'Activity'}</th><th style="width:100px">${lang === 'es' ? 'Resultado' : 'Outcome'}</th><th style="width:80px">${lang === 'es' ? 'Cobertura' : 'Coverage'}</th><th>${lang === 'es' ? 'Problema / Notas' : 'Issue / Notes'}</th></tr></thead><tbody>${rows}</tbody></table>`;
+}).join('') : `<p>${lang === 'es' ? '(Sin actividades de prueba registradas.)' : '(No test activities recorded.)'}</p>`}
 
-<h2>5. Adjustments Made</h2>
+<h2>${lang === 'es' ? '5. Ajustes Realizados' : '5. Adjustments Made'}</h2>
 ${adjPhasesDone.length > 0 ? adjPhasesDone.map(pk => {
   const lbl = DEFAULT_ACTIVITY_PHASES.find(p=>p.key===pk)?.label??pk;
   const phActs = activities.filter(a=>a.phase===pk);
-  return `<p class="subsec">${he(lbl)}</p>${tableHtml(['#','Corrective Activity','Description','Est. Hours'],
+  return `<p class="subsec">${he(lbl)}</p>${tableHtml(lang === 'es' ? ['#','Actividad Correctiva','Descripción','Hrs. Est.'] : ['#','Corrective Activity','Description','Est. Hours'],
     phActs.map((a,i)=>[String(i+1),a.title,(a.description??'').slice(0,100),String(a.est_hours??'—')]))}`;
-}).join('') : '<p>(No adjustments were required.)</p>'}
+}).join('') : `<p>${lang === 'es' ? '(No se requirieron ajustes.)' : '(No adjustments were required.)'}</p>`}
 
-<h2>6. Final Delivered Scope</h2>
-${deliveredActs.length > 0 ? tableHtml(['Phase','Delivered Item','Hours Logged'],
+<h2>${lang === 'es' ? '6. Alcance Final Entregado' : '6. Final Delivered Scope'}</h2>
+${deliveredActs.length > 0 ? tableHtml(lang === 'es' ? ['Fase','Entregable','Horas Reg.'] : ['Phase','Delivered Item','Hours Logged'],
   deliveredActs.map(a => {
     const phaseDef = DEFAULT_ACTIVITY_PHASES.find(p=>p.key===a.phase);
     const logged = timeEntries.filter(e=>e.activity_id===a.id).reduce((s,e)=>s+(e.hours??0),0);
-    return [phaseDef?.label??'Unassigned', a.title, logged.toFixed(1)+'h'];
+    return [phaseDef?.label??(lang === 'es' ? 'Sin asignar' : 'Unassigned'), a.title, logged.toFixed(1)+'h'];
   })
-) : '<p>(No completed activities recorded.)</p>'}
+) : `<p>${lang === 'es' ? '(Sin actividades completadas registradas.)' : '(No completed activities recorded.)'}</p>`}
 
-<h2 class="green">7. User Manual</h2>
+<h2 class="green">${lang === 'es' ? '7. Manual de Usuario' : '7. User Manual'}</h2>
 ${mdToHtml(userManual)}
 
 <div class="signoff">
-<h2>Sign-Off</h2>
-${tableHtml(['Role','Name','Signature','Date'],[
-  ['Project Manager','','',''],
-  ['Lead Consultant','','',''],
-  ['Client Representative','','',''],
-  ['Quality Approver','','',''],
+<h2>${lang === 'es' ? 'Firma de Conformidad' : 'Sign-Off'}</h2>
+${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','Signature','Date'],[
+  [lang === 'es' ? 'Gerente de Proyecto' : 'Project Manager','','',''],
+  [lang === 'es' ? 'Consultor Líder' : 'Lead Consultant','','',''],
+  [lang === 'es' ? 'Representante del Cliente' : 'Client Representative','','',''],
+  [lang === 'es' ? 'Aprobador de Calidad' : 'Quality Approver','','',''],
 ])}
 </div>
 </body></html>`;
@@ -2254,7 +2321,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
       const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
       const fileName = `ClosureReport_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
       const file = new File([closureHtml], fileName, { type: 'text/html' });
-      await addDocument(file, 'Case Closure Report — auto-generated on approval');
+      await addDocument(file, lang === 'es' ? 'Reporte de Cierre de Caso — generado automáticamente al aprobar' : 'Case Closure Report — auto-generated on approval');
       if (refetchDocuments) await refetchDocuments();
 
       // Change status to approved
