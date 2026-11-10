@@ -65,18 +65,18 @@ function AuthScreen({ onAuth, onBack }) {
   const auth = useAuth();
   // AuthScreen renders outside SystemSettingsProvider so useSystemSettings() returns {}.
   // Fetch auth-relevant settings directly from Supabase instead.
-  const [authSettings, setAuthSettings] = useState({});
+  const [authSettings, setAuthSettings] = useState(null); // null = still loading
   useEffect(() => {
     const KEYS = ["signup_roles_visible", "signup_flow_per_role", "role_permissions", "auto_approve_domains"];
     supabase.from("system_settings").select("key, value").in("key", KEYS)
       .then(({ data }) => {
-        if (!data) return;
         const map = {};
-        data.forEach(r => { map[r.key] = r.value; });
+        (data ?? []).forEach(r => { map[r.key] = r.value; });
         setAuthSettings(map);
-      });
+      })
+      .catch(() => setAuthSettings({})); // on error, default to empty (all roles visible)
   }, []);
-  const ssSettings = authSettings;
+  const ssSettings = authSettings ?? {};
   const rolePermMatrix = ssSettings["role_permissions"] ?? {};
   function requiresTeamFor(r) {
     const defaults = ROLE_PERMISSIONS_DEFAULTS["require_team_signup"] ?? {};
@@ -550,7 +550,9 @@ function AuthScreen({ onAuth, onBack }) {
                   onBlur={e => { if (e.target.value.trim()) checkEmailPreReg(e.target.value); }}
                   placeholder={t("auth.ph_email")} />
                 <p className="text-xs font-medium text-gray-700 mb-3 mt-1">{t("auth.choose_type")}</p>
-                {(() => {
+                {authSettings === null ? (
+                  <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
+                ) : (() => {
                   const visibleSignup = ssSettings["signup_roles_visible"] ?? ["consultant", "headhunter", "client", "key_user", "final_user"];
                   const generalRoles = [
                     { role: "consultant", Icon: Briefcase, label: t("auth.build_consultant"), desc: t("auth.help_clients") },
@@ -647,6 +649,7 @@ function AuthScreen({ onAuth, onBack }) {
                   </div>
                 </button>}
                 {loading && <p className="text-xs text-center text-gray-400 mt-3">Checking…</p>}
+                )}
               </div>
             )}
 
