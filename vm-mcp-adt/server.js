@@ -675,6 +675,21 @@ function sapShortText(text, max = 60) {
   return (sp >= max / 2 ? cut.slice(0, sp) : cut).replace(/[\s.,;:(\-–—]+$/, '');
 }
 
+// Accept header for "does this object exist?" GETs. ADT DDIC endpoints (data
+// elements, domains, ...) only serve their vendor XML types and answer a plain
+// application/xml request with 406 Not Acceptable even when the object exists,
+// which made every data-element verify fail. List the vendor types first and
+// fall back to anything, so SAP answers 200 (exists) or 404 (missing).
+const ADT_VERIFY_ACCEPT = [
+  'application/vnd.sap.adt.dataelements.v2+xml',
+  'application/vnd.sap.adt.dataelements.v1+xml',
+  'application/vnd.sap.adt.domains.v2+xml',
+  'application/vnd.sap.adt.domains.v1+xml',
+  'application/vnd.sap.adt.mc.messageclass+xml',
+  'application/xml',
+  '*/*',
+].join(', ');
+
 async function createTransportViaAdt(host, username, password, client, description) {
   const auth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
   const baseHeaders = { Authorization: auth, 'sap-client': client };
@@ -909,7 +924,7 @@ app.post('/sap-write-mcp', async (req, res) => {
           try {
             const _vAuth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
             const _vRes = await sapFetch(`${host}${objectUrl}`, {
-              headers: { Authorization: _vAuth, 'sap-client': sapClient, Accept: 'application/xml' },
+              headers: { Authorization: _vAuth, 'sap-client': sapClient, Accept: ADT_VERIFY_ACCEPT },
               signal: AbortSignal.timeout(15000),
             });
             // 200 or 423 (locked) both confirm the object exists
@@ -930,7 +945,7 @@ app.post('/sap-write-mcp', async (req, res) => {
           try {
             const _vAuth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
             const _vRes = await sapFetch(`${host}${objectUrl}`, {
-              headers: { Authorization: _vAuth, 'sap-client': sapClient, Accept: 'application/xml' },
+              headers: { Authorization: _vAuth, 'sap-client': sapClient, Accept: ADT_VERIFY_ACCEPT },
               signal: AbortSignal.timeout(15000),
             });
             if (_vRes.ok) {
@@ -992,10 +1007,12 @@ app.post('/sap-write-mcp', async (req, res) => {
         const _vAuth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
         try {
           const _vRes = await sapFetch(`${host}${objectUrl}`, {
-            headers: { Authorization: _vAuth, 'sap-client': sapClient, Accept: 'application/xml' },
+            headers: { Authorization: _vAuth, 'sap-client': sapClient, Accept: ADT_VERIFY_ACCEPT },
             signal: AbortSignal.timeout(15000),
           });
-          verify = { ok: _vRes.ok, method: 'http-get', status: _vRes.status };
+          // 423 = locked by our own just-created session, which also proves it exists
+          verify = { ok: _vRes.ok || _vRes.status === 423, method: 'http-get', status: _vRes.status,
+                     ...(_vRes.ok || _vRes.status === 423 ? {} : { reason: `SAP returned HTTP ${_vRes.status} for ${objectUrl}` }) };
         } catch (e) {
           verify = { ok: false, reason: e.message?.slice(0, 100) };
         }
