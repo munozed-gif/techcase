@@ -242,9 +242,12 @@ function AuthScreen({ onAuth, onBack }) {
       email: email.trim(), token: code, type: "signup",
     });
     if (err) { setError(err.message || t("auth.error_invalid_code")); setLoad(false); return; }
+    // The sign-up trigger creates the users row as soon as the account exists,
+    // so a row alone doesn't mean sign-up is finished. The Profile step stores
+    // the chosen role in user_metadata; only skip it once that has happened.
     const { data: existing } = await supabase
       .from("users").select("role").eq("id", data.user?.id).maybeSingle();
-    if (existing?.role) { onAuth(null); return; }
+    if (existing?.role && data.user?.user_metadata?.role) { onAuth(null); return; }
     setOtpVerified(true);
     setStep(2);
     setLoad(false);
@@ -263,12 +266,9 @@ function AuthScreen({ onAuth, onBack }) {
     if (role === "project_manager"     && requiresTeamFor("project_manager")     && !finalUserClient && !keyUserCompany)     { setError(t("auth.error_team_code")); return; }
     setError(""); setLoad(true);
     try {
-      const flow = getRoleFlow(role);
-      const autoApproveDomains = (ssSettings["auto_approve_domains"] ?? []).map(d => d.toLowerCase().trim()).filter(Boolean);
-      const emailDomain = (email.trim().split("@")[1] ?? "").toLowerCase();
-      const isDomainAutoApproved = autoApproveDomains.length > 0 && autoApproveDomains.includes(emailDomain);
-      const verificationStatus = (isDomainAutoApproved || flow === "email_verify") ? "approved" : "pending";
-
+      // Name, role and approval status are saved server-side by complete_signup,
+      // which applies signup_flow_per_role / auto_approve_domains itself.
+      // Users can't write role or verification_status on their own row.
       let userId, userEmail;
       if (otpVerified) {
         // OTP path: user is already authenticated, just set password
@@ -291,17 +291,18 @@ function AuthScreen({ onAuth, onBack }) {
         }
         if (!signUpData.user) { setError("Registration failed — please try again."); setLoad(false); return; }
         userId = signUpData.user.id; userEmail = signUpData.user.email;
-        // Write the user row now even if email confirmation is still pending,
-        // so the admin approval tab can see them regardless of Supabase confirmation settings.
-        const earlyRow = { id: userId, email: userEmail, full_name: name.trim(), role, verification_status: verificationStatus };
-        await supabase.from("users").upsert(earlyRow, { onConflict: "id" });
+        // The sign-up trigger has already created a pending users row from the
+        // full_name/role metadata above, so the admin approval tab can see them
+        // even while email confirmation is outstanding.
         if (!signUpData.session) {
           setApprovalDone(true); setLoad(false); return;
         }
       }
 
-      const userRow = { id: userId, email: userEmail, full_name: name.trim(), role, verification_status: verificationStatus };
-      await supabase.from("users").upsert(userRow, { onConflict: "id" });
+      const { error: completeErr } = await supabase.rpc("complete_signup", {
+        p_full_name: name.trim(), p_role: role,
+      });
+      if (completeErr) { setError(completeErr.message || t("auth.error_unexpected")); setLoad(false); return; }
       if (role === "consultant") {
         const skillsArr = skills.split(",").map(s => s.trim()).filter(Boolean);
         await supabase.from("consultant_profiles").upsert({

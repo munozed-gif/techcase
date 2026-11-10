@@ -53,16 +53,18 @@ function useAuth() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const meta = user.user_metadata ?? {};
-        const role = meta.role || "consultant";
-        // Roles that go through admin approval; auto-approve only trusted admin/manager/client paths
-        const SELF_APPROVED = ["admin", "manager", "client", "invited_client"];
-        await supabase.from("users").insert({
-          id: user.id,
-          email: user.email,
-          full_name: meta.full_name || user.email.split("@")[0],
-          role,
-          verification_status: SELF_APPROVED.includes(role) ? "approved" : "pending",
+        // complete_signup validates the role and decides approval server-side;
+        // roles it doesn't accept (e.g. invited_client) fall back to consultant.
+        const { error: completeErr } = await supabase.rpc("complete_signup", {
+          p_full_name: meta.full_name || user.email.split("@")[0],
+          p_role: meta.role || "consultant",
         });
+        if (completeErr) {
+          await supabase.rpc("complete_signup", {
+            p_full_name: meta.full_name || user.email.split("@")[0],
+            p_role: "consultant",
+          });
+        }
         const { data: retry } = await supabase
           .from("users").select("*").eq("id", userId).single();
         if (retry) {
