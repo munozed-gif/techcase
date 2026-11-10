@@ -983,7 +983,8 @@ app.post('/sap-write-mcp', async (req, res) => {
         }
       }
       let activateError = null;
-      if (!skipActivation && unlocked && effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false) {
+      const activationAttempted = !skipActivation && unlocked && effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false;
+      if (activationAttempted) {
         try {
           console.log(`[bridge] [timing] activate start (${_coElapsed()})`);
           await callTool('activateByName', { objectName: resolvedName, objectUrl });
@@ -1024,6 +1025,14 @@ app.post('/sap-write-mcp', async (req, res) => {
         transport: transport || null,
         note: `${objtype} ${resolvedName} ${created ? 'created' : 'already existed'} in SAP (pkg: ${parentName}). Set properties (data type, length, labels) in SE11/SE91.`,
         verify,
+        // Per-step outcome so the app can tell "done" apart from "written but not
+        // activated / not confirmed". null = step not applicable or skipped by policy.
+        steps: {
+          created: true,
+          unlocked: skipActivation ? null : unlocked,
+          activated: skipActivation ? null : (activationAttempted ? !activateError : (unlocked ? null : false)),
+          verified: verify.skipped ? null : verify.ok === true,
+        },
         ...(activateError ? { activateError } : {}),
       });
     }
@@ -1078,7 +1087,8 @@ app.post('/sap-write-mcp', async (req, res) => {
     }
 
     // 4. unLock (best-effort)
-    try { await callTool('unLock', { objectUrl, lockHandle }); } catch {}
+    let unlocked = false;
+    try { await callTool('unLock', { objectUrl, lockHandle }); unlocked = true; } catch {}
 
     // 5. Syntax check (optional, conditional on policy)
     let syntaxErrors = null;
@@ -1100,7 +1110,8 @@ app.post('/sap-write-mcp', async (req, res) => {
 
     // 5b. activateByName (conditional on policy, non-fatal)
     let activateError = null;
-    if (effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false) {
+    const activationAttempted = effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false;
+    if (activationAttempted) {
       try {
         await callTool('activateByName', { objectName: resolvedName, objectUrl });
       } catch (e) {
@@ -1111,7 +1122,16 @@ app.post('/sap-write-mcp', async (req, res) => {
     const verify = (effectivePolicy.verifyAfterWrite !== false && effectiveCaps.hasRoMcp !== false)
       ? await verifyWithRO(host, username, password, sapClient, objtype, resolvedName)
       : { ok: false, skipped: true, reason: 'verifyAfterWrite disabled in policy' };
-    res.json({ ok: true, status: 200, transport: transport || null, verify, ...(activateError ? { activateError } : {}), ...(syntaxErrors ? { syntaxErrors } : {}) });
+    res.json({
+      ok: true, status: 200, transport: transport || null, verify,
+      steps: {
+        updated: true,
+        unlocked,
+        activated: activationAttempted ? !activateError : null,
+        verified: verify.skipped ? null : verify.ok === true,
+      },
+      ...(activateError ? { activateError } : {}), ...(syntaxErrors ? { syntaxErrors } : {}),
+    });
   } catch (err) {
     console.error('[bridge] /sap-write-mcp error:', err);
     res.status(500).json({ ok: false, error: err.message?.slice(0, 200) || 'Internal error' });

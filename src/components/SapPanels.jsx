@@ -431,6 +431,31 @@ function sapShortText(text, max = 60) {
   return (sp >= max / 2 ? cut.slice(0, sp) : cut).replace(/[\s.,;:(\-–—]+$/, '');
 }
 
+// Pipeline status for a successful bridge write. An object only counts as 'done'
+// once SAP has activated it and confirmed it exists; otherwise it stays visibly
+// unfinished ('inactive' / 'unverified') and dependents remain blocked.
+// steps: true = succeeded, false = failed, null = not applicable / skipped by policy.
+function sapApplyOutcome(result) {
+  const st = result?.steps ?? {};
+  const activated = st.activated !== undefined ? st.activated : (result?.activateError ? false : null);
+  const verified  = st.verified !== undefined ? st.verified
+    : (result?.verify && !result.verify.skipped ? result.verify.ok === true : null);
+  const steps = {
+    created: st.created ?? null,
+    updated: st.updated ?? (st.created ? null : true),
+    unlocked: st.unlocked ?? null,
+    activated,
+    verified,
+  };
+  const status = activated === false ? 'inactive' : verified === false ? 'unverified' : 'done';
+  return { status, steps };
+}
+
+const SAP_OUTCOME_HINT = {
+  inactive:   'Written to SAP but not activated — activate it in SAP or press Retry.',
+  unverified: 'Written to SAP but SAP did not confirm it exists — check it in SAP or press Retry.',
+};
+
 async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg, description, policy, capabilities, globalObjectMap) {
   const objCfg = resolveObjectTypeConfig(objectType, objectName, globalObjectMap, config.adt_object_map);
   const path = objCfg.path;
@@ -4673,6 +4698,8 @@ const BP_STATUS_STYLE = {
   generating: 'border-blue-400 bg-blue-50 text-blue-700',
   generated:  'border-teal-400 bg-teal-50 text-teal-700',
   applying:   'border-amber-400 bg-amber-50 text-amber-700',
+  inactive:   'border-orange-400 bg-orange-50 text-orange-700',
+  unverified: 'border-purple-400 bg-purple-50 text-purple-700',
   done:       'border-green-500 bg-green-50 text-green-700',
   error:      'border-red-500 bg-red-50 text-red-700',
   blocked:    'border-gray-200 bg-gray-50 text-gray-400',
@@ -5374,7 +5401,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       if (objMode === 'adt-create-only') {
         if (autoImplEnabled && sapConfig?.host) {
           try {
-            updateObj(obj.id, { status: 'applying', error: null });
+            updateObj(obj.id, { status: 'applying', stage: 'creating', error: null });
             addLog(`${obj.name}: creating ADT skeleton (policy: adt-create-only)...`, 'applying');
             const _applyVia   = freshMcpUrl ? `${freshMcpUrl}/sap-proxy` : null;
             const _applyCfg   = _applyVia ? { ...sapConfig, proxyUrl: _applyVia } : sapConfig;
@@ -5389,8 +5416,10 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
               const _verifySkipped = _r.verify?.skipped === true;
               const _seTx = obj.type === 'message_class' ? 'SE91' : 'SE11';
               const _note = `${_verifyOk ? '✓ Confirmed in SAP.' : _verifySkipped ? '' : `⚠ Not confirmed in SAP${_r.verify?.status ? ` (HTTP ${_r.verify.status})` : ''} — check ${_seTx}.`}${_r.activateError ? ' Activation warning: ' + _r.activateError : ''}`.trim() || null;
-              updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), appliedCreated: true, appliedTransport: _ut, appliedPackage: _up, appliedNote: _note, appliedActivateError: _r.activateError || null });
-              addLog(`${obj.name}: ✓ ADT skeleton created (pkg: ${_up || '$TMP'}${_ut ? `, tr: ${_ut}` : ''}${_verifyOk ? ', confirmed ✓' : _verifySkipped ? '' : ' — not confirmed in SAP'}). Set properties in SE11/SE91.`, 'done');
+              const _out = sapApplyOutcome(_r);
+              updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), appliedCreated: true, appliedTransport: _ut, appliedPackage: _up, appliedNote: _note, appliedActivateError: _r.activateError || null });
+              addLog(`${obj.name}: ${_out.status === 'done' ? '✓' : '⚠'} ADT skeleton created (pkg: ${_up || '$TMP'}${_ut ? `, tr: ${_ut}` : ''}${_verifyOk ? ', confirmed ✓' : _verifySkipped ? '' : ' — not confirmed in SAP'}). Set properties in SE11/SE91.`, _out.status === 'done' ? 'done' : 'warn');
+              if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}`, 'warn');
               if (_r.activateError) addLog(`${obj.name}: activation warning: ${_r.activateError}`, 'warn');
               if (!_verifyOk && !_verifySkipped) addLog(`${obj.name}: ⚠ SAP verify failed — ${_r.verify?.reason || 'object not found via read-only check'}`, 'warn');
             } else {
@@ -5409,6 +5438,14 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       }
 
       try {
+        // Re-running an object that was written but not activated/confirmed:
+        // re-apply the same code instead of generating new code.
+        const _reuseCode = (obj.status === 'inactive' || obj.status === 'unverified') && obj.generatedCode ? obj.generatedCode : null;
+        let code;
+        if (_reuseCode) {
+          code = _reuseCode;
+          addLog(`${obj.name}: re-applying previously generated code (last result: ${obj.status}).`, 'generating');
+        } else {
         updateObj(obj.id, { status: 'generating', error: null });
         addLog(`${obj.name}: generating ABAP...`, 'generating');
         const standardsBlock = buildAbapStandardsPrompt(standards, obj.type, obj.name, null, caseData, transportReq, false);
@@ -5450,12 +5487,13 @@ Output ONLY the ABAP source code, no explanations.`;
             throw mcpErr;
           }
         }
-        const code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
+        code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
         updateObj(obj.id, { status: 'generated', generatedCode: code });
         addLog(`${obj.name}: code generated.`, 'generated');
+        }
 
         if (autoImplEnabled && sapConfig?.host) {
-          updateObj(obj.id, { status: 'applying' });
+          updateObj(obj.id, { status: 'applying', stage: sapIsCreateOnly(obj.type) ? 'creating' : 'updating', error: null });
           // In ADT mode: route through ADT bridge (same chain as infrastructure check).
           // In custom mode: route through custom server proxy (freshMcpUrl).
           const isAdtApply = sapConfig.mcp_type === 'abap-adt' || sapConfig.mcp_type === 'abap-adt-readonly' || sapConfig.mcp_type === 'abap-adt-both';
@@ -5476,7 +5514,9 @@ Output ONLY the ABAP source code, no explanations.`;
           if (result.ok) {
             const usedTransport = result.transport || obj.transport || transportReq || null;
             const usedPackage   = result.package   || obj.package   || packageReq   || null;
-            updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
+            const _out = sapApplyOutcome(result);
+            updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
+            if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}`, 'warn');
             if (result.createOnly) {
               addLog(`${obj.name}: ✓ skeleton created in SAP (pkg: ${usedPackage || '$TMP'}${usedTransport ? `, tr: ${usedTransport}` : ''}).`, 'done');
               addLog(`${obj.name}: ⚠ Set data type, length and labels in SE11/SE91 — object has no properties yet.`, 'warn');
@@ -5548,7 +5588,7 @@ Output ONLY the ABAP source code, no explanations.`;
     const code = obj.generatedCode;
     if (!code) return;
     if (!window.confirm(`Apply ${obj.name} directly to SAP (${sapConfig.host})?`)) return;
-    updateObj(obj.id, { status: 'applying', error: null });
+    updateObj(obj.id, { status: 'applying', stage: sapIsCreateOnly(obj.type) ? 'creating' : 'updating', error: null });
     // In ADT mode: always route through ADT bridge (same chain as infrastructure check)
     // In custom mode: use vm_tunnel_registry (custom server proxy)
     let applyVia = null;
@@ -5593,7 +5633,9 @@ Output ONLY the ABAP source code, no explanations.`;
     if (result.ok) {
       const usedTransport = result.transport || obj.transport || transportReq || null;
       const usedPackage   = result.package   || obj.package   || packageReq   || null;
-      updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), error: null, appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
+      const _out = sapApplyOutcome(result);
+      updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), error: null, appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
+      if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}`, 'warn');
       if (result.createOnly) {
         addLog(`${obj.name}: ✓ skeleton created in SAP (pkg: ${usedPackage || '$TMP'}${usedTransport ? `, tr: ${usedTransport}` : ''}).`, 'done');
         addLog(`${obj.name}: ⚠ Set data type, length and labels in SE11/SE91 — object has no properties yet.`, 'warn');
@@ -5986,9 +6028,27 @@ Output ONLY the ABAP source code, no explanations.`;
                       <AlertTriangle size={11} />{selectedObj.error}
                     </p>
                   )}
+                  {selectedObj.status === 'applying' && selectedObj.stage && (
+                    <p className="text-xs text-amber-600 mt-1">Applying — {selectedObj.stage === 'creating' ? 'creating in SAP' : 'updating in SAP'}…</p>
+                  )}
                   {selectedObj.appliedAt && (
                     <div className="mt-1 space-y-0.5">
-                      <p className="text-xs text-green-600">Applied: {new Date(selectedObj.appliedAt).toLocaleString()}</p>
+                      <p className={`text-xs ${selectedObj.status === 'done' ? 'text-green-600' : 'text-amber-600'}`}>Applied: {new Date(selectedObj.appliedAt).toLocaleString()}</p>
+                      {selectedObj.sapSteps && (
+                        <p className="text-xs font-mono flex flex-wrap gap-x-2">
+                          {[
+                            [selectedObj.sapSteps.created ? 'Created' : 'Updated', selectedObj.sapSteps.created ?? selectedObj.sapSteps.updated],
+                            ['Unlocked', selectedObj.sapSteps.unlocked],
+                            ['Activated', selectedObj.sapSteps.activated],
+                            ['Verified', selectedObj.sapSteps.verified],
+                          ].filter(([, v]) => v !== null && v !== undefined).map(([label, v]) => (
+                            <span key={label} className={v ? 'text-green-600' : 'text-red-500'}>{label} {v ? '✓' : '✗'}</span>
+                          ))}
+                        </p>
+                      )}
+                      {SAP_OUTCOME_HINT[selectedObj.status] && (
+                        <p className="text-xs text-amber-600">⚠ {SAP_OUTCOME_HINT[selectedObj.status]}</p>
+                      )}
                       {selectedObj.appliedPackage && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">Package: {selectedObj.appliedPackage}</p>
                       )}
@@ -6010,7 +6070,7 @@ Output ONLY the ABAP source code, no explanations.`;
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                   <button onClick={() => { setEditTarget(selectedObj); setShowModal(true); }}
                     className="px-2.5 py-1 text-xs font-medium border border-gray-200 rounded-lg hover:bg-white transition-colors">Edit</button>
-                  {selectedObj.status === 'error' && (
+                  {(selectedObj.status === 'error' || ((selectedObj.status === 'inactive' || selectedObj.status === 'unverified') && !selectedObj.generatedCode)) && (
                     <button onClick={() => updateObj(selectedObj.id, { status: 'planned', error: null })}
                       className="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">Retry</button>
                   )}
@@ -7651,6 +7711,8 @@ FALLBACK:
                         const toggleOpen = () => setExpandedAuto(p => { const n = new Set(p); n.has(obj.id) ? n.delete(obj.id) : n.add(obj.id); return n; });
                         const statusColor = obj.status === 'done'      ? 'text-green-400'
                                           : obj.status === 'error'     ? 'text-red-400'
+                                          : obj.status === 'inactive'  ? 'text-orange-300'
+                                          : obj.status === 'unverified'? 'text-purple-300'
                                           : obj.status === 'applying'  ? 'text-blue-300'
                                           : obj.status === 'generating'? 'text-amber-300'
                                           : 'text-white/30';
