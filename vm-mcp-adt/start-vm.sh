@@ -208,6 +208,8 @@ fi
 
 # ── Restart command monitor ────────────────────────────────────
 # Polls both Supabase instances every 30s for a remote restart request.
+# Responds to both platform buttons: "Restart ADT Bridge"
+# (adt_bridge_restart_requested) and "Restart VM" (vm_restart_requested).
 if [ -n "$SUPABASE_URL" ] || [ -n "$SUPABASE_URL_DEV" ]; then
   _MONITOR_START_EPOCH=$(date -u +%s)
   (
@@ -216,9 +218,9 @@ if [ -n "$SUPABASE_URL" ] || [ -n "$SUPABASE_URL_DEV" ]; then
       local sb_url="$1" sb_key="$2"
       [ -z "$sb_url" ] && echo "" && return
       local raw
-      raw=$(curl -sf "${sb_url}/rest/v1/system_settings?key=eq.adt_bridge_restart_requested&select=value" \
+      raw=$(curl -sf "${sb_url}/rest/v1/system_settings?key=in.(adt_bridge_restart_requested,vm_restart_requested)&select=value" \
         -H "apikey: ${sb_key}" -H "Authorization: Bearer ${sb_key}" 2>/dev/null || echo "")
-      echo "$raw" | grep -o '"ts":[0-9]*' | grep -o '[0-9]*' | head -1
+      echo "$raw" | grep -o '"ts":[0-9]*' | grep -o '[0-9]*' | sort -rn | head -1
     }
     while true; do
       sleep 30

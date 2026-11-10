@@ -176,14 +176,16 @@ elif [ -n "$SAP_HOST_ENV" ]; then
 fi
 
 # ── Restart command monitor ────────────────────────────────────
+# Responds to both platform buttons: "Restart ADT Bridge"
+# (adt_bridge_restart_requested) and "Restart VM" (vm_restart_requested).
 _MONITOR_START_EPOCH=$(date -u +%s)
 (
   _last_handled=$_MONITOR_START_EPOCH
   while true; do
     sleep 30
-    _raw=$(curl -sf "${SUPABASE_URL}/rest/v1/system_settings?key=eq.adt_bridge_restart_requested&select=value" \
+    _raw=$(curl -sf "${SUPABASE_URL}/rest/v1/system_settings?key=in.(adt_bridge_restart_requested,vm_restart_requested)&select=value" \
       -H "apikey: ${SUPABASE_SERVICE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" 2>/dev/null || echo "")
-    _req_ts=$(echo "$_raw" | grep -o '"ts":[0-9]*' | grep -o '[0-9]*' | head -1)
+    _req_ts=$(echo "$_raw" | grep -o '"ts":[0-9]*' | grep -o '[0-9]*' | sort -rn | head -1)
     if [ -n "$_req_ts" ] && [ "$(( _req_ts / 1000 ))" -gt "$_last_handled" ] 2>/dev/null; then
       echo "[restart] Remote restart command received — restarting cloudflared tunnel..."
       kill $CF_PID 2>/dev/null || true
