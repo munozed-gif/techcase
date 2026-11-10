@@ -135,7 +135,7 @@ serve(async (req) => {
     const fromName  = Deno.env.get("RESEND_FROM_NAME")  ?? "Arena Solutions Platform";
 
     // Structured call: build the branded template here
-    // Legacy call: raw html passed — still wrap in branded template as body content
+    // Legacy call: full HTML passed as-is; bare snippets get the branded template
     let html: string;
     if (body.title && body.bodyHtml) {
       html = buildEmailHtml({
@@ -146,8 +146,12 @@ serve(async (req) => {
         footerNote: body.footerNote ?? "",
       });
     } else if (body.html) {
-      // Legacy: caller already built the full branded HTML — use it as-is
-      html = body.html;
+      // Legacy: the app's buildEmailHtml() already sends a complete branded email —
+      // use it as-is (wrapping it again showed the logo and card twice). Only wrap
+      // bare HTML snippets that have no <html> document of their own.
+      html = /<html[\s>]/i.test(body.html)
+        ? body.html
+        : buildEmailHtml({ title: subject, bodyHtml: body.html });
     } else {
       return new Response(JSON.stringify({ error: "Provide either {title, bodyHtml} or {html}" }), {
         status: 400, headers: { ...CORS, "Content-Type": "application/json" },
