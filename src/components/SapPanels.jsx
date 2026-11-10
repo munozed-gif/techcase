@@ -420,6 +420,17 @@ async function sapGetCsrfToken(config) {
   return res.headers.get('X-CSRF-Token') ?? '';
 }
 
+// SAP object short texts (adtcore:description) are limited to 60 characters;
+// longer ones fail with "The description is too long" (ExceptionInvalidData).
+// Collapse whitespace and cut at a word boundary when possible.
+function sapShortText(text, max = 60) {
+  const s = String(text ?? '').replace(/\s+/g, ' ').trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const sp = cut.lastIndexOf(' ');
+  return (sp >= max / 2 ? cut.slice(0, sp) : cut).replace(/[\s.,;:(\-–—]+$/, '');
+}
+
 async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg, description, policy, capabilities, globalObjectMap) {
   const objCfg = resolveObjectTypeConfig(objectType, objectName, globalObjectMap, config.adt_object_map);
   const path = objCfg.path;
@@ -449,7 +460,7 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
           transport: transportRequest,
           parentName: pkg || '$TMP',
           name: objectName.toUpperCase(),
-          description: description || '',
+          description: sapShortText(description),
           objtype: objCfg.objtype,
           autoCreate: !!(objCfg.objtype),
           createOnly,

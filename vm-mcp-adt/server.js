@@ -664,6 +664,17 @@ async function verifyWithRO(host, username, password, client, objtype, resolvedN
 }
 
 // ── Transport auto-creation via ADT CTS API ───────────────────
+// SAP object short texts (adtcore:description) are limited to 60 characters;
+// longer ones fail with "The description is too long" (ExceptionInvalidData).
+// Collapse whitespace and cut at a word boundary when possible.
+function sapShortText(text, max = 60) {
+  const s = String(text ?? '').replace(/\s+/g, ' ').trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const sp = cut.lastIndexOf(' ');
+  return (sp >= max / 2 ? cut.slice(0, sp) : cut).replace(/[\s.,;:(\-–—]+$/, '');
+}
+
 async function createTransportViaAdt(host, username, password, client, description) {
   const auth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
   const baseHeaders = { Authorization: auth, 'sap-client': client };
@@ -736,7 +747,7 @@ app.post('/sap-write-mcp', async (req, res) => {
     const objtype    = req.body?.objtype;
     const objName    = req.body?.name;
     const parentName = req.body?.parentName  || '$TMP';
-    const description= req.body?.description || '';
+    const description= sapShortText(req.body?.description);
     const parentPath = req.body?.parentPath  || `/sap/bc/adt/packages/${(req.body?.parentName || '$TMP')}`;
     const policy     = req.body?.policy      || {};
     const capabilities = req.body?.capabilities || {};
