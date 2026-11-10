@@ -12,6 +12,7 @@ import { usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.j
 import { useTheme } from "../context/ThemeContext.jsx";
 import { Select } from "./ui.jsx";
 import { DEFAULT_PLAN_CONFIG, PLAN_BADGE, ROLE_TO_PLAN_TYPE } from "../lib/businessConstants.js";
+import { NovaLandingMark } from "../views/LandingView.jsx";
 
 function Badge({ children, className = "" }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${className}`}>{children}</span>;
@@ -27,6 +28,7 @@ function Spinner() {
 
 function PendingApprovalScreen({ auth }) {
   const { t } = useT();
+  const branding = usePlatformBranding();
   const isRejected = auth.profile?.verification_status === 'rejected';
   const rejectionReason = auth.profile?.rejection_reason;
   const [checking, setChecking] = useState(false);
@@ -48,7 +50,21 @@ function PendingApprovalScreen({ auth }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <div className="text-center mb-6">
+        <div className="inline-flex items-center justify-center mb-3">
+          <NovaLandingMark size={96} />
+        </div>
+        <h1 className="text-2xl font-bold" style={{ minHeight: '2rem' }}>
+          {!branding.loading && (() => {
+            const parts = branding.platformName.split(' ');
+            return parts.length > 1
+              ? <><span style={{ color: '#4F6EF7' }}>{parts[0]}</span> <span className="text-gray-900">{parts.slice(1).join(' ')}</span></>
+              : <span style={{ color: '#4F6EF7' }}>{branding.platformName}</span>;
+          })()}
+        </h1>
+        <p className="text-blue-400 mt-1 text-sm" style={{ minHeight: '1.25rem' }}>{!branding.loading && branding.tagline}</p>
+      </div>
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 max-w-md w-full text-center space-y-5">
         {isRejected ? (
           <>

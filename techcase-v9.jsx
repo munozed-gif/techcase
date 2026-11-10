@@ -956,7 +956,13 @@ export default function App() {
   }
 
   if (auth.profile && auth.profile.verification_status !== 'approved') {
-    return <PendingApprovalScreen auth={auth} />;
+    return (
+      <SystemSettingsProvider>
+        <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
+          <PendingApprovalScreen auth={auth} />
+        </LanguageProvider>
+      </SystemSettingsProvider>
+    );
   }
 
   {/* Profile gate: consultant needs headline, client needs company_name */}
