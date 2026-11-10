@@ -17,6 +17,7 @@ import { ConsultantProfileView } from "../components/ConsultantProfileView.jsx";
 import { EmptyState, Input, Modal, Select } from "../components/ui.jsx";
 import { AVAIL_LABEL_KEYS, EXPERTISE_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, cap, fmt, fmtDate, timeAgo } from "../lib/uiUtils.jsx";
 import { APP_STATUS_COLORS, DEFAULT_PLAN_CONFIG, INDUSTRY_AREAS, PLAN_BADGE, PRIORITY_COLORS, PROJECT_TYPES, ROLE_COLORS, ROLE_TO_PLAN_TYPE, SAP_AREAS, STATUS_COLORS, getLifecycleStages } from "../lib/businessConstants.js";
+import { ARENA_VISIBILITY_DEFAULTS } from "../lib/constants.js";
 import { stars } from "../components/FeedComponents.jsx";
 import { ApplicantRankingSection } from "../components/RankingComponents.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
@@ -91,6 +92,14 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
   const { t } = useT();
   const { profile, availability, loading } = useConsultantProfile(consultantId);
   const { ratings, avgRating } = useRatings(consultantId);
+  const { settings: _panelSettings } = useSystemSettings();
+  const _panelVisMatrix = _panelSettings["arena_profile_visibility"] ?? {};
+  function canSeeField(field) {
+    if (consultantId && consultantId === auth.user?.id) return true;
+    if (auth.isAdmin || auth.isManager) return true;
+    const merged = { ...(ARENA_VISIBILITY_DEFAULTS[field] ?? {}), ...(_panelVisMatrix[field] ?? {}) };
+    return merged[auth.profile?.role ?? ''] === true;
+  }
   const [userName, setUserName]         = useState('');
   const [avatarUrl, setAvatarUrl]       = useState(null);
   const [userEmail, setUserEmail]       = useState('');
@@ -303,9 +312,9 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Identity */}
           <div className="flex items-center gap-4">
-            <PersonAvatar name={userName} avatarUrl={avatarUrl} size={64} />
+            <PersonAvatar name={canSeeField('show_name') ? userName : null} avatarUrl={canSeeField('show_name') ? avatarUrl : null} size={64} />
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-gray-900 text-lg leading-tight">{userName || '—'}</h3>
+              <h3 className="font-bold text-gray-900 text-lg leading-tight">{canSeeField('show_name') ? (userName || '—') : <span className="text-gray-400 italic font-normal">Consultant</span>}</h3>
               <div className="flex items-center gap-2 flex-wrap mt-1">
                 {userRole && (
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PANEL_ROLE_COLORS[userRole] ?? 'bg-gray-100 text-gray-500'}`}>
@@ -318,7 +327,7 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
                   </span>
                 )}
               </div>
-              {userEmail && <p className="text-xs text-gray-400 mt-1">{userEmail}</p>}
+              {canSeeField('show_contact') && userEmail && <p className="text-xs text-gray-400 mt-1">{userEmail}</p>}
             </div>
           </div>
 
@@ -356,7 +365,7 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
                   <div className="text-xs text-gray-400 mt-0.5">{ratings.length} rating{ratings.length !== 1 ? 's' : ''}</div>
                 </div>
               )}
-              {profile?.hourly_rate != null && (
+              {profile?.hourly_rate != null && canSeeField('show_rate') && (
                 <div className="flex-1 bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
                   <div className="font-bold text-gray-900 text-sm">${profile.hourly_rate}<span className="text-[10px] font-normal text-gray-400">/h</span></div>
                   <div className="text-xs text-gray-400 mt-0.5">Rate</div>
@@ -865,6 +874,15 @@ function ArenaView({ auth, onNavigate }) {
   const { isDark } = useTheme();
   const visCfg = useVisibilitySettings();
   const { settings: arenaSettings } = useSystemSettings();
+  const arenaVisMatrix = arenaSettings["arena_profile_visibility"] ?? {};
+  // Returns true if the current user may see `field` for the consultant identified by `targetUserId`.
+  // Own profile is always fully visible. Admins/managers always see everything.
+  function canSeeField(field, targetUserId) {
+    if (targetUserId && targetUserId === auth.user?.id) return true;
+    if (auth.isAdmin || auth.isManager) return true;
+    const merged = { ...(ARENA_VISIBILITY_DEFAULTS[field] ?? {}), ...(arenaVisMatrix[field] ?? {}) };
+    return merged[auth.profile?.role ?? ''] === true;
+  }
   const [arenaTab, setArenaTab]             = useState("leaderboard");
   const arenaCarouselRef = useRef(null);
   const arenaCarouselScrolling = useRef(false);
@@ -1485,9 +1503,9 @@ function ArenaView({ auth, onNavigate }) {
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <PersonAvatar name={c.user?.full_name} avatarUrl={c.user?.avatar_url} size={36} />
+                    <PersonAvatar name={canSeeField('show_name', c.id) ? c.user?.full_name : null} avatarUrl={canSeeField('show_name', c.id) ? c.user?.avatar_url : null} size={36} />
                     <div>
-                      <div className="font-medium text-gray-900">{c.user?.full_name}</div>
+                      <div className="font-medium text-gray-900">{canSeeField('show_name', c.id) ? c.user?.full_name : <span className="text-gray-400 italic">Consultant</span>}</div>
                       <div className="text-xs text-gray-400">{c.headline ?? t("arena.years_exp").replace("{n}", c.years_experience ?? 0)}</div>
                     </div>
                   </div>
@@ -1539,9 +1557,9 @@ function ArenaView({ auth, onNavigate }) {
             onClick={() => setProfileView(c.id)}>
             {/* Header */}
             <div className="flex items-start gap-3 mb-3">
-              <PersonAvatar name={c.user?.full_name} avatarUrl={c.user?.avatar_url} size={48} className="rounded-2xl flex-shrink-0" />
+              <PersonAvatar name={canSeeField('show_name', c.id) ? c.user?.full_name : null} avatarUrl={canSeeField('show_name', c.id) ? c.user?.avatar_url : null} size={48} className="rounded-2xl flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-gray-900 truncate">{c.user?.full_name}</div>
+                <div className="font-semibold text-gray-900 truncate">{canSeeField('show_name', c.id) ? c.user?.full_name : <span className="text-gray-400 italic">Consultant</span>}</div>
                 <div className="text-xs text-gray-500 truncate">{c.headline ?? t("arena.default_headline")}</div>
                 {c.avgRating > 0 && (
                   <div className="flex items-center gap-1 mt-1">
@@ -1576,7 +1594,7 @@ function ArenaView({ auth, onNavigate }) {
               {c.availability_type && (
                 <span className="px-1.5 py-0.5 bg-sky-50 text-sky-700 rounded text-xs font-semibold capitalize">{c.availability_type.replace(/_/g, ' ')}</span>
               )}
-              {c.hourly_rate != null && (
+              {c.hourly_rate != null && canSeeField('show_rate', c.id) && (
                 <span className="px-1.5 py-0.5 bg-green-50 text-green-700 rounded text-xs font-semibold">${c.hourly_rate}/h</span>
               )}
             </div>
@@ -1600,7 +1618,7 @@ function ArenaView({ auth, onNavigate }) {
             </div>
 
             {/* Skills */}
-            {c.skills?.length > 0 && (
+            {c.skills?.length > 0 && canSeeField('show_skills', c.id) && (
               <div className="flex flex-wrap gap-1">
                 {c.skills.slice(0, 4).map(s => (
                   <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{s}</span>
@@ -1671,8 +1689,8 @@ function ArenaView({ auth, onNavigate }) {
               <div key={c.id} className={`bg-white rounded-2xl border-2 shadow-sm p-5 ${rankColor}`}>
                 {/* Header */}
                 <div className="text-center mb-4">
-                  <PersonAvatar name={c.user?.full_name} avatarUrl={c.user?.avatar_url} size={56} className="mx-auto mb-2 rounded-2xl" />
-                  <div className="font-bold text-gray-900">{c.user?.full_name}</div>
+                  <PersonAvatar name={canSeeField('show_name', c.id) ? c.user?.full_name : null} avatarUrl={canSeeField('show_name', c.id) ? c.user?.avatar_url : null} size={56} className="mx-auto mb-2 rounded-2xl" />
+                  <div className="font-bold text-gray-900">{canSeeField('show_name', c.id) ? c.user?.full_name : <span className="text-gray-400 italic font-normal">Consultant</span>}</div>
                   {c.headline && <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{c.headline}</div>}
                   {rank < 3 && (
                     <div className={`text-sm font-bold mt-1 ${rank === 0 ? "text-yellow-500" : rank === 1 ? "text-gray-400" : "text-amber-600"}`}>

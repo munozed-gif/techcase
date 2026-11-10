@@ -28,7 +28,7 @@ import {
   SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES, ROLE_TO_PLAN_TYPE, PRIORITY_COLORS,
   DEFAULT_MIGRATION_CONFIG,
 } from "../lib/businessConstants.js";
-import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS, WIZARD_MODE_DEFAULTS } from "../lib/constants.js";
+import { ARENA_VISIBILITY_DEFAULTS, GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS, WIZARD_MODE_DEFAULTS } from "../lib/constants.js";
 import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel, TransitionGatesPanel } from "./SettingsSubViews.jsx";
 import { PersonAvatar } from "./Projects.jsx";
 import { AbapTemplatesSection, SapMcpPolicyPanel } from "../components/SapPanels.jsx";
@@ -1250,6 +1250,80 @@ function SettingsRolesTab({ ssCtx }) {
           {visibleRoles.length} of {SIGNUP_ROLES.length} roles active for sign-up
         </p>
       </div>
+
+      {/* ── Arena Profile Visibility ── */}
+      {(() => {
+        const ARENA_VIS_ROLES = ["consultant", "headhunter", "client", "key_user", "final_user", "project_manager", "internal_consultant"];
+        const ARENA_VIS_FIELDS = [
+          { key: "show_name",    label: "Full name",    desc: "Show the consultant's real name on cards and in the profile panel" },
+          { key: "show_rate",    label: "Hourly rate",  desc: "Show the hourly rate badge on cards and in the profile panel" },
+          { key: "show_contact", label: "Email",        desc: "Show the email address in the profile panel" },
+          { key: "show_skills",  label: "Skills",       desc: "Show skill chips on cards and in the profile panel" },
+        ];
+        const stored = ssCtx.settings["arena_profile_visibility"] ?? {};
+
+        async function toggleArenaField(field, role) {
+          const defaults = ARENA_VISIBILITY_DEFAULTS[field] ?? {};
+          const fieldStored = stored[field] ?? {};
+          const merged = { ...defaults, ...fieldStored };
+          const next = { ...stored, [field]: { ...merged, [role]: !merged[role] } };
+          await ssCtx.setSetting("arena_profile_visibility", next);
+        }
+
+        return (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Users size={16} className="text-blue-600" />
+              <h3 className="font-semibold text-gray-900 dark:text-white">Arena Profile Visibility</h3>
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+              Control which data fields are visible for <em>other</em> consultants in Arena. Each user always sees their own full profile. Admins and managers always see everything.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-2 pr-4 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide w-32">Field</th>
+                    {ARENA_VIS_ROLES.map(r => (
+                      <th key={r} className="text-center py-2 px-2 min-w-[80px]">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${ROLE_COLORS[r] ?? 'bg-gray-100 text-gray-500'}`}>
+                          {r.replace(/_/g, ' ')}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ARENA_VIS_FIELDS.map(({ key, label, desc }, idx) => {
+                    const defaults = ARENA_VISIBILITY_DEFAULTS[key] ?? {};
+                    const fieldStored = stored[key] ?? {};
+                    const merged = { ...defaults, ...fieldStored };
+                    return (
+                      <tr key={key} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}
+                        title={desc}>
+                        <td className="py-2.5 pr-4 text-xs font-medium text-gray-700 dark:text-gray-300">{label}</td>
+                        {ARENA_VIS_ROLES.map(role => (
+                          <td key={role} className="text-center py-2.5 px-2">
+                            <button onClick={() => toggleArenaField(key, role)}
+                              className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                                merged[role]
+                                  ? 'bg-blue-600 border-blue-600 text-white'
+                                  : 'bg-transparent border-gray-400 dark:border-gray-500 text-transparent hover:border-blue-400'
+                              }`}>
+                              <Check size={11} />
+                            </button>
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-3">Hover a row to see what each field controls. Changes take effect immediately.</p>
+          </div>
+        );
+      })()}
 
       {/* ── Permission cards — one per group ── */}
       <p className="text-xs text-gray-400 dark:text-gray-500 px-1">

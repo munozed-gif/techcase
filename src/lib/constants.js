@@ -156,10 +156,20 @@ const WIZARD_MODE_DEFAULTS = {
   },
 };
 
+// Controls which roles can see detailed data for OTHER consultants in Arena.
+// Own data is always visible regardless of these settings.
+const ARENA_VISIBILITY_DEFAULTS = {
+  show_name:    { admin: true, manager: true, consultant: false, headhunter: true,  client: true,  key_user: false, final_user: false, project_manager: true,  internal_consultant: false },
+  show_rate:    { admin: true, manager: true, consultant: false, headhunter: true,  client: true,  key_user: false, final_user: false, project_manager: true,  internal_consultant: false },
+  show_contact: { admin: true, manager: true, consultant: false, headhunter: false, client: false, key_user: false, final_user: false, project_manager: false, internal_consultant: false },
+  show_skills:  { admin: true, manager: true, consultant: true,  headhunter: true,  client: true,  key_user: false, final_user: false, project_manager: true,  internal_consultant: true  },
+};
+
 export {
   ROLE_PERMISSIONS_DEFAULTS,
   WIZARD_MODE_DEFAULTS,
   GENERATION_CONTEXT_DEFAULTS,
   GENERATION_PROFILE_DEFAULTS,
   GEN_DOCS,
+  ARENA_VISIBILITY_DEFAULTS,
 };
