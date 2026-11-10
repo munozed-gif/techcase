@@ -1016,7 +1016,7 @@ function SettingsRolesTab({ ssCtx }) {
   const [matrix, setMatrix] = useState(null);
   const [wizardModes, setWizardModes] = useState(null);
   const [navVisibility, setNavVisibility] = useState({});
-  const [leaderboardVis, setLeaderboardVis] = useState({});
+  // leaderboardVis moved to immediate-save inside the Arena card
   const [saving, setSaving] = useState(false);
   const [toast, setToast]   = useState(null);
 
@@ -1040,9 +1040,7 @@ function SettingsRolesTab({ ssCtx }) {
       setWizardModes(mergedWiz);
       setNavVisibility(ssCtx.settings["nav_visibility_by_role"] ?? {});
 
-      const lbDefaults = {};
-      for (const r of NAV_VIS_ROLES) lbDefaults[r] = true;
-      setLeaderboardVis({ ...lbDefaults, ...(ssCtx.settings["leaderboard_carousel_by_role"] ?? {}) });
+      // leaderboard_carousel_by_role now saved immediately in the Arena card
     }
   }, [ssCtx.loading, ssCtx.settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1065,7 +1063,7 @@ function SettingsRolesTab({ ssCtx }) {
       await ssCtx.setSetting("role_permissions", matrix);
       await ssCtx.setSetting("wizard_modes", wizardModes);
       await ssCtx.setSetting("nav_visibility_by_role", navVisibility);
-      await ssCtx.setSetting("leaderboard_carousel_by_role", leaderboardVis);
+      // leaderboard_carousel_by_role is now saved immediately in the Arena card
       setToast(t("roles.saved"));
       setTimeout(() => setToast(null), 3000);
     } catch (e) {
@@ -1085,9 +1083,7 @@ function SettingsRolesTab({ ssCtx }) {
     }
     setWizardModes(freshWiz);
     setNavVisibility({});
-    const freshLb = {};
-    for (const r of NAV_VIS_ROLES) freshLb[r] = true;
-    setLeaderboardVis(freshLb);
+    // leaderboard_carousel_by_role now saved immediately — no local state to reset
   }
 
   if (ssCtx.loading || !matrix || !wizardModes) return <Spinner />;
@@ -1321,6 +1317,63 @@ function SettingsRolesTab({ ssCtx }) {
               </table>
             </div>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-3">Hover a row to see what each field controls. Changes take effect immediately.</p>
+
+            {/* ── Section 2: Leaderboard Carousel ── */}
+            <div className="mt-6 pt-5 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2 mb-1">
+                <Trophy size={14} className="text-purple-500" />
+                <h4 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Leaderboard Carousel</h4>
+              </div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
+                Control which roles can see the Arena leaderboard carousel. Admins always see it.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-2 pr-4 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide w-32">Feature</th>
+                      {ARENA_VIS_ROLES.map(r => (
+                        <th key={r} className="text-center py-2 px-2 min-w-[80px]">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${ROLE_COLORS[r] ?? 'bg-gray-100 text-gray-500'}`}>
+                            {r.replace(/_/g, ' ')}
+                          </span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-gray-100 dark:border-gray-700">
+                      <td className="py-2.5 pr-4 text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <div className="flex items-center gap-1.5"><Trophy size={11} className="text-purple-500 flex-shrink-0" />Carousel</div>
+                      </td>
+                      {ARENA_VIS_ROLES.map(role => {
+                        const lbStored = ssCtx.settings["leaderboard_carousel_by_role"] ?? {};
+                        const enabled = lbStored[role] !== false;
+                        return (
+                          <td key={role} className="text-center py-2.5 px-2">
+                            <button
+                              onClick={async () => {
+                                const current = ssCtx.settings["leaderboard_carousel_by_role"] ?? {};
+                                const next = { ...current, [role]: !enabled };
+                                await ssCtx.setSetting("leaderboard_carousel_by_role", next);
+                              }}
+                              className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                                enabled
+                                  ? 'bg-purple-600 border-purple-600 text-white'
+                                  : 'bg-transparent border-gray-400 dark:border-gray-500 text-transparent hover:border-purple-400'
+                              }`}
+                            >
+                              <Check size={11} />
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-3">Changes take effect immediately.</p>
+            </div>
           </div>
         );
       })()}
@@ -1342,15 +1395,6 @@ function SettingsRolesTab({ ssCtx }) {
           </div>
         );
       })}
-
-      {/* Display / Platform — leaderboard carousel */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
-        <div className="flex items-center gap-2">
-          <Trophy size={15} className="text-purple-500" />
-          <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Display</h3>
-        </div>
-        <PermTable caps={[]} leaderboard={true} />
-      </div>
 
       {/* Wizard Mode Defaults */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
