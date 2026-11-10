@@ -17,6 +17,10 @@
 --   full write on all rows: admin and manager only. Clients/headhunters write
 --     only their own cases; project update/delete rules are unchanged.
 --
+-- Existing policies are changed with ALTER POLICY rather than dropped:
+-- cases_read_auth becomes cases_select, and projects_read_auth is switched off
+-- (USING false) and renamed projects_read_auth_disabled.
+--
 -- Cross-table checks go through SECURITY DEFINER helpers so the cases and
 -- projects policies don't query each other under RLS (that recursion is what
 -- broke anon /join reads in the other project).
@@ -57,11 +61,11 @@ GRANT EXECUTE ON FUNCTION public.user_involved_in_project_cases(uuid) TO authent
 GRANT EXECUTE ON FUNCTION public.user_owns_project(uuid) TO authenticated;
 
 -- ── projects ────────────────────────────────────────────────────────────
-DROP POLICY IF EXISTS projects_read_auth ON public.projects;
+ALTER POLICY projects_read_auth ON public.projects RENAME TO projects_read_auth_disabled;
+ALTER POLICY projects_read_auth_disabled ON public.projects USING (false);
 
-DROP POLICY IF EXISTS projects_select ON public.projects;
-CREATE POLICY projects_select ON public.projects
-  FOR SELECT TO authenticated
+ALTER POLICY projects_select ON public.projects
+  TO authenticated
   USING (
     get_my_role() IN ('admin', 'manager', 'project_manager')
     OR client_id = auth.uid()
@@ -69,18 +73,15 @@ CREATE POLICY projects_select ON public.projects
     OR public.user_involved_in_project_cases(id)
   );
 
-DROP POLICY IF EXISTS projects_write_staff ON public.projects;
-CREATE POLICY projects_write_staff ON public.projects
-  FOR ALL TO authenticated
+ALTER POLICY projects_write_staff ON public.projects
+  TO authenticated
   USING (get_my_role() IN ('admin', 'manager'))
   WITH CHECK (get_my_role() IN ('admin', 'manager'));
 
 -- ── cases ───────────────────────────────────────────────────────────────
-DROP POLICY IF EXISTS cases_read_auth ON public.cases;
-
-DROP POLICY IF EXISTS cases_select ON public.cases;
-CREATE POLICY cases_select ON public.cases
-  FOR SELECT TO authenticated
+ALTER POLICY cases_read_auth ON public.cases RENAME TO cases_select;
+ALTER POLICY cases_select ON public.cases
+  TO authenticated
   USING (
     is_public = true
     OR client_id = auth.uid()
@@ -95,13 +96,11 @@ CREATE POLICY cases_select ON public.cases
     OR get_my_role() IN ('admin', 'manager', 'project_manager', 'dispatch')
   );
 
-DROP POLICY IF EXISTS cases_write_staff ON public.cases;
-CREATE POLICY cases_write_staff ON public.cases
-  FOR ALL TO authenticated
+ALTER POLICY cases_write_staff ON public.cases
+  TO authenticated
   USING (get_my_role() IN ('admin', 'manager'))
   WITH CHECK (get_my_role() IN ('admin', 'manager'));
 
-DROP POLICY IF EXISTS cases_client_own ON public.cases;
 CREATE POLICY cases_client_own ON public.cases
   FOR ALL TO authenticated
   USING (get_my_role() IN ('client', 'headhunter')
