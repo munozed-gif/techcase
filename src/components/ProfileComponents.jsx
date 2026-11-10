@@ -381,6 +381,11 @@ function ResumeImporter({ onExtracted }) {
 
   async function handleFile(file) {
     if (!file || file.type !== "application/pdf") { setError("Please select a PDF file."); return; }
+    // Sent base64-encoded (+33%) to a Vercel function, whose request body limit is 4.5 MB
+    if (file.size > 3 * 1024 * 1024) {
+      setError("This PDF is larger than 3 MB. Try the paste option or a smaller PDF.");
+      return;
+    }
     setLoading(true); setError("");
     try {
       const base64 = await new Promise((res, rej) => {

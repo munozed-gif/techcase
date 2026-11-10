@@ -1,7 +1,25 @@
 import { inflateSync } from "zlib";
+import { PDFParse } from "pdf-parse";
+import { getData as getPdfWorker } from "pdf-parse/worker";
 
-// Pure Node.js PDF text extractor — no external dependencies.
-// Handles FlateDecode compressed content streams and standard PDF text operators.
+// pdf.js needs its worker; on serverless the worker file isn't next to the
+// bundle, so load it from the data URL that pdf-parse/worker ships.
+PDFParse.setWorker(getPdfWorker());
+
+// Full PDF text extraction (embedded/CID fonts, ToUnicode maps, etc.),
+// which is what Word, Google Docs, Canva and browser-exported resumes use.
+async function extractWithPdfParse(buffer) {
+  const parser = new PDFParse({ data: new Uint8Array(buffer) });
+  try {
+    const result = await parser.getText();
+    return (result.text ?? "").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  } finally {
+    await parser.destroy();
+  }
+}
+
+// Fallback: minimal extractor for simple PDFs (FlateDecode streams with
+// literal-string Tj/TJ operators). Used only if pdf-parse fails.
 function extractText(buffer) {
   const raw = buffer.toString("latin1");
   const texts = [];
@@ -72,7 +90,13 @@ export default async function handler(req, res) {
 
   try {
     const buffer = Buffer.from(data, "base64");
-    const text = extractText(buffer);
+    let text = "";
+    try {
+      text = await extractWithPdfParse(buffer);
+    } catch (err) {
+      console.error("extract-pdf: pdf-parse failed, using fallback:", err?.message);
+    }
+    if (!text) text = extractText(buffer);
     if (!text) return res.status(422).json({ error: "No text found in PDF" });
     return res.json({ text: text.slice(0, 20000) });
   } catch (err) {
