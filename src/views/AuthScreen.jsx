@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BadgeCheck, Briefcase, Building2, Check, Crosshair, FolderKanban,
   Globe, Loader2, Mail, Send, Shield, UserCheck, UserCog,
@@ -63,7 +63,20 @@ function AuthScreen({ onAuth, onBack }) {
     try { return localStorage.getItem('ui_theme') !== 'light'; } catch { return true; }
   });
   const auth = useAuth();
-  const { settings: ssSettings } = useSystemSettings();
+  // AuthScreen renders outside SystemSettingsProvider so useSystemSettings() returns {}.
+  // Fetch auth-relevant settings directly from Supabase instead.
+  const [authSettings, setAuthSettings] = useState({});
+  useEffect(() => {
+    const KEYS = ["signup_roles_visible", "signup_flow_per_role", "role_permissions", "auto_approve_domains"];
+    supabase.from("system_settings").select("key, value").in("key", KEYS)
+      .then(({ data }) => {
+        if (!data) return;
+        const map = {};
+        data.forEach(r => { map[r.key] = r.value; });
+        setAuthSettings(map);
+      });
+  }, []);
+  const ssSettings = authSettings;
   const rolePermMatrix = ssSettings["role_permissions"] ?? {};
   function requiresTeamFor(r) {
     const defaults = ROLE_PERMISSIONS_DEFAULTS["require_team_signup"] ?? {};
