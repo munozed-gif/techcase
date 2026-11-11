@@ -225,6 +225,18 @@ async function getClient(creds) {
     const client = new Client({ name: 'adt-http-bridge', version: '1.0.0' });
     await client.connect(transport);
 
+    // mcp-abap-abap-adt-api runs ONE operation at a time on its single SAP session and
+    // rejects overlaps with "SAP session is busy" (429). Several callers share this
+    // subprocess (pipeline writes, infrastructure checks, Claude MCP sessions), so queue
+    // every call: each starts only after the previous one has finished.
+    const rawClientCallTool = client.callTool.bind(client);
+    let callChain = Promise.resolve();
+    client.callTool = (...callArgs) => {
+      const run = callChain.then(() => rawClientCallTool(...callArgs));
+      callChain = run.then(() => {}, () => {});
+      return run;
+    };
+
     transport.onclose = () => {
       console.warn(`[bridge] Client closed for ${key} — will respawn`);
       clientPool.delete(key);
@@ -288,10 +300,54 @@ app.use(express.json({ limit: '4mb' }));
 app.use((_req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,mcp-session-id');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,mcp-session-id,X-Sap-Target,X-App-Token,X-CSRF-Token,sap-client,corrNbr,Accept');
   if (_req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
+
+// ── App-user check on action endpoints ───────────────────────
+// This bridge is reachable on a public Cloudflare URL, while mcp-abap-abap-adt-api is
+// "a trusted operator tool, not … a multi-user service". SAP writes, the SAP proxy,
+// VPN control and SAP checks therefore require a logged-in app user: the browser (or
+// /api/adt-write on its behalf) sends its Supabase access token in X-App-Token, and we
+// verify it with Supabase (production and preproduction). /health and /status stay open.
+const APP_AUTH_PROJECTS = [
+  [process.env.SUPABASE_URL,     process.env.SUPABASE_SERVICE_KEY],
+  [process.env.SUPABASE_URL_DEV, process.env.SUPABASE_SERVICE_KEY_DEV],
+].map(([u, k]) => [String(u || '').trim().replace(/\/$/, ''), String(k || '').trim().replace(/[^\x21-\x7E]/g, '')])
+ .filter(([u, k]) => u && k);
+const _appTokenCache = new Map(); // token -> valid-until (ms)
+async function isValidAppToken(token) {
+  if (!token || typeof token !== 'string') return false;
+  const now = Date.now();
+  if ((_appTokenCache.get(token) ?? 0) > now) return true;
+  for (const [url, key] of APP_AUTH_PROJECTS) {
+    try {
+      const r = await fetch(`${url}/auth/v1/user`, {
+        headers: { apikey: key, Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (r.ok) {
+        if (_appTokenCache.size > 500) _appTokenCache.clear();
+        _appTokenCache.set(token, now + 5 * 60 * 1000);
+        return true;
+      }
+    } catch { /* try the next project */ }
+  }
+  return false;
+}
+let _warnedNoAppAuth = false;
+async function requireAppUser(req, res, next) {
+  if (req.method === 'OPTIONS') return next();
+  if (process.env.BRIDGE_ALLOW_ANONYMOUS === '1') return next();
+  if (!APP_AUTH_PROJECTS.length) {
+    if (!_warnedNoAppAuth) { console.warn('[bridge] No Supabase credentials — cannot verify app users; action endpoints are OPEN'); _warnedNoAppAuth = true; }
+    return next();
+  }
+  if (await isValidAppToken(req.headers['x-app-token'])) return next();
+  return res.status(401).json({ ok: false, error: 'App login required — sign in to the platform and retry' });
+}
+app.use(['/sap-proxy', '/vpn', '/sap-write', '/sap-write-mcp', '/sap-info', '/mcp-test'], requireAppUser);
 
 // Health endpoint (used by infrastructure check)
 app.get('/health', (_req, res) => {
@@ -423,9 +479,14 @@ app.all('/sap-proxy*', async (req, res) => {
   if (!sapTarget) return res.status(400).json({ error: 'Missing X-Sap-Target header' });
 
   const adtPath = req.path.replace(/^\/sap-proxy/, '') || '/';
+  // Only SAP ADT/ICF paths (as mcp-abap-abap-adt-api: "HTTP stays … under /sap/").
+  if (!adtPath.startsWith('/sap/')) return res.status(400).json({ error: 'Only /sap/... paths can be proxied' });
+  let _targetOk = false;
+  try { _targetOk = /^https?:$/.test(new URL(sapTarget).protocol); } catch {}
+  if (!_targetOk) return res.status(400).json({ error: 'Invalid X-Sap-Target' });
   const targetUrl = sapTarget.replace(/\/$/, '') + adtPath + (req.url.includes('?') ? '?' + req.url.split('?')[1] : '');
 
-  const SKIP_REQ = new Set(['host', 'x-sap-target', 'connection', 'transfer-encoding', 'keep-alive']);
+  const SKIP_REQ = new Set(['host', 'x-sap-target', 'x-app-token', 'connection', 'transfer-encoding', 'keep-alive']);
   const forwardHeaders = {};
   for (const [k, v] of Object.entries(req.headers)) {
     if (!SKIP_REQ.has(k.toLowerCase())) forwardHeaders[k] = v;
@@ -459,8 +520,10 @@ app.post('/sap-info', async (req, res) => {
   try {
     const creds = parseSapCreds(req.headers['authorization']) || {};
     const host     = (creds.host     || req.body?.host     || process.env.SAP_URL      || '').replace(/\/$/, '');
-    const username = creds.username  || req.body?.username || process.env.SAP_USER     || '';
-    const password = creds.password  || req.body?.password || process.env.SAP_PASSWORD || '';
+    const username = creds.username  || req.body?.username || '';
+    const password = creds.password  || req.body?.password || '';
+    // Callers must bring their own SAP credentials: never fall back to the VM's .env user.
+    if (!username || !password) return res.status(401).json({ ok: false, error: 'SAP credentials required' });
     const client   = creds.client    || req.body?.client   || process.env.SAP_CLIENT   || '100';
 
     if (!host || !username || !password) {
@@ -562,8 +625,10 @@ app.post('/sap-write', async (req, res) => {
   try {
     const creds = parseSapCreds(req.headers['authorization']) || {};
     const host      = (creds.host     || req.body?.host     || process.env.SAP_URL      || '').replace(/\/$/, '');
-    const username  = creds.username  || req.body?.username || process.env.SAP_USER     || '';
-    const password  = creds.password  || req.body?.password || process.env.SAP_PASSWORD || '';
+    const username  = creds.username  || req.body?.username || '';
+    const password  = creds.password  || req.body?.password || '';
+    // Callers must bring their own SAP credentials: never fall back to the VM's .env user.
+    if (!username || !password) return res.status(401).json({ ok: false, error: 'SAP credentials required' });
     const client    = creds.client    || req.body?.client   || process.env.SAP_CLIENT   || '100';
     const adtPath   = req.body?.path;
     const source    = req.body?.source;
@@ -760,8 +825,10 @@ app.post('/sap-write-mcp', async (req, res) => {
   try {
     const creds      = parseSapCreds(req.headers['authorization']) || {};
     const host       = (creds.host     || req.body?.host     || process.env.SAP_URL      || '').replace(/\/$/, '');
-    const username   = creds.username  || req.body?.username || process.env.SAP_USER     || '';
-    const password   = creds.password  || req.body?.password || process.env.SAP_PASSWORD || '';
+    const username   = creds.username  || req.body?.username || '';
+    const password   = creds.password  || req.body?.password || '';
+    // Callers must bring their own SAP credentials: never fall back to the VM's .env user.
+    if (!username || !password) return res.status(401).json({ ok: false, error: 'SAP credentials required' });
     const sapClient  = creds.client    || req.body?.client   || process.env.SAP_CLIENT   || '100';
     const adtPath    = req.body?.path;
     const source     = req.body?.source;
@@ -811,76 +878,76 @@ app.post('/sap-write-mcp', async (req, res) => {
     // callTool: wraps client.callTool with two layers of protection:
     //   1. isError: true in the result → convert to thrown Error (SAP rejected the call)
     //   2. -32000 crash code → delete pool entry and retry once with a fresh subprocess
+    // Calls that are safe to repeat after the SAP session was interrupted: reads and
+    // idempotent steps. Anything else (createTransport, createObject, deletes, releases…)
+    // may already have run in SAP and is NOT repeated — mcp-abap-abap-adt-api "does not
+    // retry mutations" and says to "inspect writes and locks" first.
+    const SAFE_TO_REPEAT = new Set([
+      'searchObject', 'transportInfo', 'objectStructure', 'getObjectSource', 'ddicElement',
+      'syntaxCheckCode', 'lock', 'unLock', 'setObjectSource', 'activateByName', 'healthcheck',
+    ]);
+    // "Previous operation was interrupted…": rejected BEFORE running → always safe to repeat.
+    const INTERRUPTED_RE = /interrupted.*(login|dropSession)|dropSession before continuing/i;
+    // This call itself ran into a timeout/cancellation → it may have reached SAP.
+    const RAN_AND_CUT_RE = /SAP operation cancelled or timed out|Request timed out|-32001/i;
+    const CRASH_RE       = /connection closed|-32000/i;
+
     async function callTool(name, args) {
       async function rawCall(c) {
         const result = await c.callTool({ name, arguments: args }, undefined, { timeout: MCP_CALL_TIMEOUT_MS });
         if (result?.isError) {
           const errText = result.content?.[0]?.text ?? 'tool returned isError';
           console.error(`[bridge] ${name} isError — ${errText.slice(0, 200)}`);
-          // Tag as SAP-level error so isCrash never treats it as a subprocess crash.
-          // SAP isError responses often embed "code":-32603 in their JSON body, which
-          // would otherwise match our isCrash regex and trigger a pointless respawn.
           const sapErr = new Error(errText.slice(0, 300));
           sapErr.isSapError = true;
           throw sapErr;
         }
         return result;
       }
-      const INTERRUPTED_RE = /interrupted.*(login|dropSession)|dropSession before continuing/i;
+      const poolKey = `${host}|${username}|abap-adt`;
+      async function respawn() {
+        try { clientPool.get(poolKey)?.close?.(); } catch {}
+        clientPool.delete(poolKey);
+        return getClient(creds4Pool);
+      }
+      async function recoverSession(c) {
+        try { await c.callTool({ name: 'dropSession', arguments: {} }, undefined, { timeout: MCP_CALL_TIMEOUT_MS }); }
+        catch (dsErr) { console.warn(`[bridge] dropSession failed: ${dsErr.message?.slice(0, 80)}`); }
+        try { await c.callTool({ name: 'login', arguments: {} }, undefined, { timeout: MCP_CALL_TIMEOUT_MS }); }
+        catch (liErr) { console.warn(`[bridge] login failed: ${liErr.message?.slice(0, 80)}`); }
+      }
+
       let client = await getClient(creds4Pool);
       try {
         return await rawCall(client);
       } catch (e0) {
-        let e = e0;
-        // "Previous operation was interrupted. Inspect possible writes/locks, then
-        // explicitly login or dropSession before continuing" comes back as a normal
-        // isError result, so the crash path below never saw it and every later call
-        // failed until the bridge was restarted. Recover in place: drop the stuck SAP
-        // session (which also releases its locks), log in again, retry once.
-        if (INTERRUPTED_RE.test(e?.message ?? '') && name !== 'dropSession' && name !== 'login') {
-          console.warn(`[bridge] '${name}' hit an interrupted SAP session — dropSession + login, then retry`);
-          try { await client.callTool({ name: 'dropSession', arguments: {} }, undefined, { timeout: MCP_CALL_TIMEOUT_MS }); }
-          catch (dsErr) { console.warn(`[bridge] dropSession failed: ${dsErr.message?.slice(0, 80)}`); }
-          try { await client.callTool({ name: 'login', arguments: {} }, undefined, { timeout: MCP_CALL_TIMEOUT_MS }); }
-          catch (liErr) { console.warn(`[bridge] login failed: ${liErr.message?.slice(0, 80)}`); }
-          try {
-            return await rawCall(client);
-          } catch (e2) {
-            if (!INTERRUPTED_RE.test(e2?.message ?? '')) throw e2;
-            // Still stuck — fall through and replace the subprocess.
-            e = Object.assign(new Error(e2.message), { isSapError: false });
-          }
+        const msg0 = e0?.message ?? '';
+        const rejectedBeforeRunning = INTERRUPTED_RE.test(msg0);
+        const ranAndCut = !rejectedBeforeRunning && RAN_AND_CUT_RE.test(msg0);
+        const crashed   = !rejectedBeforeRunning && !ranAndCut && !e0?.isSapError && (e0?.code === -32000 || CRASH_RE.test(msg0));
+        if (!rejectedBeforeRunning && !ranAndCut && !crashed) throw e0;
+        if (name === 'dropSession' || name === 'login') throw e0;
+
+        const why = rejectedBeforeRunning ? 'session was in interrupted state' : ranAndCut ? 'call was cancelled/timed out' : 'subprocess crashed';
+        console.warn(`[bridge] '${name}': ${why} — recovering SAP session`);
+        if (crashed) client = await respawn();
+        await recoverSession(client);
+
+        if (!rejectedBeforeRunning && !SAFE_TO_REPEAT.has(name)) {
+          const err = new Error(`SAP ${name} was cancelled or timed out and was NOT repeated — it may already have run in SAP (session recovered).`);
+          err.notRepeated = true;
+          throw err;
         }
-        const msg = e?.message ?? '';
-        // isSapError = thrown from isError:true result (SAP rejected the call, subprocess is fine).
-        // Never treat those as subprocess crashes even if the error text contains -32603.
-        const isCrash = !e?.isSapError && (
-          e?.code === -32000 || e?.code === -32001
-          || /connection closed|-32000|-32001|timed out/i.test(msg)
-          || /interrupted.*dropSession|dropSession before continuing|-32603/i.test(msg)
-        );
-        if (!isCrash) throw e;
-        const reason = e?.code === -32001 || /timed out|-32001/i.test(msg) ? 'timeout (-32001)'
-          : /-32603|interrupted|dropSession/i.test(msg) ? 'interrupted session (-32603)'
-          : 'crash (-32000)';
-        console.warn(`[bridge] MCP subprocess needs reset on '${name}' (${reason}) — respawning...`);
-        const key = `${host}|${username}|abap-adt`;
-        // Close the old subprocess too — deleting it from the pool alone left it running.
-        try { clientPool.get(key)?.close?.(); } catch {}
-        clientPool.delete(key);
-        client = await getClient(creds4Pool);
-        // Clear SAP-side stuck session state before retrying — mario's readme prescribes
-        // login/dropSession/logout after an interrupted write to allow subsequent operations.
-        // Skip if we ARE dropSession to avoid recursion.
-        if (name !== 'dropSession') {
-          try {
-            await client.callTool({ name: 'dropSession', arguments: {} }, undefined, { timeout: MCP_CALL_TIMEOUT_MS });
-            console.log(`[bridge] dropSession succeeded — SAP session cleared, retrying ${name}`);
-          } catch (dsErr) {
-            console.warn(`[bridge] dropSession failed (${dsErr.message?.slice(0, 80)}) — retrying ${name} anyway`);
-          }
+        try {
+          return await rawCall(client);
+        } catch (e2) {
+          if (!INTERRUPTED_RE.test(e2?.message ?? '')) throw e2;
+          // Session still stuck after in-place recovery: replace the subprocess once.
+          console.warn(`[bridge] '${name}': session still interrupted — replacing subprocess`);
+          client = await respawn();
+          await recoverSession(client);
+          return await rawCall(client);
         }
-        return await rawCall(client);
       }
     }
 
@@ -950,6 +1017,11 @@ app.post('/sap-write-mcp', async (req, res) => {
           console.warn(`[bridge] createTransport (MCP) returned no TR number: ${JSON.stringify(trResult).slice(0, 200)}`);
         }
       } catch (trMcpErr) {
+        if (trMcpErr.notRepeated) {
+          // The request may already exist in SAP: creating another one would duplicate it.
+          return res.json({ ok: false, step: 'createTransport',
+            error: `Creating the transport request was interrupted and NOT repeated — a request "${trDesc}" may already exist in SAP. Check SE09/SE10, enter it as the case's Transport Request, then retry.` });
+        }
         console.warn(`[bridge] createTransport (MCP) failed: ${trMcpErr.message?.slice(0, 200)} — falling back to direct HTTP`);
         try {
           transport = await createTransportViaAdt(host, username, password, sapClient, trDesc);
@@ -1132,7 +1204,9 @@ app.post('/sap-write-mcp', async (req, res) => {
         });
       } catch (e) {
         const msg = e.message ?? '';
-        if (!/already exist|duplicate|409/i.test(msg)) {
+        if (e.notRepeated && (await existsInRepository()) === true) {
+          console.log(`[bridge] createObject for ${resolvedName} was interrupted but the object exists — continuing`);
+        } else if (!/already exist|duplicate|409/i.test(msg)) {
           return res.json({ ok: false, step: 'create', error: msg.slice(0, 300) });
         }
       }
@@ -1270,6 +1344,10 @@ function buildServer(client) {
 app.post('/mcp', async (req, res) => {
   try {
     const creds = parseSapCreds(req.headers['authorization']);
+    // Require the caller's SAP credentials (no fallback to the VM's .env user).
+    if (!creds?.username || !creds?.password) {
+      return res.status(401).json({ jsonrpc: '2.0', error: { code: -32001, message: 'SAP credentials required in Authorization token' }, id: null });
+    }
     const client = await getClient(creds);
     const sessionId = req.headers['mcp-session-id'];
 

@@ -7,6 +7,7 @@ import {
   Laptop, Monitor, Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { bridgeAuthHeaders } from "../lib/bridgeAuth.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useDbConnections, useProjectDbConnections } from "../hooks/useCoreHooks.js";
@@ -400,6 +401,7 @@ async function sapApiRequest(config, path, opts = {}) {
     Accept: 'application/xml, text/xml, text/plain',
     'sap-client': String(config.client || '100'),
     ...(proxyUrl ? { 'X-Sap-Target': config.host.trim().replace(/\/$/, '') } : {}),
+    ...(proxyUrl && !/\/api\/sap-proxy\b/.test(proxyUrl) ? await bridgeAuthHeaders(base) : {}),
     ...(opts.headers ?? {}),
   };
   const url = `${base}${path}`;
@@ -560,7 +562,8 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
     try {
       const r = await fetch('/api/adt-write', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // /api/adt-write forwards the app token to the bridge, which requires it
+        headers: { 'Content-Type': 'application/json', ...(await bridgeAuthHeaders()) },
         body: JSON.stringify({
           bridgeUrl: adtWriteBase,
           host: config.host, username: config.username,
@@ -2451,7 +2454,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       setLiveNode('vpn', { status: 'fixing', detail: 'Stopping VM VPN (loop disabled — user manages VPN)…', log: [] });
       addLog('vpn', 'VPN loop is OFF — stopping VM openfortivpn to avoid conflicting with FortiClient…', 'warn');
       try {
-        await fetch(`${vmMcpBase}/vpn/stop`, { method: 'POST', signal: AbortSignal.timeout(10000) });
+        await fetch(`${vmMcpBase}/vpn/stop`, { method: 'POST', headers: await bridgeAuthHeaders(vmMcpBase), signal: AbortSignal.timeout(10000) });
         addLog('vpn', 'VM openfortivpn stopped.', 'success');
       } catch (e) {
         addLog('vpn', `Could not stop VM VPN: ${e.message?.slice(0, 60)}`, 'warn');
@@ -2581,7 +2584,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       try {
         const sr = await fetch(`${vmMcpBase}/vpn/start`, {
           method: 'POST',
-          headers: startBody ? { 'Content-Type': 'application/json' } : {},
+          headers: { ...(startBody ? { 'Content-Type': 'application/json' } : {}), ...(await bridgeAuthHeaders(vmMcpBase)) },
           body: startBody ?? undefined,
           signal: AbortSignal.timeout(35000),
         });
@@ -2839,7 +2842,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       const doSapCheck = async () => {
         const r = await fetch(`${currentMcpBase}/sap-info`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await bridgeAuthHeaders(currentMcpBase)) },
           body: JSON.stringify({ host: env.host, username: env.username, password: env.password, client: env.client || '100' }),
           signal: AbortSignal.timeout(35000),
         });
@@ -2865,7 +2868,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         try {
           const tr = await fetch(`${currentMcpBase}/mcp-test`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await bridgeAuthHeaders(currentMcpBase)) },
             body: JSON.stringify({ host: env.host, username: env.username, password: env.password, client: env.client || '100' }),
             signal: AbortSignal.timeout(45000),
           });
@@ -3116,6 +3119,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     try {
       const r = await fetch(`${base}/vpn/stop`, {
         method: 'POST',
+        headers: await bridgeAuthHeaders(base),
         signal: AbortSignal.timeout(12000),
       }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
       setStopVpnMsg(r.ok ? '✓ VM VPN stopped' : `✗ ${r.error?.slice(0, 60) || 'Failed'}`);

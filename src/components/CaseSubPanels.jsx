@@ -7,6 +7,7 @@ import {
   UserCheck, Users, Wand2, X, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { bridgeAuthHeaders } from "../lib/bridgeAuth.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
@@ -2645,7 +2646,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
         // Route through MCP server — server-side, bypasses CORS, uses VM's VPN access
         const r = await fetch(`${mcpBase}/sap-info`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await bridgeAuthHeaders(mcpBase)) },
           body: JSON.stringify({
             host:     resolvedCfg.host,
             username: resolvedCfg.username,

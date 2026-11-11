@@ -255,4 +255,7 @@ fi
 # ── Start the ADT bridge ───────────────────────────────────────
 export SUPABASE_URL
 export SUPABASE_SERVICE_KEY
+# Preproduction Supabase too, so the bridge can verify app users from either deployment
+export SUPABASE_URL_DEV
+export SUPABASE_SERVICE_KEY_DEV
 PORT=$PORT node server.js

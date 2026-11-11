@@ -43,7 +43,11 @@ export default async function handler(req, res) {
   try {
     const r = await fetch(`${targetBase}/sap-write-mcp`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // Pass the user's app token through: the bridge only accepts logged-in users
+        ...(req.headers['x-app-token'] ? { 'X-App-Token': req.headers['x-app-token'] } : {}),
+      },
       body: JSON.stringify(writePayload),
       signal: AbortSignal.timeout(115000),
     });
