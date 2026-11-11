@@ -459,7 +459,10 @@ const SAP_OUTCOME_HINT = {
 async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg, description, policy, capabilities, globalObjectMap) {
   const objCfg = resolveObjectTypeConfig(objectType, objectName, globalObjectMap, config.adt_object_map);
   const path = objCfg.path;
-  const createOnly = objCfg.createOnly ?? false;
+  // No source = "create the skeleton only" (adt-create-only policy, e.g. tables).
+  // Use the bridge's create-only path, which treats "already exists" as success and
+  // then unlocks/activates/verifies; the source path would try to write a null source.
+  const createOnly = (objCfg.createOnly ?? false) || source == null;
 
   // For types with no ABAP source and not createOnly: must be done manually
   if (!path && !createOnly) {

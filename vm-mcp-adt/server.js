@@ -1091,7 +1091,13 @@ app.post('/sap-write-mcp', async (req, res) => {
           });
           lockHandle = await doLock();
         } catch (e2) {
-          return res.json({ ok: false, step: 'lock_after_create', error: e2.message?.slice(0, 300) });
+          const m2 = e2.message ?? '';
+          // SAP says it exists but cannot lock it as if it didn't: typically an object left
+          // half-created by an interrupted run. Report that instead of "already exists".
+          const error = /already exist/i.test(m2)
+            ? `${resolvedName} exists in SAP but cannot be locked (${msg.slice(0, 120)}). It may be half-created by an interrupted run — open it in SE11/SE80, activate or delete it, then retry.`
+            : m2.slice(0, 300);
+          return res.json({ ok: false, step: 'lock_after_create', error });
         }
       } else {
         return res.json({ ok: false, step: 'lock', error: msg.slice(0, 300) });
