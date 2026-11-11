@@ -39,7 +39,15 @@ function PendingApprovalScreen({ auth }) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${auth.user.id}` },
         (payload) => { if (payload.new?.verification_status === 'approved') window.location.reload(); })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Realtime only fires if public.users is in the supabase_realtime publication, which
+    // it isn't — so also check every 15s and open the platform as soon as it's approved.
+    const poll = setInterval(async () => {
+      try {
+        const { data } = await supabase.from("users").select("verification_status").eq("id", auth.user.id).maybeSingle();
+        if (data?.verification_status === 'approved') window.location.reload();
+      } catch { /* try again next tick */ }
+    }, 15000);
+    return () => { supabase.removeChannel(channel); clearInterval(poll); };
   }, [auth.user?.id, isRejected]);
 
   async function recheckStatus() {

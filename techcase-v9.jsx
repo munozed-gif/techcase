@@ -558,6 +558,31 @@ function StartDateMonitor({ auth }) {
   return null;
 }
 
+// Shown while a logged-in user's profile is still loading. Without it the app fell
+// through to the main layout with no profile/role — a dark, empty screen (especially on
+// mobile, where the sidebar is hidden) until the user refreshed.
+function ProfileLoadingScreen({ onRetry, onSignOut }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div className="arena-dark min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50 p-6 text-center">
+      <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+      {slow && (
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500">Your profile is taking longer than usual to load.</p>
+          <div className="flex gap-2 justify-center">
+            <button onClick={onRetry} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700">Retry</button>
+            <button onClick={onSignOut} className="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">Sign out</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SetNewPasswordScreen({ onDone }) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm]   = useState('');
@@ -739,15 +764,20 @@ export default function App() {
     return () => window.removeEventListener("nav-from-notification", onNavFromNotification);
   }, []);
 
-  // Sync authed state with auth session
+  // Sync authed state with auth session.
+  // A session found when the app loads (refresh, magic-link/OAuth redirect) logs the user
+  // in directly. While the sign-in/sign-up screen is open, it calls onAuth itself when it
+  // is finished — don't jump ahead of it: entering the sign-up verification code creates
+  // the session before the role/profile step, and switching to the app at that moment
+  // skipped that step and showed the main layout before any profile existed.
+  const initialAuthSynced = useRef(false);
   useEffect(() => {
-    if (!auth.loading) {
-      setAuthed(!!auth.user);
-      if (auth.user) {
-        try { localStorage.setItem('arena_returning', '1'); } catch {}
-      }
-    }
-  }, [auth.loading, auth.user]);
+    if (auth.loading) return;
+    if (!auth.user) { setAuthed(false); initialAuthSynced.current = true; return; }
+    if (!initialAuthSynced.current || !showAuth) setAuthed(true);
+    initialAuthSynced.current = true;
+    try { localStorage.setItem('arena_returning', '1'); } catch {}
+  }, [auth.loading, auth.user, showAuth]);
 
   // Handle Stripe return URL (?stripe=success|cancel)
   useEffect(() => {
@@ -843,12 +873,25 @@ export default function App() {
             onBack={() => setShowAuth(false)}
             onAuth={(newRole = null) => {
               try { localStorage.setItem('arena_returning', '1'); } catch {}
+              // The sign-up profile step saved name/role/approval after the session (and a
+              // first profile fetch) existed — reload it so the app doesn't act on stale data.
+              auth.refreshProfile();
               setAuthed(true);
               setShowAuth(false);
               if (newRole) setOnboarding(newRole);
             }} />
         </LanguageProvider>
       </SystemSettingsProvider>
+    );
+  }
+
+  // Logged in but the profile hasn't loaded yet: never render the app without it.
+  if (!auth.profile) {
+    return (
+      <ProfileLoadingScreen
+        onRetry={() => auth.refreshProfile()}
+        onSignOut={async () => { await auth.signOut(); setAuthed(false); setShowAuth(true); }}
+      />
     );
   }
 
