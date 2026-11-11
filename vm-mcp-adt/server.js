@@ -142,6 +142,14 @@ function parseSapCreds(authHeader) {
 }
 
 // ── Subprocess client pool (keyed by SAP host+user) ──────────
+// mcp-abap-abap-adt-api enters an "interrupted" state (refusing further calls until
+// login/dropSession) when an MCP call is cancelled mid-request. Its own SAP timeout is
+// SAP_REQUEST_TIMEOUT_MS; give every MCP call a margin beyond that so the subprocess
+// times out and reports first, instead of us cancelling it (README: "Cancellation
+// closes real sockets ... an interrupted write may already have changed SAP").
+const SAP_REQUEST_TIMEOUT_MS = 90000;
+const MCP_CALL_TIMEOUT_MS    = SAP_REQUEST_TIMEOUT_MS + 15000;
+
 const clientPool = new Map();
 // Serializes all subprocess spawning — only one subprocess may be created at a time on this VM.
 let _spawnMutex = Promise.resolve();
@@ -208,7 +216,7 @@ async function getClient(creds) {
         SAP_PASSWORD: sapPassword,
         SAP_CLIENT:   sapClient,
         SAP_LANGUAGE: sapLanguage,
-        SAP_REQUEST_TIMEOUT_MS: '90000',
+        SAP_REQUEST_TIMEOUT_MS: String(SAP_REQUEST_TIMEOUT_MS),
         ...tlsEnv,
         ...proxyEnv,
       },
@@ -635,6 +643,7 @@ async function verifyWithRO(host, username, password, client, objtype, resolvedN
       'MSAG/N':  ['getmessageclass', 'messageclass', 'message'],
       'TABL/DT': ['gettable', 'table'],
       'STRU/DS': ['getstructure', 'structure'],
+      'TABL/DS': ['getstructure', 'structure'],
     };
     const candidates = hints[objtype] ?? ['getobject', 'readobject', 'get', 'read'];
     const matched = toolList.find(t =>
@@ -799,7 +808,7 @@ app.post('/sap-write-mcp', async (req, res) => {
     //   2. -32000 crash code → delete pool entry and retry once with a fresh subprocess
     async function callTool(name, args) {
       async function rawCall(c) {
-        const result = await c.callTool({ name, arguments: args }, undefined, { timeout: 90000 });
+        const result = await c.callTool({ name, arguments: args }, undefined, { timeout: MCP_CALL_TIMEOUT_MS });
         if (result?.isError) {
           const errText = result.content?.[0]?.text ?? 'tool returned isError';
           console.error(`[bridge] ${name} isError — ${errText.slice(0, 200)}`);
@@ -825,9 +834,9 @@ app.post('/sap-write-mcp', async (req, res) => {
         // session (which also releases its locks), log in again, retry once.
         if (INTERRUPTED_RE.test(e?.message ?? '') && name !== 'dropSession' && name !== 'login') {
           console.warn(`[bridge] '${name}' hit an interrupted SAP session — dropSession + login, then retry`);
-          try { await client.callTool({ name: 'dropSession', arguments: {} }, undefined, { timeout: 15000 }); }
+          try { await client.callTool({ name: 'dropSession', arguments: {} }, undefined, { timeout: MCP_CALL_TIMEOUT_MS }); }
           catch (dsErr) { console.warn(`[bridge] dropSession failed: ${dsErr.message?.slice(0, 80)}`); }
-          try { await client.callTool({ name: 'login', arguments: {} }, undefined, { timeout: 30000 }); }
+          try { await client.callTool({ name: 'login', arguments: {} }, undefined, { timeout: MCP_CALL_TIMEOUT_MS }); }
           catch (liErr) { console.warn(`[bridge] login failed: ${liErr.message?.slice(0, 80)}`); }
           try {
             return await rawCall(client);
@@ -860,13 +869,31 @@ app.post('/sap-write-mcp', async (req, res) => {
         // Skip if we ARE dropSession to avoid recursion.
         if (name !== 'dropSession') {
           try {
-            await client.callTool({ name: 'dropSession', arguments: {} }, undefined, { timeout: 15000 });
+            await client.callTool({ name: 'dropSession', arguments: {} }, undefined, { timeout: MCP_CALL_TIMEOUT_MS });
             console.log(`[bridge] dropSession succeeded — SAP session cleared, retrying ${name}`);
           } catch (dsErr) {
             console.warn(`[bridge] dropSession failed (${dsErr.message?.slice(0, 80)}) — retrying ${name} anyway`);
           }
         }
         return await rawCall(client);
+      }
+    }
+
+    // Inspect before writing (mcp-abap-abap-adt-api README: "inspect writes and locks").
+    // searchObject sees active and inactive repository objects. Returns true/false, or
+    // null when the search fails or can't be parsed (then we fall back to create-and-see).
+    async function existsInRepository() {
+      try {
+        const r = parseMcpText(await callTool('searchObject', { query: resolvedName }));
+        const items = Array.isArray(r) ? r : Array.isArray(r?.results) ? r.results : null;
+        if (!items) return null;
+        const typePrefix = String(objtype ?? '').split('/')[0].toUpperCase();
+        return items.some(o =>
+          String(o?.['adtcore:name'] ?? o?.name ?? '').toUpperCase() === resolvedName.toUpperCase()
+          && (!typePrefix || String(o?.['adtcore:type'] ?? o?.type ?? '').toUpperCase().startsWith(typePrefix)));
+      } catch (e) {
+        console.warn(`[bridge] searchObject pre-check failed (${e.message?.slice(0, 80)}) — continuing`);
+        return null;
       }
     }
 
@@ -926,7 +953,11 @@ app.post('/sap-write-mcp', async (req, res) => {
         console.log(`[bridge] Evicted R/O pool entry to free memory before createOnly`);
       }
       let created = false;
-      try {
+      const existedBefore = (await existsInRepository()) === true;
+      if (existedBefore) {
+        console.log(`[bridge] ${resolvedName} already in SAP repository — skipping createObject (${_coElapsed()})`);
+        created = true;
+      } else try {
         console.log(`[bridge] [timing] createObject calling MCP (${_coElapsed()})`);
         await callTool('createObject', {
           objtype, name: resolvedName, parentName, description, parentPath,
@@ -1043,15 +1074,16 @@ app.post('/sap-write-mcp', async (req, res) => {
         console.log(`[bridge] [timing] verifyViaHttp done (${_coElapsed()}) ok=${verify.ok}`);
       }
       return res.json({
-        ok: true, status: 200, createOnly: true, created,
+        ok: true, status: 200, createOnly: true, created: !existedBefore,
         package: parentName,
         transport: transport || null,
-        note: `${objtype} ${resolvedName} ${created ? 'created' : 'already existed'} in SAP (pkg: ${parentName}). Set properties (data type, length, labels) in SE11/SE91.`,
+        note: `${objtype} ${resolvedName} ${existedBefore ? 'already existed' : 'created'} in SAP (pkg: ${parentName}). Set properties (data type, length, labels) in SE11/SE91.`,
         verify,
         // Per-step outcome so the app can tell "done" apart from "written but not
         // activated / not confirmed". null = step not applicable or skipped by policy.
         steps: {
-          created: true,
+          created: !existedBefore,
+          existed: existedBefore,
           unlocked: skipActivation ? null : unlocked,
           activated: skipActivation ? null : (activationAttempted ? !activateError : (unlocked ? null : false)),
           verified: verify.skipped ? null : verify.ok === true,
@@ -1062,8 +1094,10 @@ app.post('/sap-write-mcp', async (req, res) => {
 
     // ── Normal path: source-based objects ───────────────────────────────────
 
-    // 1. Auto-create if requested
-    if (autoCreate && objtype && resolvedName) {
+    // 1. Auto-create if requested (skip when the object is already in the repository)
+    const existedBefore = autoCreate && objtype && resolvedName ? (await existsInRepository()) === true : null;
+    if (existedBefore) console.log(`[bridge] ${resolvedName} already in SAP repository — skipping createObject`);
+    if (autoCreate && objtype && resolvedName && !existedBefore) {
       try {
         await callTool('createObject', {
           objtype, name: resolvedName, parentName, description, parentPath,
@@ -1121,14 +1155,26 @@ app.post('/sap-write-mcp', async (req, res) => {
 
     // 5. Syntax check (optional, conditional on policy)
     let syntaxErrors = null;
-    if (effectivePolicy.syntaxCheckBeforeWrite && effectiveCaps.hasSyntaxCheck) {
+    // Always for DDIC sources (tables/structures): a bad definition should fail here with
+    // a clear message instead of failing activation. Args per the tool's README.
+    const isDdicSource = /^TABL\//i.test(objtype ?? '') || /\/ddic\/(dbtables|structures)\//i.test(objectSourceUrl);
+    if ((effectivePolicy.syntaxCheckBeforeWrite || isDdicSource) && effectiveCaps.hasSyntaxCheck !== false) {
       try {
-        const syntaxResult = await callTool('syntaxCheckCode', { objectUrl: objectSourceUrl });
+        const syntaxResult = await callTool('syntaxCheckCode', { code: source, url: objectSourceUrl, mainUrl: objectSourceUrl });
         const syntaxText = syntaxResult?.content?.[0]?.text ?? '';
-        const hasErrors = /error|syntaxError/i.test(syntaxText) && !/no error/i.test(syntaxText);
+        let hasErrors;
+        try {
+          const parsed = JSON.parse(syntaxText);
+          const msgs = Array.isArray(parsed) ? parsed : (parsed?.messages ?? parsed?.results ?? null);
+          hasErrors = Array.isArray(msgs)
+            ? msgs.some(m => /^(E|A|X)$/i.test(String(m?.severity ?? m?.type ?? m?.kind ?? '')) || /^error$/i.test(String(m?.severity ?? '')))
+            : /error|syntaxError/i.test(syntaxText) && !/no error/i.test(syntaxText);
+        } catch {
+          hasErrors = /error|syntaxError/i.test(syntaxText) && !/no error/i.test(syntaxText);
+        }
         if (hasErrors) {
           if (effectivePolicy.stopOnSyntaxError) {
-            return res.json({ ok: false, step: 'syntaxCheck', error: `Syntax errors: ${syntaxText.slice(0, 300)}` });
+            return res.json({ ok: false, step: 'syntaxCheck', error: `Syntax errors — source saved in SAP but NOT activated: ${syntaxText.slice(0, 300)}` });
           }
           syntaxErrors = syntaxText.slice(0, 300);
         }
@@ -1155,6 +1201,8 @@ app.post('/sap-write-mcp', async (req, res) => {
       ok: true, status: 200, transport: transport || null, verify,
       steps: {
         updated: true,
+        ...(existedBefore === false && autoCreate ? { created: true } : {}),
+        ...(existedBefore ? { existed: true } : {}),
         unlocked,
         activated: activationAttempted ? !activateError : null,
         verified: verify.skipped ? null : verify.ok === true,

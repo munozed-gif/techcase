@@ -133,7 +133,7 @@ const SAP_ADT_OBJECT_MAP_DEFAULTS = {
   function_module: { pathTpl: '/sap/bc/adt/functions/groups/{FG}/fmodules/{FM}/source/main', urlTpl: '/sap/bc/adt/functions/groups/{FG}', objtype: 'FUGR/FF', createOnly: false, roToolHint: 'getfunctiongroup' },
   bapi:          { pathTpl: '/sap/bc/adt/functions/groups/{FG}/fmodules/{FM}/source/main', urlTpl: '/sap/bc/adt/functions/groups/{FG}', objtype: 'FUGR/FF', createOnly: false, roToolHint: 'getfunctiongroup' },
   table:         { pathTpl: '/sap/bc/adt/ddic/dbtables/{N}/source/main', urlTpl: '/sap/bc/adt/ddic/dbtables/{N}', objtype: 'TABL/DT', createOnly: false, roToolHint: 'gettable' },
-  structure:     { pathTpl: '/sap/bc/adt/ddic/structures/{N}/source/main', urlTpl: '/sap/bc/adt/ddic/structures/{N}', objtype: null, createOnly: false, roToolHint: 'getstructure' },
+  structure:     { pathTpl: '/sap/bc/adt/ddic/structures/{N}/source/main', urlTpl: '/sap/bc/adt/ddic/structures/{N}', objtype: 'TABL/DS', createOnly: false, roToolHint: 'getstructure' },
   enhancement:   { pathTpl: '/sap/bc/adt/enhancements/{N}/source/main', urlTpl: '/sap/bc/adt/enhancements/{N}', objtype: 'ENHO', createOnly: false, roToolHint: null },
   badi:          { pathTpl: '/sap/bc/adt/enhancements/badi_impl/{N}/source/main', urlTpl: '/sap/bc/adt/enhancements/badi_impl/{N}', objtype: null, createOnly: false, roToolHint: null },
   domain:        { pathTpl: null, urlTpl: '/sap/bc/adt/ddic/domains/{N}', objtype: 'DOMA/DD', createOnly: true, roToolHint: 'getdomain' },
@@ -194,8 +194,10 @@ const MCP_ADT_PIPELINE_POLICY_DEFAULTS = {
   // 'ai-generate'     → AI generates ABAP source code, then writes it to SAP via ADT bridge
   object_types: {
     config:          'manual',
-    table:           'adt-create-only',
-    structure:       'adt-create-only',
+    // Tables/structures need their full DDL definition to activate; an empty
+    // skeleton can never be activated, so the AI writes the definition.
+    table:           'ai-generate',
+    structure:       'ai-generate',
     domain:          'adt-create-only',
     data_element:    'adt-create-only',
     message_class:   'adt-create-only',
@@ -431,6 +433,63 @@ function sapShortText(text, max = 60) {
   return (sp >= max / 2 ? cut.slice(0, sp) : cut).replace(/[\s.,;:(\-–—]+$/, '');
 }
 
+// Remove markdown code fences the model may wrap generated source in.
+function stripCodeFences(text) {
+  const t = String(text ?? '').trim();
+  const m = t.match(/^```[\w-]*\s*\n([\s\S]*?)\n?```\s*$/);
+  return m ? m[1].trim() : t;
+}
+
+// Prompt for DDIC sources edited as DDL in ADT (S/4HANA table/structure editor).
+// Returns null for other types. `related` = other blueprint objects (e.g. data
+// elements) the definition should reference.
+function buildDdicSourcePrompt(type, obj, caseData, related = []) {
+  if (type !== 'table' && type !== 'structure') return null;
+  const name = String(obj.name ?? '').toLowerCase();
+  const dtels = (related ?? [])
+    .filter(o => o && o.id !== obj.id && (o.type === 'data_element' || o.type === 'domain' || o.type === 'structure'))
+    .map(o => `- ${o.name} (${o.type})${o.description ? ': ' + String(o.description).slice(0, 140) : ''}`)
+    .join('\n');
+  const common = `Name: ${obj.name}
+Description / spec: ${obj.description ?? ''}
+Case: ${caseData?.title ?? ''} · SAP module: ${caseData?.area_sap ?? 'general'}
+${dtels ? `\nCustom dictionary objects in this solution — use them where they fit:\n${dtels}\n` : ''}
+Rules:
+- This is ABAP Dictionary DDL as edited in ADT, NOT a CDS view: never use "define view", "define view entity" or @AbapCatalog.sqlViewName.
+- Field names lowercase, max 16 characters.
+- Type each field with a data element (custom ones above, or standard SAP ones such as vkorg, vtweg, waers, matnr); use built-in types like abap.char(10) / abap.numc(3) only when no data element fits.
+- @EndUserText.label at most 60 characters.
+- Output ONLY the DDL source: no markdown fences, no explanations.`;
+  if (type === 'table') {
+    return `Write the ABAP Dictionary DDL source for the transparent database table ${obj.name} (SAP S/4HANA, ADT table editor).
+${common}
+- Client-dependent: first field "key mandt : mandt not null;", then the remaining key fields with "key ... not null;", then the non-key fields.
+- deliveryClass #C for customizing/configuration tables, #A for application data.
+
+Format:
+@EndUserText.label : 'Short description'
+@AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #C
+@AbapCatalog.dataMaintenance : #ALLOWED
+define table ${name} {
+  key mandt : mandt not null;
+  key <field> : <data element> not null;
+  <field>     : <data element>;
+}`;
+  }
+  return `Write the ABAP Dictionary DDL source for the structure ${obj.name} (SAP S/4HANA, ADT structure editor).
+${common}
+- A structure has no key fields and no mandt.
+
+Format:
+@EndUserText.label : 'Short description'
+@AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
+define structure ${name} {
+  <field> : <data element>;
+}`;
+}
+
 // Pipeline status for a successful bridge write. An object only counts as 'done'
 // once SAP has activated it and confirmed it exists; otherwise it stays visibly
 // unfinished ('inactive' / 'unverified') and dependents remain blocked.
@@ -441,6 +500,7 @@ function sapApplyOutcome(result) {
   const verified  = st.verified !== undefined ? st.verified
     : (result?.verify && !result.verify.skipped ? result.verify.ok === true : null);
   const steps = {
+    existed: st.existed ?? null,
     created: st.created ?? null,
     updated: st.updated ?? (st.created ? null : true),
     unlocked: st.unlocked ?? null,
@@ -4679,8 +4739,8 @@ const BP_PHASES = [
 
 const BP_TYPES = {
   config:         { label: 'Customizing (SPRO)', short: 'CFG',  ai: false, phase: 'config'      },
-  table:          { label: 'Table',              short: 'TABL', ai: false, phase: 'dictionary'  },
-  structure:      { label: 'Structure',          short: 'STRU', ai: false, phase: 'dictionary'  },
+  table:          { label: 'Table',              short: 'TABL', ai: true,  phase: 'dictionary'  },
+  structure:      { label: 'Structure',          short: 'STRU', ai: true,  phase: 'dictionary'  },
   domain:         { label: 'Domain',             short: 'DOMA', ai: false, phase: 'dictionary'  },
   data_element:   { label: 'Data Element',       short: 'DTEL', ai: false, phase: 'dictionary'  },
   message_class:  { label: 'Message Class',      short: 'MSG',  ai: false, phase: 'dictionary'  },
@@ -5452,7 +5512,8 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
         updateObj(obj.id, { status: 'generating', error: null });
         addLog(`${obj.name}: generating ABAP...`, 'generating');
         const standardsBlock = buildAbapStandardsPrompt(standards, obj.type, obj.name, null, caseData, transportReq, false);
-        const prompt = `You are an SAP ABAP developer. Create ${obj.type} ${obj.name}.
+        const ddicPrompt = buildDdicSourcePrompt(obj.type, obj, caseData, objects);
+        const prompt = ddicPrompt ?? `You are an SAP ABAP developer. Create ${obj.type} ${obj.name}.
 Description: ${obj.description}
 Case: ${caseData.title}
 SAP Module: ${caseData.area_sap ?? 'general'}
@@ -5466,7 +5527,9 @@ Output ONLY the ABAP source code, no explanations.`;
         const genMcpServers = isAdtMode ? undefined : buildSapMcpConfig(sapConfig, freshMcpUrl);
         const callArgs = {
           model: genModel,
-          system: 'You are an expert SAP ABAP developer. Output only clean ABAP source code.',
+          system: ddicPrompt
+            ? 'You are an expert SAP ABAP Dictionary developer. Output only the DDL source, no markdown.'
+            : 'You are an expert SAP ABAP developer. Output only clean ABAP source code.',
           messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
           max_tokens: 8000,
           mcp_servers: genMcpServers,
@@ -5490,7 +5553,7 @@ Output ONLY the ABAP source code, no explanations.`;
             throw mcpErr;
           }
         }
-        code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
+        code = stripCodeFences(typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? ''));
         updateObj(obj.id, { status: 'generated', generatedCode: code });
         addLog(`${obj.name}: code generated.`, 'generated');
         }
@@ -6040,7 +6103,8 @@ Output ONLY the ABAP source code, no explanations.`;
                       {selectedObj.sapSteps && (
                         <p className="text-xs font-mono flex flex-wrap gap-x-2">
                           {[
-                            [selectedObj.sapSteps.created ? 'Created' : 'Updated', selectedObj.sapSteps.created ?? selectedObj.sapSteps.updated],
+                            [selectedObj.sapSteps.created ? 'Created' : selectedObj.sapSteps.existed ? 'Already in SAP' : 'Updated',
+                             selectedObj.sapSteps.created ?? (selectedObj.sapSteps.existed ? true : selectedObj.sapSteps.updated)],
                             ['Unlocked', selectedObj.sapSteps.unlocked],
                             ['Activated', selectedObj.sapSteps.activated],
                             ['Verified', selectedObj.sapSteps.verified],
@@ -6871,7 +6935,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
         max_tokens: 4000,
         mcp_servers: buildSapMcpConfig(sapConfig, sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']),
       });
-      const code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
+      const code = stripCodeFences(typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? ''));
       setActField(act.id, { generating: false, generatedCode: code });
     } catch (e) {
       setActField(act.id, { generating: false });
@@ -7084,16 +7148,9 @@ Be concise and use numbered steps. Format as plain text, no markdown headers.`;
     const typeMeta = BP_TYPES[obj.type] ?? {};
     setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingAdt: true } }));
     const prompts = {
-      table: `Generate ABAP CDS DDL source code for a transparent database table named ${obj.name} in SAP ADT.
-Description: ${obj.description ?? ''}
-Case: ${caseData.title} · SAP Module: ${caseData.area_sap ?? 'general'}
-Use @AbapCatalog annotations, define all key fields (mandt, then business key), add relevant data element references.
-Output ONLY the CDS DDL source (no explanation). Start with @AbapCatalog.sqlViewName.`,
+      table: buildDdicSourcePrompt('table', obj, caseData),
 
-      structure: `Generate ABAP CDS DDL source code for a flat structure (no key, no MANDT) named ${obj.name} in SAP ADT.
-Description: ${obj.description ?? ''}
-Case: ${caseData.title} · SAP Module: ${caseData.area_sap ?? 'general'}
-Use @AbapCatalog annotations. Output ONLY the CDS DDL source (no explanation).`,
+      structure: buildDdicSourcePrompt('structure', obj, caseData),
 
       enhancement: `Generate the ABAP class skeleton for a BAdI implementation of enhancement ${obj.name} in SAP ADT.
 Description: ${obj.description ?? ''}
