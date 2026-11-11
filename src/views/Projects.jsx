@@ -1772,7 +1772,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
         // Fetch transport requests for all cases
         const caseIds = projCases.map(c => c.id);
         const { data: allTR } = await supabase
-          .from('transport_requests')
+          .from('case_transport_requests')
           .select('case_id, request_number, status')
           .eq('project_id', project.id);
         const trByCaseId = {};

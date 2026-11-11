@@ -287,6 +287,11 @@ function TrRequestRow({ req, i, showStatus, importStates, caseId, projectCases, 
         <div className="flex-1 min-w-0">
           <div className="font-mono text-sm font-semibold text-white truncate">{req.request_number}</div>
           {req.description && <div className="text-xs text-white/50 truncate">{req.description}</div>}
+          {(req.sap_objects?.length > 0) && (
+            <div className="text-[10px] text-blue-300/70 truncate" title={req.sap_objects.map(o => `${o.name} (${o.type})`).join(', ')}>
+              SAP implementation · {req.sap_objects.map(o => o.name).join(', ')}
+            </div>
+          )}
           {!caseId && req.case_id && (
             <div className="text-[10px] text-white/30 truncate">
               {(projectCases ?? []).find(c => c.id === req.case_id)?.title ?? req.case_id}
@@ -362,13 +367,15 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
   async function loadRequests() {
     setLoading(true);
-    let q = supabase.from('transport_requests').select('*').eq('project_id', projectId).order('seq_order');
-    if (caseId) q = q.eq('case_id', caseId);
+    // Case view: that case's transports (also works for cases without a project).
+    // Project view: every case's transports in the project.
+    let q = supabase.from('case_transport_requests').select('*').order('seq_order');
+    q = caseId ? q.eq('case_id', caseId) : q.eq('project_id', projectId);
     const { data } = await q;
     setRequests(data ?? []);
     setLoading(false);
   }
-  useEffect(() => { if (projectId) loadRequests(); }, [projectId, caseId]);
+  useEffect(() => { if (projectId || caseId) loadRequests(); }, [projectId, caseId]);
 
   // ── Step / mode state ─────────────────────────────────────
   const [trStep, setTrStep] = useState(1);
@@ -436,7 +443,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
       await ssCtx.setSetting('transport_approvals', { ...transportApprovals, [scopeKey]: batch });
       const pending = requests.filter(r => r.status === 'pending').map(r => r.id);
       if (pending.length > 0) {
-        await supabase.from('transport_requests').update({ approval_status: 'pending_review' }).in('id', pending);
+        await supabase.from('case_transport_requests').update({ approval_status: 'pending_review' }).in('id', pending);
         await loadRequests();
       }
       const link = `${window.location.origin}/transport-approve/${token}`;
@@ -458,7 +465,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     newOrder.splice(toIdx, 0, moved);
     const updated = newOrder.map((r, i) => ({ ...r, seq_order: i }));
     setRequests(updated);
-    await Promise.all(updated.map(r => supabase.from('transport_requests').update({ seq_order: r.seq_order }).eq('id', r.id)));
+    await Promise.all(updated.map(r => supabase.from('case_transport_requests').update({ seq_order: r.seq_order }).eq('id', r.id)));
   }
 
   // ── File upload ───────────────────────────────────────────
@@ -500,14 +507,14 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
       const updates = {};
       for (const [key, file] of [['cofile', pair.cofile], ['data', pair.data]]) {
         if (!file) continue;
-        const path = `${projectId}/${req.id}/${file.name}`;
+        const path = `${projectId ?? `case-${caseId}`}/${req.id}/${file.name}`;
         const { error } = await supabase.storage.from('transport-files').upload(path, file, { upsert: true });
         if (!error) {
           if (key === 'cofile') { updates.cofile_path = path; updates.cofile_name = file.name; }
           else                  { updates.data_file_path = path; updates.data_file_name = file.name; }
         }
       }
-      if (Object.keys(updates).length) await supabase.from('transport_requests').update(updates).eq('id', req.id);
+      if (Object.keys(updates).length) await supabase.from('case_transport_requests').update(updates).eq('id', req.id);
     }
     await loadRequests();
     setUploadingFiles(false);
@@ -518,7 +525,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     if (!newNumber.trim()) return;
     setSaving(true);
     const maxSeq = requests.reduce((m, r) => Math.max(m, r.seq_order ?? 0), 0);
-    await supabase.from('transport_requests').insert({
+    await supabase.from('case_transport_requests').insert({
       project_id: projectId, case_id: caseId, created_by: auth.user?.id,
       request_number: newNumber.trim().toUpperCase(),
       description: newDesc.trim() || null,
@@ -538,7 +545,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     if (!lines.length) return;
     setSaving(true);
     const maxSeq = requests.reduce((m, r) => Math.max(m, r.seq_order ?? 0), 0);
-    await supabase.from('transport_requests').insert(
+    await supabase.from('case_transport_requests').insert(
       lines.map((line, i) => {
         const [num, ...rest] = line.split(/\s+/);
         return {
@@ -558,7 +565,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
   }
 
   async function deleteRequest(id) {
-    await supabase.from('transport_requests').delete().eq('id', id);
+    await supabase.from('case_transport_requests').delete().eq('id', id);
     setRequests(p => p.filter(r => r.id !== id));
   }
 
@@ -569,8 +576,8 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     if (nxt < 0 || nxt >= sorted.length) return;
     const a = sorted[idx], b = sorted[nxt];
     await Promise.all([
-      supabase.from('transport_requests').update({ seq_order: b.seq_order }).eq('id', a.id),
-      supabase.from('transport_requests').update({ seq_order: a.seq_order }).eq('id', b.id),
+      supabase.from('case_transport_requests').update({ seq_order: b.seq_order }).eq('id', a.id),
+      supabase.from('case_transport_requests').update({ seq_order: a.seq_order }).eq('id', b.id),
     ]);
     await loadRequests();
   }
@@ -595,7 +602,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
         }
         const log = [`HTTP ${result.status}`, result.body?.slice(0, 400)].filter(Boolean);
         setImportField(req.id, { status: result.ok ? 'done' : 'error', log });
-        await supabase.from('transport_requests').update({
+        await supabase.from('case_transport_requests').update({
           status: result.ok ? 'done' : 'error',
           import_log: log.join('\n'),
           import_result: { status: result.status, body: result.body?.slice(0, 1000) },
@@ -604,7 +611,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
         if (!result.ok && stopOnError) { await loadRequests(); return; }
       } catch (e) {
         setImportField(req.id, { status: 'error', log: [e.message] });
-        await supabase.from('transport_requests').update({ status: 'error', import_log: e.message }).eq('id', req.id);
+        await supabase.from('case_transport_requests').update({ status: 'error', import_log: e.message }).eq('id', req.id);
         if (stopOnError) { await loadRequests(); return; }
       }
     }
@@ -960,6 +967,11 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                           <div className="flex-1 min-w-0">
                             <div className="font-mono text-sm font-semibold text-white truncate">{req.request_number}</div>
                             {req.description && <div className="text-xs text-white/40 truncate">{req.description}</div>}
+                            {(req.sap_objects?.length > 0) && (
+                                  <div className="text-[10px] text-blue-300/70 truncate" title={req.sap_objects.map(o => `${o.name} (${o.type})`).join(', ')}>
+                                    SAP implementation · {req.sap_objects.map(o => o.name).join(', ')}
+                                  </div>
+                                )}
                           </div>
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${meta.color}`}>{meta.label}</span>
                           <button onClick={() => moveRequest(req.id, -1)} disabled={i === 0}
@@ -1240,7 +1252,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               const res = await sapImportTransport(targetEnv, req.request_number, targetEnv.client ?? '100');
               if (res.ok) {
                 log.push(`✓ ${req.request_number} imported`);
-                await supabase.from('transport_requests').update({ status: 'done' }).eq('id', req.id);
+                await supabase.from('case_transport_requests').update({ status: 'done' }).eq('id', req.id);
               } else {
                 log.push(`✗ ${req.request_number} failed (HTTP ${res.status})`);
                 allOk = false;

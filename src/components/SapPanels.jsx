@@ -490,6 +490,21 @@ define structure ${name} {
 }`;
 }
 
+// Add a transport the pipeline wrote an object into to the case's Transport tab
+// list (case_transport_requests). Best-effort: never blocks or fails the write.
+async function recordCaseTransport(caseId, requestNumber, objectName, objectType) {
+  if (!caseId || !requestNumber) return;
+  try {
+    const { error } = await supabase.rpc('record_case_transport', {
+      p_case_id: caseId, p_request_number: requestNumber,
+      p_object_name: objectName ?? null, p_object_type: objectType ?? null,
+    });
+    if (error) console.warn('record_case_transport failed:', error.message);
+  } catch (e) {
+    console.warn('record_case_transport failed:', e?.message);
+  }
+}
+
 // Pipeline status for a successful bridge write. An object only counts as 'done'
 // once SAP has activated it and confirmed it exists; otherwise it stays visibly
 // unfinished ('inactive' / 'unverified') and dependents remain blocked.
@@ -5481,6 +5496,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
               const _note = `${_verifyOk ? '✓ Confirmed in SAP.' : _verifySkipped ? '' : `⚠ Not confirmed in SAP${_r.verify?.status ? ` (HTTP ${_r.verify.status})` : ''} — check ${_seTx}.`}${_r.activateError ? ' Activation warning: ' + _r.activateError : ''}`.trim() || null;
               const _out = sapApplyOutcome(_r);
               updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), appliedCreated: true, appliedTransport: _ut, appliedPackage: _up, appliedNote: _note, appliedActivateError: _r.activateError || null });
+              recordCaseTransport(caseId, _ut, obj.name, obj.type);
               addLog(`${obj.name}: ${_out.status === 'done' ? '✓' : '⚠'} ADT skeleton created (pkg: ${_up || '$TMP'}${_ut ? `, tr: ${_ut}` : ''}${_verifyOk ? ', confirmed ✓' : _verifySkipped ? '' : ' — not confirmed in SAP'}). Set properties in SE11/SE91.`, _out.status === 'done' ? 'done' : 'warn');
               if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}`, 'warn');
               if (_r.activateError) addLog(`${obj.name}: activation warning: ${_r.activateError}`, 'warn');
@@ -5582,6 +5598,7 @@ Output ONLY the ABAP source code, no explanations.`;
             const usedPackage   = result.package   || obj.package   || packageReq   || null;
             const _out = sapApplyOutcome(result);
             updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
+            recordCaseTransport(caseId, usedTransport, obj.name, obj.type);
             if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}`, 'warn');
             if (result.createOnly) {
               addLog(`${obj.name}: ✓ skeleton created in SAP (pkg: ${usedPackage || '$TMP'}${usedTransport ? `, tr: ${usedTransport}` : ''}).`, 'done');
@@ -5701,6 +5718,7 @@ Output ONLY the ABAP source code, no explanations.`;
       const usedPackage   = result.package   || obj.package   || packageReq   || null;
       const _out = sapApplyOutcome(result);
       updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), error: null, appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
+      recordCaseTransport(caseId, usedTransport, obj.name, obj.type);
       if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}`, 'warn');
       if (result.createOnly) {
         addLog(`${obj.name}: ✓ skeleton created in SAP (pkg: ${usedPackage || '$TMP'}${usedTransport ? `, tr: ${usedTransport}` : ''}).`, 'done');
@@ -6953,6 +6971,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     if (result.ok) {
       pushLog(`✓ Applied successfully (HTTP ${result.status})`);
       setActField(act.id, { applying: false, applied: true });
+      recordCaseTransport(caseData.id, result.transport || transportReq, obj.objectName, obj.objectType);
       await updateActivity(act.id, { progress_pct: 100 });
       const cur = settings['sap_impl_log'] ?? {};
       const caseLog = cur[caseData.id] ?? [];

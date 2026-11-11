@@ -192,7 +192,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [caseTransportReqs, setCaseTransportReqs] = useState([]);
   useEffect(() => {
     if (!caseData.id) return;
-    supabase.from("transport_requests").select("id, status").eq("case_id", caseData.id)
+    supabase.from("case_transport_requests").select("id, status").eq("case_id", caseData.id)
       .then(({ data }) => setCaseTransportReqs(data ?? []));
   }, [caseData.id]);
 
