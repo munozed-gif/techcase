@@ -812,10 +812,31 @@ app.post('/sap-write-mcp', async (req, res) => {
         }
         return result;
       }
+      const INTERRUPTED_RE = /interrupted.*(login|dropSession)|dropSession before continuing/i;
       let client = await getClient(creds4Pool);
       try {
         return await rawCall(client);
-      } catch (e) {
+      } catch (e0) {
+        let e = e0;
+        // "Previous operation was interrupted. Inspect possible writes/locks, then
+        // explicitly login or dropSession before continuing" comes back as a normal
+        // isError result, so the crash path below never saw it and every later call
+        // failed until the bridge was restarted. Recover in place: drop the stuck SAP
+        // session (which also releases its locks), log in again, retry once.
+        if (INTERRUPTED_RE.test(e?.message ?? '') && name !== 'dropSession' && name !== 'login') {
+          console.warn(`[bridge] '${name}' hit an interrupted SAP session — dropSession + login, then retry`);
+          try { await client.callTool({ name: 'dropSession', arguments: {} }, undefined, { timeout: 15000 }); }
+          catch (dsErr) { console.warn(`[bridge] dropSession failed: ${dsErr.message?.slice(0, 80)}`); }
+          try { await client.callTool({ name: 'login', arguments: {} }, undefined, { timeout: 30000 }); }
+          catch (liErr) { console.warn(`[bridge] login failed: ${liErr.message?.slice(0, 80)}`); }
+          try {
+            return await rawCall(client);
+          } catch (e2) {
+            if (!INTERRUPTED_RE.test(e2?.message ?? '')) throw e2;
+            // Still stuck — fall through and replace the subprocess.
+            e = Object.assign(new Error(e2.message), { isSapError: false });
+          }
+        }
         const msg = e?.message ?? '';
         // isSapError = thrown from isError:true result (SAP rejected the call, subprocess is fine).
         // Never treat those as subprocess crashes even if the error text contains -32603.
@@ -830,6 +851,8 @@ app.post('/sap-write-mcp', async (req, res) => {
           : 'crash (-32000)';
         console.warn(`[bridge] MCP subprocess needs reset on '${name}' (${reason}) — respawning...`);
         const key = `${host}|${username}|abap-adt`;
+        // Close the old subprocess too — deleting it from the pool alone left it running.
+        try { clientPool.get(key)?.close?.(); } catch {}
         clientPool.delete(key);
         client = await getClient(creds4Pool);
         // Clear SAP-side stuck session state before retrying — mario's readme prescribes
