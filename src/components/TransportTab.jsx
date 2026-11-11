@@ -374,7 +374,14 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     const { data } = await q;
     setRequests(data ?? []);
     setLoading(false);
+    // First load: when transports already exist (e.g. created by the SAP implementation
+    // pipeline), open on the Requests list instead of the empty Setup form.
+    if (!initialStepSet.current) {
+      initialStepSet.current = true;
+      if ((data ?? []).length > 0) setTrStep(s => (s === 1 ? 2 : s));
+    }
   }
+  const initialStepSet = useRef(false);
   useEffect(() => { if (projectId || caseId) loadRequests(); }, [projectId, caseId]);
 
   // ── Step / mode state ─────────────────────────────────────
@@ -784,6 +791,14 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
           {trStep === 1 && (
             <TrPanel icon={<Settings size={15} />} title="Transport Setup"
               sub="Configure mode, environments and target client">
+
+              {requests.length > 0 && (
+                <button onClick={() => setTrStep(2)}
+                  className="w-full text-left p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-300 hover:bg-blue-500/15 transition-colors">
+                  <strong>{requests.length} transport request{requests.length === 1 ? '' : 's'}</strong> on this {caseId ? 'case' : 'project'}
+                  {' '}({requests.map(r => r.request_number).join(', ')}) — view them in Requests →
+                </button>
+              )}
 
               <TrSectionLabel>Transport Mode</TrSectionLabel>
               <div className="flex gap-2">
