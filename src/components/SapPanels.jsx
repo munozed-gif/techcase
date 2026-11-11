@@ -7,7 +7,7 @@ import {
   Laptop, Monitor, Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { bridgeAuthHeaders } from "../lib/bridgeAuth.js";
+import { bridgeAuthHeaders, appAccessToken } from "../lib/bridgeAuth.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useDbConnections, useProjectDbConnections } from "../hooks/useCoreHooks.js";
@@ -2067,7 +2067,7 @@ function McpRestartButton({ mcpUrl }) {
 
     // 1. Try direct restart if the server is reachable
     try {
-      const r = await fetch(`${base}/restart`, { method: 'POST', signal: AbortSignal.timeout(5000) });
+      const r = await fetch(`${base}/restart`, { method: 'POST', headers: await bridgeAuthHeaders(base), signal: AbortSignal.timeout(5000) });
       if (r.ok) { setState('done'); setMsg(''); setTimeout(() => setState('idle'), 3000); return; }
     } catch { /* tunnel is down — fall through to queue */ }
 
@@ -2664,12 +2664,12 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
       // Grab diagnostics before restart while server may still respond to requests
       try {
-        const dr = await fetch(`${currentMcpBase}/diagnostics`, { signal: AbortSignal.timeout(4000) });
+        const dr = await fetch(`${currentMcpBase}/diagnostics`, { headers: await bridgeAuthHeaders(currentMcpBase), signal: AbortSignal.timeout(4000) });
         if (dr.ok) { preDiag = await dr.json(); addLog('mcp', 'Pre-restart diagnostics captured', 'info'); }
       } catch {}
 
       // Step 1: send /restart (works if process is alive but unhealthy; also tries systemctl)
-      const restartSent = await fetch(`${currentMcpBase}/restart`, { method: 'POST', signal: AbortSignal.timeout(5000) })
+      const restartSent = await fetch(`${currentMcpBase}/restart`, { method: 'POST', headers: await bridgeAuthHeaders(currentMcpBase), signal: AbortSignal.timeout(5000) })
         .then(r => r.ok).catch(() => false);
       addLog('mcp', restartSent ? 'Restart command accepted — polling for recovery…' : 'Server unreachable — waiting for systemd auto-restart…');
 
@@ -2933,10 +2933,12 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     setDeploying(true);
     setDeployMsg('Deploying…');
     try {
+      // text/plain (no CORS preflight) with the app token inside the body, so this also
+      // works against older servers that don't allow the X-App-Token header yet.
       const r = await fetch(`${base}/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
-        body: mcpScript,
+        body: JSON.stringify({ script: mcpScript, appToken: await appAccessToken() }),
         signal: AbortSignal.timeout(25000),
       }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
       if (r.ok) {
@@ -3029,7 +3031,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     // since the Supabase signal is the primary mechanism.
     const base = getMcpBase();
     if (base) {
-      fetch(`${base}/adt-bridge/start-dev`, { method: 'POST' }).catch(() => {});
+      fetch(`${base}/adt-bridge/start-dev`, { method: 'POST', headers: await bridgeAuthHeaders(base) }).catch(() => {});
     }
 
     setRestartAdtMsg('Restart requested — waiting for bridge to reconnect…');

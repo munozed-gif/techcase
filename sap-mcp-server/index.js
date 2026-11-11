@@ -95,7 +95,7 @@ function objectPath(objectType, objectName) {
 function buildMcpServer(creds) {
   const server = new McpServer({
     name: 'techcase-sap',
-    version: '1.7.5',
+    version: '1.8.0',
   });
 
   // ── Tool: live_check ────────────────────────────────────────────────────
@@ -316,11 +316,73 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': [
     'Authorization', 'Content-Type', 'Accept',
-    'X-CSRF-Token', 'sap-client', 'X-Sap-Target',
+    'X-CSRF-Token', 'sap-client', 'X-Sap-Target', 'X-App-Token',
   ].join(', '),
   'Access-Control-Expose-Headers': 'X-CSRF-Token',
   'Access-Control-Max-Age': '86400',
 };
+
+// ── App-user check ─────────────────────────────────────────────────────────
+// This server is reachable on a public Cloudflare URL and its endpoints control the
+// VM (VPN, restart, code update) and proxy into the SAP network. Only logged-in
+// platform users may use them: the app sends its Supabase access token in X-App-Token
+// (or, for /update, inside the request body). It is verified against each platform
+// project's Supabase Auth with that project's public (anon) key. Code updates also
+// require an admin/manager role. Override the projects with APP_AUTH_PROJECTS as JSON
+// [[url, anonKey], ...]; set BRIDGE_ALLOW_ANONYMOUS=1 to disable the check in an emergency.
+const APP_AUTH_PROJECTS = (() => {
+  try { if (process.env.APP_AUTH_PROJECTS) return JSON.parse(process.env.APP_AUTH_PROJECTS); } catch {}
+  return [
+    ['https://xwiduokkkoaxrhfyuwye.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3aWR1b2tra29heHJoZnl1d3llIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3Nzg4ODIsImV4cCI6MjEwNTM1NDg4Mn0.odiyfucEQgyaVr8D8dXW0l9qGn7LHxqYvfmCaV2qGcI'],
+    ['https://chtqtuishqtypnknofmi.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNodHF0dWlzaHF0eXBua25vZm1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNDkzNzcsImV4cCI6MjA4ODcyNTM3N30.UOONXFIPiHbzRuuv8l9VFoErkZMzBhQ3mTTG2ksiRUk'],
+  ];
+})();
+const _appUserCache = new Map(); // token -> { user, until }
+
+async function appUserFromToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const now = Date.now();
+  const hit = _appUserCache.get(token);
+  if (hit && hit.until > now) return hit.user;
+  for (const [url, key] of APP_AUTH_PROJECTS) {
+    try {
+      const r = await fetch(`${url}/auth/v1/user`, {
+        headers: { apikey: key, Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) continue;
+      const u = await r.json();
+      let role = null;
+      try {
+        const rr = await fetch(`${url}/rest/v1/users?select=role&id=eq.${encodeURIComponent(u.id)}`, {
+          headers: { apikey: key, Authorization: `Bearer ${token}`, Accept: 'application/json' }, signal: AbortSignal.timeout(8000),
+        });
+        if (rr.ok) role = (await rr.json())?.[0]?.role ?? null;
+      } catch {}
+      const user = { id: u.id, role };
+      if (_appUserCache.size > 500) _appUserCache.clear();
+      _appUserCache.set(token, { user, until: now + 5 * 60 * 1000 });
+      return user;
+    } catch { /* try the next project */ }
+  }
+  return null;
+}
+
+// Returns true when the request may proceed; otherwise writes 401/403 and returns false.
+async function requireAppUser(req, res, { adminOnly = false, token = null } = {}) {
+  if (process.env.BRIDGE_ALLOW_ANONYMOUS === '1') return true;
+  const user = await appUserFromToken(token || req.headers['x-app-token']);
+  if (!user) {
+    res.writeHead(401, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'App login required — sign in to the platform and retry' }));
+    return false;
+  }
+  if (adminOnly && !['admin', 'manager'].includes(user.role)) {
+    res.writeHead(403, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'Only admins and managers can do this' }));
+    return false;
+  }
+  return true;
+}
 
 // Make an HTTPS request to SAP, bypassing self-signed cert errors.
 // Returns a Promise<{ status, headers, body: Buffer }>.
@@ -468,6 +530,14 @@ async function handleSapProxy(req, res) {
 
   // Strip /sap-proxy prefix, keep the ADT path
   const adtPath = req.url.replace(/^\/sap-proxy/, '') || '/';
+  // Only SAP ADT/ICF paths on an https target — not an open proxy into the network.
+  let targetOk = false;
+  try { targetOk = new URL(sapTarget).protocol === 'https:'; } catch {}
+  if (!adtPath.startsWith('/sap/') || !targetOk) {
+    res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Only https SAP targets and /sap/... paths can be proxied' }));
+    return;
+  }
   const targetUrl = sapTarget.replace(/\/$/, '') + adtPath;
 
   // Collect body
@@ -476,7 +546,7 @@ async function handleSapProxy(req, res) {
   const body = chunks.length ? Buffer.concat(chunks) : undefined;
 
   // Forward all headers except hop-by-hop and our custom routing header
-  const SKIP = new Set(['host', 'x-sap-target', 'connection', 'transfer-encoding', 'keep-alive']);
+  const SKIP = new Set(['host', 'x-sap-target', 'x-app-token', 'connection', 'transfer-encoding', 'keep-alive']);
   const forwardHeaders = {};
   for (const [k, v] of Object.entries(req.headers)) {
     if (!SKIP.has(k.toLowerCase())) forwardHeaders[k] = v;
@@ -514,7 +584,7 @@ const httpServer = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS' && req.url === '/health') { res.writeHead(204, CORS_HEADERS); res.end(); return; }
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.7.5', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', diagnostics: '/diagnostics', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.8.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', diagnostics: '/diagnostics', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
     return;
   }
 
@@ -561,12 +631,13 @@ const httpServer = http.createServer(async (req, res) => {
     }
     const uptime = Math.floor((Date.now() - SERVER_START) / 1000);
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.7.5', uptime, timestamp: new Date().toISOString() }));
+    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, vpnService, version: '1.8.0', uptime, timestamp: new Date().toISOString() }));
     return;
   }
 
   // VPN control — start, stop, or restart the VPN service
   if (req.method === 'POST' && (req.url === '/vpn/start' || req.url === '/vpn/stop' || req.url === '/vpn/restart')) {
+    if (!(await requireAppUser(req, res))) return;
     const action = req.url.endsWith('/stop') ? 'stop' : req.url.endsWith('/restart') ? 'restart' : 'start';
     try {
       // Parse optional VPN credentials from request body
@@ -634,6 +705,7 @@ const httpServer = http.createServer(async (req, res) => {
 
   // Graceful restart: respond first, then restart via systemd (or exit so systemd restarts)
   if (req.method === 'POST' && req.url === '/restart') {
+    if (!(await requireAppUser(req, res))) return;
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, message: 'Restarting…' }));
     setTimeout(() => {
@@ -643,6 +715,7 @@ const httpServer = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/adt-bridge/start-dev') {
+    if (!(await requireAppUser(req, res))) return;
     const scriptDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'vm-mcp-adt');
     try {
       const proc = spawn('bash', ['start-vm-dev.sh'], { cwd: scriptDir, detached: true, stdio: 'ignore' });
@@ -656,36 +729,11 @@ const httpServer = http.createServer(async (req, res) => {
     return;
   }
 
-  // Self-update via pull: GET /self-update?src=<url> — server fetches script from URL and restarts
-  if (req.method === 'GET' && req.url?.startsWith('/self-update')) {
-    try {
-      const srcUrl = new URL(req.url, 'http://localhost').searchParams.get('src');
-      if (!srcUrl) {
-        res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'Missing src parameter' }));
-        return;
-      }
-      const resp = await fetch(srcUrl, { signal: AbortSignal.timeout(15000) });
-      if (!resp.ok) {
-        res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: `Source URL returned HTTP ${resp.status}` }));
-        return;
-      }
-      const script = await resp.text();
-      if (!script || script.length < 500 || !script.includes('import ')) {
-        res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'Fetched script is empty or too short' }));
-        return;
-      }
-      const selfPath = fileURLToPath(import.meta.url);
-      writeFileSync(selfPath, script, 'utf8');
-      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, message: 'Script updated — restarting in 1s…', bytes: script.length }));
-      setTimeout(() => process.exit(0), 1000);
-    } catch (e) {
-      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: e.message?.slice(0, 200) }));
-    }
+  // GET /self-update?src=<url> was removed: it let anyone make this server download
+  // and run code from any URL. Updates go through POST /update (admins/managers only).
+  if (req.url?.startsWith('/self-update')) {
+    res.writeHead(410, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'Removed — use POST /update' }));
     return;
   }
 
@@ -696,8 +744,11 @@ const httpServer = http.createServer(async (req, res) => {
       for await (const chunk of req) chunks.push(chunk);
       // Accept both text/plain (no CORS preflight) and application/json
       const raw = Buffer.concat(chunks).toString();
-      let script;
-      try { script = JSON.parse(raw).script; } catch { script = raw; }
+      let script, bodyToken = null;
+      try { const j = JSON.parse(raw); script = j.script; bodyToken = j.appToken ?? null; } catch { script = raw; }
+      // Installing code = admins/managers only. The token may come in the body because this
+      // call is sent as text/plain (no CORS preflight) so it also works with older servers.
+      if (!(await requireAppUser(req, res, { adminOnly: true, token: bodyToken }))) return;
       if (!script || script.length < 500) {
         res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: 'Invalid or empty script content' }));
@@ -717,7 +768,8 @@ const httpServer = http.createServer(async (req, res) => {
 
   // Diagnostics: port status, journal tail, memory, process info
   if (req.method === 'GET' && req.url === '/diagnostics') {
-    const diag = { version: '1.7.5', uptime: Math.floor((Date.now() - SERVER_START) / 1000), timestamp: new Date().toISOString() };
+    if (!(await requireAppUser(req, res))) return;
+    const diag = { version: '1.8.0', uptime: Math.floor((Date.now() - SERVER_START) / 1000), timestamp: new Date().toISOString() };
     try {
       const portOut = execSync(`ss -ltnp 2>/dev/null | grep :${PORT} | head -3`, { timeout: 2000 }).toString().trim();
       diag.portListening = !!portOut;
@@ -739,12 +791,14 @@ const httpServer = http.createServer(async (req, res) => {
 
   // SAP info check — POST {host, username, password, client} → {ok, systemInfo}
   if (req.url === '/sap-info') {
+    if (req.method !== 'OPTIONS' && !(await requireAppUser(req, res))) return;
     await handleSapInfo(req, res);
     return;
   }
 
   // SAP CORS proxy — browser sends ADT requests here instead of directly to SAP
   if (req.url?.startsWith('/sap-proxy')) {
+    if (req.method !== 'OPTIONS' && !(await requireAppUser(req, res))) return;
     await handleSapProxy(req, res);
     return;
   }
