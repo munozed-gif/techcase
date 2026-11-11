@@ -766,6 +766,11 @@ app.post('/sap-write-mcp', async (req, res) => {
     const adtPath    = req.body?.path;
     const source     = req.body?.source;
     let   transport  = req.body?.transport || null;
+    // Where the transport came from: 'request' (sent by the app), 'locked' (SAP says the
+    // object is already locked in it), 'created' (new request made here), or null.
+    let   transportSource = transport ? 'request' : null;
+    // Description for a transport created here (the app sends one per case).
+    const transportDescription = req.body?.transportDescription || null;
     const autoCreate = !!req.body?.autoCreate;
     const createOnly = !!req.body?.createOnly;
     const objtype    = req.body?.objtype;
@@ -904,11 +909,31 @@ app.post('/sap-write-mcp', async (req, res) => {
       return handle;
     }
 
+    // mcp-abap-abap-adt-api README: "Obtain the transport request number (e.g., from
+    // transportInfo or from the user)". If SAP reports the object is already locked in a
+    // request, it must be written into that request — reuse it instead of creating one.
+    if (!transport && parentName && parentName !== '$TMP' && effectiveCaps.hasCts !== false) {
+      try {
+        const ti = parseMcpText(await callTool('transportInfo', { objSourceUrl: objectUrl }));
+        const lockedTr = ti?.LOCKS?.HEADER?.TRKORR || ti?.transportInfo?.LOCKS?.HEADER?.TRKORR || ti?.TRKORR || null;
+        if (lockedTr) {
+          transport = String(lockedTr).trim();
+          transportSource = 'locked';
+          console.log(`[bridge] transportInfo: ${resolvedName} is already in ${transport} — reusing it`);
+        }
+      } catch (tiErr) {
+        // Typical for objects that don't exist yet; fall through to creating a request.
+        console.log(`[bridge] transportInfo gave no request for ${resolvedName}: ${tiErr.message?.slice(0, 120)}`);
+      }
+    }
+
     // Auto-create transport via MCP createTransport tool (uses subprocess's live authenticated session —
     // avoids the cold CSRF GET to /sap/bc/adt/cts/transportrequests that AbortErrors on this VM).
     // Falls back to direct HTTP if the MCP tool is unavailable, then proceeds without TR as last resort.
     if (!transport && parentName && parentName !== '$TMP' && effectivePolicy.autoCreateTransport && effectiveCaps.hasCts) {
-      const trDesc = `Techcase: ${resolvedName}${description ? ' - ' + description : ''}`.slice(0, 60);
+      const trDesc = transportDescription
+        ? sapShortText(transportDescription)
+        : `Techcase: ${resolvedName}${description ? ' - ' + description : ''}`.slice(0, 60);
       console.log(`[bridge] [timing] createTransport start for ${resolvedName} (MCP tool)`);
       const _trStart = Date.now();
       try {
@@ -919,6 +944,7 @@ app.post('/sap-write-mcp', async (req, res) => {
         }));
         transport = trResult?.transportNumber ?? trResult?.TRKORR ?? trResult?.trkorr ?? null;
         if (transport) {
+          transportSource = 'created';
           console.log(`[bridge] [timing] createTransport (MCP) done in ${Date.now() - _trStart}ms → ${transport}`);
         } else {
           console.warn(`[bridge] createTransport (MCP) returned no TR number: ${JSON.stringify(trResult).slice(0, 200)}`);
@@ -927,6 +953,7 @@ app.post('/sap-write-mcp', async (req, res) => {
         console.warn(`[bridge] createTransport (MCP) failed: ${trMcpErr.message?.slice(0, 200)} — falling back to direct HTTP`);
         try {
           transport = await createTransportViaAdt(host, username, password, sapClient, trDesc);
+          if (transport) transportSource = 'created';
           console.log(`[bridge] [timing] createTransport (HTTP fallback) done in ${Date.now() - _trStart}ms → ${transport}`);
         } catch (trErr) {
           console.warn(`[bridge] Could not auto-create transport (HTTP fallback): ${trErr.message?.slice(0, 200)}`);
@@ -1076,7 +1103,7 @@ app.post('/sap-write-mcp', async (req, res) => {
       return res.json({
         ok: true, status: 200, createOnly: true, created: !existedBefore,
         package: parentName,
-        transport: transport || null,
+        transport: transport || null, transportSource,
         note: `${objtype} ${resolvedName} ${existedBefore ? 'already existed' : 'created'} in SAP (pkg: ${parentName}). Set properties (data type, length, labels) in SE11/SE91.`,
         verify,
         // Per-step outcome so the app can tell "done" apart from "written but not
@@ -1198,7 +1225,7 @@ app.post('/sap-write-mcp', async (req, res) => {
       ? await verifyWithRO(host, username, password, sapClient, objtype, resolvedName)
       : { ok: false, skipped: true, reason: 'verifyAfterWrite disabled in policy' };
     res.json({
-      ok: true, status: 200, transport: transport || null, verify,
+      ok: true, status: 200, transport: transport || null, transportSource, verify,
       steps: {
         updated: true,
         ...(existedBefore === false && autoCreate ? { created: true } : {}),

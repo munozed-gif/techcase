@@ -490,6 +490,13 @@ define structure ${name} {
 }`;
 }
 
+// Description for the one transport a case's objects go into when the bridge has to
+// create it (SAP allows 60 characters).
+function caseTransportDescription(caseData) {
+  const ref = caseData?.case_ref ? `${caseData.case_ref} ` : '';
+  return sapShortText(`Techcase: ${ref}${caseData?.title ?? ''}`.trim());
+}
+
 // Add a transport the pipeline wrote an object into to the case's Transport tab
 // list (case_transport_requests). Best-effort: never blocks or fails the write.
 async function recordCaseTransport(caseId, requestNumber, objectName, objectType) {
@@ -531,7 +538,7 @@ const SAP_OUTCOME_HINT = {
   unverified: 'Written to SAP but SAP did not confirm it exists — check it in SAP or press Retry.',
 };
 
-async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg, description, policy, capabilities, globalObjectMap) {
+async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg, description, policy, capabilities, globalObjectMap, opts = {}) {
   const objCfg = resolveObjectTypeConfig(objectType, objectName, globalObjectMap, config.adt_object_map);
   const path = objCfg.path;
   // No source = "create the skeleton only" (adt-create-only policy, e.g. tables).
@@ -561,6 +568,8 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
           path: path || objCfg.url,
           source: createOnly ? '' : source,
           transport: transportRequest,
+          // Used only if the bridge has to create a transport (one per case, not per object)
+          transportDescription: opts.transportDescription || undefined,
           parentName: pkg || '$TMP',
           name: objectName.toUpperCase(),
           description: sapShortText(description),
@@ -4906,7 +4915,7 @@ function AddEditBlueprintObjectModal({ existing, allObjects, onSave, onClose }) 
   );
 }
 
-function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEnabled, genModel, transportReq, packageReq, ssCtx, configOps }) {
+function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEnabled, genModel, transportReq, packageReq, ssCtx, configOps, onTransportCreated }) {
   const { settings } = ssCtx;
   const caseId = caseData.id;
   const bpKey = 'sap_blueprint';
@@ -5406,6 +5415,18 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
   async function handleRun(subset) {
     if (running) { stopRef.current = true; return; }
     stopRef.current = false;
+    // One transport for the whole run: the case's transport, or the first one the
+    // bridge returns (found via transportInfo or created), reused for every later object.
+    let runTransport = transportReq || '';
+    // Only adopt a transport the bridge created for us; one it found via transportInfo
+    // (object already locked in it) may belong to other work and is used for that object only.
+    const adoptTransport = (tr, source) => {
+      if (!runTransport && tr && (!source || source === 'created')) {
+        runTransport = tr;
+        onTransportCreated?.(tr);
+        addLog(`Transport ${tr} will be used for the remaining objects of this case.`, 'info');
+      }
+    };
     setRunning(true);
     setRunLog([]);
     const sorted = topoSort(subset);
@@ -5484,11 +5505,13 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
             const _applyVia   = freshMcpUrl ? `${freshMcpUrl}/sap-proxy` : null;
             const _applyCfg   = _applyVia ? { ...sapConfig, proxyUrl: _applyVia } : sapConfig;
             const _r = await sapWriteSourceDetail(_applyCfg, obj.type, obj.name, null,
-              obj.transport || transportReq || undefined,
+              obj.transport || runTransport || undefined,
               obj.package || packageReq || undefined,
-              obj.description || undefined, writePolicy, sapCaps, ssCtx.settings['sap_adt_object_map'] ?? {});
+              obj.description || undefined, writePolicy, sapCaps, ssCtx.settings['sap_adt_object_map'] ?? {},
+              { transportDescription: caseTransportDescription(caseData) });
             if (_r.ok) {
-              const _ut = _r.transport || obj.transport || transportReq || null;
+              const _ut = _r.transport || obj.transport || runTransport || null;
+              if (!obj.transport) adoptTransport(_r.transport, _r.transportSource);
               const _up = _r.package   || obj.package   || packageReq   || null;
               const _verifyOk = _r.verify?.ok === true;
               const _verifySkipped = _r.verify?.skipped === true;
@@ -5527,7 +5550,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
         } else {
         updateObj(obj.id, { status: 'generating', error: null });
         addLog(`${obj.name}: generating ABAP...`, 'generating');
-        const standardsBlock = buildAbapStandardsPrompt(standards, obj.type, obj.name, null, caseData, transportReq, false);
+        const standardsBlock = buildAbapStandardsPrompt(standards, obj.type, obj.name, null, caseData, runTransport, false);
         const ddicPrompt = buildDdicSourcePrompt(obj.type, obj, caseData, objects);
         const prompt = ddicPrompt ?? `You are an SAP ABAP developer. Create ${obj.type} ${obj.name}.
 Description: ${obj.description}
@@ -5592,9 +5615,10 @@ Output ONLY the ABAP source code, no explanations.`;
             : sapConfig.mcp_type === 'abap-adt-both' ? 'mcp-abap-abap-adt-api (127 tools R+W) ← write server from abap-adt-both'
             : 'custom MCP';
           addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabel}] | tunnel: ${freshMcpUrl} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
-          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined, writePolicy, sapCaps, ssCtx.settings['sap_adt_object_map'] ?? {});
+          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || runTransport || undefined, obj.package || packageReq || undefined, obj.description || undefined, writePolicy, sapCaps, ssCtx.settings['sap_adt_object_map'] ?? {}, { transportDescription: caseTransportDescription(caseData) });
           if (result.ok) {
-            const usedTransport = result.transport || obj.transport || transportReq || null;
+            const usedTransport = result.transport || obj.transport || runTransport || null;
+            if (!obj.transport) adoptTransport(result.transport, result.transportSource);
             const usedPackage   = result.package   || obj.package   || packageReq   || null;
             const _out = sapApplyOutcome(result);
             updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
@@ -5712,9 +5736,10 @@ Output ONLY the ABAP source code, no explanations.`;
     addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabelManual}] | tunnel: ${adtBase} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
     const applyPolicy = { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(ssCtx.settings['sap_adt_write_policy'] ?? {}) };
     const applyCaps   = { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(ssCtx.settings['sap_adt_capabilities'] ?? {}) };
-    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined, applyPolicy, applyCaps, ssCtx.settings['sap_adt_object_map'] ?? {});
+    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined, applyPolicy, applyCaps, ssCtx.settings['sap_adt_object_map'] ?? {}, { transportDescription: caseTransportDescription(caseData) });
     if (result.ok) {
       const usedTransport = result.transport || obj.transport || transportReq || null;
+      if (!obj.transport && !transportReq && result.transport && (!result.transportSource || result.transportSource === 'created')) onTransportCreated?.(result.transport);
       const usedPackage   = result.package   || obj.package   || packageReq   || null;
       const _out = sapApplyOutcome(result);
       updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), error: null, appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
@@ -6853,7 +6878,8 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
         : enrichedSapConfig;
 
       addLog(`Writing ${programName} to SAP…`);
-      const writeResult = await sapWriteSourceDetail(effectiveCfg, 'program', programName, specState.configScript, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {});
+      const writeResult = await sapWriteSourceDetail(effectiveCfg, 'program', programName, specState.configScript, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {}, { transportDescription: caseTransportDescription(caseData) });
+      if (writeResult.ok && !transportReq && writeResult.transport && (!writeResult.transportSource || writeResult.transportSource === 'created')) setTransportReq(writeResult.transport);
       if (!writeResult.ok) throw new Error(writeResult.error ?? writeResult.hint ?? `HTTP ${writeResult.status}`);
       addLog('✓ Program written to SAP');
       addLog('Activating…');
@@ -6967,7 +6993,8 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     if (!obj?.objectName || !code) return;
     setActField(act.id, { applying: true, applyLog: [`Connecting to SAP via /api/sap-proxy → ${sapConfig.host}…`] });
     const pushLog = msg => setActField(act.id, s => ({ applyLog: [...(s.applyLog ?? []), msg] }));
-    const result = await sapWriteSourceDetail(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {});
+    const result = await sapWriteSourceDetail(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {}, { transportDescription: caseTransportDescription(caseData) });
+    if (result.ok && !transportReq && result.transport && (!result.transportSource || result.transportSource === 'created')) setTransportReq(result.transport);
     if (result.ok) {
       pushLog(`✓ Applied successfully (HTTP ${result.status})`);
       setActField(act.id, { applying: false, applied: true });
@@ -7561,6 +7588,7 @@ FALLBACK:
         caseData={caseData} auth={auth} activities={implActivities}
         sapConfig={enrichedSapConfig} autoImplEnabled={autoImplEnabled}
         genModel={genModel} transportReq={transportReq} packageReq={packageReq} ssCtx={ssCtx}
+        onTransportCreated={tr => { if (tr && !transportReq) setTransportReq(tr); }}
         configOps={{
           manualSpecs, setManualSpecs, saveSpecs,
           bcsetSysType, setBcsetSysType,
