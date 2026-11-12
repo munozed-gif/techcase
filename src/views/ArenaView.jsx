@@ -885,6 +885,13 @@ function ArenaView({ auth, onNavigate }) {
   }
   const [arenaTab, setArenaTab]             = useState("leaderboard");
   const arenaCarouselRef = useRef(null);
+  // Phones: the section cards take (nearly) the full width instead of leaving 60px peeks.
+  const [arenaNarrow, setArenaNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+  useEffect(() => {
+    const onResize = () => setArenaNarrow(window.innerWidth < 640);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const arenaCarouselScrolling = useRef(false);
   const caseCarouselRef = useRef(null);
   const caseCarouselScrolling = useRef(false);
@@ -1988,6 +1995,7 @@ function ArenaView({ auth, onNavigate }) {
           <span style={{ fontSize:14, fontWeight:700, color:'var(--t-text)' }}>{t("arena.leaderboard")}</span>
         </div>
       {(() => {
+        const arenaCardW = arenaNarrow ? 'calc(100% - 16px)' : 'calc(100% - 120px)';
         const carouselIdx = Math.max(0, arenaTabs.findIndex(t => t.id === arenaTab));
         function scrollTo(idx) {
           setArenaTab(arenaTabs[Math.max(0, Math.min(idx, arenaTabs.length - 1))]?.id ?? arenaTab);
@@ -2020,14 +2028,14 @@ function ArenaView({ auth, onNavigate }) {
               </button>
             )}
             <div ref={arenaCarouselRef} onScroll={onScroll}
-              style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
+              style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:arenaNarrow?6:10, padding:arenaNarrow?'0 8px':'0 60px' }}>
               {arenaTabs.map((tab, i) => {
                 const isActive = tab.id === arenaTab;
                 const Icon = tab.icon;
                 const st = arenaTabStatus[tab.id];
                 return (
                   <div key={tab.id}
-                    style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
+                    style={{ flex:`0 0 ${arenaCardW}`, width:arenaCardW, maxWidth:arenaCardW, minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
                     <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', minHeight:700, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.12)':'none', transition:'box-shadow .25s' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid var(--t-tab-border)', background:isActive?'var(--t-tab-active)':'var(--t-tab-inactive)', flexShrink:0, cursor:isActive?'default':'pointer' }}
                         onClick={() => !isActive && scrollTo(i)}>
