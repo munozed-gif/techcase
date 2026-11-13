@@ -1009,6 +1009,9 @@ class ErrorBoundary extends Component {
   }
   componentDidCatch(error, info) {
     console.error('[ErrorBoundary]', error, info?.componentStack);
+    // Keep the first component frames so the details box can say where it broke.
+    const where = (info?.componentStack || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 4).join(' ← ');
+    this.setState({ where });
   }
   render() {
     if (this.state.hasError) {
@@ -1022,8 +1025,15 @@ class ErrorBoundary extends Component {
                 </div>
                 <p className="font-semibold text-gray-800 dark:text-gray-100">{t("error.boundary_title")}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{t("error.boundary_desc")}</p>
+                {this.state.error && (
+                  <details className="text-left text-[11px] text-gray-500 dark:text-gray-400 bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2">
+                    <summary className="cursor-pointer select-none">Technical details</summary>
+                    <p className="mt-1 font-mono break-words">{String(this.state.error?.message || this.state.error).slice(0, 300)}</p>
+                    {this.state.where && <p className="mt-1 font-mono break-words opacity-70">{this.state.where.slice(0, 400)}</p>}
+                  </details>
+                )}
                 <button
-                  onClick={() => this.setState({ hasError: false, error: null })}
+                  onClick={() => this.setState({ hasError: false, error: null, where: null })}
                   className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700">
                   {t("error.boundary_retry")}
                 </button>
