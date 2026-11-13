@@ -11,6 +11,7 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { Select } from "./ui.jsx";
+import { UpgradeModal } from "../views/SystemSettingsView.jsx";
 import { DEFAULT_PLAN_CONFIG, PLAN_BADGE, ROLE_TO_PLAN_TYPE } from "../lib/businessConstants.js";
 import { NovaLandingMark } from "../views/LandingView.jsx";
 

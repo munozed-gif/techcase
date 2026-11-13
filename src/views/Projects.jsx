@@ -19,7 +19,7 @@ import { usePlanConfig, useSystemSettings, usePermissions, useWizardMode } from 
 import { callClaude, logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Textarea } from "../components/ui.jsx";
-import { CatalogMultiSelect } from "../components/CreateCaseWizard.jsx";
+import { CatalogMultiSelect, CreateCaseWizard } from "../components/CreateCaseWizard.jsx";
 import { OnboardingRoadmap } from "./OnboardingViews.jsx";
 import { CaseDetail } from "./CaseDetail.jsx";
 import { getStageIcon } from "../components/CaseSubPanels.jsx";

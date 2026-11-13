@@ -10,6 +10,7 @@ import { Spinner, TrustBadge, TierProgressBar, VouchingPanel, PlanUsageCard, Res
 import { PersonAvatar } from "../views/Projects.jsx";
 import { useConsultantTeams } from "../hooks/useTeamHooks.js";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { Input, Textarea } from "./ui.jsx";
 
 const CV_DEFAULT_SKILLS_TECHNICAL = ["ABAP Development", "SAP Basis Administration", "HANA DB Administration", "SAP Security / Roles", "SAP Fiori / UI5", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP BTP", "LSMW / BODS", "RFC / BAPI", "Workflow / BRF+", "ABAP OO"];
 const CV_DEFAULT_SKILLS_FUNCTIONAL = ["SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP BW / Analytics", "SAP PM / QM", "SAP PS (Project Systems)", "SAP SuccessFactors", "SAP S/4HANA Finance", "SAP Treasury", "SAP GRC / Access Control", "SAP Ariba"];
