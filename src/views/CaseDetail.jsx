@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Activity, AlertTriangle, Archive, BadgeCheck, BarChart2, Briefcase,
   Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
@@ -173,7 +173,23 @@ function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t, onDownloadPdf, 
   );
 }
 
-function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack, onCaseUpdate }) {
+function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, onApply, onUpdate, onBack, onCaseUpdate }) {
+  // Parents pass a snapshot of the case taken when it was opened, so assignment changes
+  // made here (accepting an application, co-assigning, releasing) never reached the
+  // detail card. Keep the case's assignments fresh locally and merge them in.
+  const [liveAssignments, setLiveAssignments] = useState(null);
+  const refreshAssignments = useCallback(async () => {
+    if (!caseDataProp?.id) return;
+    const { data, error } = await supabase.from("case_assignments")
+      .select("consultant_id, time_commitment, is_active, released_at, users:consultant_id(id, full_name, email, avatar_url)")
+      .eq("case_id", caseDataProp.id);
+    if (!error && data) setLiveAssignments(data);
+  }, [caseDataProp?.id]);
+  useEffect(() => { setLiveAssignments(null); refreshAssignments(); }, [refreshAssignments]);
+  const caseData = useMemo(
+    () => (liveAssignments && caseDataProp ? { ...caseDataProp, case_assignments: liveAssignments } : caseDataProp),
+    [caseDataProp, liveAssignments]
+  );
   const { t, lang } = useT();
   const { settings: cdSettings } = useSystemSettings();
   const visCfg        = useVisibilitySettings();
@@ -528,6 +544,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   async function handleReviewApplication(appId, appStatus, notes) {
     await reviewApplication(appId, appStatus, notes);
+    if (appStatus === "accepted") { await refreshAssignments(); onCaseUpdate?.(); }
     if (appStatus === "accepted" && onStatusChange) {
       if (caseData.status === "assigned") return; // already in target status
       const curStage = lifecycleStages.find(s => s.key === caseData.status);
@@ -2527,6 +2544,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
     setShowCoAssign(false);
     setCoAssignSearch("");
     setCoAssignResults([]);
+    await refreshAssignments();
     await onCaseUpdate?.();
   }
 
@@ -2548,6 +2566,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
     notify(consultantId, "Assignment Released", `Your assignment to "${caseData.title}" has been released.`, "case_assignment");
     sendEmailToUser(consultantId, `Assignment Released: ${caseData.title}`, `Your assignment to "${caseData.title}" has been released.`, "case_assignment");
     setReleasingId(null);
+    await refreshAssignments();
     await onCaseUpdate?.();
   }
 
