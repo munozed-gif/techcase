@@ -63,10 +63,13 @@ function isSocksUp() {
 async function sapFetch(url, options = {}) {
   const useSocks = process.env.NO_SOCKS ? false : await isSocksUp();
   const parsed = new URL(url);
-  const mod = parsed.protocol === 'https:' ? https : http;
+  const isHttps = parsed.protocol === 'https:';
+  const mod = isHttps ? https : http;
+  // The agent must match the protocol: an https.Agent on an http:// URL (e.g. a
+  // private trial system on port 50000) throws 'Protocol "http:" not supported'.
   const agent = useSocks
     ? new SocksProxyAgent(SOCKS_URL)
-    : new https.Agent({ rejectUnauthorized: false });
+    : (isHttps ? new https.Agent({ rejectUnauthorized: false }) : new http.Agent());
   return new Promise((resolve, reject) => {
     const reqOpts = {
       hostname: parsed.hostname,
@@ -75,7 +78,7 @@ async function sapFetch(url, options = {}) {
       method: options.method || 'GET',
       headers: options.headers || {},
       agent,
-      rejectUnauthorized: false,
+      ...(isHttps ? { rejectUnauthorized: false } : {}),
     };
     const req = mod.request(reqOpts, (res) => {
       const chunks = [];
