@@ -5320,7 +5320,32 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
 
   async function saveBlueprint(newObjects, newStopOnError) {
     const all = settings[bpKey] ?? {};
-    await ssCtx.setSetting(bpKey, { ...all, [caseId]: { objects: newObjects, stopOnError: newStopOnError ?? stopOnError } });
+    await ssCtx.setSetting(bpKey, { ...all, [caseId]: { ...(all[caseId] ?? {}), objects: newObjects, stopOnError: newStopOnError ?? stopOnError } });
+  }
+
+  // Run history: one record per canvas run, shown in the pipeline's Logs > Run History.
+  const runLogRef = useRef([]);
+  const objectsRef = useRef(objects);
+  objectsRef.current = objects;
+  function recordRun(meta) {
+    {
+      const prev = objectsRef.current;
+      const ids = new Set(meta.objectIds);
+      const outcomes = prev.filter(o => ids.has(o.id)).map(o => ({
+        id: o.id, name: o.name, type: o.type, status: o.status ?? 'planned',
+        error: o.error || null, transport: o.appliedTransport || null, package: o.appliedPackage || null,
+        steps: o.sapSteps || null, appliedAt: o.appliedAt || null, hasCode: !!o.generatedCode,
+      }));
+      const all = ssCtx.settings[bpKey] ?? {};
+      const cur = all[caseId] ?? {};
+      const runs = [...(cur.runs ?? []), {
+        runId: crypto.randomUUID(), runNumber: (cur.runs?.length ?? 0) + 1,
+        startedAt: meta.startedAt, finishedAt: new Date().toISOString(),
+        transport: meta.transport || null, stoppedReason: meta.stoppedReason || null,
+        objects: outcomes, log: runLogRef.current.slice(-200),
+      }].slice(-30);
+      ssCtx.setSetting(bpKey, { ...all, [caseId]: { ...cur, objects: prev, stopOnError, runs } });
+    }
   }
 
   function updateObj(id, updates) {
@@ -5344,7 +5369,9 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   }
 
   function addLog(msg, status) {
-    setRunLog(p => [...p, { msg, status, ts: new Date().toLocaleTimeString() }]);
+    const entry = { msg, status, ts: new Date().toLocaleTimeString() };
+    runLogRef.current = [...runLogRef.current, entry];
+    setRunLog(p => [...p, entry]);
   }
 
 
@@ -5553,6 +5580,8 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     };
     setRunning(true);
     setRunLog([]);
+    runLogRef.current = [];
+    const runStartedAt = new Date().toISOString();
     const sorted = topoSort(subset);
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
     const writePolicy = { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(settings['sap_adt_write_policy'] ?? {}) };
@@ -5595,6 +5624,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       if (writePolicy.requirePackage) {
         addLog('⛔ Write policy requires a SAP package — configure one before running. Disable "Require Package" in SAP MCP Policy settings to allow $TMP.', 'error');
         setRunning(false);
+        recordRun({ objectIds: sorted.map(o => o.id), startedAt: runStartedAt, transport: runTransport, stoppedReason: 'No SAP package configured' });
         return;
       }
       addLog('⚠ No SAP package configured — objects will be created in $TMP (local, not transportable). Enter a package in the settings above to assign them to a transport.', 'warn');
@@ -5787,6 +5817,9 @@ Output ONLY the ABAP source code, no explanations.`;
       }
     }
     setRunning(false);
+    // Let the last status updates land before snapshotting the run.
+    setTimeout(() => recordRun({ objectIds: sorted.map(o => o.id), startedAt: runStartedAt, transport: runTransport,
+      stoppedReason: stopRef.current ? 'Stopped by user' : null }), 300);
   }
 
   function confirmAndRun(subset) {
@@ -8393,7 +8426,68 @@ FALLBACK:
             )
           )}
 
-          {logTab === 'runs' && (
+          {logTab === 'runs' && useBp && (() => {
+            const runs = (settings['sap_blueprint'] ?? {})[caseData.id]?.runs ?? [];
+            if (!runs.length) return (
+              <p className="text-sm text-white/40 text-center py-6">No runs recorded yet. Runs started from the blueprint canvas or the Run step are recorded here from now on.</p>
+            );
+            return (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {[...runs].reverse().map(run => {
+                  const objs = run.objects ?? [];
+                  const n = st => objs.filter(o => o.status === st).length;
+                  const warn = objs.filter(o => ['inactive', 'unverified'].includes(o.status)).length;
+                  const isExpanded = expandedRun === run.runId;
+                  const secs = run.finishedAt ? Math.round((new Date(run.finishedAt) - new Date(run.startedAt)) / 1000) : null;
+                  return (
+                    <div key={run.runId} className="rounded-xl border border-white/10 overflow-hidden">
+                      <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-white/5 hover:bg-white/10 transition-colors text-left"
+                        onClick={() => setExpandedRun(isExpanded ? null : run.runId)}>
+                        <ChevronRight size={12} className={`text-white/40 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        <span className="text-xs font-bold text-white/70">Run {run.runNumber}</span>
+                        <span className="text-[10px] text-white/35 truncate">
+                          {new Date(run.startedAt).toLocaleString()}{secs != null ? ` · ${secs < 90 ? secs + 's' : Math.round(secs / 60) + 'm'}` : ''}{run.transport ? ` · ${run.transport}` : ''}
+                        </span>
+                        <div className="flex gap-2 ml-auto flex-shrink-0">
+                          {n('done')  > 0 && <span className="text-[10px] font-bold text-green-400">{n('done')} done</span>}
+                          {warn       > 0 && <span className="text-[10px] font-bold text-orange-300">{warn} unconfirmed</span>}
+                          {n('error') > 0 && <span className="text-[10px] font-bold text-red-400">{n('error')} error</span>}
+                          {run.stoppedReason && <span className="text-[10px] font-bold text-amber-400">{run.stoppedReason}</span>}
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="px-3 py-2.5 space-y-2 bg-black/20 border-t border-white/5">
+                          <div className="space-y-1">
+                            {objs.map(o => (
+                              <div key={o.id} className="flex items-center gap-2 font-mono text-xs">
+                                <span className={`flex-shrink-0 font-bold ${o.status === 'done' ? 'text-green-400' : o.status === 'error' ? 'text-red-400' : ['inactive', 'unverified'].includes(o.status) ? 'text-orange-300' : 'text-white/30'}`}>
+                                  {o.status === 'done' ? '✓' : o.status === 'error' ? '✗' : ['inactive', 'unverified'].includes(o.status) ? '!' : '·'}
+                                </span>
+                                <span className="text-white/70 truncate">{o.name}</span>
+                                <span className="text-white/30 text-[10px] flex-shrink-0">{BP_STATUS_LABEL[o.status] ?? o.status}</span>
+                                {o.error && <span className="text-red-300/70 text-[10px] truncate flex-1" title={o.error}>{o.error}</span>}
+                              </div>
+                            ))}
+                          </div>
+                          {run.log?.length > 0 && (
+                            <div className="rounded-lg bg-black/30 border border-white/5 p-2 max-h-48 overflow-y-auto font-mono text-[11px] space-y-0.5">
+                              {run.log.map((l, j) => (
+                                <div key={j} className={l.status === 'error' ? 'text-red-300' : l.status === 'done' ? 'text-green-300' : ['warn', 'skipped'].includes(l.status) ? 'text-amber-300' : 'text-white/50'}>
+                                  <span className="text-white/25">{l.ts}</span> {l.msg}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {logTab === 'runs' && !useBp && (
             implRuns.length === 0 ? (
               <p className="text-sm text-white/40 text-center py-6">No runs recorded yet. Click <strong className="text-white/60">Run Again</strong> from the Results step to start tracking run history.</p>
             ) : (
@@ -8442,7 +8536,51 @@ FALLBACK:
             )
           )}
 
-          {logTab === 'ai' && (
+          {logTab === 'ai' && useBp && (() => {
+            const withCode = bpSorted.filter(o => o.generatedCode);
+            if (!withCode.length) return (
+              <p className="text-sm text-white/40 text-center py-6">No code generated yet. Run the pipeline and the generated code for each object appears here.</p>
+            );
+            return (
+              <div className="space-y-3 max-h-[28rem] overflow-y-auto">
+                {withCode.map(o => {
+                  const isOpen = expandedRun === `ai_${o.id}`;
+                  const lines = o.generatedCode.split('\n').length;
+                  return (
+                    <div key={o.id} className="rounded-xl border border-white/10 overflow-hidden">
+                      <button onClick={() => setExpandedRun(isOpen ? null : `ai_${o.id}`)}
+                        className="w-full px-3 py-2 bg-white/5 border-b border-white/10 flex items-center gap-2 text-left">
+                        <Sparkles size={11} className="text-blue-300 flex-shrink-0" />
+                        <span className="font-mono text-xs font-semibold text-white/80">{o.name}</span>
+                        <span className="text-[10px] text-white/35">{BP_TYPES[o.type]?.label ?? o.type} · {lines} lines</span>
+                        <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded border ${BP_STATUS_DARK[o.status] ?? 'bg-gray-800 border-gray-600 text-gray-400'}`}>{BP_STATUS_LABEL[o.status] ?? o.status}</span>
+                      </button>
+                      {o.description && (
+                        <div className="px-3 py-2 text-xs text-blue-300/70 border-b border-white/5 bg-blue-500/10">
+                          <span className="font-mono text-[10px] text-blue-300/50">PROMPT → </span>{o.description}
+                        </div>
+                      )}
+                      <div className={`px-3 py-2 overflow-y-auto ${isOpen ? 'max-h-96' : 'max-h-28'}`}>
+                        <pre className="text-xs text-white/60 font-mono leading-relaxed whitespace-pre-wrap">
+                          {isOpen ? o.generatedCode : o.generatedCode.slice(0, 600) + (o.generatedCode.length > 600 ? '\n…' : '')}
+                        </pre>
+                      </div>
+                      <div className="px-3 py-1.5 border-t border-white/5 flex items-center gap-3 text-[10px] text-white/35">
+                        {o.appliedTransport && <span>Transport <span className="font-mono text-white/60">{o.appliedTransport}</span></span>}
+                        {o.appliedAt && <span>Applied {new Date(o.appliedAt).toLocaleString()}</span>}
+                        <button onClick={() => navigator.clipboard?.writeText(o.generatedCode)} className="ml-auto flex items-center gap-1 hover:text-white/70">
+                          <Copy size={10} /> Copy
+                        </button>
+                        <button onClick={() => setExpandedRun(isOpen ? null : `ai_${o.id}`)} className="hover:text-white/70">{isOpen ? 'Collapse' : 'Show all'}</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {logTab === 'ai' && !useBp && (
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {implActivities
                 .filter(a => actState[a.id]?.generatedCode)
