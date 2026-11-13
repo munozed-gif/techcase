@@ -2551,17 +2551,21 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
   async function releaseConsultant(consultantId) {
     if (!window.confirm("Release this consultant? Their assignment will be kept for records and the case will return to the arena stage.")) return;
     setReleasingId(consultantId);
-    const { data: lcs } = await supabase.from("lifecycle_templates").select("stages").eq("id", caseData.case_lifecycle?.id ?? "").maybeSingle().catch(() => ({ data: null }));
-    const stages = lcs?.stages ?? [];
-    const arenaKey = stages.find(s => s.is_arena)?.key ?? "estimated";
-    await supabase.from("case_assignments")
+    // The case's own lifecycle (template or preset) decides which stage is the Arena stage.
+    // (The previous lookup called .catch() on a Supabase query, which has no .catch, so
+    // every release failed before anything was saved.)
+    const arenaKey = lifecycleStages.find(s => s.is_arena)?.key ?? "estimated";
+    const { error: relErr } = await supabase.from("case_assignments")
       .update({ is_active: false, released_at: new Date().toISOString() })
       .eq("case_id", caseData.id)
       .eq("consultant_id", consultantId);
+    if (relErr) { setReleasingId(null); alert(`Could not release the consultant: ${relErr.message}`); return; }
     const remaining = (caseData.case_assignments ?? [])
       .filter(a => a.consultant_id !== consultantId && a.is_active !== false);
-    if (remaining.length === 0) {
-      await supabase.from("cases").update({ status: arenaKey }).eq("id", caseData.id);
+    if (remaining.length === 0 && caseData.status !== arenaKey) {
+      // Back to the Arena stage only when nobody else is still assigned.
+      if (onStatusChange) await onStatusChange(caseData.id, arenaKey);
+      else await supabase.from("cases").update({ status: arenaKey }).eq("id", caseData.id);
     }
     notify(consultantId, "Assignment Released", `Your assignment to "${caseData.title}" has been released.`, "case_assignment");
     sendEmailToUser(consultantId, `Assignment Released: ${caseData.title}`, `Your assignment to "${caseData.title}" has been released.`, "case_assignment");
