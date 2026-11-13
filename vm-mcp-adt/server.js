@@ -193,12 +193,23 @@ async function getClient(creds) {
     // mcp-abap-abap-adt-api (R+W) throws if NODE_TLS_REJECT_UNAUTHORIZED=0 is set —
     // it explicitly blocks that flag and requires NODE_EXTRA_CA_CERTS instead.
     // mcp-abap-adt (R/O) uses TLS_REJECT_UNAUTHORIZED (a different var) — keep as-is.
+    // mcp-abap-abap-adt-api only accepts an http:// SAP_URL with SAP_ALLOW_HTTP=1
+    // ("explicitly permits a trusted private HTTP origin"). Allow it only for
+    // private-network addresses (e.g. a trial system in the VM's own VPC), never
+    // for public hosts.
+    let privateHttp = false;
+    try {
+      const u = new URL(sapUrl);
+      privateHttp = u.protocol === 'http:' &&
+        /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost$)/.test(u.hostname);
+    } catch {}
     const tlsEnv = serverType === 'abap-adt'
       ? {
           // Provide CA cert via env if available; if blank the subprocess uses system trust store
           ...(process.env.NODE_EXTRA_CA_CERTS
             ? { NODE_EXTRA_CA_CERTS: process.env.NODE_EXTRA_CA_CERTS }
             : {}),
+          ...(privateHttp ? { SAP_ALLOW_HTTP: '1' } : {}),
         }
       : {
           NODE_TLS_REJECT_UNAUTHORIZED: '0',
