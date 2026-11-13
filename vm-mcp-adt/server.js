@@ -1272,7 +1272,7 @@ app.post('/sap-write-mcp', async (req, res) => {
     let syntaxErrors = null;
     // Always for DDIC sources (tables/structures): a bad definition should fail here with
     // a clear message instead of failing activation. Args per the tool's README.
-    const isDdicSource = /^TABL\//i.test(objtype ?? '') || /\/ddic\/(dbtables|structures)\//i.test(objectSourceUrl);
+    const isDdicSource = /^TABL\//i.test(objtype ?? '') || /\/ddic\/(tables|dbtables|structures)\//i.test(objectSourceUrl);
     if ((effectivePolicy.syntaxCheckBeforeWrite || isDdicSource) && effectiveCaps.hasSyntaxCheck !== false) {
       try {
         const syntaxResult = await callTool('syntaxCheckCode', { code: source, url: objectSourceUrl, mainUrl: objectSourceUrl });
@@ -1439,7 +1439,7 @@ function parseAdtPath(adtPath) {
     return { type: 'class', name: m[1] };
   if ((m = p.match(/\/sap\/bc\/adt\/functions\/groups\/([^/]+)\/fmodules\/([^/]+)\/source\/main/)))
     return { type: 'function_module', fg: m[1], name: m[2] };
-  if ((m = p.match(/\/sap\/bc\/adt\/ddic\/dbtables\/([^/]+)\/source\/main/)))
+  if ((m = p.match(/\/sap\/bc\/adt\/ddic\/(?:db)?tables\/([^/]+)\/source\/main/)))
     return { type: 'table', name: m[1] };
   return null;
 }

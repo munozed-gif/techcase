@@ -80,7 +80,7 @@ function objectPath(objectType, objectName) {
       return `/sap/bc/adt/functions/groups/${parts[0]}/fmodules/${parts[1]}/source/main`;
     }
     case 'table':
-      return `/sap/bc/adt/ddic/dbtables/${n}/source/main`;
+      return `/sap/bc/adt/ddic/tables/${n}/source/main`;
     case 'include':
       return `/sap/bc/adt/programs/includes/${n}/source/main`;
     case 'enhancement':

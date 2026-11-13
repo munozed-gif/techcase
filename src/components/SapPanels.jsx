@@ -134,7 +134,7 @@ const SAP_ADT_OBJECT_MAP_DEFAULTS = {
   class:         { pathTpl: '/sap/bc/adt/oo/classes/{N}/source/main', urlTpl: '/sap/bc/adt/oo/classes/{N}', objtype: 'CLAS/OC', createOnly: false, roToolHint: 'getclass' },
   function_module: { pathTpl: '/sap/bc/adt/functions/groups/{FG}/fmodules/{FM}/source/main', urlTpl: '/sap/bc/adt/functions/groups/{FG}', objtype: 'FUGR/FF', createOnly: false, roToolHint: 'getfunctiongroup' },
   bapi:          { pathTpl: '/sap/bc/adt/functions/groups/{FG}/fmodules/{FM}/source/main', urlTpl: '/sap/bc/adt/functions/groups/{FG}', objtype: 'FUGR/FF', createOnly: false, roToolHint: 'getfunctiongroup' },
-  table:         { pathTpl: '/sap/bc/adt/ddic/dbtables/{N}/source/main', urlTpl: '/sap/bc/adt/ddic/dbtables/{N}', objtype: 'TABL/DT', createOnly: false, roToolHint: 'gettable' },
+  table:         { pathTpl: '/sap/bc/adt/ddic/tables/{N}/source/main', urlTpl: '/sap/bc/adt/ddic/tables/{N}', objtype: 'TABL/DT', createOnly: false, roToolHint: 'gettable' },
   structure:     { pathTpl: '/sap/bc/adt/ddic/structures/{N}/source/main', urlTpl: '/sap/bc/adt/ddic/structures/{N}', objtype: 'TABL/DS', createOnly: false, roToolHint: 'getstructure' },
   enhancement:   { pathTpl: '/sap/bc/adt/enhancements/{N}/source/main', urlTpl: '/sap/bc/adt/enhancements/{N}', objtype: 'ENHO', createOnly: false, roToolHint: null },
   badi:          { pathTpl: '/sap/bc/adt/enhancements/badi_impl/{N}/source/main', urlTpl: '/sap/bc/adt/enhancements/badi_impl/{N}', objtype: null, createOnly: false, roToolHint: null },
@@ -735,7 +735,7 @@ function sapObjectPath(objectType, objectName) {
       const [fg, fm] = n.includes('/') ? n.split('/') : [n, n];
       return `/sap/bc/adt/functions/groups/${fg}/fmodules/${fm}/source/main`;
     }
-    case 'table':       return `/sap/bc/adt/ddic/dbtables/${n}/source/main`;
+    case 'table':       return `/sap/bc/adt/ddic/tables/${n}/source/main`;
     case 'structure':   return `/sap/bc/adt/ddic/structures/${n}/source/main`;
     case 'enhancement': return `/sap/bc/adt/enhancements/${n}/source/main`;
     case 'badi':        return `/sap/bc/adt/enhancements/badi_impl/${n}/source/main`;
@@ -763,7 +763,7 @@ function sapObjectUrl(objectType, objectName) {
       const [fg] = n.includes('/') ? n.split('/') : [n];
       return `/sap/bc/adt/functions/groups/${fg}`;
     }
-    case 'table':       return `/sap/bc/adt/ddic/dbtables/${n}`;
+    case 'table':       return `/sap/bc/adt/ddic/tables/${n}`;
     case 'structure':   return `/sap/bc/adt/ddic/structures/${n}`;
     case 'enhancement': return `/sap/bc/adt/enhancements/${n}`;
     case 'badi':        return `/sap/bc/adt/enhancements/badi_impl/${n}`;
