@@ -1148,6 +1148,11 @@ function SapIntegrationPanel({ clientId, auth }) {
                       </div>
                       {(env.vpn_mode ?? 'platform') === 'platform' ? (
                         <div className="space-y-1.5">
+                          <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
+                            <input type="checkbox" checked={env.vpn_required === false} disabled={!canEdit}
+                              onChange={e => updateEnvField(env.id, 'vpn_required', e.target.checked ? false : true)} className="accent-blue-500" />
+                            No VPN needed — the VM reaches this SAP system directly
+                          </label>
                           <select value={env.connectionId ?? ''} onChange={e => updateEnvField(env.id, 'connectionId', e.target.value)} disabled={!canEdit}
                             className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
                             <option value="">— None (no VPN credentials) —</option>
@@ -2517,7 +2522,11 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     const laptopTunnelDetail = vmStatusData?.laptopTunnelDetail || '';
 
     // ── ADT mode VPN check ────────────────────────────────────────
-    if (isAdtMcpMode && isUserVpn) {
+    if (env.vpn_required === false && !isUserVpn) {
+      // SAP system reachable directly from the VM (e.g. same AWS network) — nothing to start.
+      setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: 'Not required — SAP reachable without VPN' });
+      addLog('vpn', 'This environment is marked "No VPN needed" — VPN not checked or started.', 'success');
+    } else if (isAdtMcpMode && isUserVpn) {
       // User VPN + ADT: bridge runs on the laptop alongside FortiClient.
       // Trust the user; VPN detection on Mac (utun) may return false even when connected.
       if (vpnActive || laptopTunnel) {
@@ -3856,6 +3865,12 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                             })}
                           </div>
                           {(env.vpn_mode ?? 'platform') === 'platform' ? (
+                            <div className="space-y-1.5">
+                              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
+                                <input type="checkbox" checked={env.vpn_required === false} disabled={!canEdit}
+                                  onChange={e => updateEnvField(env.id, 'vpn_required', e.target.checked ? false : true)} className="accent-blue-500" />
+                                No VPN needed — the VM reaches this SAP system directly
+                              </label>
                             <select value={env.connectionId ?? ''} onChange={e => updateEnvField(env.id, 'connectionId', e.target.value)} disabled={!canEdit}
                               className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
                               <option value="">— None —</option>
@@ -3865,6 +3880,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                                 </option>
                               ))}
                             </select>
+                            </div>
                           ) : (
                             <p className="text-xs text-gray-400 bg-blue-500/5 border border-blue-500/20 rounded-lg px-3 py-2">
                               Platform VPN check skipped — connect via your local VPN client before testing SAP. MCP proxy is still used for SAP API calls.
