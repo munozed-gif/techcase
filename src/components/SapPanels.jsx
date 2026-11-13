@@ -5706,7 +5706,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
         addLog(`${obj.name}: generating ABAP...`, 'generating');
         const standardsBlock = buildAbapStandardsPrompt(standards, obj.type, obj.name, null, caseData, runTransport, false);
         const ddicPrompt = buildDdicSourcePrompt(obj.type, obj, caseData, objects);
-        const prompt = ddicPrompt ?? `You are an SAP ABAP developer. Create ${obj.type} ${obj.name}.
+        const basePrompt = ddicPrompt ?? `You are an SAP ABAP developer. Create ${obj.type} ${obj.name}.
 Description: ${obj.description}
 Case: ${caseData.title}
 SAP Module: ${caseData.area_sap ?? 'general'}
@@ -5714,6 +5714,13 @@ SAP Module: ${caseData.area_sap ?? 'general'}
 ${standardsBlock}
 
 Output ONLY the ABAP source code, no explanations.`;
+        // Feedback written in the pipeline's Results step ("What do you want to change or add
+        // to the next run?"), plus the previous version when the object is being regenerated.
+        const runFeedback = (runFeedbackRef.current ?? (settings['sap_impl_feedback'] ?? {})[caseId] ?? '').trim();
+        const prompt = basePrompt
+          + (runFeedback ? `\n\nFEEDBACK FROM PREVIOUS RUNS — apply it to this object where relevant:\n${runFeedback}` : '')
+          + (obj.previousCode ? `\n\nPREVIOUS VERSION OF ${obj.name} (revise it per the feedback; keep what still applies):\n${String(obj.previousCode).slice(0, 12000)}` : '');
+        if (runFeedback) addLog(`${obj.name}: applying run feedback${obj.previousCode ? ' to the previous version' : ''}.`, 'generating');
         // In ADT mode, Cloudflare quick tunnels block SSE from Anthropic's servers,
         // so MCP for generation never works. Skip it — generation goes directly.
         // The write step uses the bridge's own MCP subprocess pool (not SSE).
@@ -5834,9 +5841,23 @@ Output ONLY the ABAP source code, no explanations.`;
   function handleRunSelected() { confirmAndRun(objects.filter(o => checkedIds.has(o.id))); }
 
   // The pipeline wizard's Run step asks the canvas to run (same confirmation and run path).
+  // runSignal.reset: regenerate those objects (even if done) using the feedback; the
+  // previous code is kept so the AI can revise it instead of starting over.
+  const runFeedbackRef = useRef(null);
   useEffect(() => {
     if (!runSignal?.nonce || running) return;
-    const subset = runSignal.ids ? objects.filter(o => runSignal.ids.includes(o.id)) : objects;
+    let subset = runSignal.ids ? objects.filter(o => runSignal.ids.includes(o.id)) : objects;
+    if (runSignal.reset) {
+      subset = subset.map(o => ({ ...o, status: 'planned', error: null, generatedCode: null,
+        previousCode: o.generatedCode || o.previousCode || null }));
+      const byId = Object.fromEntries(subset.map(o => [o.id, o]));
+      setObjects(prev => {
+        const next = prev.map(o => byId[o.id] ?? o);
+        saveBlueprint(next);
+        return next;
+      });
+    }
+    if (runSignal.feedback !== undefined) runFeedbackRef.current = runSignal.feedback;
     if (subset.length) confirmAndRun(subset);
   }, [runSignal?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -7543,6 +7564,15 @@ FALLBACK:
   const bpLastAt     = bpSorted.map(o => o.appliedAt).filter(Boolean).sort().pop() ?? null;
   const bpTransports = [...new Set(bpSorted.map(o => o.appliedTransport).filter(Boolean))];
   const [bpRunSignal, setBpRunSignal] = useState(null);
+  const [rerunPick, setRerunPick] = useState(null); // null = default (objects not done yet)
+  const rerunIds = rerunPick ?? bpSorted.filter(o => o.status !== 'done' && bpIsAi(o)).map(o => o.id);
+  async function handleBpRunAgain() {
+    if (!rerunIds.length) return;
+    await saveImplFeedback(implFeedback);
+    setBpRunSignal({ ids: rerunIds, reset: true, feedback: implFeedback, nonce: Date.now() });
+    setRerunPick(null);
+    setImplStep(4);
+  }
   const BP_STATUS_LABEL = { planned: 'Planned', generating: 'Generating', generated: 'Code ready', applying: 'Applying',
     inactive: 'Not active', unverified: 'Unverified', done: 'Done', error: 'Error', blocked: 'Blocked', manual: 'Manual', skipped: 'Skipped' };
   const BP_STATUS_DARK = {
@@ -8248,21 +8278,38 @@ FALLBACK:
           {bpTransports.length > 0 && (
             <p className="text-xs text-white/50">Transport{bpTransports.length > 1 ? 's' : ''}: <span className="font-mono text-white/80">{bpTransports.join(', ')}</span></p>
           )}
-          <SectionLabel>Objects</SectionLabel>
+          <SectionLabel>Objects — tick the ones to regenerate in the next run</SectionLabel>
           <div className="space-y-1.5">
-            {bpSorted.map(o => <BpObjectRow key={o.id} o={o} showTime />)}
+            {bpSorted.map(o => (
+              <div key={o.id} className="flex items-center gap-2">
+                <input type="checkbox" className="accent-blue-500 flex-shrink-0" disabled={!bpIsAi(o)}
+                  title={bpIsAi(o) ? 'Regenerate this object in the next run' : 'Manual object — not generated'}
+                  checked={rerunIds.includes(o.id)}
+                  onChange={e => setRerunPick(e.target.checked ? [...rerunIds, o.id] : rerunIds.filter(id => id !== o.id))} />
+                <div className="flex-1 min-w-0"><BpObjectRow o={o} showTime /></div>
+              </div>
+            ))}
           </div>
           <div>
             <label className="text-xs font-semibold text-white/50 uppercase tracking-wide flex items-center gap-1.5 mb-2">
               <MessageSquare size={11} /> What do you want to change or add to the next run?
             </label>
             <textarea value={implFeedback} onChange={e => setImplFeedback(e.target.value)} onBlur={() => saveImplFeedback(implFeedback)} rows={4}
-              placeholder={'e.g. Add error handling to ZMM_GOODS_RECEIPT. For ZBAPI_INVOICE change the number range to use NUMBER_GET_NEXT instead of hard-coded…'}
+              placeholder={'e.g. ZTST_PAYCODE: add field VALID_FROM (DATS). ZTST_PAYCODE_LIST: add a selection screen filter on ACTIVE…'}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+            <p className="text-[11px] text-white/35 mt-1.5 flex items-start gap-1.5">
+              <History size={11} className="flex-shrink-0 mt-0.5" />
+              <span>Run again regenerates the ticked objects: the AI gets this feedback and each object's previous code, then the new version is written to SAP (overwriting it), activated and verified. Unticked objects are left as they are. The feedback is kept for later runs too.</span>
+            </p>
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
             <button onClick={() => setImplStep(4)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">← Back</button>
             <button onClick={() => setImplStep(6)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">View Logs →</button>
+            <button onClick={handleBpRunAgain} disabled={!rerunIds.length || !autoImplEnabled}
+              title={!autoImplEnabled ? 'Auto-implement is off for this SAP environment' : ''}
+              className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-colors">
+              <RotateCcw size={12} /> Run again{rerunIds.length ? ` (${rerunIds.length})` : ''}
+            </button>
           </div>
         </Panel>
       )}
