@@ -5038,7 +5038,7 @@ function SapWriteConfirmDialog({ request, sapConfig, packageName, transport, onC
   );
 }
 
-function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEnabled, genModel, transportReq, packageReq, ssCtx, configOps, onTransportCreated }) {
+function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEnabled, genModel, transportReq, packageReq, ssCtx, configOps, onTransportCreated, runSignal }) {
   const { settings } = ssCtx;
   const caseId = caseData.id;
   const bpKey = 'sap_blueprint';
@@ -5799,6 +5799,13 @@ Output ONLY the ABAP source code, no explanations.`;
 
   function handleRunAll() { confirmAndRun(objects); }
   function handleRunSelected() { confirmAndRun(objects.filter(o => checkedIds.has(o.id))); }
+
+  // The pipeline wizard's Run step asks the canvas to run (same confirmation and run path).
+  useEffect(() => {
+    if (!runSignal?.nonce || running) return;
+    const subset = runSignal.ids ? objects.filter(o => runSignal.ids.includes(o.id)) : objects;
+    if (subset.length) confirmAndRun(subset);
+  }, [runSignal?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleCheck(id, e) {
     e.stopPropagation();
@@ -7471,6 +7478,44 @@ FALLBACK:
   const manualCount = bpSorted.length > 0
     ? bpSorted.filter(o => !(o.aiCapable ?? BP_TYPES[o.type]?.ai ?? true)).length
     : sortedActivities.filter(a => MANUAL_TYPES.has(objectMap[a.id]?.objectType ?? '')).length;
+  // Run / Results / Logs follow the blueprint objects when the case has them (the canvas
+  // above writes each object's SAP outcome there); activities are the fallback.
+  const useBp        = bpSorted.length > 0;
+  const bpIsAi       = o => (o.aiCapable ?? BP_TYPES[o.type]?.ai ?? true);
+  const bpDone       = bpSorted.filter(o => o.status === 'done');
+  const bpWritten    = bpSorted.filter(o => ['done', 'inactive', 'unverified'].includes(o.status));
+  const bpErrors     = bpSorted.filter(o => o.status === 'error');
+  const bpLastAt     = bpSorted.map(o => o.appliedAt).filter(Boolean).sort().pop() ?? null;
+  const bpTransports = [...new Set(bpSorted.map(o => o.appliedTransport).filter(Boolean))];
+  const [bpRunSignal, setBpRunSignal] = useState(null);
+  const BP_STATUS_LABEL = { planned: 'Planned', generating: 'Generating', generated: 'Code ready', applying: 'Applying',
+    inactive: 'Not active', unverified: 'Unverified', done: 'Done', error: 'Error', blocked: 'Blocked', manual: 'Manual', skipped: 'Skipped' };
+  const BP_STATUS_DARK = {
+    done: 'bg-green-900/50 border-green-500/50 text-green-300', error: 'bg-red-900/50 border-red-500/50 text-red-300',
+    inactive: 'bg-orange-900/40 border-orange-500/50 text-orange-300', unverified: 'bg-purple-900/40 border-purple-500/50 text-purple-300',
+    applying: 'bg-amber-900/40 border-amber-500/50 text-amber-300', generating: 'bg-blue-900/40 border-blue-500/50 text-blue-300',
+    generated: 'bg-teal-900/40 border-teal-500/50 text-teal-300', manual: 'bg-amber-900/50 border-amber-500/50 text-amber-300',
+  };
+  const BpObjectRow = ({ o, showTime = false }) => {
+    const st = o.status ?? 'planned';
+    return (
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+        st === 'done' ? 'border-green-500/30 bg-green-500/10' : st === 'error' ? 'border-red-500/30 bg-red-500/10'
+        : ['inactive', 'unverified'].includes(st) ? 'border-orange-500/30 bg-orange-500/10' : 'border-white/10 bg-white/5'}`}>
+        <span className="font-mono text-xs font-semibold text-white flex-shrink-0 truncate max-w-[170px]">{o.name}</span>
+        <span className="text-[10px] text-white/40 flex-shrink-0">{BP_TYPES[o.type]?.label ?? o.type}</span>
+        <span className="text-xs text-white/40 truncate flex-1" title={o.error || o.appliedNote || ''}>
+          {o.error ? <span className="text-red-400">{o.error}</span>
+            : o.appliedTransport ? `${o.appliedPackage ? o.appliedPackage + ' · ' : ''}${o.appliedTransport}` : ''}
+        </span>
+        {showTime && o.appliedAt && <span className="text-[10px] text-white/30 flex-shrink-0">{new Date(o.appliedAt).toLocaleString()}</span>}
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${BP_STATUS_DARK[st] ?? 'bg-gray-800 border-gray-600 text-gray-400'}`}>
+          {BP_STATUS_LABEL[st] ?? st}
+        </span>
+      </div>
+    );
+  };
+
   const autoCount = bpSorted.length > 0
     ? bpSorted.filter(o => (o.aiCapable ?? BP_TYPES[o.type]?.ai ?? true)).length
     : sortedActivities.length - manualCount;
@@ -7717,6 +7762,7 @@ FALLBACK:
         sapConfig={enrichedSapConfig} autoImplEnabled={autoImplEnabled}
         genModel={genModel} transportReq={transportReq} packageReq={packageReq} ssCtx={ssCtx}
         onTransportCreated={tr => { if (tr && !transportReq) setTransportReq(tr); }}
+        runSignal={bpRunSignal}
         configOps={{
           manualSpecs, setManualSpecs, saveSpecs,
           bcsetSysType, setBcsetSysType,
@@ -8038,8 +8084,45 @@ FALLBACK:
         </Panel>
       )}
 
+      {/* ── STEP 4: Run (blueprint objects) ───────────── */}
+      {implStep === 4 && useBp && (
+        <Panel icon={<Play size={15} />} title="Implementation Run"
+          sub={`${bpSorted.length} objects · ${autoImplEnabled ? 'auto-implement enabled' : 'manual apply mode'}`}>
+          <div>
+            <div className="flex justify-between text-xs text-white/40 mb-1.5">
+              <span>{t('sap.impl_progress_title')}</span>
+              <span>{bpDone.length} of {bpSorted.length} objects done in SAP</span>
+            </div>
+            <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden flex">
+              <div className="bg-green-500 h-2 transition-all" style={{ width: `${Math.round(bpDone.length / bpSorted.length * 100)}%` }} />
+              <div className="bg-orange-400 h-2 transition-all" style={{ width: `${Math.round((bpWritten.length - bpDone.length) / bpSorted.length * 100)}%` }} />
+              <div className="bg-red-500 h-2 transition-all" style={{ width: `${Math.round(bpErrors.length / bpSorted.length * 100)}%` }} />
+            </div>
+          </div>
+          {autoImplEnabled && (
+            <div className="flex gap-2 flex-wrap items-center">
+              <button onClick={() => setBpRunSignal({ ids: null, nonce: Date.now() })}
+                className="px-3 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors">
+                {bpDone.length > 0 && bpDone.length < bpSorted.length ? 'Apply remaining to SAP' : t('sap.impl_apply_all')}
+              </button>
+              {bpErrors.length > 0 && (
+                <button onClick={() => setBpRunSignal({ ids: bpErrors.map(o => o.id), nonce: Date.now() })}
+                  className="px-3 py-1.5 text-xs font-semibold border border-red-500/40 text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
+                  Retry {bpErrors.length} failed
+                </button>
+              )}
+              <span className="text-[11px] text-white/30">Progress also shows on the blueprint canvas above.</span>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            {bpSorted.map(o => <BpObjectRow key={o.id} o={o} />)}
+          </div>
+          <StepNav prev={3} next={5} nextLabel="See Results →" />
+        </Panel>
+      )}
+
       {/* ── STEP 4: Run ───────────────────────────────── */}
-      {implStep === 4 && (
+      {implStep === 4 && !useBp && (
         <Panel icon={<Play size={15} />} title="Implementation Run"
           sub={`${totalCount} activities · ${autoImplEnabled ? 'auto-implement enabled' : 'manual apply mode'}`}>
 
@@ -8095,8 +8178,55 @@ FALLBACK:
         </Panel>
       )}
 
+      {/* ── STEP 5: Results (blueprint objects) ───────── */}
+      {implStep === 5 && useBp && (
+        <Panel icon={<CheckCircle2 size={15} />} title="Results"
+          sub={bpLastAt ? `Last applied ${new Date(bpLastAt).toLocaleString()}` : 'No objects applied yet'}>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Total',        value: bpSorted.length, color: 'text-blue-400' },
+              { label: 'Auto Applied', value: bpDone.filter(bpIsAi).length, color: 'text-green-400' },
+              { label: 'Manual',       value: bpSorted.filter(o => !bpIsAi(o)).length, color: 'text-amber-400' },
+              { label: '% Complete',   value: `${Math.round(bpDone.length / bpSorted.length * 100)}%`, color: 'text-blue-400' },
+              { label: 'Done in SAP',  value: bpDone.length, color: 'text-green-400' },
+              { label: 'Remaining',    value: bpSorted.length - bpDone.length, color: bpSorted.length - bpDone.length > 0 ? 'text-amber-400' : 'text-white/30' },
+            ].map(s => (
+              <div key={s.label} className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
+                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
+              </div>
+            ))}
+          </div>
+          {(bpWritten.length > bpDone.length || bpErrors.length > 0) && (
+            <p className="text-xs text-white/50">
+              {bpWritten.length - bpDone.length > 0 && <span className="text-orange-300">{bpWritten.length - bpDone.length} written but not confirmed/active. </span>}
+              {bpErrors.length > 0 && <span className="text-red-300">{bpErrors.length} failed — see Logs or retry from Run.</span>}
+            </p>
+          )}
+          {bpTransports.length > 0 && (
+            <p className="text-xs text-white/50">Transport{bpTransports.length > 1 ? 's' : ''}: <span className="font-mono text-white/80">{bpTransports.join(', ')}</span></p>
+          )}
+          <SectionLabel>Objects</SectionLabel>
+          <div className="space-y-1.5">
+            {bpSorted.map(o => <BpObjectRow key={o.id} o={o} showTime />)}
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-white/50 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+              <MessageSquare size={11} /> What do you want to change or add to the next run?
+            </label>
+            <textarea value={implFeedback} onChange={e => setImplFeedback(e.target.value)} onBlur={() => saveImplFeedback(implFeedback)} rows={4}
+              placeholder={'e.g. Add error handling to ZMM_GOODS_RECEIPT. For ZBAPI_INVOICE change the number range to use NUMBER_GET_NEXT instead of hard-coded…'}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <button onClick={() => setImplStep(4)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">← Back</button>
+            <button onClick={() => setImplStep(6)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">View Logs →</button>
+          </div>
+        </Panel>
+      )}
+
       {/* ── STEP 5: Results ───────────────────────────── */}
-      {implStep === 5 && (
+      {implStep === 5 && !useBp && (
         <Panel icon={<CheckCircle2 size={15} />} title="Results"
           sub={appliedCount > 0 ? `Last applied ${new Date(implLog[implLog.length - 1]?.appliedAt).toLocaleString()}` : 'No objects applied yet'}>
 
@@ -8218,7 +8348,33 @@ FALLBACK:
             ))}
           </div>
 
-          {logTab === 'platform' && (
+          {logTab === 'platform' && useBp && (() => {
+            const events = bpSorted.filter(o => o.appliedAt || o.status === 'error')
+              .sort((a, b) => String(a.appliedAt ?? '').localeCompare(String(b.appliedAt ?? '')));
+            if (!events.length) return <p className="text-sm text-white/40 text-center py-6">No implementation events yet.</p>;
+            return (
+              <div className="space-y-1 font-mono text-xs max-h-80 overflow-y-auto">
+                {events.map(o => {
+                  const st = o.status ?? 'planned';
+                  const tag = st === 'done' ? ['OK', 'text-green-400'] : st === 'error' ? ['ERR', 'text-red-400'] : ['WARN', 'text-orange-300'];
+                  const steps = o.sapSteps ? Object.entries(o.sapSteps).filter(([, v]) => v === true).map(([k]) => k).join(' · ') : '';
+                  return (
+                    <div key={o.id} className="flex items-start gap-3 py-1.5 px-2 rounded hover:bg-white/5">
+                      <span className="text-white/25 flex-shrink-0 w-20">{o.appliedAt ? new Date(o.appliedAt).toLocaleTimeString() : '—'}</span>
+                      <span className={`${tag[1]} font-bold flex-shrink-0 w-10`}>{tag[0]}</span>
+                      <span className="text-white/60 break-words">
+                        <span className="text-blue-400">{o.name}</span>{' '}
+                        {st === 'error' ? (o.error || 'failed') : (BP_STATUS_LABEL[st] ?? st).toLowerCase()}
+                        {o.appliedTransport ? ` → ${o.appliedTransport}` : ''}
+                        {steps ? <span className="text-white/30"> ({steps})</span> : null}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          {logTab === 'platform' && !useBp && (
             implLog.length === 0 ? (
               <p className="text-sm text-white/40 text-center py-6">No implementation events yet.</p>
             ) : (
