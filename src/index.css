@@ -58,7 +58,7 @@
   /* Dividers (light blue) */
   --t-divider:            #D4E6F5;
   /* Section sublabels */
-  --t-sublabel:           #8FA8C2;
+  --t-sublabel:           #64809E;
   --t-subtext:            #5B7A9B;
 }
 
@@ -447,3 +447,12 @@
   --sap-field-text: #001280;
 }
 /* SAP screen is a light-themed GUI simulation — keep it light in all modes */
+
+/* ═══════════════════════════════════════════════════════════════
+   Light theme readability: secondary text one step darker inside the
+   main content (gray-400 / slate-400 on white is ~2.5:1, below WCAG).
+   The sidebar (outside <main>) and the dark theme are unaffected.
+═══════════════════════════════════════════════════════════════ */
+html:not(.arena-dark) main .text-gray-400  { color: #6B7280; }
+html:not(.arena-dark) main .text-slate-400 { color: #64748B; }
+html:not(.arena-dark) main .placeholder-gray-400::placeholder { color: #9CA3AF; }

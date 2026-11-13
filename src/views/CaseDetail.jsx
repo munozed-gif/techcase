@@ -137,11 +137,11 @@ function DocSectionHeader({ Icon, iconClass, label, count, accent, children }) {
 function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t, onDownloadPdf, canDownloadPdf }) {
   const isHtml = doc.file_name?.toLowerCase().endsWith('.html') || (doc.file_type ?? '').includes('html');
   const icon = doc.file_type?.includes("pdf")
-    ? <FileText className="w-4 h-4 text-red-400" />
+    ? <FileText className="w-4 h-4 text-red-600 dark:text-red-400" />
     : doc.file_type?.includes("image")
-    ? <FileImage className="w-4 h-4 text-blue-400" />
+    ? <FileImage className="w-4 h-4 text-blue-600 dark:text-blue-400" />
     : isHtml
-    ? <FileText className="w-4 h-4 text-violet-400" />
+    ? <FileText className="w-4 h-4 text-violet-600 dark:text-violet-400" />
     : <Paperclip className="w-4 h-4 text-gray-400" />;
   return (
     <div className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
@@ -165,7 +165,7 @@ function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t, onDownloadPdf, 
       )}
       {(auth.isAdmin || auth.isManager) && (
         <button onClick={() => deleteDocument(doc.id, doc.file_url)}
-          className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
+          className="text-xs text-red-600 dark:text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
           {t("action.remove")}
         </button>
       )}
@@ -3339,7 +3339,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
-                    <ListChecks size={12} className="text-blue-400" /> {t("case.plan_progress")}
+                    <ListChecks size={12} className="text-blue-600 dark:text-blue-400" /> {t("case.plan_progress")}
                   </span>
                   <span className="text-sm font-bold text-blue-700">{caseProgress}%</span>
                 </div>
@@ -3388,7 +3388,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
               <div className="border border-gray-100 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
-                    <Eye size={12} className="text-blue-400" />{t('case.vis_label')}
+                    <Eye size={12} className="text-blue-600 dark:text-blue-400" />{t('case.vis_label')}
                   </p>
                   {(caseVis === 'private' || caseVis === 'invite-only') && (auth.isAdmin || auth.isManager || auth.isClient) && (
                     <button onClick={() => setShowInviteDrawer(true)}
@@ -3567,7 +3567,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                         {(caseData.reviewer_name || reviewerMember?.users?.full_name) && (
                           <div className="text-[10px] text-gray-400 truncate">{caseData.reviewer_email}</div>
                         )}
-                        <div className="text-[10px] text-indigo-400">Blueprint Reviewer</div>
+                        <div className="text-[10px] text-indigo-600 dark:text-indigo-400">Blueprint Reviewer</div>
                       </div>
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded flex-shrink-0">
                         {caseData.reviewer_user_id ? 'In-app' : 'External'}
@@ -4200,7 +4200,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                 <div className="space-y-2">
                   {protoDocs.map(doc => (
                     <div key={doc.id} className="flex items-center gap-3 p-3 border border-indigo-100 rounded-xl bg-indigo-50 hover:bg-indigo-100">
-                      <Monitor className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                      <Monitor className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-gray-800 truncate">{doc.file_name}</p>
                         <div className="text-xs text-gray-400 mt-0.5">
@@ -4214,7 +4214,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                       </button>
                       {(auth.isAdmin || auth.isManager) && (
                         <button onClick={() => deleteDocument(doc.id, doc.file_url)}
-                          className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
+                          className="text-xs text-red-600 dark:text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
                           {t("action.remove")}
                         </button>
                       )}
@@ -4225,7 +4225,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
             )}
 
             {/* ── AI Generated ── */}
-            <DocSectionHeader Icon={Sparkles} iconClass="text-violet-400" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
+            <DocSectionHeader Icon={Sparkles} iconClass="text-violet-600 dark:text-violet-400" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
               {aiDocs.length === 0
                 ? <p className="text-xs text-gray-400 py-2 pl-1">No AI-generated documents yet — run the Spec tab to generate them.</p>
                 : <div className="space-y-2">
@@ -4246,7 +4246,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
             </DocSectionHeader>
 
             {/* ── Case Documents ── */}
-            <DocSectionHeader Icon={FolderOpen} iconClass="text-blue-400" label="Case Documents" count={caseDocs.length} accent="border-blue-100">
+            <DocSectionHeader Icon={FolderOpen} iconClass="text-blue-600 dark:text-blue-400" label="Case Documents" count={caseDocs.length} accent="border-blue-100">
               {stageRules.can_upload_docs && (
                 <div className="flex justify-end mb-1">
                   <button onClick={() => setShowDocForm(p => !p)}
@@ -4319,7 +4319,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
             </DocSectionHeader>
 
             {/* ── Work Files ── */}
-            <DocSectionHeader Icon={Paperclip} iconClass="text-amber-400" label="Work Files" accent="border-amber-100">
+            <DocSectionHeader Icon={Paperclip} iconClass="text-amber-600 dark:text-amber-400" label="Work Files" accent="border-amber-100">
               <CaseFilesPanel caseId={caseData.id} auth={auth} embedded />
             </DocSectionHeader>
           </div>
@@ -4569,9 +4569,9 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                   <div className="flex items-center gap-2">
                     <Sparkles size={15} className="text-white" />
                     <span className="text-sm font-bold text-white">Review Generated Plan</span>
-                    <span className="text-xs text-blue-200 ml-1">· {devPlanPreview.items.filter(a => a._selected).length} of {devPlanPreview.items.length} items selected</span>
+                    <span className="text-xs text-blue-800 dark:text-blue-200 ml-1">· {devPlanPreview.items.filter(a => a._selected).length} of {devPlanPreview.items.length} items selected</span>
                   </div>
-                  <button onClick={() => setDevPlanPreview(null)} className="text-blue-200 hover:text-white transition-colors">
+                  <button onClick={() => setDevPlanPreview(null)} className="text-blue-800 dark:text-blue-200 hover:text-white transition-colors">
                     <X size={16} />
                   </button>
                 </div>
@@ -4907,7 +4907,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                             <Link2 size={13} className="text-violet-500 flex-shrink-0" />
                             <span className="text-sm font-medium text-violet-800 flex-1">{selectedLinkedCase.title}</span>
                             <button onClick={() => { setSelectedLinkedCase(null); setCaseSearchQuery(""); }}
-                              className="text-violet-400 hover:text-violet-600"><X size={14} /></button>
+                              className="text-violet-600 dark:text-violet-400 hover:text-violet-600"><X size={14} /></button>
                           </div>
                         )}
                         <div className="grid grid-cols-2 gap-3">
@@ -5242,7 +5242,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                                 </div>
                                 {editActForm.test_outcome === 'needs_adjustment' && (
                                   <div>
-                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("cd.issue_label")} <span className="text-red-400">*</span></label>
+                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("cd.issue_label")} <span className="text-red-600 dark:text-red-400">*</span></label>
                                     <textarea value={editActForm.adjustment_notes ?? ''} rows={3}
                                       onChange={e => setEditActForm(p => ({ ...p, adjustment_notes: e.target.value }))}
                                       placeholder={t("cd.ph_correction")}
@@ -5269,7 +5269,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                       </div>
                       <div className="flex items-center justify-between pt-1 border-t border-blue-100">
                         <button onClick={() => { if(window.confirm(act.activity_type === "sub_case" ? t("cd.confirm_remove_subcase") : t("cd.confirm_delete_act"))) deleteActivity(act.id); }}
-                          className="text-xs text-red-400 hover:text-red-600">
+                          className="text-xs text-red-600 dark:text-red-400 hover:text-red-600">
                           {act.activity_type === "sub_case" ? t("cd.remove_link") : t("cd.delete_act")}
                         </button>
                         <div className="flex gap-2">
@@ -5307,7 +5307,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                             onClick={() => { if (act.linked_case) { setSelectedSubCase(act.linked_case); setActiveTab("subcases"); } }}>
                             <div className="flex items-center gap-1">
                               <p className="text-sm font-semibold text-gray-800 truncate">{act.title}</p>
-                              <ExternalLink size={11} className="text-violet-400 flex-shrink-0" />
+                              <ExternalLink size={11} className="text-violet-600 dark:text-violet-400 flex-shrink-0" />
                             </div>
                             {act.linked_case?.status && (
                               <p className="text-xs text-gray-400 mt-0.5">
@@ -5367,7 +5367,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                             {canManage && (
                               <button
                                 onClick={() => { if(window.confirm(t("cd.confirm_remove_subcase"))) deleteActivity(act.id); }}
-                                className="text-xs text-red-400 hover:text-red-600 mt-1">
+                                className="text-xs text-red-600 dark:text-red-400 hover:text-red-600 mt-1">
                                 {t("cd.remove_link")}
                               </button>
                             )}
@@ -5609,7 +5609,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                   <ListChecks size={14} /> {t("case.add_activity")}
                 </button>
                 <button onClick={() => { setShowImportAct(true); setExtractedActs([]); setImportDocId(null); setImportDocFile(null); }}
-                  className="flex-1 py-3 border-2 border-dashed border-violet-200 rounded-xl text-sm text-violet-400 hover:border-violet-400 hover:text-violet-600 transition-colors flex items-center justify-center gap-2">
+                  className="flex-1 py-3 border-2 border-dashed border-violet-200 rounded-xl text-sm text-violet-600 dark:text-violet-400 hover:border-violet-400 hover:text-violet-600 transition-colors flex items-center justify-center gap-2">
                   <Upload size={14} /> {t("case.import_from_doc")}
                 </button>
               </div>
@@ -6101,7 +6101,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
             </div>
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                {t("cd.cancel_explanation_label")} <span className="text-red-400">*</span>
+                {t("cd.cancel_explanation_label")} <span className="text-red-600 dark:text-red-400">*</span>
               </p>
               <textarea value={cancelNotes} onChange={e => setCancelNotes(e.target.value)}
                 rows={3} placeholder={t("case.ph_cancel_reason")}
@@ -6318,7 +6318,7 @@ function CaseInviteCard({ caseData, auth }) {
   return (
     <div className="border border-gray-100 rounded-xl p-4">
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-        <UserPlus size={12} className="text-blue-400" /> Invite Client
+        <UserPlus size={12} className="text-blue-600 dark:text-blue-400" /> Invite Client
       </p>
 
       {/* Form — hidden once a client invitation has been accepted */}

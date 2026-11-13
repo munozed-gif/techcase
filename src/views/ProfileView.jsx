@@ -976,7 +976,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                           <div className="min-w-0 flex-1">
                             <span className="text-sm font-medium text-purple-800">{c.name}</span>
                             {c.issuer && <span className="text-xs text-purple-500 ml-2">{c.issuer}</span>}
-                            {c.year && <span className="text-xs text-purple-400 ml-1">· {c.year}</span>}
+                            {c.year && <span className="text-xs text-purple-600 dark:text-purple-400 ml-1">· {c.year}</span>}
                           </div>
                           <button onClick={async () => {
                             setSavingExp(true);
@@ -985,7 +985,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                               await updateProfile({ certifications: filtered.filter((_,j) => j !== i) });
                             } catch (e) { alert(e.message); }
                             setSavingExp(false);
-                          }} className="text-purple-300 hover:text-red-500 transition-colors ml-2 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+                          }} className="text-purple-700 dark:text-purple-300 hover:text-red-500 transition-colors ml-2 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
                         </div>
                       ))}
                     </div>}
@@ -1045,7 +1045,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                             setSavingExp(true);
                             try { await updateProfile({ education: (profile?.education ?? []).filter((_,j) => j !== i) }); } catch (e) { alert(e.message); }
                             setSavingExp(false);
-                          }} className="text-indigo-300 hover:text-red-500 transition-colors ml-2 mt-0.5 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+                          }} className="text-indigo-700 dark:text-indigo-300 hover:text-red-500 transition-colors ml-2 mt-0.5 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
                         </div>
                       ))}
                     </div>}
@@ -1233,7 +1233,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                                   </span>
                                   {isOwner && m.user_id !== auth.user?.id && (
                                     <button onClick={() => removeMember(m.id)}
-                                      className="text-red-400 hover:text-red-600 flex-shrink-0"><UserMinus size={13} /></button>
+                                      className="text-red-600 dark:text-red-400 hover:text-red-600 flex-shrink-0"><UserMinus size={13} /></button>
                                   )}
                                 </div>
                               ))}
@@ -1249,7 +1249,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                                   <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full flex-shrink-0">Pending</span>
                                   {isOwner && (
                                     <button onClick={() => removeMember(m.id)}
-                                      className="text-red-400 hover:text-red-600 flex-shrink-0"><X size={12} /></button>
+                                      className="text-red-600 dark:text-red-400 hover:text-red-600 flex-shrink-0"><X size={12} /></button>
                                   )}
                                 </div>
                               ))}
@@ -1446,12 +1446,12 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                     className="w-full flex items-center gap-2 px-5 pt-5 pb-3 text-left"
                     onClick={() => setAiProExpanded(p => !p)}
                   >
-                    <Zap size={15} className="text-violet-400 shrink-0" />
-                    <span className="font-semibold text-sm text-violet-200">{t("profile.ai_pro_title")}</span>
-                    <span className="ml-auto text-sm font-bold text-violet-300 mr-2">$19/mo</span>
+                    <Zap size={15} className="text-violet-600 dark:text-violet-400 shrink-0" />
+                    <span className="font-semibold text-sm text-violet-800 dark:text-violet-200">{t("profile.ai_pro_title")}</span>
+                    <span className="ml-auto text-sm font-bold text-violet-700 dark:text-violet-300 mr-2">$19/mo</span>
                     {aiProExpanded
-                      ? <ChevronUp size={15} className="text-violet-400 shrink-0" />
-                      : <ChevronDown size={15} className="text-violet-400 shrink-0" />}
+                      ? <ChevronUp size={15} className="text-violet-600 dark:text-violet-400 shrink-0" />
+                      : <ChevronDown size={15} className="text-violet-600 dark:text-violet-400 shrink-0" />}
                   </button>
 
                   <p className="px-5 pb-3 text-xs text-violet-300/80">{t("profile.ai_pro_desc")}</p>
@@ -1463,7 +1463,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                         {[1,2,3,4,5,6].map(i => (
                           <div key={i} className="flex items-start gap-2.5">
                             <div className="mt-0.5 w-4 h-4 rounded-full bg-violet-600/40 flex items-center justify-center shrink-0">
-                              <Check size={9} className="text-violet-300" strokeWidth={3} />
+                              <Check size={9} className="text-violet-700 dark:text-violet-300" strokeWidth={3} />
                             </div>
                             <span className="text-xs text-violet-200/90 leading-snug">{t(`profile.ai_pro_benefit_${i}`)}</span>
                           </div>

@@ -816,7 +816,7 @@ function SettingsPlatformTab({ ssCtx }) {
               <NovaSettingsLogo size={80} />
               <div>
                 <div className="text-white font-bold text-sm mb-0.5">{form.platform_name || "Arena"}</div>
-                <div className="text-blue-300 text-xs">{form.platform_tagline || "Consultant Case Management"}</div>
+                <div className="text-blue-700 dark:text-blue-300 text-xs">{form.platform_tagline || "Consultant Case Management"}</div>
                 <div className="text-[11px] text-blue-400/60 mt-2">Used in sidebar &amp; navigation</div>
               </div>
               <div className="ml-auto">
@@ -1090,16 +1090,16 @@ function SettingsRolesTab({ ssCtx }) {
 
   const ROLE_COLORS = {
     admin:               'border border-red-500 text-red-500 bg-red-500/10',
-    manager:             'border border-purple-500 text-purple-400 bg-purple-500/10',
-    consultant:          'border border-blue-500 text-blue-400 bg-blue-500/10',
-    client:              'border border-green-500 text-green-400 bg-green-500/10',
-    key_user:            'border border-amber-500 text-amber-400 bg-amber-500/10',
-    headhunter:          'border border-pink-500 text-pink-400 bg-pink-500/10',
-    final_user:          'border border-teal-500 text-teal-400 bg-teal-500/10',
-    internal_consultant: 'border border-indigo-500 text-indigo-400 bg-indigo-500/10',
-    project_manager:     'border border-rose-500 text-rose-400 bg-rose-500/10',
-    dispatch:            'border border-cyan-500 text-cyan-400 bg-cyan-500/10',
-    area_leader:         'border border-orange-500 text-orange-400 bg-orange-500/10',
+    manager:             'border border-purple-500 text-purple-600 dark:text-purple-400 bg-purple-500/10',
+    consultant:          'border border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-500/10',
+    client:              'border border-green-500 text-green-600 dark:text-green-400 bg-green-500/10',
+    key_user:            'border border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10',
+    headhunter:          'border border-pink-500 text-pink-600 dark:text-pink-400 bg-pink-500/10',
+    final_user:          'border border-teal-500 text-teal-600 dark:text-teal-400 bg-teal-500/10',
+    internal_consultant: 'border border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10',
+    project_manager:     'border border-rose-500 text-rose-600 dark:text-rose-400 bg-rose-500/10',
+    dispatch:            'border border-cyan-500 text-cyan-600 dark:text-cyan-400 bg-cyan-500/10',
+    area_leader:         'border border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-500/10',
   };
 
   const SIGNUP_ROLES = [
@@ -1153,7 +1153,7 @@ function SettingsRolesTab({ ssCtx }) {
                 <tr key={cap} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
                   <td className="py-2.5 pr-4 text-xs">
                     <div className="flex items-center gap-1.5">
-                      {CapIcon && <CapIcon size={11} className="text-blue-400 dark:text-blue-500 flex-shrink-0" />}
+                      {CapIcon && <CapIcon size={11} className="text-blue-600 dark:text-blue-400 dark:text-blue-500 flex-shrink-0" />}
                       <span className="font-medium text-gray-700 dark:text-gray-300">{t("roles.cap." + cap)}</span>
                     </div>
                   </td>
@@ -1422,7 +1422,7 @@ function SettingsRolesTab({ ssCtx }) {
                 <tr key={type} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
                   <td className="py-3 pr-4 text-xs">
                     <div className="flex items-center gap-1.5">
-                      {WIZARD_TYPE_ICONS[type] && (() => { const WIcon = WIZARD_TYPE_ICONS[type]; return <WIcon size={11} className="text-blue-400 dark:text-blue-500 flex-shrink-0" />; })()}
+                      {WIZARD_TYPE_ICONS[type] && (() => { const WIcon = WIZARD_TYPE_ICONS[type]; return <WIcon size={11} className="text-blue-600 dark:text-blue-400 dark:text-blue-500 flex-shrink-0" />; })()}
                       <span className="font-medium text-gray-700 dark:text-gray-300">{t("roles.wizard_type_" + type)}</span>
                     </div>
                   </td>
@@ -1474,7 +1474,7 @@ function SettingsRolesTab({ ssCtx }) {
                 <tr key={nav.id} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
                   <td className="py-2.5 pr-4 text-xs">
                     <div className="flex items-center gap-1.5">
-                      {nav.icon && <nav.icon size={11} className="text-blue-400 dark:text-blue-500 flex-shrink-0" />}
+                      {nav.icon && <nav.icon size={11} className="text-blue-600 dark:text-blue-400 dark:text-blue-500 flex-shrink-0" />}
                       <span className="font-medium text-gray-700 dark:text-gray-300">{nav.label}</span>
                     </div>
                   </td>
@@ -1729,7 +1729,7 @@ function InfraCheckSettingsCard({ ssCtx }) {
                     <ul className="space-y-1">
                       {autoSolveActions.map((a, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
-                          <CheckCircle2 size={11} className="text-green-400 mt-0.5 shrink-0" />
+                          <CheckCircle2 size={11} className="text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
                           {a}
                         </li>
                       ))}
@@ -1741,7 +1741,7 @@ function InfraCheckSettingsCard({ ssCtx }) {
                       <ul className="space-y-1">
                         {cannotSolve.map((a, i) => (
                           <li key={i} className="flex items-start gap-2 text-xs text-gray-500">
-                            <XCircle size={11} className="text-red-300 mt-0.5 shrink-0" />
+                            <XCircle size={11} className="text-red-700 dark:text-red-300 mt-0.5 shrink-0" />
                             {a}
                           </li>
                         ))}
@@ -2111,7 +2111,7 @@ function SettingsGenerationTab({ ssCtx }) {
                 {buildContextPreview(form.context)}
               </pre>
               <div className="px-3 py-2 bg-indigo-50 border-t border-indigo-100">
-                <p className="text-[10px] text-indigo-400 italic">{t("gen.ctx_preview_sample_note")}</p>
+                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 italic">{t("gen.ctx_preview_sample_note")}</p>
               </div>
             </div>
           )}
@@ -2830,7 +2830,7 @@ function ApprovalHistory({ ROLE_COLORS }) {
                 {u.approved_by && approverMap[u.approved_by] && (
                   <span className="flex items-center gap-1">· <UserCheck className="w-3 h-3" /> {approverMap[u.approved_by]}</span>
                 )}
-                {u.rejection_reason && <span className="text-red-400 italic">· "{u.rejection_reason}"</span>}
+                {u.rejection_reason && <span className="text-red-600 dark:text-red-400 italic">· "{u.rejection_reason}"</span>}
               </div>
             </div>
           </div>
@@ -4992,7 +4992,7 @@ function SettingsMigrationTab({ ssCtx }) {
                       {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
                     <button onClick={() => deletePhase(idx)}
-                      className="p-1 rounded text-red-400 hover:text-red-600">
+                      className="p-1 rounded text-red-600 dark:text-red-400 hover:text-red-600">
                       <X size={14} />
                     </button>
                   </div>
@@ -5475,16 +5475,16 @@ function AutoApproveDomainsSection({ settings, setSetting }) {
   return (
     <div className="mt-6 border border-blue-500/20 rounded-xl p-4 bg-blue-500/10">
       <div className="flex items-center gap-2 mb-1">
-        <Shield size={14} className="text-blue-400" />
-        <span className="text-sm font-semibold text-white">Auto-approve domains</span>
+        <Shield size={14} className="text-blue-600 dark:text-blue-400" />
+        <span className="text-sm font-semibold text-gray-900 dark:text-white">Auto-approve domains</span>
       </div>
-      <p className="text-xs text-white/50 mb-3">
+      <p className="text-xs text-gray-600 dark:text-white/50 mb-3">
         Users who sign up with an email from these domains are approved instantly, skipping the manual queue — regardless of their role's flow setting.
       </p>
       <div className="flex flex-wrap gap-2 mb-3">
-        {domains.length === 0 && <span className="text-xs text-white/30 italic">No domains configured</span>}
+        {domains.length === 0 && <span className="text-xs text-gray-500 dark:text-white/30 italic">No domains configured</span>}
         {domains.map(d => (
-          <span key={d} className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/20 border border-blue-500/30 rounded-lg text-xs font-medium text-blue-300">
+          <span key={d} className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/20 border border-blue-500/30 rounded-lg text-xs font-medium text-blue-700 dark:text-blue-300">
             @{d}
             <button onClick={() => removeDomain(d)} className="text-blue-400/70 hover:text-red-400 transition-colors">
               <X className="w-3 h-3" />
@@ -5498,7 +5498,7 @@ function AutoApproveDomainsSection({ settings, setSetting }) {
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === "Enter" && addDomain()}
           placeholder="company.com"
-          className="border border-white/15 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white placeholder-white/25"
+          className="border border-gray-300 dark:border-white/15 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white placeholder-gray-400 dark:placeholder-white/25"
         />
         <button onClick={addDomain} disabled={saving || !input.trim()}
           className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg disabled:opacity-40 transition-colors">
@@ -5969,7 +5969,7 @@ function SettingsAreaLeadersTab({ ssCtx }) {
                 <div key={area} className="flex items-center justify-between px-3 py-2 bg-indigo-50 rounded-xl border border-indigo-100">
                   <span className="text-sm text-indigo-800">{area}</span>
                   <button onClick={() => removeArea(area)} disabled={saving}
-                    className="p-1 rounded hover:bg-indigo-100 text-indigo-400 hover:text-red-500 transition-colors">
+                    className="p-1 rounded hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 hover:text-red-500 transition-colors">
                     <X size={14} />
                   </button>
                 </div>

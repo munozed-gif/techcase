@@ -93,13 +93,13 @@ const BP_STEPS = [
 ];
 
 const TR_TYPE_META = {
-  workbench:   { label: 'Workbench',   color: 'bg-blue-500/20 text-blue-300',   border: 'border-blue-500/30'  },
-  customizing: { label: 'Customizing', color: 'bg-amber-500/20 text-amber-300', border: 'border-amber-500/40' },
+  workbench:   { label: 'Workbench',   color: 'bg-blue-500/20 text-blue-700 dark:text-blue-300',   border: 'border-blue-500/30'  },
+  customizing: { label: 'Customizing', color: 'bg-amber-500/20 text-amber-700 dark:text-amber-300', border: 'border-amber-500/40' },
 };
 
 const BP_TYPE_META = {
-  bcset:          { label: 'BCset',           color: 'bg-violet-500/20 text-violet-300', border: 'border-violet-500/30' },
-  building_block: { label: 'Building Block',  color: 'bg-teal-500/20 text-teal-300',     border: 'border-teal-500/30'   },
+  bcset:          { label: 'BCset',           color: 'bg-violet-500/20 text-violet-700 dark:text-violet-300', border: 'border-violet-500/30' },
+  building_block: { label: 'Building Block',  color: 'bg-teal-500/20 text-teal-700 dark:text-teal-300',     border: 'border-teal-500/30'   },
 };
 
 const SYS_TYPE_LABELS = {
@@ -166,12 +166,12 @@ WRITE: / '--- Activation complete ---'.`;
 
 function TrPanel({ icon, title, sub, children }) {
   return (
-    <div className="bg-gray-900/60 rounded-2xl border border-white/10 shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">{icon}</div>
+    <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0">{icon}</div>
         <div>
-          <p className="font-bold text-white text-sm">{title}</p>
-          {sub && <p className="text-xs text-white/40 mt-0.5">{sub}</p>}
+          <p className="font-bold text-gray-900 dark:text-white text-sm">{title}</p>
+          {sub && <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">{sub}</p>}
         </div>
       </div>
       <div className="p-5 space-y-4">{children}</div>
@@ -181,12 +181,12 @@ function TrPanel({ icon, title, sub, children }) {
 
 function BpPanel({ icon, title, sub, children }) {
   return (
-    <div className="bg-gray-900/60 rounded-2xl border border-violet-500/20 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-violet-500/20 shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-violet-500/20 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center text-violet-400 flex-shrink-0">{icon}</div>
+        <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center text-violet-600 dark:text-violet-400 flex-shrink-0">{icon}</div>
         <div>
-          <p className="font-bold text-white text-sm">{title}</p>
-          {sub && <p className="text-xs text-white/40 mt-0.5">{sub}</p>}
+          <p className="font-bold text-gray-900 dark:text-white text-sm">{title}</p>
+          {sub && <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">{sub}</p>}
         </div>
       </div>
       <div className="p-5 space-y-4">{children}</div>
@@ -196,18 +196,18 @@ function BpPanel({ icon, title, sub, children }) {
 
 function TrSectionLabel({ children }) {
   return (
-    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest border-b border-white/10 pb-2 mb-3">{children}</p>
+    <p className="text-[10px] font-bold text-gray-500 dark:text-white/40 uppercase tracking-widest border-b border-gray-200 dark:border-white/10 pb-2 mb-3">{children}</p>
   );
 }
 
 function TrToggleRow({ label, desc, value, onChange }) {
   return (
-    <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer" onClick={() => onChange(!value)}>
+    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 cursor-pointer" onClick={() => onChange(!value)}>
       <div>
-        <p className="text-sm font-medium text-white">{label}</p>
-        {desc && <p className="text-xs text-white/40 mt-0.5">{desc}</p>}
+        <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
+        {desc && <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">{desc}</p>}
       </div>
-      <div className={`w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${value ? 'bg-blue-500' : 'bg-white/20'}`}>
+      <div className={`w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${value ? 'bg-blue-500' : 'bg-gray-200 dark:bg-white/20'}`}>
         <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${value ? 'left-[18px]' : 'left-0.5'}`} />
       </div>
     </div>
@@ -217,7 +217,7 @@ function TrToggleRow({ label, desc, value, onChange }) {
 function TrStepNav({ prev, next, onStep, prevLabel = '← Back', nextLabel = 'Continue →' }) {
   return (
     <div className="flex gap-2 pt-2">
-      {prev && <button onClick={() => onStep(prev)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">{prevLabel}</button>}
+      {prev && <button onClick={() => onStep(prev)} className="px-4 py-2 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-white/60 transition-colors">{prevLabel}</button>}
       {next && <button onClick={() => onStep(next)} className="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">{nextLabel}</button>}
     </div>
   );
@@ -226,7 +226,7 @@ function TrStepNav({ prev, next, onStep, prevLabel = '← Back', nextLabel = 'Co
 function BpStepNav({ prev, next, onStep, prevLabel = '← Back', nextLabel = 'Continue →' }) {
   return (
     <div className="flex gap-2 pt-2">
-      {prev && <button onClick={() => onStep(prev)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">{prevLabel}</button>}
+      {prev && <button onClick={() => onStep(prev)} className="px-4 py-2 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-white/60 transition-colors">{prevLabel}</button>}
       {next && <button onClick={() => onStep(next)} className="px-4 py-2 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-colors">{nextLabel}</button>}
     </div>
   );
@@ -234,18 +234,18 @@ function BpStepNav({ prev, next, onStep, prevLabel = '← Back', nextLabel = 'Co
 
 function TrStepper({ step, onStep }) {
   return (
-    <div className="bg-gray-900/60 rounded-2xl border border-white/10 px-4 py-3">
+    <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 px-4 py-3">
       <div className="flex items-start overflow-x-auto gap-0 pb-0.5">
         {TR_STEPS.map((s, i) => {
           const n = i + 1, isActive = step === n, isDone = step > n;
           return (
             <button key={n} onClick={() => onStep(n)} className="flex flex-col items-center flex-1 min-w-[52px] relative">
-              {i > 0 && <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${isDone ? 'bg-blue-500' : 'bg-white/15'}`} />}
+              {i > 0 && <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${isDone ? 'bg-blue-500' : 'bg-gray-100 dark:bg-white/15'}`} />}
               <div className={`w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center relative z-10 transition-all
-                ${isActive ? 'border-blue-500 bg-blue-500/20 text-blue-400' : isDone ? 'border-green-500 bg-green-500/20 text-green-400' : 'border-white/20 bg-white/5 text-white/30'}`}>
+                ${isActive ? 'border-blue-500 bg-blue-500/20 text-blue-600 dark:text-blue-400' : isDone ? 'border-green-500 bg-green-500/20 text-green-600 dark:text-green-400' : 'border-gray-300 dark:border-white/20 bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-white/30'}`}>
                 {isDone ? <Check size={12} /> : s.icon}
               </div>
-              <span className={`text-[9px] font-bold mt-1 uppercase tracking-wider ${isActive ? 'text-blue-400' : isDone ? 'text-green-400' : 'text-white/30'}`}>{s.label}</span>
+              <span className={`text-[9px] font-bold mt-1 uppercase tracking-wider ${isActive ? 'text-blue-600 dark:text-blue-400' : isDone ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-white/30'}`}>{s.label}</span>
             </button>
           );
         })}
@@ -256,18 +256,18 @@ function TrStepper({ step, onStep }) {
 
 function BpStepper({ step, onStep }) {
   return (
-    <div className="bg-gray-900/60 rounded-2xl border border-violet-500/20 px-4 py-3">
+    <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-violet-500/20 px-4 py-3">
       <div className="flex items-start overflow-x-auto gap-0 pb-0.5">
         {BP_STEPS.map((s, i) => {
           const n = i + 1, isActive = step === n, isDone = step > n;
           return (
             <button key={n} onClick={() => onStep(n)} className="flex flex-col items-center flex-1 relative">
-              {i > 0 && <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${isDone ? 'bg-violet-500' : 'bg-white/15'}`} />}
+              {i > 0 && <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${isDone ? 'bg-violet-500' : 'bg-gray-100 dark:bg-white/15'}`} />}
               <div className={`w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center relative z-10 transition-all
-                ${isActive ? 'border-violet-500 bg-violet-500/20 text-violet-400' : isDone ? 'border-green-500 bg-green-500/20 text-green-400' : 'border-white/20 bg-white/5 text-white/30'}`}>
+                ${isActive ? 'border-violet-500 bg-violet-500/20 text-violet-600 dark:text-violet-400' : isDone ? 'border-green-500 bg-green-500/20 text-green-600 dark:text-green-400' : 'border-gray-300 dark:border-white/20 bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-white/30'}`}>
                 {isDone ? <Check size={12} /> : s.icon}
               </div>
-              <span className={`text-[9px] font-bold mt-1 uppercase tracking-wider ${isActive ? 'text-violet-400' : isDone ? 'text-green-400' : 'text-white/30'}`}>{s.label}</span>
+              <span className={`text-[9px] font-bold mt-1 uppercase tracking-wider ${isActive ? 'text-violet-600 dark:text-violet-400' : isDone ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-white/30'}`}>{s.label}</span>
             </button>
           );
         })}
@@ -281,19 +281,19 @@ function TrRequestRow({ req, i, showStatus, importStates, caseId, projectCases, 
   const is     = importStates[req.id] ?? {};
   const status = is.status ?? req.status ?? 'pending';
   return (
-    <div className={`rounded-xl border ${meta.border} bg-white/5 overflow-hidden`}>
+    <div className={`rounded-xl border ${meta.border} bg-gray-50 dark:bg-white/5 overflow-hidden`}>
       <div className="flex items-center gap-2.5 px-3 py-2.5">
-        <span className="w-5 h-5 rounded text-[10px] font-bold bg-white/10 text-white/50 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+        <span className="w-5 h-5 rounded text-[10px] font-bold bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/50 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
         <div className="flex-1 min-w-0">
-          <div className="font-mono text-sm font-semibold text-white truncate">{req.request_number}</div>
-          {req.description && <div className="text-xs text-white/50 truncate">{req.description}</div>}
+          <div className="font-mono text-sm font-semibold text-gray-900 dark:text-white truncate">{req.request_number}</div>
+          {req.description && <div className="text-xs text-gray-600 dark:text-white/50 truncate">{req.description}</div>}
           {(req.sap_objects?.length > 0) && (
             <div className="text-[10px] text-blue-300/70 truncate" title={req.sap_objects.map(o => `${o.name} (${o.type})`).join(', ')}>
               SAP implementation · {req.sap_objects.map(o => o.name).join(', ')}
             </div>
           )}
           {!caseId && req.case_id && (
-            <div className="text-[10px] text-white/30 truncate">
+            <div className="text-[10px] text-gray-500 dark:text-white/30 truncate">
               {(projectCases ?? []).find(c => c.id === req.case_id)?.title ?? req.case_id}
             </div>
           )}
@@ -301,11 +301,11 @@ function TrRequestRow({ req, i, showStatus, importStates, caseId, projectCases, 
         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${meta.color}`}>{meta.label}</span>
         {showStatus && (
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
-            status === 'done'      ? 'bg-green-500/20 text-green-300' :
-            status === 'error'     ? 'bg-red-500/20 text-red-300' :
-            status === 'importing' ? 'bg-blue-500/20 text-blue-300' :
-            status === 'approved'  ? 'bg-teal-500/20 text-teal-300' :
-                                     'bg-white/10 text-white/40'
+            status === 'done'      ? 'bg-green-500/20 text-green-700 dark:text-green-300' :
+            status === 'error'     ? 'bg-red-500/20 text-red-700 dark:text-red-300' :
+            status === 'importing' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' :
+            status === 'approved'  ? 'bg-teal-500/20 text-teal-700 dark:text-teal-300' :
+                                     'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/40'
           }`}>
             {status === 'importing'
               ? <span className="flex items-center gap-1"><Loader2 size={9} className="animate-spin" />Running</span>
@@ -314,15 +314,15 @@ function TrRequestRow({ req, i, showStatus, importStates, caseId, projectCases, 
         )}
         {!showStatus && (
           req.cofile_path
-            ? <span className="text-[10px] text-green-400 flex items-center gap-0.5 flex-shrink-0"><Check size={10} />Files</span>
-            : <span className="text-[10px] text-white/25 flex-shrink-0">No files</span>
+            ? <span className="text-[10px] text-green-600 dark:text-green-400 flex items-center gap-0.5 flex-shrink-0"><Check size={10} />Files</span>
+            : <span className="text-[10px] text-gray-400 dark:text-white/25 flex-shrink-0">No files</span>
         )}
         {!showStatus && (
-          <button onClick={() => onDelete(req.id)} className="text-white/20 hover:text-red-400 flex-shrink-0 transition-colors"><Trash2 size={12} /></button>
+          <button onClick={() => onDelete(req.id)} className="text-gray-400 dark:text-white/20 hover:text-red-400 flex-shrink-0 transition-colors"><Trash2 size={12} /></button>
         )}
       </div>
       {showStatus && is.log?.length > 0 && (
-        <div className="px-3 pb-2 font-mono text-[10px] text-white/40 space-y-0.5 border-t border-white/5">
+        <div className="px-3 pb-2 font-mono text-[10px] text-gray-500 dark:text-white/40 space-y-0.5 border-t border-gray-100 dark:border-white/5">
           {is.log.map((l, j) => <div key={j}>{l}</div>)}
         </div>
       )}
@@ -755,7 +755,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
   if (loading) return (
     <div className="flex justify-center py-12">
-      <Loader2 size={20} className="animate-spin text-white/40" />
+      <Loader2 size={20} className="animate-spin text-gray-500 dark:text-white/40" />
     </div>
   );
 
@@ -763,22 +763,22 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     <div className="space-y-4">
 
       {/* ── Mode toggle ────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-1 p-1 bg-gray-900/60 border border-white/10 rounded-xl">
+      <div className="flex flex-wrap gap-1 p-1 bg-white dark:bg-gray-900/60 border border-gray-200 dark:border-white/10 rounded-xl">
         <button onClick={() => setTabMode('tr')}
           className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
-            ${tabMode === 'tr' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}>
+            ${tabMode === 'tr' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 dark:text-white/40 hover:text-gray-800 dark:hover:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
           <Package size={12} />Transport Requests
         </button>
         <button onClick={() => setTabMode('pipeline')}
           className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
-            ${tabMode === 'pipeline' ? 'bg-emerald-600 text-white shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}>
+            ${tabMode === 'pipeline' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-500 dark:text-white/40 hover:text-gray-800 dark:hover:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
           <Play size={12} />Dev→QA→Prod Pipeline
         </button>
         <button onClick={() => setTabMode('bcset')}
           className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
-            ${tabMode === 'bcset' ? 'bg-violet-600 text-white shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}>
+            ${tabMode === 'bcset' ? 'bg-violet-600 text-white shadow-sm' : 'text-gray-500 dark:text-white/40 hover:text-gray-800 dark:hover:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
           <Zap size={12} />BCset &amp; Building Blocks
-          {bpTotal > 0 && <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${tabMode === 'bcset' ? 'bg-white/20' : 'bg-violet-500/30 text-violet-300'}`}>{bpTotal}</span>}
+          {bpTotal > 0 && <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${tabMode === 'bcset' ? 'bg-gray-200 dark:bg-white/20' : 'bg-violet-500/30 text-violet-700 dark:text-violet-300'}`}>{bpTotal}</span>}
         </button>
       </div>
 
@@ -794,7 +794,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
               {requests.length > 0 && (
                 <button onClick={() => setTrStep(2)}
-                  className="w-full text-left p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-300 hover:bg-blue-500/15 transition-colors">
+                  className="w-full text-left p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors">
                   <strong>{requests.length} transport request{requests.length === 1 ? '' : 's'}</strong> on this {caseId ? 'case' : 'project'}
                   {' '}({requests.map(r => r.request_number).join(', ')}) — view them in Requests →
                 </button>
@@ -805,14 +805,14 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                 {[['external', 'External (different systems)'], ['internal', 'Internal (same system)']].map(([val, lbl]) => (
                   <button key={val} onClick={() => setTransportMode(val)}
                     className={`flex-1 py-2.5 text-xs font-semibold rounded-lg border transition-all
-                      ${transportMode === val ? 'border-blue-500 bg-blue-500/20 text-blue-300' : 'border-white/15 text-white/40 hover:border-white/25'}`}>
+                      ${transportMode === val ? 'border-blue-500 bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'border-gray-300 dark:border-white/15 text-gray-500 dark:text-white/40 hover:border-gray-400 dark:hover:border-white/25'}`}>
                     {lbl}
                   </button>
                 ))}
               </div>
 
               {transportMode === 'internal' && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 space-y-1">
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-300 space-y-1">
                   <p className="font-semibold flex items-center gap-1"><AlertTriangle size={11} />Internal transport notes</p>
                   <p>• <strong>Customizing</strong> transports move client-specific settings between mandants (clients).</p>
                   <p>• <strong>Workbench</strong> objects (ABAP, data dictionary) are system-wide — no transport needed between clients on the same system. They will be flagged as skipped.</p>
@@ -823,17 +823,17 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                 {transportMode === 'external' && (
                   <>
                     <div>
-                      <label className="block text-xs font-medium text-white/50 mb-1">Source Environment</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1">Source Environment</label>
                       <select value={fromEnvId} onChange={e => setFromEnvId(e.target.value)}
-                        className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        className="w-full border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                         <option value="">— Select source —</option>
                         {sapEnvironments.map(e => <option key={e.id} value={e.id}>{e.name ?? e.host}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-white/50 mb-1">Target Environment</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1">Target Environment</label>
                       <select value={toEnvId} onChange={e => setToEnvId(e.target.value)}
-                        className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        className="w-full border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                         <option value="">— Select target —</option>
                         {sapEnvironments.map(e => <option key={e.id} value={e.id}>{e.name ?? e.host}</option>)}
                       </select>
@@ -841,20 +841,20 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                   </>
                 )}
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1">
                     {transportMode === 'internal' ? 'Source Client (Mandant)' : 'Source Client'}
                   </label>
                   <input value={fromClient} onChange={e => setFromClient(e.target.value)}
                     placeholder="e.g. 100"
-                    className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    className="w-full border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1">
                     {transportMode === 'internal' ? 'Target Client (Mandant)' : 'Target Client'}
                   </label>
                   <input value={toClient} onChange={e => setToClient(e.target.value)}
                     placeholder="e.g. 200"
-                    className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    className="w-full border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
               </div>
 
@@ -873,12 +873,12 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                 <input value={newNumber} onChange={e => setNewNumber(e.target.value.toUpperCase())}
                   onKeyDown={e => e.key === 'Enter' && addRequest()}
                   placeholder="DEVK900123" maxLength={20}
-                  className="border border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400 w-36" />
+                  className="border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400 w-36" />
                 <input value={newDesc} onChange={e => setNewDesc(e.target.value)}
                   placeholder="Description (optional)"
-                  className="flex-1 min-w-[140px] border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  className="flex-1 min-w-[140px] border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 <select value={newType} onChange={e => setNewType(e.target.value)}
-                  className="border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  className="border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                   <option value="workbench">Workbench</option>
                   <option value="customizing">Customizing</option>
                 </select>
@@ -887,11 +887,11 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                   <Plus size={12} />Add
                 </button>
                 <button onClick={() => setShowBulk(p => !p)}
-                  className="px-3 py-2 text-xs font-semibold border border-white/15 rounded-lg text-white/50 hover:bg-white/5 transition-colors">
+                  className="px-3 py-2 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg text-gray-600 dark:text-white/50 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                   Bulk
                 </button>
                 <button onClick={() => bulkFileRef.current?.click()}
-                  className="flex items-center gap-1 px-3 py-2 text-xs font-semibold border border-white/15 rounded-lg text-white/50 hover:bg-white/5 transition-colors">
+                  className="flex items-center gap-1 px-3 py-2 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg text-gray-600 dark:text-white/50 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                   <Upload size={11} />From file
                 </button>
                 <input ref={bulkFileRef} type="file" accept=".csv,.txt,.tsv" className="hidden"
@@ -901,10 +901,10 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               {/* Bulk add */}
               {showBulk && (
                 <div className="space-y-2">
-                  <p className="text-xs text-white/40">One request number per line. Optionally add a description after a space.</p>
+                  <p className="text-xs text-gray-500 dark:text-white/40">One request number per line. Optionally add a description after a space.</p>
                   <textarea value={bulkText} onChange={e => setBulkText(e.target.value)} rows={5}
                     placeholder={"DEVK900123 HR Payroll config\nDEVK900124 Time management\nDEVK900125"}
-                    className="w-full border border-white/15 rounded-lg px-3 py-2 text-sm font-mono bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+                    className="w-full border border-gray-300 dark:border-white/15 rounded-lg px-3 py-2 text-sm font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
                   <button onClick={addBulk} disabled={!bulkText.trim() || saving}
                     className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors">
                     <Plus size={12} />Add {bulkText.split('\n').filter(l => l.trim()).length} requests
@@ -917,12 +917,12 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => { e.preventDefault(); handleFileUpload(e.dataTransfer.files); }}
-                className="border-2 border-dashed border-white/15 rounded-xl p-5 text-center cursor-pointer hover:border-blue-500/40 hover:bg-blue-500/5 transition-colors">
-                <Upload size={20} className="mx-auto mb-2 text-white/30" />
-                <p className="text-xs font-semibold text-white/50">Drop .cofiles and .data files here</p>
-                <p className="text-[10px] text-white/30 mt-0.5">Auto-matched to requests by transport number. Multiple files OK.</p>
+                className="border-2 border-dashed border-gray-300 dark:border-white/15 rounded-xl p-5 text-center cursor-pointer hover:border-blue-500/40 hover:bg-blue-500/5 transition-colors">
+                <Upload size={20} className="mx-auto mb-2 text-gray-500 dark:text-white/30" />
+                <p className="text-xs font-semibold text-gray-600 dark:text-white/50">Drop .cofiles and .data files here</p>
+                <p className="text-[10px] text-gray-500 dark:text-white/30 mt-0.5">Auto-matched to requests by transport number. Multiple files OK.</p>
                 {uploadingFiles && (
-                  <p className="text-xs text-blue-400 mt-2 flex items-center justify-center gap-1">
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 flex items-center justify-center gap-1">
                     <Loader2 size={11} className="animate-spin" />Uploading…
                   </p>
                 )}
@@ -932,7 +932,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
               {/* Requests list */}
               {requests.length === 0 ? (
-                <div className="text-center py-8 text-sm text-white/30">No transport requests yet.</div>
+                <div className="text-center py-8 text-sm text-gray-500 dark:text-white/30">No transport requests yet.</div>
               ) : (
                 <>
                   <TrSectionLabel>{totalCount} requests · customizing first at runtime</TrSectionLabel>
@@ -956,10 +956,10 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               sub="Drag to reorder. Customizing always executes before workbench at runtime.">
 
               {requests.length === 0 ? (
-                <div className="text-center py-8 text-sm text-white/30">No transport requests to order.</div>
+                <div className="text-center py-8 text-sm text-gray-500 dark:text-white/30">No transport requests to order.</div>
               ) : (
                 <>
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-300">
                     <strong>Execution order:</strong> customizing transports always run before workbench, regardless of sequence. Use this step to set the order within each type group.
                   </div>
                   <div className="space-y-2">
@@ -974,14 +974,14 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                           onDragLeave={() => setDropIdx(null)}
                           onDrop={e => { e.preventDefault(); reorderRequests(dragIdx, i); setDragIdx(null); setDropIdx(null); }}
                           onDragEnd={() => { setDragIdx(null); setDropIdx(null); }}
-                          className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border ${meta.border} bg-white/5 cursor-grab active:cursor-grabbing transition-all
+                          className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border ${meta.border} bg-gray-50 dark:bg-white/5 cursor-grab active:cursor-grabbing transition-all
                             ${isDragOver ? 'border-blue-500/50 bg-blue-500/10 scale-[1.01]' : ''}
                             ${dragIdx === i ? 'opacity-40' : ''}`}>
-                          <GripVertical size={14} className="text-white/20 flex-shrink-0" />
-                          <span className="w-5 h-5 rounded text-[10px] font-bold bg-white/10 text-white/50 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+                          <GripVertical size={14} className="text-gray-400 dark:text-white/20 flex-shrink-0" />
+                          <span className="w-5 h-5 rounded text-[10px] font-bold bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/50 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
                           <div className="flex-1 min-w-0">
-                            <div className="font-mono text-sm font-semibold text-white truncate">{req.request_number}</div>
-                            {req.description && <div className="text-xs text-white/40 truncate">{req.description}</div>}
+                            <div className="font-mono text-sm font-semibold text-gray-900 dark:text-white truncate">{req.request_number}</div>
+                            {req.description && <div className="text-xs text-gray-500 dark:text-white/40 truncate">{req.description}</div>}
                             {(req.sap_objects?.length > 0) && (
                                   <div className="text-[10px] text-blue-300/70 truncate" title={req.sap_objects.map(o => `${o.name} (${o.type})`).join(', ')}>
                                     SAP implementation · {req.sap_objects.map(o => o.name).join(', ')}
@@ -990,9 +990,9 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                           </div>
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${meta.color}`}>{meta.label}</span>
                           <button onClick={() => moveRequest(req.id, -1)} disabled={i === 0}
-                            className="text-white/20 hover:text-white/60 flex-shrink-0 disabled:opacity-20 transition-colors"><ArrowUp size={12} /></button>
+                            className="text-gray-400 dark:text-white/20 hover:text-gray-700 dark:hover:text-white/60 flex-shrink-0 disabled:opacity-20 transition-colors"><ArrowUp size={12} /></button>
                           <button onClick={() => moveRequest(req.id, +1)} disabled={i === arr.length - 1}
-                            className="text-white/20 hover:text-white/60 flex-shrink-0 disabled:opacity-20 transition-colors"><ArrowDown size={12} /></button>
+                            className="text-gray-400 dark:text-white/20 hover:text-gray-700 dark:hover:text-white/60 flex-shrink-0 disabled:opacity-20 transition-colors"><ArrowDown size={12} /></button>
                         </div>
                       );
                     })}
@@ -1009,7 +1009,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             <TrPanel icon={<Eye size={15} />} title="Approval"
               sub="Assign a reviewer and send them the approval link">
 
-              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-300">
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-700 dark:text-blue-300">
                 Generate a link to send to the reviewer before running the import. They can approve or reject the transport list.
               </div>
 
@@ -1018,35 +1018,35 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                 {reviewerProfile?.avatar_url ? (
                   <img src={reviewerProfile.avatar_url} className="w-9 h-9 rounded-full object-cover flex-shrink-0 mt-1" alt="" />
                 ) : (
-                  <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 mt-1 text-white/40 text-sm font-bold">
+                  <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center flex-shrink-0 mt-1 text-gray-500 dark:text-white/40 text-sm font-bold">
                     {(reviewerName || reviewerEmail)?.[0]?.toUpperCase() ?? '?'}
                   </div>
                 )}
                 <div className="flex-1 space-y-2">
                   <input value={reviewerEmail} onChange={e => setReviewerEmail(e.target.value)} type="email"
                     placeholder="reviewer@example.com"
-                    className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    className="w-full border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                   <input value={reviewerName} onChange={e => setReviewerName(e.target.value)}
                     placeholder={reviewerProfile?.full_name ?? 'Reviewer name (optional)'}
-                    className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    className="w-full border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                   {reviewerChecking && (
-                    <p className="text-xs text-white/40 flex items-center gap-1.5"><Loader2 size={10} className="animate-spin" />Checking…</p>
+                    <p className="text-xs text-gray-500 dark:text-white/40 flex items-center gap-1.5"><Loader2 size={10} className="animate-spin" />Checking…</p>
                   )}
                   {!reviewerChecking && reviewerProfile && (
-                    <p className="text-xs text-green-400 flex items-center gap-1.5"><Check size={10} />{reviewerProfile.full_name} is a platform user</p>
+                    <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5"><Check size={10} />{reviewerProfile.full_name} is a platform user</p>
                   )}
                   {!reviewerChecking && !reviewerProfile && reviewerEmail.includes('@') && reviewerEmail.includes('.') && (
-                    <p className="text-xs text-white/30 flex items-center gap-1.5">Not a platform user — approval link will be sent by email</p>
+                    <p className="text-xs text-gray-500 dark:text-white/30 flex items-center gap-1.5">Not a platform user — approval link will be sent by email</p>
                   )}
                 </div>
               </div>
 
               {batchApproval.token && (
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
-                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Current Link</p>
-                  <p className="font-mono text-xs text-white/60 break-all">{window.location.origin}/transport-approve/{batchApproval.token}</p>
-                  <div className="flex items-center gap-3 text-[10px] text-white/30">
-                    <span>Status: <span className={batchApproval.status === 'approved' ? 'text-green-400' : 'text-amber-400'}>{batchApproval.status ?? 'pending'}</span></span>
+                <div className="p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 space-y-1.5">
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-white/40 uppercase tracking-widest">Current Link</p>
+                  <p className="font-mono text-xs text-gray-600 dark:text-white/60 break-all">{window.location.origin}/transport-approve/{batchApproval.token}</p>
+                  <div className="flex items-center gap-3 text-[10px] text-gray-500 dark:text-white/30">
+                    <span>Status: <span className={batchApproval.status === 'approved' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}>{batchApproval.status ?? 'pending'}</span></span>
                     {batchApproval.reviewer_name && <span>Reviewer: {batchApproval.reviewer_name}</span>}
                     {batchApproval.expires_at && <span>Expires: {new Date(batchApproval.expires_at).toLocaleDateString()}</span>}
                   </div>
@@ -1068,11 +1068,11 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             <TrPanel icon={<Play size={15} />} title="Import Run"
               sub={`${totalCount} requests · ${transportMode === 'internal' ? 'internal client transport' : 'external system import'} · customizing first`}>
 
-              <div className="flex justify-between text-xs text-white/40 mb-1.5">
+              <div className="flex justify-between text-xs text-gray-500 dark:text-white/40 mb-1.5">
                 <span>Progress</span>
                 <span>{doneCount} / {totalCount} done</span>
               </div>
-              <div className="w-full bg-white/10 rounded-full h-2 mb-2">
+              <div className="w-full bg-gray-100 dark:bg-white/10 rounded-full h-2 mb-2">
                 <div className="bg-green-500 h-2 rounded-full transition-all"
                   style={{ width: totalCount ? `${Math.round(doneCount / totalCount * 100)}%` : '0%' }} />
               </div>
@@ -1106,14 +1106,14 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: 'Total',      value: totalCount,  color: 'text-blue-400' },
-                  { label: 'Done',       value: doneCount,   color: 'text-green-400' },
-                  { label: 'Errors',     value: errorCount,  color: errorCount > 0 ? 'text-red-400' : 'text-white/30' },
-                  { label: '% Complete', value: totalCount ? `${Math.round(doneCount / totalCount * 100)}%` : '—', color: 'text-blue-400' },
+                  { label: 'Total',      value: totalCount,  color: 'text-blue-600 dark:text-blue-400' },
+                  { label: 'Done',       value: doneCount,   color: 'text-green-600 dark:text-green-400' },
+                  { label: 'Errors',     value: errorCount,  color: errorCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-white/30' },
+                  { label: '% Complete', value: totalCount ? `${Math.round(doneCount / totalCount * 100)}%` : '—', color: 'text-blue-600 dark:text-blue-400' },
                 ].map(s => (
-                  <div key={s.label} className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
+                  <div key={s.label} className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-3 text-center">
                     <p className={`text-2xl font-bold tabular-nums ${s.color}`}>{s.value}</p>
-                    <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
+                    <p className="text-[10px] font-semibold text-gray-500 dark:text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
                   </div>
                 ))}
               </div>
@@ -1124,10 +1124,10 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                   <div className="space-y-1.5">
                     {requests.filter(r => r.status === 'done').map(req => (
                       <div key={req.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-green-500/30 bg-green-500/10">
-                        <CheckCircle2 size={12} className="text-green-400 flex-shrink-0" />
-                        <span className="font-mono text-xs font-semibold text-white flex-shrink-0">{req.request_number}</span>
-                        <span className="text-xs text-white/50 truncate flex-1">{req.description}</span>
-                        <span className="text-[10px] text-white/25 flex-shrink-0">{req.applied_at ? new Date(req.applied_at).toLocaleDateString() : ''}</span>
+                        <CheckCircle2 size={12} className="text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <span className="font-mono text-xs font-semibold text-gray-900 dark:text-white flex-shrink-0">{req.request_number}</span>
+                        <span className="text-xs text-gray-600 dark:text-white/50 truncate flex-1">{req.description}</span>
+                        <span className="text-[10px] text-gray-400 dark:text-white/25 flex-shrink-0">{req.applied_at ? new Date(req.applied_at).toLocaleDateString() : ''}</span>
                       </div>
                     ))}
                   </div>
@@ -1140,9 +1140,9 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                   <div className="space-y-1.5">
                     {requests.filter(r => r.status === 'error').map(req => (
                       <div key={req.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-red-500/30 bg-red-500/10">
-                        <XCircle size={12} className="text-red-400 flex-shrink-0" />
-                        <span className="font-mono text-xs font-semibold text-white flex-shrink-0">{req.request_number}</span>
-                        <span className="text-xs text-white/50 truncate flex-1">{req.import_log?.slice(0, 80)}</span>
+                        <XCircle size={12} className="text-red-600 dark:text-red-400 flex-shrink-0" />
+                        <span className="font-mono text-xs font-semibold text-gray-900 dark:text-white flex-shrink-0">{req.request_number}</span>
+                        <span className="text-xs text-gray-600 dark:text-white/50 truncate flex-1">{req.import_log?.slice(0, 80)}</span>
                       </div>
                     ))}
                   </div>
@@ -1158,11 +1158,11 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             <TrPanel icon={<FileText size={15} />} title="Import Logs"
               sub="Platform events and CTS response detail">
 
-              <div className="flex gap-0 border-b border-white/10 -mt-2 mb-4">
+              <div className="flex gap-0 border-b border-gray-200 dark:border-white/10 -mt-2 mb-4">
                 {[['platform', 'Import Log'], ['detail', 'CTS Response']].map(([key, label]) => (
                   <button key={key} onClick={() => setLogTab(key)}
                     className={`px-4 py-2 text-xs font-semibold border-b-2 transition-colors -mb-px
-                      ${logTab === key ? 'border-blue-500 text-blue-400' : 'border-transparent text-white/30 hover:text-white/60'}`}>
+                      ${logTab === key ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-white/30 hover:text-gray-700 dark:hover:text-white/60'}`}>
                     {label}
                   </button>
                 ))}
@@ -1170,18 +1170,18 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
               {logTab === 'platform' && (
                 requests.filter(r => r.import_log || importStates[r.id]?.log?.length).length === 0
-                  ? <p className="text-sm text-white/40 text-center py-6">No import events yet.</p>
+                  ? <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">No import events yet.</p>
                   : (
                     <div className="space-y-1 font-mono text-xs max-h-80 overflow-y-auto">
                       {requests.filter(r => r.import_log || importStates[r.id]?.log?.length).map(req => {
                         const log = importStates[req.id]?.log ?? [req.import_log];
                         return (
-                          <div key={req.id} className="py-1.5 px-2 rounded hover:bg-white/5">
-                            <span className={`font-bold mr-2 ${req.status === 'done' ? 'text-green-400' : 'text-red-400'}`}>
+                          <div key={req.id} className="py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-white/5">
+                            <span className={`font-bold mr-2 ${req.status === 'done' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                               {req.status === 'done' ? ' OK ' : 'ERR'}
                             </span>
-                            <span className="text-blue-400">{req.request_number}</span>
-                            <span className="text-white/40 ml-2">{log.filter(Boolean).join(' · ')}</span>
+                            <span className="text-blue-600 dark:text-blue-400">{req.request_number}</span>
+                            <span className="text-gray-500 dark:text-white/40 ml-2">{log.filter(Boolean).join(' · ')}</span>
                           </div>
                         );
                       })}
@@ -1191,18 +1191,18 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
               {logTab === 'detail' && (
                 requests.filter(r => r.import_result).length === 0
-                  ? <p className="text-sm text-white/40 text-center py-6">No CTS response data yet.</p>
+                  ? <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">No CTS response data yet.</p>
                   : (
                     <div className="space-y-3 max-h-80 overflow-y-auto">
                       {requests.filter(r => r.import_result).map(req => (
-                        <div key={req.id} className="rounded-xl border border-white/10 overflow-hidden">
-                          <div className="px-3 py-2 bg-white/5 border-b border-white/10 flex justify-between items-center">
-                            <span className="font-mono text-xs font-semibold text-white/70">{req.request_number}</span>
-                            <span className={`text-[10px] font-semibold ${req.status === 'done' ? 'text-green-400' : 'text-red-400'}`}>
+                        <div key={req.id} className="rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
+                          <div className="px-3 py-2 bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10 flex justify-between items-center">
+                            <span className="font-mono text-xs font-semibold text-gray-700 dark:text-white/70">{req.request_number}</span>
+                            <span className={`text-[10px] font-semibold ${req.status === 'done' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                               HTTP {req.import_result?.status}
                             </span>
                           </div>
-                          <pre className="px-3 py-2 text-[10px] text-white/50 font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
+                          <pre className="px-3 py-2 text-[10px] text-gray-600 dark:text-white/50 font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
                             {req.import_result?.body ?? '—'}
                           </pre>
                         </div>
@@ -1220,9 +1220,9 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
       {/* ══ Dev → QA → Prod Pipeline ══════════════════════════ */}
       {tabMode === 'pipeline' && (() => {
         const PIPELINE_STAGES = [
-          { label: 'Development', short: 'DEV', types: ['DEV', 'SBX', 'TRN'], color: 'blue',   ring: 'ring-blue-500',   bg: 'bg-blue-500/15',   border: 'border-blue-500/30',   text: 'text-blue-300',   btn: 'bg-blue-600 hover:bg-blue-700'   },
-          { label: 'Quality',     short: 'QAS', types: ['QAS', 'QA'],          color: 'amber',  ring: 'ring-amber-500',  bg: 'bg-amber-500/15',  border: 'border-amber-500/30',  text: 'text-amber-300',  btn: 'bg-amber-600 hover:bg-amber-700'  },
-          { label: 'Production',  short: 'PRD', types: ['PRD', 'PROD'],        color: 'green',  ring: 'ring-green-500',  bg: 'bg-green-500/15',  border: 'border-green-500/30',  text: 'text-green-300',  btn: 'bg-green-600 hover:bg-green-700'  },
+          { label: 'Development', short: 'DEV', types: ['DEV', 'SBX', 'TRN'], color: 'blue',   ring: 'ring-blue-500',   bg: 'bg-blue-500/15',   border: 'border-blue-500/30',   text: 'text-blue-700 dark:text-blue-300',   btn: 'bg-blue-600 hover:bg-blue-700'   },
+          { label: 'Quality',     short: 'QAS', types: ['QAS', 'QA'],          color: 'amber',  ring: 'ring-amber-500',  bg: 'bg-amber-500/15',  border: 'border-amber-500/30',  text: 'text-amber-700 dark:text-amber-300',  btn: 'bg-amber-600 hover:bg-amber-700'  },
+          { label: 'Production',  short: 'PRD', types: ['PRD', 'PROD'],        color: 'green',  ring: 'ring-green-500',  bg: 'bg-green-500/15',  border: 'border-green-500/30',  text: 'text-green-700 dark:text-green-300',  btn: 'bg-green-600 hover:bg-green-700'  },
         ];
 
         // Map each stage to matching SAP environments
@@ -1292,12 +1292,12 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
         return (
           <div className="space-y-4">
-            <div className="bg-gray-900/60 rounded-2xl border border-white/10 p-4">
+            <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 p-4">
               <div className="flex items-center gap-2 mb-1">
-                <Play size={14} className="text-emerald-400" />
-                <span className="font-bold text-white text-sm">Transport Pipeline</span>
+                <Play size={14} className="text-emerald-600 dark:text-emerald-400" />
+                <span className="font-bold text-gray-900 dark:text-white text-sm">Transport Pipeline</span>
               </div>
-              <p className="text-xs text-white/40">Run transports through each environment stage in order. Each stage gates on the previous completing successfully.</p>
+              <p className="text-xs text-gray-500 dark:text-white/40">Run transports through each environment stage in order. Each stage gates on the previous completing successfully.</p>
             </div>
 
             {/* Stage cards */}
@@ -1314,29 +1314,29 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                 return (
                   <div key={stage.short} className={`rounded-2xl border ${stage.border} ${stage.bg} overflow-hidden`}>
                     {/* Stage header */}
-                    <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${stage.bg} border ${stage.border} ${stage.text}`}>
                         {isDone ? <Check size={16} /> : idx + 1}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-white text-sm">{stage.label}</span>
+                          <span className="font-bold text-gray-900 dark:text-white text-sm">{stage.label}</span>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stage.bg} border ${stage.border} ${stage.text}`}>{stage.short}</span>
                           {envs.length > 0
-                            ? <span className="text-xs text-white/40">{envs.map(e => e.name ?? e.host).join(', ')}</span>
+                            ? <span className="text-xs text-gray-500 dark:text-white/40">{envs.map(e => e.name ?? e.host).join(', ')}</span>
                             : <span className="text-xs text-amber-400/70">No {stage.short} environment configured</span>}
                         </div>
-                        <div className="text-[10px] text-white/30 mt-0.5">
+                        <div className="text-[10px] text-gray-500 dark:text-white/30 mt-0.5">
                           {reqs.length === 0 ? 'No requests for this stage' : `${reqs.length} request${reqs.length > 1 ? 's' : ''}`}
                           {reqs.length > 0 && <> · {reqs.filter(r => r.status === 'done').length} done</>}
                         </div>
                       </div>
                       {/* Status badge */}
                       <div className="flex-shrink-0">
-                        {isDone && <span className="flex items-center gap-1 text-xs font-semibold text-green-400"><CheckCircle2 size={13} />Done</span>}
-                        {isRunning && <span className="flex items-center gap-1 text-xs font-semibold text-blue-300"><Loader2 size={13} className="animate-spin" />Running</span>}
-                        {hasError && <span className="flex items-center gap-1 text-xs font-semibold text-red-400"><XCircle size={13} />Failed</span>}
-                        {isPrev && !isRunning && !isDone && !hasError && <span className="text-xs text-white/25">Waiting for {PIPELINE_STAGES[idx - 1].short}</span>}
+                        {isDone && <span className="flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400"><CheckCircle2 size={13} />Done</span>}
+                        {isRunning && <span className="flex items-center gap-1 text-xs font-semibold text-blue-700 dark:text-blue-300"><Loader2 size={13} className="animate-spin" />Running</span>}
+                        {hasError && <span className="flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-400"><XCircle size={13} />Failed</span>}
+                        {isPrev && !isRunning && !isDone && !hasError && <span className="text-xs text-gray-400 dark:text-white/25">Waiting for {PIPELINE_STAGES[idx - 1].short}</span>}
                       </div>
                     </div>
 
@@ -1346,11 +1346,11 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                         {reqs.map(req => {
                           const reqDone = req.status === 'done';
                           return (
-                            <div key={req.id} className="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0">
-                              <span className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${reqDone ? 'bg-green-500' : 'bg-white/15'}`} />
-                              <span className="font-mono text-xs text-white/70 flex-1">{req.request_number}</span>
-                              {req.description && <span className="text-[10px] text-white/30 truncate max-w-[140px]">{req.description}</span>}
-                              <span className={`text-[10px] font-semibold flex-shrink-0 ${reqDone ? 'text-green-400' : 'text-white/30'}`}>
+                            <div key={req.id} className="flex items-center gap-2 py-1.5 border-b border-gray-100 dark:border-white/5 last:border-0">
+                              <span className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${reqDone ? 'bg-green-500' : 'bg-gray-100 dark:bg-white/15'}`} />
+                              <span className="font-mono text-xs text-gray-700 dark:text-white/70 flex-1">{req.request_number}</span>
+                              {req.description && <span className="text-[10px] text-gray-500 dark:text-white/30 truncate max-w-[140px]">{req.description}</span>}
+                              <span className={`text-[10px] font-semibold flex-shrink-0 ${reqDone ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-white/30'}`}>
                                 {reqDone ? '✓' : req.status ?? 'pending'}
                               </span>
                             </div>
@@ -1361,9 +1361,9 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
                     {/* Run log */}
                     {run.log?.length > 0 && (
-                      <div className="mx-4 mb-3 bg-black/30 rounded-xl p-3 font-mono text-[10px] space-y-0.5">
+                      <div className="mx-4 mb-3 bg-gray-100 dark:bg-black/30 rounded-xl p-3 font-mono text-[10px] space-y-0.5">
                         {run.log.map((line, i) => (
-                          <div key={i} className={line.startsWith('✓') ? 'text-green-400' : line.startsWith('✗') ? 'text-red-400' : 'text-white/50'}>{line}</div>
+                          <div key={i} className={line.startsWith('✓') ? 'text-green-600 dark:text-green-400' : line.startsWith('✗') ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-white/50'}>{line}</div>
                         ))}
                       </div>
                     )}
@@ -1380,7 +1380,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                           ? <><Play size={11} />Re-run {stage.short}</>
                           : <><Play size={11} />Run {stage.short} Stage</>}
                       </button>
-                      {isPrev && !isRunning && <p className="text-[10px] text-white/25 text-center mt-1.5">Complete {PIPELINE_STAGES[idx - 1].label} stage first</p>}
+                      {isPrev && !isRunning && <p className="text-[10px] text-gray-400 dark:text-white/25 text-center mt-1.5">Complete {PIPELINE_STAGES[idx - 1].label} stage first</p>}
                     </div>
                   </div>
                 );
@@ -1393,9 +1393,9 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               return run.status === 'done' || stageRequests[i].every(r => r.status === 'done');
             }) && sorted.length > 0 && (
               <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4 flex items-center gap-3">
-                <CheckCircle2 size={20} className="text-green-400 flex-shrink-0" />
+                <CheckCircle2 size={20} className="text-green-600 dark:text-green-400 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-bold text-green-300">Pipeline complete</p>
+                  <p className="text-sm font-bold text-green-700 dark:text-green-300">Pipeline complete</p>
                   <p className="text-xs text-green-400/70">All {sorted.length} transport request{sorted.length > 1 ? 's' : ''} have been imported across all stages.</p>
                 </div>
               </div>
@@ -1414,7 +1414,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             <BpPanel icon={<Package size={15} />} title="BCset &amp; Building Block Packages"
               sub={`${bpTotal} package${bpTotal !== 1 ? 's' : ''} · add the BCsets or building blocks your customer already has`}>
 
-              <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/30 text-xs text-violet-300 space-y-1">
+              <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/30 text-xs text-violet-700 dark:text-violet-300 space-y-1">
                 <p className="font-semibold flex items-center gap-1.5"><Sparkles size={11} />What are BCsets?</p>
                 <p>BCsets (Business Configuration Sets) are SAP packages that activate groups of customizing settings in one step via transaction <strong>SCPR20</strong>. Building Blocks are predefined configuration templates. Add yours here to track and activate them.</p>
               </div>
@@ -1424,17 +1424,17 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                 <input value={bpNewName} onChange={e => setBpNewName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && bpAddSingle()}
                   placeholder="SAP_FI_TAXA_GL_001"
-                  className="border border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-violet-400 w-48" />
+                  className="border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-violet-400 w-48" />
                 <input value={bpNewDesc} onChange={e => setBpNewDesc(e.target.value)}
                   placeholder="Description (optional)"
-                  className="flex-1 min-w-[140px] border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                  className="flex-1 min-w-[140px] border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-violet-400" />
                 <select value={bpNewType} onChange={e => setBpNewType(e.target.value)}
-                  className="border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                  className="border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-400">
                   <option value="bcset">BCset</option>
                   <option value="building_block">Building Block</option>
                 </select>
                 <select value={bpNewSysType} onChange={e => setBpNewSysType(e.target.value)}
-                  className="border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                  className="border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-400">
                   <option value="ecc">SAP ECC</option>
                   <option value="s4_onprem">S/4HANA On-Prem</option>
                   <option value="s4_cloud">S/4HANA Cloud</option>
@@ -1444,7 +1444,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                   <Plus size={12} />Add
                 </button>
                 <button onClick={() => setBpShowBulk(p => !p)}
-                  className="px-3 py-2 text-xs font-semibold border border-white/15 rounded-lg text-white/50 hover:bg-white/5 transition-colors">
+                  className="px-3 py-2 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg text-gray-600 dark:text-white/50 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                   Bulk
                 </button>
               </div>
@@ -1452,13 +1452,13 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               {/* Bulk add */}
               {bpShowBulk && (
                 <div className="space-y-2">
-                  <p className="text-xs text-white/40">One BCset or Building Block name per line. Optionally add a description after a space.</p>
+                  <p className="text-xs text-gray-500 dark:text-white/40">One BCset or Building Block name per line. Optionally add a description after a space.</p>
                   <textarea value={bpBulkText} onChange={e => setBpBulkText(e.target.value)} rows={4}
                     placeholder={"SAP_FI_TAXA_GL_001 Tax GL config\nSAP_CO_KKAL_001 Cost center accounting\nSAP_HR_PAY_001"}
-                    className="w-full border border-white/15 rounded-lg px-3 py-2 text-sm font-mono bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none" />
+                    className="w-full border border-gray-300 dark:border-white/15 rounded-lg px-3 py-2 text-sm font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none" />
                   <div className="flex gap-2 items-center">
                     <select value={bpNewType} onChange={e => setBpNewType(e.target.value)}
-                      className="border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                      className="border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-400">
                       <option value="bcset">BCset</option>
                       <option value="building_block">Building Block</option>
                     </select>
@@ -1472,7 +1472,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
               {/* Package list */}
               {bpPackages.length === 0 ? (
-                <div className="text-center py-8 text-sm text-white/30">No packages yet. Add BCsets or Building Blocks above.</div>
+                <div className="text-center py-8 text-sm text-gray-500 dark:text-white/30">No packages yet. Add BCsets or Building Blocks above.</div>
               ) : (
                 <>
                   <TrSectionLabel>{bpTotal} package{bpTotal !== 1 ? 's' : ''}</TrSectionLabel>
@@ -1480,20 +1480,20 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                     {bpPackages.map(pkg => {
                       const meta = BP_TYPE_META[pkg.type] ?? BP_TYPE_META.bcset;
                       return (
-                        <div key={pkg.id} className={`rounded-xl border ${meta.border} bg-white/5 overflow-hidden`}>
+                        <div key={pkg.id} className={`rounded-xl border ${meta.border} bg-gray-50 dark:bg-white/5 overflow-hidden`}>
                           <div className="flex items-center gap-2.5 px-3 py-2.5">
                             <div className="flex-1 min-w-0">
-                              <div className="font-mono text-sm font-semibold text-white truncate">{pkg.name}</div>
-                              {pkg.description && <div className="text-xs text-white/50 truncate">{pkg.description}</div>}
+                              <div className="font-mono text-sm font-semibold text-gray-900 dark:text-white truncate">{pkg.name}</div>
+                              {pkg.description && <div className="text-xs text-gray-600 dark:text-white/50 truncate">{pkg.description}</div>}
                             </div>
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${meta.color}`}>{meta.label}</span>
-                            <span className="text-[10px] text-white/30 flex-shrink-0">{SYS_TYPE_LABELS[pkg.system_type] ?? pkg.system_type}</span>
+                            <span className="text-[10px] text-gray-500 dark:text-white/30 flex-shrink-0">{SYS_TYPE_LABELS[pkg.system_type] ?? pkg.system_type}</span>
                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-                              pkg.status === 'done'    ? 'bg-green-500/20 text-green-300' :
-                              pkg.status === 'error'   ? 'bg-red-500/20 text-red-300' :
-                                                         'bg-white/10 text-white/40'
+                              pkg.status === 'done'    ? 'bg-green-500/20 text-green-700 dark:text-green-300' :
+                              pkg.status === 'error'   ? 'bg-red-500/20 text-red-700 dark:text-red-300' :
+                                                         'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/40'
                             }`}>{pkg.status}</span>
-                            <button onClick={() => bpDelete(pkg.id)} className="text-white/20 hover:text-red-400 flex-shrink-0 transition-colors"><Trash2 size={12} /></button>
+                            <button onClick={() => bpDelete(pkg.id)} className="text-gray-400 dark:text-white/20 hover:text-red-400 flex-shrink-0 transition-colors"><Trash2 size={12} /></button>
                           </div>
                         </div>
                       );
@@ -1518,23 +1518,23 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                   {[['U', 'Update — keep existing values, add missing'], ['O', 'Overwrite — replace all values']].map(([val, lbl]) => (
                     <button key={val} onClick={() => setBpActivateMode(val)}
                       className={`flex-1 py-2.5 px-3 text-xs font-semibold rounded-lg border transition-all text-left
-                        ${bpActivateMode === val ? 'border-violet-500 bg-violet-500/20 text-violet-300' : 'border-white/15 text-white/40 hover:border-white/25'}`}>
+                        ${bpActivateMode === val ? 'border-violet-500 bg-violet-500/20 text-violet-700 dark:text-violet-300' : 'border-gray-300 dark:border-white/15 text-gray-500 dark:text-white/40 hover:border-gray-400 dark:hover:border-white/25'}`}>
                       <span className="font-mono font-bold">{val}</span> — {lbl.split(' — ')[1]}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-white/30 mt-2">
-                  <strong className="text-white/50">U (Update):</strong> adds missing values, skips already-set ones — safe for incremental activation.<br />
-                  <strong className="text-white/50">O (Overwrite):</strong> replaces all values — use with care, may overwrite customer customizing.
+                <p className="text-xs text-gray-500 dark:text-white/30 mt-2">
+                  <strong className="text-gray-600 dark:text-white/50">U (Update):</strong> adds missing values, skips already-set ones — safe for incremental activation.<br />
+                  <strong className="text-gray-600 dark:text-white/50">O (Overwrite):</strong> replaces all values — use with care, may overwrite customer customizing.
                 </p>
               </div>
 
               {/* Target environment (for direct upload) */}
               {sapEnvironments.length > 0 && (
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Target Environment (for ADT upload)</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1.5">Target Environment (for ADT upload)</label>
                   <select value={bpActivateEnvId} onChange={e => setBpActivateEnvId(e.target.value)}
-                    className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-violet-400">
+                    className="w-full border border-gray-300 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-400">
                     <option value="">— Select environment —</option>
                     {sapEnvironments.map(e => <option key={e.id} value={e.id}>{e.name ?? e.host} ({e.type ?? 'unknown'})</option>)}
                   </select>
@@ -1543,7 +1543,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
               {/* S/4 Cloud info */}
               {isCloud && (
-                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-300 space-y-1">
+                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-700 dark:text-blue-300 space-y-1">
                   <p className="font-semibold">S/4HANA Cloud — Central Business Configuration (CBC)</p>
                   <p>BCsets don't exist in S/4HANA Cloud. Use <strong>Central Business Configuration</strong> to activate scope items. The activation script below will include notes for cloud packages.</p>
                 </div>
@@ -1552,9 +1552,9 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               {/* Generate script */}
               <div className="space-y-3">
                 <TrSectionLabel>ABAP Activation Script</TrSectionLabel>
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-white/40 space-y-1">
-                  <p>The script calls <code className="text-violet-300">SCPR_ACTIVATE_IN_CLIENT</code> for each BCset in your list.</p>
-                  <p>Run it in <strong className="text-white/60">SE38</strong> or upload it via ADT below.</p>
+                <div className="p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-xs text-gray-500 dark:text-white/40 space-y-1">
+                  <p>The script calls <code className="text-violet-700 dark:text-violet-300">SCPR_ACTIVATE_IN_CLIENT</code> for each BCset in your list.</p>
+                  <p>Run it in <strong className="text-gray-600 dark:text-white/60">SE38</strong> or upload it via ADT below.</p>
                 </div>
 
                 <div className="flex gap-2 flex-wrap">
@@ -1564,7 +1564,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                   </button>
                   {bpScript && (
                     <button onClick={bpCopyScript}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-violet-500/40 text-violet-300 hover:bg-violet-500/10 rounded-lg transition-colors">
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-violet-500/40 text-violet-700 dark:text-violet-300 hover:bg-violet-500/10 rounded-lg transition-colors">
                       {bpScriptCopied ? <Check size={12} /> : <Copy size={12} />}
                       {bpScriptCopied ? 'Copied!' : 'Copy Script'}
                     </button>
@@ -1579,14 +1579,14 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                 </div>
 
                 {bpUploadResult && (
-                  <div className={`flex items-start gap-2 p-3 rounded-xl text-xs border ${bpUploadResult.ok ? 'bg-green-500/10 border-green-500/30 text-green-300' : 'bg-red-500/10 border-red-500/30 text-red-300'}`}>
+                  <div className={`flex items-start gap-2 p-3 rounded-xl text-xs border ${bpUploadResult.ok ? 'bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300' : 'bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-300'}`}>
                     {bpUploadResult.ok ? <CheckCircle2 size={12} className="flex-shrink-0 mt-0.5" /> : <XCircle size={12} className="flex-shrink-0 mt-0.5" />}
                     {bpUploadResult.msg}
                   </div>
                 )}
 
                 {bpScript && (
-                  <pre className="text-xs text-violet-200 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 border border-violet-500/20 rounded-xl p-4 max-h-72 overflow-y-auto">
+                  <pre className="text-xs text-violet-800 dark:text-violet-200 font-mono leading-relaxed whitespace-pre-wrap bg-gray-100 dark:bg-black/30 border border-violet-500/20 rounded-xl p-4 max-h-72 overflow-y-auto">
                     {bpScript}
                   </pre>
                 )}
@@ -1599,16 +1599,16 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                   {bpPackages.map(pkg => {
                     const meta = BP_TYPE_META[pkg.type] ?? BP_TYPE_META.bcset;
                     return (
-                      <div key={pkg.id} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border ${meta.border} bg-white/5`}>
+                      <div key={pkg.id} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border ${meta.border} bg-gray-50 dark:bg-white/5`}>
                         <div className="flex-1 min-w-0">
-                          <div className="font-mono text-xs font-semibold text-white truncate">{pkg.name}</div>
-                          {pkg.description && <div className="text-[10px] text-white/40 truncate">{pkg.description}</div>}
+                          <div className="font-mono text-xs font-semibold text-gray-900 dark:text-white truncate">{pkg.name}</div>
+                          {pkg.description && <div className="text-[10px] text-gray-500 dark:text-white/40 truncate">{pkg.description}</div>}
                         </div>
                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${meta.color}`}>{meta.label}</span>
                         <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-                          pkg.status === 'done'  ? 'bg-green-500/20 text-green-300' :
-                          pkg.status === 'error' ? 'bg-red-500/20 text-red-300' :
-                                                   'bg-white/10 text-white/40'
+                          pkg.status === 'done'  ? 'bg-green-500/20 text-green-700 dark:text-green-300' :
+                          pkg.status === 'error' ? 'bg-red-500/20 text-red-700 dark:text-red-300' :
+                                                   'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/40'
                         }`}>{pkg.status}</span>
                         <div className="flex gap-1 flex-shrink-0">
                           <button onClick={() => bpMarkDone(pkg.id)} title="Mark as activated"
@@ -1620,7 +1620,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                             <XCircle size={11} />
                           </button>
                           <button onClick={() => bpMarkPending(pkg.id)} title="Reset to pending"
-                            className="w-6 h-6 rounded flex items-center justify-center text-white/20 hover:bg-white/10 hover:text-white/50 transition-colors">
+                            className="w-6 h-6 rounded flex items-center justify-center text-gray-400 dark:text-white/20 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white/50 transition-colors">
                             ↺
                           </button>
                         </div>
@@ -1641,13 +1641,13 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: 'Total',    value: bpTotal,  color: 'text-violet-400' },
-                  { label: 'Activated', value: bpDone,   color: 'text-green-400' },
-                  { label: 'Errors',   value: bpErrors, color: bpErrors > 0 ? 'text-red-400' : 'text-white/30' },
+                  { label: 'Total',    value: bpTotal,  color: 'text-violet-600 dark:text-violet-400' },
+                  { label: 'Activated', value: bpDone,   color: 'text-green-600 dark:text-green-400' },
+                  { label: 'Errors',   value: bpErrors, color: bpErrors > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-white/30' },
                 ].map(s => (
-                  <div key={s.label} className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
+                  <div key={s.label} className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-3 text-center">
                     <p className={`text-2xl font-bold tabular-nums ${s.color}`}>{s.value}</p>
-                    <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
+                    <p className="text-[10px] font-semibold text-gray-500 dark:text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
                   </div>
                 ))}
               </div>
@@ -1660,10 +1660,10 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                       <div className="space-y-1.5">
                         {bpPackages.filter(p => p.status === 'done').map(pkg => (
                           <div key={pkg.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-green-500/30 bg-green-500/10">
-                            <CheckCircle2 size={12} className="text-green-400 flex-shrink-0" />
-                            <span className="font-mono text-xs font-semibold text-white flex-shrink-0">{pkg.name}</span>
-                            {pkg.description && <span className="text-xs text-white/50 truncate flex-1">{pkg.description}</span>}
-                            <span className="text-[10px] text-white/25 flex-shrink-0">{pkg.activated_at ? new Date(pkg.activated_at).toLocaleDateString() : ''}</span>
+                            <CheckCircle2 size={12} className="text-green-600 dark:text-green-400 flex-shrink-0" />
+                            <span className="font-mono text-xs font-semibold text-gray-900 dark:text-white flex-shrink-0">{pkg.name}</span>
+                            {pkg.description && <span className="text-xs text-gray-600 dark:text-white/50 truncate flex-1">{pkg.description}</span>}
+                            <span className="text-[10px] text-gray-400 dark:text-white/25 flex-shrink-0">{pkg.activated_at ? new Date(pkg.activated_at).toLocaleDateString() : ''}</span>
                           </div>
                         ))}
                       </div>
@@ -1676,9 +1676,9 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                       <div className="space-y-1.5">
                         {bpPackages.filter(p => p.status === 'error').map(pkg => (
                           <div key={pkg.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-red-500/30 bg-red-500/10">
-                            <XCircle size={12} className="text-red-400 flex-shrink-0" />
-                            <span className="font-mono text-xs font-semibold text-white flex-shrink-0">{pkg.name}</span>
-                            {pkg.description && <span className="text-xs text-white/50 truncate flex-1">{pkg.description}</span>}
+                            <XCircle size={12} className="text-red-600 dark:text-red-400 flex-shrink-0" />
+                            <span className="font-mono text-xs font-semibold text-gray-900 dark:text-white flex-shrink-0">{pkg.name}</span>
+                            {pkg.description && <span className="text-xs text-gray-600 dark:text-white/50 truncate flex-1">{pkg.description}</span>}
                           </div>
                         ))}
                       </div>
@@ -1690,10 +1690,10 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                       <TrSectionLabel>Pending ({bpPackages.filter(p => p.status === 'pending').length})</TrSectionLabel>
                       <div className="space-y-1.5">
                         {bpPackages.filter(p => p.status === 'pending').map(pkg => (
-                          <div key={pkg.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-white/10 bg-white/5">
-                            <span className="w-3 h-3 rounded-full border border-white/30 flex-shrink-0" />
-                            <span className="font-mono text-xs font-semibold text-white/60 flex-shrink-0">{pkg.name}</span>
-                            {pkg.description && <span className="text-xs text-white/30 truncate flex-1">{pkg.description}</span>}
+                          <div key={pkg.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5">
+                            <span className="w-3 h-3 rounded-full border border-gray-400 dark:border-white/30 flex-shrink-0" />
+                            <span className="font-mono text-xs font-semibold text-gray-600 dark:text-white/60 flex-shrink-0">{pkg.name}</span>
+                            {pkg.description && <span className="text-xs text-gray-500 dark:text-white/30 truncate flex-1">{pkg.description}</span>}
                           </div>
                         ))}
                       </div>

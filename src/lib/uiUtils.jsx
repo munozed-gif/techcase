@@ -122,7 +122,7 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
                     ) : (
                       <div className="space-y-1 text-center">
                         <div className="text-xs flex items-center justify-center gap-1">
-                          <RotateCcw size={10} className="text-blue-400" />
+                          <RotateCcw size={10} className="text-blue-600 dark:text-blue-400" />
                           <span className="font-medium text-gray-800 dark:text-gray-100">{cell.response}</span>
                           <span className="text-gray-400 dark:text-gray-400">{SLA_UNIT_LABELS[cell.response_unit]}</span>
                         </div>

@@ -681,7 +681,7 @@ function ConsultantProfileView({ userId, onBack }) {
                                 </div>
                               )}
                             </div>
-                            <Star className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" fill="currentColor" />
+                            <Star className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="currentColor" />
                           </div>
                         </div>
                       ))}
@@ -728,7 +728,7 @@ function ConsultantProfileView({ userId, onBack }) {
                                 <span className="text-gray-500">{d.label}</span>
                                 <div className="flex gap-0.5">
                                   {[1,2,3,4,5].map(s => (
-                                    <span key={s} className={s <= r.scores[d.key] ? 'text-yellow-400' : 'text-gray-200'}>★</span>
+                                    <span key={s} className={s <= r.scores[d.key] ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-200'}>★</span>
                                   ))}
                                 </div>
                               </div>
@@ -857,7 +857,7 @@ function ConsultantProfileView({ userId, onBack }) {
                                 <div key={m.id} className="flex items-center gap-2">
                                   <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700 flex-shrink-0">{(m.member?.full_name ?? m.email)[0].toUpperCase()}</div>
                                   <span className="text-xs text-gray-700 flex-1 min-w-0 truncate">{m.member?.full_name ?? m.email}{m.role === "owner" && <span className="ml-1 text-indigo-500">(owner)</span>}</span>
-                                  {isOwner && m.user_id !== auth.user?.id && <button onClick={() => removeMember(m.id)} className="text-red-400 hover:text-red-600 flex-shrink-0"><UserMinus size={13} /></button>}
+                                  {isOwner && m.user_id !== auth.user?.id && <button onClick={() => removeMember(m.id)} className="text-red-600 dark:text-red-400 hover:text-red-600 flex-shrink-0"><UserMinus size={13} /></button>}
                                 </div>
                               ))}
                               {pending.map(m => (
@@ -865,7 +865,7 @@ function ConsultantProfileView({ userId, onBack }) {
                                   <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0">{m.email[0].toUpperCase()}</div>
                                   <span className="text-xs text-gray-500 flex-1 min-w-0 truncate">{m.email}</span>
                                   <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full flex-shrink-0">Pending</span>
-                                  {isOwner && <button onClick={() => removeMember(m.id)} className="text-red-400 hover:text-red-600 flex-shrink-0"><X size={12} /></button>}
+                                  {isOwner && <button onClick={() => removeMember(m.id)} className="text-red-600 dark:text-red-400 hover:text-red-600 flex-shrink-0"><X size={12} /></button>}
                                 </div>
                               ))}
                             </div>
@@ -1354,7 +1354,7 @@ function ConsultantProfileView({ userId, onBack }) {
                           <div className="min-w-0 flex-1">
                             <span className="text-sm font-medium text-purple-800">{c.name}</span>
                             {c.issuer && <span className="text-xs text-purple-500 ml-2">{c.issuer}</span>}
-                            {c.year && <span className="text-xs text-purple-400 ml-1">· {c.year}</span>}
+                            {c.year && <span className="text-xs text-purple-600 dark:text-purple-400 ml-1">· {c.year}</span>}
                           </div>
                           {isOwnProfile && (
                             <button onClick={async () => {
@@ -1366,7 +1366,7 @@ function ConsultantProfileView({ userId, onBack }) {
                                 setCpData(p => p ? { ...p, certifications: next } : p);
                               } catch (e) { alert(e.message); }
                               setCpSaving(false);
-                            }} className="text-purple-300 hover:text-red-500 transition-colors ml-2 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+                            }} className="text-purple-700 dark:text-purple-300 hover:text-red-500 transition-colors ml-2 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
                           )}
                         </div>
                       ))}
@@ -1436,7 +1436,7 @@ function ConsultantProfileView({ userId, onBack }) {
                                 setCpData(p => p ? { ...p, education: next } : p);
                               } catch (e) { alert(e.message); }
                               setCpSaving(false);
-                            }} className="text-indigo-300 hover:text-red-500 transition-colors ml-2 mt-0.5 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+                            }} className="text-indigo-700 dark:text-indigo-300 hover:text-red-500 transition-colors ml-2 mt-0.5 flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
                           )}
                         </div>
                       ))}

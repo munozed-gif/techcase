@@ -72,13 +72,13 @@ function PendingApprovalScreen({ auth }) {
               : <span style={{ color: '#4F6EF7' }}>{branding.platformName}</span>;
           })()}
         </h1>
-        <p className="text-blue-400 mt-1 text-sm" style={{ minHeight: '1.25rem' }}>{!branding.loading && branding.tagline}</p>
+        <p className="text-blue-600 dark:text-blue-400 mt-1 text-sm" style={{ minHeight: '1.25rem' }}>{!branding.loading && branding.tagline}</p>
       </div>
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 max-w-md w-full text-center space-y-5">
         {isRejected ? (
           <>
             <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto">
-              <XCircle size={32} className="text-red-400" />
+              <XCircle size={32} className="text-red-600 dark:text-red-400" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">{t("pending.rejected_title")}</h1>
@@ -246,7 +246,7 @@ function ConsultantProjectsHierarchy({ projects, onEdit, onDelete, onToggleFeatu
                                   {onToggleFeatured && (
                                     <button onClick={() => onToggleFeatured(p)}
                                       title={p.featured ? "Remove from featured" : "Mark as featured"}
-                                      className={`p-1 rounded-lg transition-colors ${p.featured ? "text-amber-400 hover:text-amber-500" : "text-gray-300 hover:text-amber-400"}`}>
+                                      className={`p-1 rounded-lg transition-colors ${p.featured ? "text-amber-600 dark:text-amber-400 hover:text-amber-500" : "text-gray-300 hover:text-amber-400"}`}>
                                       <Star className="w-3.5 h-3.5" fill={p.featured ? "currentColor" : "none"} />
                                     </button>
                                   )}

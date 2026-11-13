@@ -1048,10 +1048,10 @@ function SapIntegrationPanel({ clientId, auth }) {
                   <span className="font-semibold text-sm text-gray-800 flex-1 truncate">{env.name || 'Unnamed'}</span>
                   {env.host && <span className="text-xs text-gray-400 truncate hidden sm:block max-w-[180px]">{env.host}</span>}
                   {testStatus === 'ok'   && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
-                  {testStatus === 'fail' && <XCircle size={13} className="text-red-400 flex-shrink-0" />}
+                  {testStatus === 'fail' && <XCircle size={13} className="text-red-600 dark:text-red-400 flex-shrink-0" />}
                   {canEdit && (
                     <button onClick={e => { e.stopPropagation(); deleteEnv(env.id); }}
-                      className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 ml-1 px-2 py-1 rounded hover:bg-red-50">
+                      className="text-xs text-red-600 dark:text-red-400 hover:text-red-600 flex-shrink-0 ml-1 px-2 py-1 rounded hover:bg-red-50">
                       {t('sap.delete_env')}
                     </button>
                   )}
@@ -1246,7 +1246,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                       {(env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly' || env.mcp_type === 'abap-adt-both') && (
                         <div>
                           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            ABAP ADT Bridge URL <span className="text-red-400">*</span>
+                            ABAP ADT Bridge URL <span className="text-red-600 dark:text-red-400">*</span>
                           </label>
                           {(() => {
                             const envBridgePort = env.bridge_port_override || (env.envType === 'dev' ? (ssCtx.settings['sap_vm_config']?.bridge_port_dev ?? 3102) : (ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101));
@@ -1267,7 +1267,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                             </button>
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {envBridgePort}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.
+                            Run <code className="text-blue-600 dark:text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {envBridgePort}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.
                           </p>
                             </>);
                           })()}
@@ -1413,7 +1413,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                                           delete newMap[type];
                                           updateEnvField(env.id, 'adt_object_map', newMap);
                                         }}
-                                        className="text-[10px] text-red-400 hover:text-red-600">reset</button>
+                                        className="text-[10px] text-red-600 dark:text-red-400 hover:text-red-600">reset</button>
                                     )}
                                   </div>
                                   <input
@@ -1433,7 +1433,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                             })}
                           </div>
                           {Object.keys(env.adt_object_map ?? {}).length > 0 && canEdit && (
-                            <button onClick={() => updateEnvField(env.id, 'adt_object_map', {})} className="text-xs text-red-400 hover:text-red-600">
+                            <button onClick={() => updateEnvField(env.id, 'adt_object_map', {})} className="text-xs text-red-600 dark:text-red-400 hover:text-red-600">
                               Clear all overrides for this environment
                             </button>
                           )}
@@ -3145,10 +3145,10 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
   }
 
   const statusIcon = (status) => {
-    if (status === 'checking' || status === 'fixing') return <RefreshCw size={14} className="animate-spin text-blue-400" />;
+    if (status === 'checking' || status === 'fixing') return <RefreshCw size={14} className="animate-spin text-blue-600 dark:text-blue-400" />;
     if (status === 'ok')      return <CheckCircle2 size={14} className="text-green-500" />;
-    if (status === 'warning') return <AlertTriangle size={14} className="text-amber-400" />;
-    if (status === 'error')   return <XCircle size={14} className="text-red-400" />;
+    if (status === 'warning') return <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />;
+    if (status === 'error')   return <XCircle size={14} className="text-red-600 dark:text-red-400" />;
     return <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-gray-200 dark:border-gray-600" />;
   };
 
@@ -3317,20 +3317,20 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                   )}
                   {isUserVpnMode && isAdtMcpMode && (
                     <p className="text-[10px] text-blue-400/80 leading-snug -mt-1">
-                      Run on your laptop while <strong className="text-white">FortiClient is connected</strong>. The ADT bridge talks to SAP directly via your VPN.
+                      Run on your laptop while <strong className="text-gray-900 dark:text-white">FortiClient is connected</strong>. The ADT bridge talks to SAP directly via your VPN.
                     </p>
                   )}
                   {SETUP_STEPS.map((step, si) => (
                     <div key={si} className="space-y-0.5">
                       <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-semibold">{step.label}</p>
-                      <div className="flex items-center gap-1.5 bg-black/30 dark:bg-black/50 rounded px-2 py-1.5">
-                        <code className="flex-1 text-[10px] font-mono text-green-300 break-all leading-snug">{step.cmd}</code>
+                      <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-black/30 dark:bg-black/50 rounded px-2 py-1.5">
+                        <code className="flex-1 text-[10px] font-mono text-green-700 dark:text-green-300 break-all leading-snug">{step.cmd}</code>
                         <button
                           onClick={() => copySetupCmd(step.cmd, si)}
                           className="shrink-0 p-0.5 text-gray-500 hover:text-gray-300 transition-colors"
                           title="Copy">
                           {setupCopied === si
-                            ? <CheckCircle2 size={10} className="text-green-400" />
+                            ? <CheckCircle2 size={10} className="text-green-600 dark:text-green-400" />
                             : <Copy size={10} />}
                         </button>
                       </div>
@@ -3345,14 +3345,14 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
               {/* Stop VPN feedback */}
               {showStopVpn && stopVpnMsg && (
                 <div className="px-10 pb-2">
-                  <p className={`text-[10px] ${stopVpnMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>{stopVpnMsg}</p>
+                  <p className={`text-[10px] ${stopVpnMsg.startsWith('✓') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{stopVpnMsg}</p>
                 </div>
               )}
 
               {/* Restart ADT bridge feedback */}
               {key === 'mcp' && restartAdtMsg && (
                 <div className="px-10 pb-2">
-                  <p className="text-[10px] text-blue-400 flex items-center gap-1">
+                  <p className="text-[10px] text-blue-600 dark:text-blue-400 flex items-center gap-1">
                     {restartingAdt && <RefreshCw size={8} className="animate-spin shrink-0" />}
                     {restartAdtMsg}
                   </p>
@@ -3363,7 +3363,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
               {/* Restart VM feedback */}
               {key === 'vm' && restartVmMsg && (
                 <div className="px-10 pb-2">
-                  <p className="text-[10px] text-blue-400 flex items-center gap-1">
+                  <p className="text-[10px] text-blue-600 dark:text-blue-400 flex items-center gap-1">
                     {restartingVm && <RefreshCw size={8} className="animate-spin shrink-0" />}
                     {restartVmMsg}
                   </p>
@@ -3389,8 +3389,8 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                   ].map((step, si) => (
                     <div key={si} className="space-y-0.5">
                       <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-semibold">{step.label}</p>
-                      <div className="flex items-center gap-1.5 bg-black/30 dark:bg-black/50 rounded px-2 py-1.5">
-                        <code className="flex-1 text-[10px] font-mono text-green-300 break-all leading-snug">{step.cmd}</code>
+                      <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-black/30 dark:bg-black/50 rounded px-2 py-1.5">
+                        <code className="flex-1 text-[10px] font-mono text-green-700 dark:text-green-300 break-all leading-snug">{step.cmd}</code>
                         <button
                           onClick={() => { try { navigator.clipboard.writeText(step.cmd); } catch {} }}
                           className="shrink-0 p-0.5 text-gray-500 hover:text-gray-300 transition-colors"
@@ -3409,7 +3409,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
               {/* Deploy message */}
               {showDeploy && deployMsg && (
                 <div className="px-10 pb-2">
-                  <p className={`text-[10px] ${deployMsg.startsWith('Failed') || deployMsg.startsWith('Error') ? 'text-red-400' : 'text-blue-400'}`}>{deployMsg}</p>
+                  <p className={`text-[10px] ${deployMsg.startsWith('Failed') || deployMsg.startsWith('Error') ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>{deployMsg}</p>
                 </div>
               )}
 
@@ -3435,18 +3435,18 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       {stoppedAt && !running && (
         <div className="mt-1.5 rounded-lg border border-red-100 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2">
-            <AlertTriangle size={12} className="text-red-400 shrink-0" />
+            <AlertTriangle size={12} className="text-red-600 dark:text-red-400 shrink-0" />
             <p className="text-[11px] text-red-600 dark:text-red-400">
               Stopped at <strong>{NODE_META.find(n => n.key === stoppedAt)?.label}</strong>
               {diagnosing ? ' — asking AI for diagnosis…' : aiDiagnosis ? ' — see steps below' : ''}
             </p>
-            {diagnosing && <RefreshCw size={10} className="animate-spin text-blue-400 ml-auto shrink-0" />}
+            {diagnosing && <RefreshCw size={10} className="animate-spin text-blue-600 dark:text-blue-400 ml-auto shrink-0" />}
           </div>
           {(diagnosing || aiDiagnosis) && (
             <div className="border-t border-red-100 dark:border-red-800/30 px-3 py-2.5">
               {diagnosing && !aiDiagnosis && (
                 <div className="flex items-center gap-2">
-                  <RefreshCw size={10} className="animate-spin text-blue-400" />
+                  <RefreshCw size={10} className="animate-spin text-blue-600 dark:text-blue-400" />
                   <span className="text-[11px] text-blue-500 dark:text-blue-400">Analyzing issue with AI…</span>
                 </div>
               )}
@@ -3502,7 +3502,7 @@ function VpnStatusBanner({ linkedConn, isVpn, mcpUrl, env }) {
   const dot = (val, label) => (
     <span className="flex items-center gap-1 text-xs">
       {val === true  ? <CheckCircle2 size={12} className="text-green-500" />
-       : val === false ? <XCircle size={12} className="text-red-400" />
+       : val === false ? <XCircle size={12} className="text-red-600 dark:text-red-400" />
        : <AlertTriangle size={12} className="text-gray-300" />}
       <span className={val === true ? 'text-green-700 dark:text-green-400' : val === false ? 'text-red-500' : 'text-gray-400'}>{label}</span>
     </span>
@@ -3737,7 +3737,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                     {isDefault && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 flex-shrink-0">Default</span>}
                     {env.host && <span className="text-xs text-gray-400 truncate hidden sm:block max-w-[180px]">{env.host}</span>}
                     {testStatus === 'ok'   && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
-                    {testStatus === 'fail' && <XCircle size={13} className="text-red-400 flex-shrink-0" />}
+                    {testStatus === 'fail' && <XCircle size={13} className="text-red-600 dark:text-red-400 flex-shrink-0" />}
                     {/* Infra status dots */}
                     {(() => {
                       const ic = infraChecks[env.id];
@@ -3749,7 +3749,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                       const dot = (val) => val === true
                         ? <CheckCircle2 size={12} className="text-green-500" />
                         : val === false
-                        ? <XCircle size={12} className="text-red-400" />
+                        ? <XCircle size={12} className="text-red-600 dark:text-red-400" />
                         : <span className="w-2 h-2 rounded-full bg-gray-200 inline-block" />;
                       return (
                         <span className="flex items-center gap-1 flex-shrink-0 ml-1" title="VM / VPN / SAP">
@@ -3770,7 +3770,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                     )}
                     {canEdit && (
                       <button onClick={e => { e.stopPropagation(); deleteEnv(env.id); }}
-                        className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 ml-1 px-2 py-1 rounded hover:bg-red-50">
+                        className="text-xs text-red-600 dark:text-red-400 hover:text-red-600 flex-shrink-0 ml-1 px-2 py-1 rounded hover:bg-red-50">
                         {t('sap.delete_env')}
                       </button>
                     )}
@@ -3859,7 +3859,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                                 <button key={opt.value} type="button" disabled={!canEdit}
                                   onClick={() => updateEnvField(env.id, 'vpn_mode', opt.value)}
                                   title={opt.desc}
-                                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${active ? 'bg-blue-500/20 border-blue-500/40 text-blue-300' : 'bg-white/5 border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-white/10'} disabled:opacity-50`}>
+                                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${active ? 'bg-blue-500/20 border-blue-500/40 text-blue-700 dark:text-blue-300' : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10'} disabled:opacity-50`}>
                                   {opt.icon}{opt.label}
                                 </button>
                               );
@@ -3939,7 +3939,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                             {(env.mcp_type === 'abap-adt' || env.mcp_type === 'abap-adt-readonly' || env.mcp_type === 'abap-adt-both') && (
                               <div>
                                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                  ABAP ADT Bridge URL <span className="text-red-400">*</span>
+                                  ABAP ADT Bridge URL <span className="text-red-600 dark:text-red-400">*</span>
                                 </label>
                                 {(() => {
                                   const envBridgePort = env.bridge_port_override || (env.envType === 'dev' ? (ssCtx.settings['sap_vm_config']?.bridge_port_dev ?? 3102) : (ssCtx.settings['sap_vm_config']?.bridge_port_prod ?? 3101));
@@ -3961,8 +3961,8 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                                 </div>
                                 <p className="text-xs text-gray-400 mt-0.5">
                                   {env.vpn_mode === 'user'
-                                    ? <>Run <code className="text-blue-400">vm-mcp-adt/start-local.sh</code> on your laptop (FortiClient must be connected) — the tunnel URL is printed on startup and auto-registered.</>
-                                    : <>Run <code className="text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {envBridgePort}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.</>
+                                    ? <>Run <code className="text-blue-600 dark:text-blue-400">vm-mcp-adt/start-local.sh</code> on your laptop (FortiClient must be connected) — the tunnel URL is printed on startup and auto-registered.</>
+                                    : <>Run <code className="text-blue-600 dark:text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {envBridgePort}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.</>
                                   }
                                 </p>
                                   </>);
@@ -4122,7 +4122,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                                             delete newMap[type];
                                             updateEnvField(env.id, 'adt_object_map', newMap);
                                           }}
-                                          className="text-[10px] text-red-400 hover:text-red-600">reset</button>
+                                          className="text-[10px] text-red-600 dark:text-red-400 hover:text-red-600">reset</button>
                                       )}
                                     </div>
                                     <input
@@ -4142,7 +4142,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                               })}
                             </div>
                             {Object.keys(env.adt_object_map ?? {}).length > 0 && canEdit && (
-                              <button onClick={() => updateEnvField(env.id, 'adt_object_map', {})} className="text-xs text-red-400 hover:text-red-600">
+                              <button onClick={() => updateEnvField(env.id, 'adt_object_map', {})} className="text-xs text-red-600 dark:text-red-400 hover:text-red-600">
                                 Clear all overrides for this environment
                               </button>
                             )}
@@ -6087,26 +6087,26 @@ Output ONLY the ABAP source code, no explanations.`;
 
       {/* Reviewer row */}
       {canDevelop && (
-        <div className="px-4 py-2 border-b border-white/10 flex items-center gap-3 flex-wrap text-xs">
-          <Mail size={12} className="text-indigo-400 flex-shrink-0" />
+        <div className="px-4 py-2 border-b border-gray-200 dark:border-white/10 flex items-center gap-3 flex-wrap text-xs">
+          <Mail size={12} className="text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
           <span className="font-medium text-gray-400 flex-shrink-0">Reviewer:</span>
 
           {/* Inherited from parent case */}
           {parentConsultant ? (
-            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-500/15 border border-indigo-500/30 rounded-lg text-indigo-300 font-medium">
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-500/15 border border-indigo-500/30 rounded-lg text-indigo-700 dark:text-indigo-300 font-medium">
               {parentConsultant.full_name} · {parentConsultant.email}
               <span className="text-[10px] text-indigo-400/60 font-normal ml-0.5">(inherited)</span>
             </span>
           ) : reviewerEmail ? (
             <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg font-medium ${
               reviewerUserId
-                ? 'bg-green-500/15 border border-green-500/30 text-green-300'
-                : 'bg-blue-500/15 border border-blue-500/30 text-blue-300'
+                ? 'bg-green-500/15 border border-green-500/30 text-green-700 dark:text-green-300'
+                : 'bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-300'
             }`}>
               {reviewerUserId && reviewerAvatar ? (
                 <img src={reviewerAvatar} alt="" className="w-4 h-4 rounded-full object-cover flex-shrink-0" />
               ) : reviewerUserId ? (
-                <span className="w-4 h-4 rounded-full bg-green-500/40 flex items-center justify-center text-[9px] font-bold text-green-200 flex-shrink-0">
+                <span className="w-4 h-4 rounded-full bg-green-500/40 flex items-center justify-center text-[9px] font-bold text-green-800 dark:text-green-200 flex-shrink-0">
                   {(reviewerName || reviewerEmail).charAt(0).toUpperCase()}
                 </span>
               ) : null}
@@ -6123,28 +6123,28 @@ Output ONLY the ABAP source code, no explanations.`;
                   onChange={e => handleReviewerInputChange(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && saveReviewer()}
                   placeholder="reviewer@email.com"
-                  className="text-xs border border-white/20 bg-white/5 text-white/80 placeholder-white/25 rounded-lg px-2 py-0.5 w-48 focus:outline-none focus:border-indigo-400/60"
+                  className="text-xs border border-gray-300 dark:border-white/20 bg-gray-50 dark:bg-white/5 text-gray-800 dark:text-white/80 placeholder-gray-400 dark:placeholder-white/25 rounded-lg px-2 py-0.5 w-48 focus:outline-none focus:border-indigo-400/60"
                 />
                 <button
                   onClick={saveReviewer}
                   disabled={reviewerSaving || !reviewerInput.trim() || reviewerLookup === 'searching'}
-                  className="px-2 py-0.5 text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-lg hover:bg-indigo-500/30 disabled:opacity-40 transition-colors">
+                  className="px-2 py-0.5 text-xs font-medium bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 rounded-lg hover:bg-indigo-500/30 disabled:opacity-40 transition-colors">
                   {reviewerSaving ? '…' : 'Save'}
                 </button>
               </div>
               {/* Lookup feedback */}
               {reviewerLookup === 'searching' && (
-                <span className="text-[10px] text-white/30 flex items-center gap-1">
+                <span className="text-[10px] text-gray-500 dark:text-white/30 flex items-center gap-1">
                   <Loader2 size={9} className="animate-spin" />Checking…
                 </span>
               )}
               {reviewerLookup?.found && reviewerLookup.isFunctional && (
-                <span className="text-[10px] text-green-400 flex items-center gap-1">
+                <span className="text-[10px] text-green-600 dark:text-green-400 flex items-center gap-1">
                   <Check size={9} />{reviewerLookup.user.full_name} · on platform — will see this in-app
                 </span>
               )}
               {reviewerLookup?.found && !reviewerLookup.isFunctional && (
-                <span className="text-[10px] text-amber-400 flex items-center gap-1">
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
                   ⚠ {reviewerLookup.user.full_name} is on the platform but has role <strong>{reviewerLookup.user.role}</strong> — not a functional reviewer. They'll receive an external link instead.
                 </span>
               )}
@@ -6160,7 +6160,7 @@ Output ONLY the ABAP source code, no explanations.`;
           {reviewerEmail && !parentConsultant && (
             <button
               onClick={() => { setReviewerEmail(''); setReviewerInput(''); }}
-              className="text-white/30 hover:text-white/60 transition-colors text-[10px] underline">
+              className="text-gray-500 dark:text-white/30 hover:text-gray-700 dark:hover:text-white/60 transition-colors text-[10px] underline">
               change
             </button>
           )}
@@ -6172,8 +6172,8 @@ Output ONLY the ABAP source code, no explanations.`;
               disabled={genLinkLoading}
               className={`ml-auto flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors ${
                 approvalLinkCopied
-                  ? 'bg-green-500/20 border-green-500/30 text-green-300'
-                  : 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/30'
+                  ? 'bg-green-500/20 border-green-500/30 text-green-700 dark:text-green-300'
+                  : 'bg-indigo-500/20 border-indigo-500/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/30'
               }`}>
               {approvalLinkCopied ? <><Check size={11} />Copied!</> : <><Link2 size={11} />{genLinkLoading ? 'Generating…' : 'Copy Review Link'}</>}
             </button>
@@ -6184,7 +6184,7 @@ Output ONLY the ABAP source code, no explanations.`;
             <button
               onClick={syncReviews}
               disabled={syncingReviews}
-              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-white/15 text-white/40 rounded-lg hover:bg-white/5 hover:text-white/60 transition-colors disabled:opacity-40">
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-gray-300 dark:border-white/15 text-gray-500 dark:text-white/40 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-white/60 transition-colors disabled:opacity-40">
               <RefreshCw size={11} className={syncingReviews ? 'animate-spin' : ''} />
               {syncedCount !== null ? `Synced ${syncedCount}` : 'Sync Reviews'}
             </button>
@@ -6429,11 +6429,11 @@ Output ONLY the ABAP source code, no explanations.`;
               </div>
 
               {selectedObj.generatedCode && (
-                <details className="mt-3 pt-3 border-t border-white/10">
-                  <summary className="text-xs font-semibold text-white/40 uppercase tracking-wide cursor-pointer select-none mb-1">
+                <details className="mt-3 pt-3 border-t border-gray-200 dark:border-white/10">
+                  <summary className="text-xs font-semibold text-gray-500 dark:text-white/40 uppercase tracking-wide cursor-pointer select-none mb-1">
                     Auto-generated ABAP Code
                   </summary>
-                  <pre className="bg-black/40 text-green-300 text-xs rounded-xl p-3 overflow-x-auto max-h-56 leading-relaxed mt-2">
+                  <pre className="bg-gray-100 dark:bg-black/40 text-green-700 dark:text-green-300 text-xs rounded-xl p-3 overflow-x-auto max-h-56 leading-relaxed mt-2">
                     {selectedObj.generatedCode}
                   </pre>
                 </details>
@@ -6450,8 +6450,8 @@ Output ONLY the ABAP source code, no explanations.`;
 
                 if (isAiCapable && !selectedObj.generatedCode) {
                   return (
-                    <div className="mt-3 pt-3 border-t border-white/10">
-                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300">
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/10">
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-700 dark:text-blue-300">
                         <Sparkles size={12} className="flex-shrink-0 mt-0.5" />
                         <span>Code will be <strong>auto-generated</strong> when the implementation pipeline runs. Once generated it will appear here. Resolve any dependency objects first.</span>
                       </div>
@@ -6462,15 +6462,15 @@ Output ONLY the ABAP source code, no explanations.`;
                 if (isAiCapable) return null;
 
                 return (
-                  <div className="mt-3 pt-3 border-t border-white/10">
-                    <div className="flex gap-0 border-b border-white/10 mb-3">
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/10">
+                    <div className="flex gap-0 border-b border-gray-200 dark:border-white/10 mb-3">
                       {[
                         ['guide', 'Creation Guide'],
                         ...(canAdt ? [['adt', 'ADT Code']] : []),
                       ].map(([k, lbl]) => (
                         <button key={k} onClick={() => setTab(k)}
                           className={`px-3 py-1.5 text-xs font-semibold border-b-2 -mb-px transition-colors
-                            ${abapTab === k ? 'border-amber-400 text-amber-300' : 'border-transparent text-white/30 hover:text-white/60'}`}>
+                            ${abapTab === k ? 'border-amber-400 text-amber-700 dark:text-amber-300' : 'border-transparent text-gray-500 dark:text-white/30 hover:text-gray-700 dark:hover:text-white/60'}`}>
                           {lbl}
                         </button>
                       ))}
@@ -6479,40 +6479,40 @@ Output ONLY the ABAP source code, no explanations.`;
                     {abapTab === 'guide' && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-white/40">Step-by-step SAP creation instructions</span>
+                          <span className="text-xs text-gray-500 dark:text-white/40">Step-by-step SAP creation instructions</span>
                           <button onClick={() => onGenerateCreationGuide(selectedObj)} disabled={specState.generating}
-                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
                             <Sparkles size={11} />{specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : 'Generate Steps'}
                           </button>
                         </div>
-                        {specState.error && <p className="text-xs text-red-400">Error: {specState.error}</p>}
+                        {specState.error && <p className="text-xs text-red-600 dark:text-red-400">Error: {specState.error}</p>}
                         {specState.spec
-                          ? <pre className="text-xs text-white/80 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 border border-white/10 rounded-lg p-3 max-h-[28rem] overflow-y-auto">{specState.spec}</pre>
-                          : !specState.generating && <p className="text-xs text-white/30">Click "Generate Steps" for AI-written creation instructions.</p>}
+                          ? <pre className="text-xs text-gray-800 dark:text-white/80 font-mono leading-relaxed whitespace-pre-wrap bg-gray-100 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-lg p-3 max-h-[28rem] overflow-y-auto">{specState.spec}</pre>
+                          : !specState.generating && <p className="text-xs text-gray-500 dark:text-white/30">Click "Generate Steps" for AI-written creation instructions.</p>}
                       </div>
                     )}
 
                     {abapTab === 'adt' && canAdt && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-white/40">Paste into Eclipse ADT to create this object</span>
+                          <span className="text-xs text-gray-500 dark:text-white/40">Paste into Eclipse ADT to create this object</span>
                           <div className="flex gap-2">
                             {specState.adtCode && (
                               <button onClick={() => navigator.clipboard?.writeText(specState.adtCode)}
-                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-white/10 text-white/50 border border-white/15 hover:bg-white/15">
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/50 border border-gray-300 dark:border-white/15 hover:bg-gray-200 dark:hover:bg-white/15">
                                 <Copy size={9}/>Copy
                               </button>
                             )}
                             <button onClick={() => onGenerateAdtCode(selectedObj)} disabled={specState.generatingAdt}
-                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-50 transition-colors">
+                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-50 transition-colors">
                               <Sparkles size={11} />{specState.generatingAdt ? 'Generating…' : specState.adtCode ? 'Regenerate' : 'Generate Code'}
                             </button>
                           </div>
                         </div>
-                        {specState.adtError && <p className="text-xs text-red-400">Error: {specState.adtError}</p>}
+                        {specState.adtError && <p className="text-xs text-red-600 dark:text-red-400">Error: {specState.adtError}</p>}
                         {specState.adtCode
-                          ? <pre className="text-xs text-green-200 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 border border-green-500/20 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.adtCode}</pre>
-                          : !specState.generatingAdt && <p className="text-xs text-white/30">Click "Generate Code" for ADT-ready source to paste in Eclipse.</p>}
+                          ? <pre className="text-xs text-green-800 dark:text-green-200 font-mono leading-relaxed whitespace-pre-wrap bg-gray-100 dark:bg-black/30 border border-green-500/20 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.adtCode}</pre>
+                          : !specState.generatingAdt && <p className="text-xs text-gray-500 dark:text-white/30">Click "Generate Code" for ADT-ready source to paste in Eclipse.</p>}
                       </div>
                     )}
                   </div>
@@ -6530,7 +6530,7 @@ Output ONLY the ABAP source code, no explanations.`;
                 return (
                   <div className="mt-3 pt-3 border-t border-gray-100">
                     {/* Tab row */}
-                    <div className="flex gap-0 border-b border-white/10 mb-3">
+                    <div className="flex gap-0 border-b border-gray-200 dark:border-white/10 mb-3">
                       {[
                         ['spro',       'SPRO Guide'],
                         ['bcset',      'BCset'],
@@ -6538,7 +6538,7 @@ Output ONLY the ABAP source code, no explanations.`;
                       ].map(([k, lbl]) => (
                         <button key={k} onClick={() => setTab(k)}
                           className={`px-3 py-1.5 text-xs font-semibold border-b-2 -mb-px transition-colors
-                            ${cfgTab === k ? 'border-amber-400 text-amber-300' : 'border-transparent text-white/30 hover:text-white/60'}`}>
+                            ${cfgTab === k ? 'border-amber-400 text-amber-700 dark:text-amber-300' : 'border-transparent text-gray-500 dark:text-white/30 hover:text-gray-700 dark:hover:text-white/60'}`}>
                           {lbl}
                         </button>
                       ))}
@@ -6547,20 +6547,20 @@ Output ONLY the ABAP source code, no explanations.`;
                     {/* SPRO Guide */}
                     {cfgTab === 'spro' && (
                       <div className="space-y-2">
-                        <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300">
+                        <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-700 dark:text-blue-300">
                           Customizing done manually in DEV via SPRO/IMG. SAP creates the transport automatically.
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-white/40">IMG path · direct t-code · field values</span>
+                          <span className="text-xs text-gray-500 dark:text-white/40">IMG path · direct t-code · field values</span>
                           <button onClick={() => onGenerateSpro(selectedObj)} disabled={specState.generating}
-                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
                             <Sparkles size={11} />{specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : 'Generate SPRO Path'}
                           </button>
                         </div>
-                        {specState.error && <p className="text-xs text-red-400">Error: {specState.error}</p>}
+                        {specState.error && <p className="text-xs text-red-600 dark:text-red-400">Error: {specState.error}</p>}
                         {specState.spec
-                          ? <pre className="text-xs text-white/80 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 border border-white/10 rounded-lg p-3 max-h-[28rem] overflow-y-auto">{specState.spec}</pre>
-                          : !specState.generating && <p className="text-xs text-white/30">Click "Generate SPRO Path" for the exact IMG route, direct t-code, and field values.</p>}
+                          ? <pre className="text-xs text-gray-800 dark:text-white/80 font-mono leading-relaxed whitespace-pre-wrap bg-gray-100 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-lg p-3 max-h-[28rem] overflow-y-auto">{specState.spec}</pre>
+                          : !specState.generating && <p className="text-xs text-gray-500 dark:text-white/30">Click "Generate SPRO Path" for the exact IMG route, direct t-code, and field values.</p>}
                       </div>
                     )}
 
@@ -6571,30 +6571,30 @@ Output ONLY the ABAP source code, no explanations.`;
                           {[['ecc','ECC 6.0'],['s4_onprem','S/4HANA On-Prem'],['s4_cloud','S/4HANA Cloud']].map(([val,lbl]) => (
                             <button key={val} onClick={() => setBcsetSysType(val)}
                               className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-all
-                                ${bcsetSysType === val ? 'border-violet-400 bg-violet-500/20 text-violet-300' : 'border-white/15 text-white/30 hover:border-white/30 hover:text-white/60'}`}>
+                                ${bcsetSysType === val ? 'border-violet-400 bg-violet-500/20 text-violet-700 dark:text-violet-300' : 'border-gray-300 dark:border-white/15 text-gray-500 dark:text-white/30 hover:border-gray-400 dark:hover:border-white/30 hover:text-gray-700 dark:hover:text-white/60'}`}>
                               {lbl}
                             </button>
                           ))}
                         </div>
-                        <p className="text-[10px] text-violet-300 bg-violet-500/10 border border-violet-500/20 rounded-lg px-2.5 py-1.5">
+                        <p className="text-[10px] text-violet-700 dark:text-violet-300 bg-violet-500/10 border border-violet-500/20 rounded-lg px-2.5 py-1.5">
                           {bcsetSysType === 's4_cloud'
                             ? 'S/4HANA Cloud uses Central Business Configuration (CBC) — BCsets don\'t exist.'
                             : 'BCsets activate via SCPR20 and write directly to customizing tables.'}
                         </p>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-white/40">{bcsetSysType === 's4_cloud' ? 'Scope item · CBC path' : 'BCset name · SCPR20 steps'}</span>
+                          <span className="text-xs text-gray-500 dark:text-white/40">{bcsetSysType === 's4_cloud' ? 'Scope item · CBC path' : 'BCset name · SCPR20 steps'}</span>
                           <div className="flex gap-2">
-                            {specState.bcsetInfo && <button onClick={() => navigator.clipboard?.writeText(specState.bcsetInfo)} className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-white/10 text-white/50 border border-white/15 hover:bg-white/15"><Copy size={9}/>Copy</button>}
+                            {specState.bcsetInfo && <button onClick={() => navigator.clipboard?.writeText(specState.bcsetInfo)} className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/50 border border-gray-300 dark:border-white/15 hover:bg-gray-200 dark:hover:bg-white/15"><Copy size={9}/>Copy</button>}
                             <button onClick={() => onGenerateBcset(selectedObj)} disabled={specState.generatingBcset}
-                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30 disabled:opacity-50 transition-colors">
+                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/30 hover:bg-violet-500/30 disabled:opacity-50 transition-colors">
                               <Sparkles size={11} />{specState.generatingBcset ? 'Generating…' : specState.bcsetInfo ? 'Regenerate' : bcsetSysType === 's4_cloud' ? 'Find Scope Item' : 'Find BCset'}
                             </button>
                           </div>
                         </div>
-                        {specState.bcsetError && <p className="text-xs text-red-400">Error: {specState.bcsetError}</p>}
+                        {specState.bcsetError && <p className="text-xs text-red-600 dark:text-red-400">Error: {specState.bcsetError}</p>}
                         {specState.bcsetInfo
-                          ? <pre className="text-xs text-violet-200 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 border border-violet-500/20 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.bcsetInfo}</pre>
-                          : !specState.generatingBcset && <p className="text-xs text-white/30">{bcsetSysType === 's4_cloud' ? 'Find CBC scope item and activation path.' : 'Find BCset name and SCPR20 steps.'}</p>}
+                          ? <pre className="text-xs text-violet-800 dark:text-violet-200 font-mono leading-relaxed whitespace-pre-wrap bg-gray-100 dark:bg-black/30 border border-violet-500/20 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.bcsetInfo}</pre>
+                          : !specState.generatingBcset && <p className="text-xs text-gray-500 dark:text-white/30">{bcsetSysType === 's4_cloud' ? 'Find CBC scope item and activation path.' : 'Find BCset name and SCPR20 steps.'}</p>}
                       </div>
                     )}
 
@@ -6604,60 +6604,60 @@ Output ONLY the ABAP source code, no explanations.`;
                         <div className="flex items-center gap-1.5 mb-2">
                           {[{n:1,label:'Generate',done:!!specState.configScript},{n:2,label:'Write to SAP',done:!!specState.appliedScript},{n:3,label:'Execute',done:!!specState.scriptExecuted}].map((s,i,arr) => (
                             <div key={s.n} className="flex items-center gap-1">
-                              <span className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center ${s.done ? 'bg-green-500 text-white' : 'bg-white/10 text-white/30'}`}>{s.done ? '✓' : s.n}</span>
-                              <span className={`text-[10px] ${s.done ? 'text-green-400' : 'text-white/30'}`}>{s.label}</span>
-                              {i < arr.length-1 && <span className="text-white/20 text-[10px]">→</span>}
+                              <span className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center ${s.done ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-white/10 text-white/30'}`}>{s.done ? '✓' : s.n}</span>
+                              <span className={`text-[10px] ${s.done ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-white/30'}`}>{s.label}</span>
+                              {i < arr.length-1 && <span className="text-gray-400 dark:text-white/20 text-[10px]">→</span>}
                             </div>
                           ))}
-                          {bcsetSysType === 's4_cloud' && <span className="ml-auto text-[9px] text-violet-300 bg-violet-500/20 px-2 py-0.5 rounded-full border border-violet-500/30">Cloud</span>}
+                          {bcsetSysType === 's4_cloud' && <span className="ml-auto text-[9px] text-violet-700 dark:text-violet-300 bg-violet-500/20 px-2 py-0.5 rounded-full border border-violet-500/30">Cloud</span>}
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-white/40">{bcsetSysType === 's4_cloud' ? 'OData API or CBC guide' : 'ABAP report for customizing automation'}</span>
+                          <span className="text-xs text-gray-500 dark:text-white/40">{bcsetSysType === 's4_cloud' ? 'OData API or CBC guide' : 'ABAP report for customizing automation'}</span>
                           <div className="flex gap-2">
-                            {specState.configScript && <button onClick={() => navigator.clipboard?.writeText(specState.configScript)} className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-white/10 text-white/50 border border-white/15 hover:bg-white/15"><Copy size={9}/>Copy</button>}
+                            {specState.configScript && <button onClick={() => navigator.clipboard?.writeText(specState.configScript)} className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/50 border border-gray-300 dark:border-white/15 hover:bg-gray-200 dark:hover:bg-white/15"><Copy size={9}/>Copy</button>}
                             <button onClick={() => onGenerateConfigScript(selectedObj)} disabled={specState.generatingScript}
-                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-500/20 text-green-300 border border-green-500/30 hover:bg-green-500/30 disabled:opacity-50 transition-colors">
+                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-500/20 text-green-700 dark:text-green-300 border border-green-500/30 hover:bg-green-500/30 disabled:opacity-50 transition-colors">
                               <Sparkles size={11} />{specState.generatingScript ? 'Generating…' : specState.configScript ? 'Regenerate' : bcsetSysType === 's4_cloud' ? 'Generate Cloud Guide' : 'Generate ABAP Script'}
                             </button>
                           </div>
                         </div>
-                        {specState.scriptError && <p className="text-xs text-red-400">Error: {specState.scriptError}</p>}
+                        {specState.scriptError && <p className="text-xs text-red-600 dark:text-red-400">Error: {specState.scriptError}</p>}
                         {specState.configScript && (
-                          <pre className="text-xs text-green-200 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 border border-green-500/20 rounded-lg p-3 max-h-56 overflow-y-auto">{specState.configScript}</pre>
+                          <pre className="text-xs text-green-800 dark:text-green-200 font-mono leading-relaxed whitespace-pre-wrap bg-gray-100 dark:bg-black/30 border border-green-500/20 rounded-lg p-3 max-h-56 overflow-y-auto">{specState.configScript}</pre>
                         )}
                         {specState.configScript && bcsetSysType !== 's4_cloud' && (
                           <div className="flex items-center gap-2 pt-1">
                             <button onClick={() => onApplyConfigScript(selectedObj)} disabled={specState.applyingScript || specState.appliedScript}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-40 transition-colors">
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-40 transition-colors">
                               {specState.applyingScript ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
                               {specState.applyingScript ? 'Writing…' : specState.appliedScript ? '✓ Written to SAP' : 'Write to SAP'}
                             </button>
                             {specState.appliedScript && (
                               <button onClick={() => onRunConfigScript(selectedObj)} disabled={specState.runningScript || specState.scriptExecuted}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-500/20 text-green-300 border border-green-500/30 hover:bg-green-500/30 disabled:opacity-40 transition-colors">
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-500/20 text-green-700 dark:text-green-300 border border-green-500/30 hover:bg-green-500/30 disabled:opacity-40 transition-colors">
                                 <Play size={11} />{specState.runningScript ? 'Running…' : specState.scriptExecuted ? '✓ Executed' : 'Run on SAP'}
                               </button>
                             )}
                           </div>
                         )}
                         {(specState.scriptLog?.length > 0 || specState.applyingScript) && (
-                          <div className="bg-black/30 rounded-lg p-2.5 space-y-0.5">
+                          <div className="bg-gray-100 dark:bg-black/30 rounded-lg p-2.5 space-y-0.5">
                             {specState.applyingScript && !specState.scriptLog?.length && (
-                              <p className="text-[10px] font-mono text-white/50 flex items-center gap-1.5"><Loader2 size={9} className="animate-spin" />Connecting to SAP…</p>
+                              <p className="text-[10px] font-mono text-gray-600 dark:text-white/50 flex items-center gap-1.5"><Loader2 size={9} className="animate-spin" />Connecting to SAP…</p>
                             )}
                             {specState.scriptLog?.map((line, i) => (
-                              <p key={i} className={`text-[10px] font-mono ${line.startsWith('✓') ? 'text-green-400' : line.startsWith('⚠') ? 'text-amber-400' : line.startsWith('→') ? 'text-blue-300' : 'text-white/50'}`}>{line}</p>
+                              <p key={i} className={`text-[10px] font-mono ${line.startsWith('✓') ? 'text-green-600 dark:text-green-400' : line.startsWith('⚠') ? 'text-amber-600 dark:text-amber-400' : line.startsWith('→') ? 'text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-white/50'}`}>{line}</p>
                             ))}
                           </div>
                         )}
                         {specState.scriptApplyError && (
                           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2.5">
-                            <p className="text-[10px] font-mono text-red-400">✗ {specState.scriptApplyError}</p>
+                            <p className="text-[10px] font-mono text-red-600 dark:text-red-400">✗ {specState.scriptApplyError}</p>
                           </div>
                         )}
-                        {specState.runError && <p className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5">ADT run unavailable — open SE38 → {specState.appliedProgramName} → F8</p>}
-                        {specState.scriptExecuted && <p className="text-xs text-green-300 bg-green-500/10 border border-green-500/20 rounded-lg px-2.5 py-1.5">✓ Customizing applied. Check transport in SE01.</p>}
-                        {!specState.configScript && !specState.generatingScript && <p className="text-xs text-white/30">Generate an ABAP script, then write and run it directly on SAP.</p>}
+                        {specState.runError && <p className="text-[10px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5">ADT run unavailable — open SE38 → {specState.appliedProgramName} → F8</p>}
+                        {specState.scriptExecuted && <p className="text-xs text-green-700 dark:text-green-300 bg-green-500/10 border border-green-500/20 rounded-lg px-2.5 py-1.5">✓ Customizing applied. Check transport in SE01.</p>}
+                        {!specState.configScript && !specState.generatingScript && <p className="text-xs text-gray-500 dark:text-white/30">Generate an ABAP script, then write and run it directly on SAP.</p>}
                       </div>
                     )}
                   </div>
@@ -6675,7 +6675,7 @@ Output ONLY the ABAP source code, no explanations.`;
                 {runLog.map((entry, i) => (
                   <div key={i} className="flex items-start gap-2 text-[10px]">
                     <span className="text-gray-600 flex-shrink-0 font-mono">{entry.ts}</span>
-                    <span className={`break-words min-w-0 ${entry.status === 'error' ? 'text-red-400' : entry.status === 'done' ? 'text-green-400' : entry.status === 'blocked' ? 'text-gray-500' : 'text-gray-300'}`}>
+                    <span className={`break-words min-w-0 ${entry.status === 'error' ? 'text-red-600 dark:text-red-400' : entry.status === 'done' ? 'text-green-600 dark:text-green-400' : entry.status === 'blocked' ? 'text-gray-500' : 'text-gray-300'}`}>
                       {entry.msg}
                     </span>
                   </div>
@@ -7576,25 +7576,25 @@ FALLBACK:
   const BP_STATUS_LABEL = { planned: 'Planned', generating: 'Generating', generated: 'Code ready', applying: 'Applying',
     inactive: 'Not active', unverified: 'Unverified', done: 'Done', error: 'Error', blocked: 'Blocked', manual: 'Manual', skipped: 'Skipped' };
   const BP_STATUS_DARK = {
-    done: 'bg-green-900/50 border-green-500/50 text-green-300', error: 'bg-red-900/50 border-red-500/50 text-red-300',
-    inactive: 'bg-orange-900/40 border-orange-500/50 text-orange-300', unverified: 'bg-purple-900/40 border-purple-500/50 text-purple-300',
-    applying: 'bg-amber-900/40 border-amber-500/50 text-amber-300', generating: 'bg-blue-900/40 border-blue-500/50 text-blue-300',
-    generated: 'bg-teal-900/40 border-teal-500/50 text-teal-300', manual: 'bg-amber-900/50 border-amber-500/50 text-amber-300',
+    done: 'bg-green-50 dark:bg-green-900/50 border-green-500/50 text-green-700 dark:text-green-300', error: 'bg-red-50 dark:bg-red-900/50 border-red-500/50 text-red-700 dark:text-red-300',
+    inactive: 'bg-orange-50 dark:bg-orange-900/40 border-orange-500/50 text-orange-700 dark:text-orange-300', unverified: 'bg-purple-50 dark:bg-purple-900/40 border-purple-500/50 text-purple-700 dark:text-purple-300',
+    applying: 'bg-amber-50 dark:bg-amber-900/40 border-amber-500/50 text-amber-700 dark:text-amber-300', generating: 'bg-blue-50 dark:bg-blue-900/40 border-blue-500/50 text-blue-700 dark:text-blue-300',
+    generated: 'bg-teal-50 dark:bg-teal-900/40 border-teal-500/50 text-teal-700 dark:text-teal-300', manual: 'bg-amber-50 dark:bg-amber-900/50 border-amber-500/50 text-amber-700 dark:text-amber-300',
   };
   const BpObjectRow = ({ o, showTime = false }) => {
     const st = o.status ?? 'planned';
     return (
       <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
         st === 'done' ? 'border-green-500/30 bg-green-500/10' : st === 'error' ? 'border-red-500/30 bg-red-500/10'
-        : ['inactive', 'unverified'].includes(st) ? 'border-orange-500/30 bg-orange-500/10' : 'border-white/10 bg-white/5'}`}>
-        <span className="font-mono text-xs font-semibold text-white flex-shrink-0 truncate max-w-[170px]">{o.name}</span>
-        <span className="text-[10px] text-white/40 flex-shrink-0">{BP_TYPES[o.type]?.label ?? o.type}</span>
-        <span className="text-xs text-white/40 truncate flex-1" title={o.error || o.appliedNote || ''}>
-          {o.error ? <span className="text-red-400">{o.error}</span>
+        : ['inactive', 'unverified'].includes(st) ? 'border-orange-500/30 bg-orange-500/10' : 'border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5'}`}>
+        <span className="font-mono text-xs font-semibold text-gray-900 dark:text-white flex-shrink-0 truncate max-w-[170px]">{o.name}</span>
+        <span className="text-[10px] text-gray-500 dark:text-white/40 flex-shrink-0">{BP_TYPES[o.type]?.label ?? o.type}</span>
+        <span className="text-xs text-gray-500 dark:text-white/40 truncate flex-1" title={o.error || o.appliedNote || ''}>
+          {o.error ? <span className="text-red-600 dark:text-red-400">{o.error}</span>
             : o.appliedTransport ? `${o.appliedPackage ? o.appliedPackage + ' · ' : ''}${o.appliedTransport}` : ''}
         </span>
-        {showTime && o.appliedAt && <span className="text-[10px] text-white/30 flex-shrink-0">{new Date(o.appliedAt).toLocaleString()}</span>}
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${BP_STATUS_DARK[st] ?? 'bg-gray-800 border-gray-600 text-gray-400'}`}>
+        {showTime && o.appliedAt && <span className="text-[10px] text-gray-500 dark:text-white/30 flex-shrink-0">{new Date(o.appliedAt).toLocaleString()}</span>}
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${BP_STATUS_DARK[st] ?? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'}`}>
           {BP_STATUS_LABEL[st] ?? st}
         </span>
       </div>
@@ -7635,7 +7635,7 @@ FALLBACK:
                 {isDone ? <Check size={12} /> : s.icon}
               </div>
               <span className={`text-[9px] font-bold mt-1 uppercase tracking-wider
-                ${isActive ? 'text-blue-500' : isDone ? 'text-green-500' : 'text-gray-400 dark:text-white/30'}`}>
+                ${isActive ? 'text-blue-600 dark:text-blue-400' : isDone ? 'text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-white/30'}`}>
                 {s.label}
               </span>
             </button>
@@ -7765,7 +7765,7 @@ FALLBACK:
               <div className="rounded-lg bg-gray-950 p-3 space-y-1">
                 {as.applyLog.map((msg, i) => (
                   <p key={i} className={`text-xs font-mono leading-snug
-                    ${msg.startsWith('✓') ? 'text-green-400' : msg.startsWith('✗') ? 'text-red-400' : 'text-gray-400'}`}>{msg}</p>
+                    ${msg.startsWith('✓') ? 'text-green-600 dark:text-green-400' : msg.startsWith('✗') ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}>{msg}</p>
                 ))}
               </div>
             )}
@@ -7962,7 +7962,7 @@ FALLBACK:
             ) : (
               <>
                 {seqManual.length > 0 && (
-                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-300">
+                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-700 dark:text-amber-300">
                     <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
                     <span>Objects marked <strong>Manual</strong> must be created in SAP first. Auto objects that depend on them will wait until you verify creation in the Run step.</span>
                   </div>
@@ -7982,17 +7982,17 @@ FALLBACK:
                         return (
                           <div key={obj.id} className="rounded-xl border border-amber-500/40 bg-amber-500/10 overflow-hidden">
                             <div className="flex items-center gap-3 px-3 py-2.5 cursor-pointer" onClick={toggleOpen}>
-                              <span className="w-5 h-5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+                              <span className="w-5 h-5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
                               <div className="flex-1 min-w-0">
-                                <div className="font-mono text-sm font-semibold text-white truncate">{obj.name}</div>
-                                {obj.description && <div className="text-xs text-white/50 truncate">{obj.description}</div>}
-                                {deps.length > 0 && <div className="text-[10px] text-amber-400 mt-0.5">← requires: {deps.join(', ')}</div>}
+                                <div className="font-mono text-sm font-semibold text-gray-900 dark:text-white truncate">{obj.name}</div>
+                                {obj.description && <div className="text-xs text-gray-600 dark:text-white/50 truncate">{obj.description}</div>}
+                                {deps.length > 0 && <div className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">← requires: {deps.join(', ')}</div>}
                               </div>
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 flex-shrink-0">{bpType.label ?? obj.type}</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 flex-shrink-0">{bpType.label ?? obj.type}</span>
                               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-700 text-amber-300 flex-shrink-0 font-mono">{tx}</span>
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 flex-shrink-0">Manual</span>
-                              {obj.status === 'done' && <CheckCircle2 size={13} className="text-green-400 flex-shrink-0" />}
-                              <span className="text-white/30 flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 flex-shrink-0">Manual</span>
+                              {obj.status === 'done' && <CheckCircle2 size={13} className="text-green-600 dark:text-green-400 flex-shrink-0" />}
+                              <span className="text-gray-500 dark:text-white/30 flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
                             </div>
                             {isOpen && (() => {
                               const canAdt = ADT_CODE_TYPES.has(obj.type);
@@ -8009,15 +8009,15 @@ FALLBACK:
                                       ].map(({ label, ready }) => (
                                         <span key={label} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border
                                           ${ready
-                                            ? 'bg-green-500/15 border-green-500/30 text-green-400'
-                                            : 'bg-white/5 border-white/10 text-white/25'}`}>
+                                            ? 'bg-green-500/15 border-green-500/30 text-green-600 dark:text-green-400'
+                                            : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 dark:text-white/25'}`}>
                                           {ready ? <CheckCircle2 size={9} /> : <span className="w-2 h-2 rounded-full border border-current inline-block" />}
                                           {label}
                                         </span>
                                       ))}
                                     </div>
-                                    <p className="text-[10px] text-white/30 leading-relaxed">
-                                      Click this object in the <strong className="text-white/50">Blueprint canvas</strong> to view and generate the SPRO Guide, BCset, and Auto Config details.
+                                    <p className="text-[10px] text-gray-500 dark:text-white/30 leading-relaxed">
+                                      Click this object in the <strong className="text-gray-600 dark:text-white/50">Blueprint canvas</strong> to view and generate the SPRO Guide, BCset, and Auto Config details.
                                     </p>
                                   </div>
                                 );
@@ -8032,15 +8032,15 @@ FALLBACK:
                                     ].map(({ label, ready }) => (
                                       <span key={label} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border
                                         ${ready
-                                          ? 'bg-green-500/15 border-green-500/30 text-green-400'
-                                          : 'bg-white/5 border-white/10 text-white/25'}`}>
+                                          ? 'bg-green-500/15 border-green-500/30 text-green-600 dark:text-green-400'
+                                          : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 dark:text-white/25'}`}>
                                         {ready ? <CheckCircle2 size={9} /> : <span className="w-2 h-2 rounded-full border border-current inline-block" />}
                                         {label}
                                       </span>
                                     ))}
                                   </div>
-                                  <p className="text-[10px] text-white/30 leading-relaxed">
-                                    Click this object in the <strong className="text-white/50">Blueprint canvas</strong> to generate the Creation Guide{canAdt ? ' and ADT Code' : ''}.
+                                  <p className="text-[10px] text-gray-500 dark:text-white/30 leading-relaxed">
+                                    Click this object in the <strong className="text-gray-600 dark:text-white/50">Blueprint canvas</strong> to generate the Creation Guide{canAdt ? ' and ADT Code' : ''}.
                                   </p>
                                 </div>
                               );
@@ -8062,47 +8062,47 @@ FALLBACK:
                         const seq       = seqManual.length + i + 1;
                         const isOpen    = expandedAuto.has(obj.id);
                         const toggleOpen = () => setExpandedAuto(p => { const n = new Set(p); n.has(obj.id) ? n.delete(obj.id) : n.add(obj.id); return n; });
-                        const statusColor = obj.status === 'done'      ? 'text-green-400'
-                                          : obj.status === 'error'     ? 'text-red-400'
-                                          : obj.status === 'inactive'  ? 'text-orange-300'
-                                          : obj.status === 'unverified'? 'text-purple-300'
-                                          : obj.status === 'applying'  ? 'text-blue-300'
-                                          : obj.status === 'generating'? 'text-amber-300'
-                                          : 'text-white/30';
+                        const statusColor = obj.status === 'done'      ? 'text-green-600 dark:text-green-400'
+                                          : obj.status === 'error'     ? 'text-red-600 dark:text-red-400'
+                                          : obj.status === 'inactive'  ? 'text-orange-700 dark:text-orange-300'
+                                          : obj.status === 'unverified'? 'text-purple-700 dark:text-purple-300'
+                                          : obj.status === 'applying'  ? 'text-blue-700 dark:text-blue-300'
+                                          : obj.status === 'generating'? 'text-amber-700 dark:text-amber-300'
+                                          : 'text-gray-500 dark:text-white/30';
                         return (
                           <div key={obj.id} className="rounded-xl border border-blue-500/30 bg-blue-500/10 overflow-hidden">
                             <div className="flex items-center gap-3 px-3 py-2.5 cursor-pointer" onClick={toggleOpen}>
-                              <span className="w-5 h-5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 flex items-center justify-center font-mono flex-shrink-0">{seq}</span>
+                              <span className="w-5 h-5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center font-mono flex-shrink-0">{seq}</span>
                               <div className="flex-1 min-w-0">
-                                <div className="font-mono text-sm font-semibold text-white truncate">{obj.name}</div>
-                                {obj.description && <div className="text-xs text-white/50 truncate">{obj.description}</div>}
-                                {deps.length > 0 && <div className="text-[10px] text-blue-400 mt-0.5">← requires: {deps.join(', ')}</div>}
+                                <div className="font-mono text-sm font-semibold text-gray-900 dark:text-white truncate">{obj.name}</div>
+                                {obj.description && <div className="text-xs text-gray-600 dark:text-white/50 truncate">{obj.description}</div>}
+                                {deps.length > 0 && <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">← requires: {deps.join(', ')}</div>}
                               </div>
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 flex-shrink-0">{bpType.label ?? obj.type}</span>
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-300 flex-shrink-0">Auto · {bpType.short ?? '—'}</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 flex-shrink-0">{bpType.label ?? obj.type}</span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-700 dark:text-green-300 flex-shrink-0">Auto · {bpType.short ?? '—'}</span>
                               {obj.status === 'done'
                                 ? <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
                                 : obj.status && <span className={`text-[10px] font-semibold flex-shrink-0 ${statusColor}`}>{obj.status}</span>}
-                              <span className="text-white/30 flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
+                              <span className="text-gray-500 dark:text-white/30 flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
                             </div>
                             {isOpen && (
                               <div className="border-t border-blue-500/20 px-3 py-3 space-y-2">
                                 {obj.generatedCode ? (
                                   <>
                                     <div className="flex items-center justify-between">
-                                      <span className="text-[10px] text-white/40">Auto-generated ABAP code</span>
+                                      <span className="text-[10px] text-gray-500 dark:text-white/40">Auto-generated ABAP code</span>
                                       <button onClick={() => navigator.clipboard?.writeText(obj.generatedCode)}
-                                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-white/10 text-white/50 border border-white/15 hover:bg-white/15">
+                                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/50 border border-gray-300 dark:border-white/15 hover:bg-gray-200 dark:hover:bg-white/15">
                                         <Copy size={9}/>Copy
                                       </button>
                                     </div>
-                                    <pre className="text-xs text-green-300 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 border border-green-500/20 rounded-lg p-3 max-h-64 overflow-y-auto">{obj.generatedCode}</pre>
-                                    {obj.error && <p className="text-[10px] text-red-400">Error: {obj.error}</p>}
+                                    <pre className="text-xs text-green-700 dark:text-green-300 font-mono leading-relaxed whitespace-pre-wrap bg-gray-100 dark:bg-black/30 border border-green-500/20 rounded-lg p-3 max-h-64 overflow-y-auto">{obj.generatedCode}</pre>
+                                    {obj.error && <p className="text-[10px] text-red-600 dark:text-red-400">Error: {obj.error}</p>}
                                   </>
                                 ) : (
-                                  <p className="text-[10px] text-white/30 leading-relaxed">
+                                  <p className="text-[10px] text-gray-500 dark:text-white/30 leading-relaxed">
                                     {obj.status === 'error'
-                                      ? <span className="text-red-400">Error: {obj.error || 'Unknown error'}</span>
+                                      ? <span className="text-red-600 dark:text-red-400">Error: {obj.error || 'Unknown error'}</span>
                                       : 'Code will be generated automatically when the implementation pipeline runs. Check dependencies are resolved first.'}
                                   </p>
                                 )}
@@ -8125,7 +8125,7 @@ FALLBACK:
       {/* ── STEP 3: Review ────────────────────────────── */}
       {implStep === 3 && (
         <Panel icon={<Eye size={15} />} title="Functional Review" sub="Send objects to reviewer for approval before going live">
-          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-sm text-blue-300">
+          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-sm text-blue-700 dark:text-blue-300">
             <Link2 size={14} className="flex-shrink-0 mt-0.5" />
             <span>The review link is managed in the <strong>Blueprint</strong> tab. Select a reviewer there and generate the approval link — the reviewer sees the object list and approves or rejects each one.</span>
           </div>
@@ -8138,11 +8138,11 @@ FALLBACK:
                   const isAuto = obj.aiCapable ?? BP_TYPES[obj.type]?.ai ?? true;
                   const bpType = BP_TYPES[obj.type] ?? {};
                   return (
-                    <div key={obj.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-white/10 bg-white/5">
-                      <span className="w-4 h-4 rounded text-[9px] font-bold bg-white/10 text-white/60 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
-                      <span className="font-mono text-xs font-semibold text-white flex-1 truncate">{obj.name}</span>
-                      <span className="text-[10px] text-white/40 truncate max-w-[100px] hidden sm:block">{bpType.label ?? obj.type}</span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${!isAuto ? 'bg-amber-500/20 text-amber-300' : 'bg-green-500/20 text-green-300'}`}>
+                    <div key={obj.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5">
+                      <span className="w-4 h-4 rounded text-[9px] font-bold bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/60 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+                      <span className="font-mono text-xs font-semibold text-gray-900 dark:text-white flex-1 truncate">{obj.name}</span>
+                      <span className="text-[10px] text-gray-500 dark:text-white/40 truncate max-w-[100px] hidden sm:block">{bpType.label ?? obj.type}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${!isAuto ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' : 'bg-green-500/20 text-green-700 dark:text-green-300'}`}>
                         {!isAuto ? 'Manual' : 'Auto'}
                       </span>
                     </div>
@@ -8161,11 +8161,11 @@ FALLBACK:
         <Panel icon={<Play size={15} />} title="Implementation Run"
           sub={`${bpSorted.length} objects · ${autoImplEnabled ? 'auto-implement enabled' : 'manual apply mode'}`}>
           <div>
-            <div className="flex justify-between text-xs text-white/40 mb-1.5">
+            <div className="flex justify-between text-xs text-gray-500 dark:text-white/40 mb-1.5">
               <span>{t('sap.impl_progress_title')}</span>
               <span>{bpDone.length} of {bpSorted.length} objects done in SAP</span>
             </div>
-            <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden flex">
+            <div className="w-full bg-gray-100 dark:bg-white/10 rounded-full h-2 overflow-hidden flex">
               <div className="bg-green-500 h-2 transition-all" style={{ width: `${Math.round(bpDone.length / bpSorted.length * 100)}%` }} />
               <div className="bg-orange-400 h-2 transition-all" style={{ width: `${Math.round((bpWritten.length - bpDone.length) / bpSorted.length * 100)}%` }} />
               <div className="bg-red-500 h-2 transition-all" style={{ width: `${Math.round(bpErrors.length / bpSorted.length * 100)}%` }} />
@@ -8179,11 +8179,11 @@ FALLBACK:
               </button>
               {bpErrors.length > 0 && (
                 <button onClick={() => setBpRunSignal({ ids: bpErrors.map(o => o.id), nonce: Date.now() })}
-                  className="px-3 py-1.5 text-xs font-semibold border border-red-500/40 text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
+                  className="px-3 py-1.5 text-xs font-semibold border border-red-500/40 text-red-700 dark:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
                   Retry {bpErrors.length} failed
                 </button>
               )}
-              <span className="text-[11px] text-white/30">Progress also shows on the blueprint canvas above.</span>
+              <span className="text-[11px] text-gray-500 dark:text-white/30">Progress also shows on the blueprint canvas above.</span>
             </div>
           )}
           <div className="space-y-1.5">
@@ -8200,11 +8200,11 @@ FALLBACK:
 
           {/* Progress bar */}
           <div>
-            <div className="flex justify-between text-xs text-white/40 mb-1.5">
+            <div className="flex justify-between text-xs text-gray-500 dark:text-white/40 mb-1.5">
               <span>{t('sap.impl_progress_title')}</span>
               <span>{t('sap.impl_done_count').replace('{n}', appliedCount).replace('{total}', totalCount)}</span>
             </div>
-            <div className="w-full bg-white/10 rounded-full h-2">
+            <div className="w-full bg-gray-100 dark:bg-white/10 rounded-full h-2">
               <div className="bg-green-500 h-2 rounded-full transition-all"
                 style={{ width: totalCount ? `${Math.round(appliedCount / totalCount * 100)}%` : '0%' }} />
             </div>
@@ -8214,7 +8214,7 @@ FALLBACK:
           {autoImplEnabled && (
             <div className="flex gap-2 flex-wrap">
               <button onClick={toggleActCheckAll}
-                className="px-3 py-1.5 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">
+                className="px-3 py-1.5 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-white/60 transition-colors">
                 {checkedActIds.size === implActivities.length && implActivities.length > 0 ? t('sap.deselect_all') : t('sap.select_all')}
               </button>
               {checkedActIds.size > 0 && (
@@ -8232,7 +8232,7 @@ FALLBACK:
 
           {/* Activity list */}
           {implActivities.length === 0 ? (
-            <div className="text-center py-8 text-sm text-white/40">No implementation activities found.</div>
+            <div className="text-center py-8 text-sm text-gray-500 dark:text-white/40">No implementation activities found.</div>
           ) : (
             <div className="space-y-2">
               {/* Sorted (assigned) activities first */}
@@ -8256,27 +8256,27 @@ FALLBACK:
           sub={bpLastAt ? `Last applied ${new Date(bpLastAt).toLocaleString()}` : 'No objects applied yet'}>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: 'Total',        value: bpSorted.length, color: 'text-blue-400' },
-              { label: 'Auto Applied', value: bpDone.filter(bpIsAi).length, color: 'text-green-400' },
-              { label: 'Manual',       value: bpSorted.filter(o => !bpIsAi(o)).length, color: 'text-amber-400' },
-              { label: '% Complete',   value: `${Math.round(bpDone.length / bpSorted.length * 100)}%`, color: 'text-blue-400' },
-              { label: 'Done in SAP',  value: bpDone.length, color: 'text-green-400' },
-              { label: 'Remaining',    value: bpSorted.length - bpDone.length, color: bpSorted.length - bpDone.length > 0 ? 'text-amber-400' : 'text-white/30' },
+              { label: 'Total',        value: bpSorted.length, color: 'text-blue-600 dark:text-blue-400' },
+              { label: 'Auto Applied', value: bpDone.filter(bpIsAi).length, color: 'text-green-600 dark:text-green-400' },
+              { label: 'Manual',       value: bpSorted.filter(o => !bpIsAi(o)).length, color: 'text-amber-600 dark:text-amber-400' },
+              { label: '% Complete',   value: `${Math.round(bpDone.length / bpSorted.length * 100)}%`, color: 'text-blue-600 dark:text-blue-400' },
+              { label: 'Done in SAP',  value: bpDone.length, color: 'text-green-600 dark:text-green-400' },
+              { label: 'Remaining',    value: bpSorted.length - bpDone.length, color: bpSorted.length - bpDone.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-white/30' },
             ].map(s => (
-              <div key={s.label} className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
+              <div key={s.label} className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-3 text-center">
                 <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
+                <p className="text-[10px] font-semibold text-gray-500 dark:text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>
           {(bpWritten.length > bpDone.length || bpErrors.length > 0) && (
-            <p className="text-xs text-white/50">
-              {bpWritten.length - bpDone.length > 0 && <span className="text-orange-300">{bpWritten.length - bpDone.length} written but not confirmed/active. </span>}
-              {bpErrors.length > 0 && <span className="text-red-300">{bpErrors.length} failed — see Logs or retry from Run.</span>}
+            <p className="text-xs text-gray-600 dark:text-white/50">
+              {bpWritten.length - bpDone.length > 0 && <span className="text-orange-700 dark:text-orange-300">{bpWritten.length - bpDone.length} written but not confirmed/active. </span>}
+              {bpErrors.length > 0 && <span className="text-red-700 dark:text-red-300">{bpErrors.length} failed — see Logs or retry from Run.</span>}
             </p>
           )}
           {bpTransports.length > 0 && (
-            <p className="text-xs text-white/50">Transport{bpTransports.length > 1 ? 's' : ''}: <span className="font-mono text-white/80">{bpTransports.join(', ')}</span></p>
+            <p className="text-xs text-gray-600 dark:text-white/50">Transport{bpTransports.length > 1 ? 's' : ''}: <span className="font-mono text-gray-800 dark:text-white/80">{bpTransports.join(', ')}</span></p>
           )}
           <SectionLabel>Objects — tick the ones to regenerate in the next run</SectionLabel>
           <div className="space-y-1.5">
@@ -8291,20 +8291,20 @@ FALLBACK:
             ))}
           </div>
           <div>
-            <label className="text-xs font-semibold text-white/50 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+            <label className="text-xs font-semibold text-gray-600 dark:text-white/50 uppercase tracking-wide flex items-center gap-1.5 mb-2">
               <MessageSquare size={11} /> What do you want to change or add to the next run?
             </label>
             <textarea value={implFeedback} onChange={e => setImplFeedback(e.target.value)} onBlur={() => saveImplFeedback(implFeedback)} rows={4}
               placeholder={'e.g. ZTST_PAYCODE: add field VALID_FROM (DATS). ZTST_PAYCODE_LIST: add a selection screen filter on ACTIVE…'}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-            <p className="text-[11px] text-white/35 mt-1.5 flex items-start gap-1.5">
+              className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-800 dark:text-white/80 placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+            <p className="text-[11px] text-gray-500 dark:text-white/35 mt-1.5 flex items-start gap-1.5">
               <History size={11} className="flex-shrink-0 mt-0.5" />
               <span>Run again regenerates the ticked objects: the AI gets this feedback and each object's previous code, then the new version is written to SAP (overwriting it), activated and verified. Unticked objects are left as they are. The feedback is kept for later runs too.</span>
             </p>
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
-            <button onClick={() => setImplStep(4)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">← Back</button>
-            <button onClick={() => setImplStep(6)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">View Logs →</button>
+            <button onClick={() => setImplStep(4)} className="px-4 py-2 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-white/60 transition-colors">← Back</button>
+            <button onClick={() => setImplStep(6)} className="px-4 py-2 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-white/60 transition-colors">View Logs →</button>
             <button onClick={handleBpRunAgain} disabled={!rerunIds.length || !autoImplEnabled}
               title={!autoImplEnabled ? 'Auto-implement is off for this SAP environment' : ''}
               className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-colors">
@@ -8322,16 +8322,16 @@ FALLBACK:
           {/* Stats grid */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: 'Total',        value: totalCount,   color: 'text-blue-400' },
-              { label: 'Auto Applied', value: implLog.filter(l => !MANUAL_TYPES.has(l.objectType ?? '')).length, color: 'text-green-400' },
-              { label: 'Manual',       value: manualCount,  color: 'text-amber-400' },
-              { label: '% Complete',   value: totalCount ? `${Math.round(appliedCount / totalCount * 100)}%` : '—', color: 'text-blue-400' },
-              { label: 'Applied',      value: appliedCount, color: 'text-green-400' },
-              { label: 'Remaining',    value: Math.max(0, totalCount - appliedCount), color: totalCount - appliedCount > 0 ? 'text-amber-400' : 'text-white/30' },
+              { label: 'Total',        value: totalCount,   color: 'text-blue-600 dark:text-blue-400' },
+              { label: 'Auto Applied', value: implLog.filter(l => !MANUAL_TYPES.has(l.objectType ?? '')).length, color: 'text-green-600 dark:text-green-400' },
+              { label: 'Manual',       value: manualCount,  color: 'text-amber-600 dark:text-amber-400' },
+              { label: '% Complete',   value: totalCount ? `${Math.round(appliedCount / totalCount * 100)}%` : '—', color: 'text-blue-600 dark:text-blue-400' },
+              { label: 'Applied',      value: appliedCount, color: 'text-green-600 dark:text-green-400' },
+              { label: 'Remaining',    value: Math.max(0, totalCount - appliedCount), color: totalCount - appliedCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-white/30' },
             ].map(s => (
-              <div key={s.label} className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
+              <div key={s.label} className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-3 text-center">
                 <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
+                <p className="text-[10px] font-semibold text-gray-500 dark:text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>
@@ -8354,27 +8354,27 @@ FALLBACK:
                       isApplied ? 'border-green-500/30 bg-green-500/10'
                       : hasError ? 'border-red-500/30 bg-red-500/10'
                       : isManual ? 'border-amber-500/30 bg-amber-500/10'
-                      : 'border-white/10 bg-white/5'
+                      : 'border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5'
                     }`}>
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isApplied ? 'bg-green-400' : hasError ? 'bg-red-400' : isManual ? 'bg-amber-400' : 'bg-gray-500'}`} />
-                      <span className="font-mono text-xs font-semibold text-white flex-shrink-0 truncate max-w-[120px]">{obj.objectName || act.title}</span>
-                      <span className="text-xs text-white/40 truncate flex-1">{act.title}</span>
-                      {hasError && <span className="text-[10px] text-red-400 truncate max-w-[100px]" title={as.applyError}>{as.applyError}</span>}
+                      <span className="font-mono text-xs font-semibold text-gray-900 dark:text-white flex-shrink-0 truncate max-w-[120px]">{obj.objectName || act.title}</span>
+                      <span className="text-xs text-gray-500 dark:text-white/40 truncate flex-1">{act.title}</span>
+                      {hasError && <span className="text-[10px] text-red-600 dark:text-red-400 truncate max-w-[100px]" title={as.applyError}>{as.applyError}</span>}
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${
-                        isApplied ? 'bg-green-900/50 border-green-500/50 text-green-300'
-                        : hasError ? 'bg-red-900/50 border-red-500/50 text-red-300'
-                        : isManual ? 'bg-amber-900/50 border-amber-500/50 text-amber-300'
-                        : 'bg-gray-800 border-gray-600 text-gray-400'
+                        isApplied ? 'bg-green-50 dark:bg-green-900/50 border-green-500/50 text-green-700 dark:text-green-300'
+                        : hasError ? 'bg-red-50 dark:bg-red-900/50 border-red-500/50 text-red-700 dark:text-red-300'
+                        : isManual ? 'bg-amber-50 dark:bg-amber-900/50 border-amber-500/50 text-amber-700 dark:text-amber-300'
+                        : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'
                       }`}>{statusLabel}</span>
                       {canEdit && !isApplied && (
                         <button onClick={() => handleMarkManualDone(act.id)} title="Mark as manually completed"
-                          className="text-[10px] text-green-400 hover:text-green-300 flex-shrink-0 px-1.5 py-0.5 rounded border border-green-500/30 hover:bg-green-500/10 transition-colors">
+                          className="text-[10px] text-green-600 dark:text-green-400 hover:text-green-300 flex-shrink-0 px-1.5 py-0.5 rounded border border-green-500/30 hover:bg-green-500/10 transition-colors">
                           ✓ Done
                         </button>
                       )}
                       {canEdit && !isApplied && (hasError || isManual) && (
                         <button onClick={() => handleResetObject(act.id)} title="Reset to pending for next run"
-                          className="text-[10px] text-gray-400 hover:text-gray-200 flex-shrink-0 px-1.5 py-0.5 rounded border border-gray-600 hover:bg-white/5 transition-colors">
+                          className="text-[10px] text-gray-400 hover:text-gray-200 flex-shrink-0 px-1.5 py-0.5 rounded border border-gray-600 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                           ↺
                         </button>
                       )}
@@ -8387,7 +8387,7 @@ FALLBACK:
 
           {/* Feedback for next run */}
           <div>
-            <label className="text-xs font-semibold text-white/50 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+            <label className="text-xs font-semibold text-gray-600 dark:text-white/50 uppercase tracking-wide flex items-center gap-1.5 mb-2">
               <MessageSquare size={11} /> What do you want to change or add to the next run?
             </label>
             <textarea
@@ -8396,10 +8396,10 @@ FALLBACK:
               onBlur={() => saveImplFeedback(implFeedback)}
               rows={4}
               placeholder={'e.g. Add error handling to ZMM_GOODS_RECEIPT. For ZBAPI_INVOICE change the number range to use NUMBER_GET_NEXT instead of hard-coded…'}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-800 dark:text-white/80 placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
             {implFeedback?.trim() && (
-              <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
+              <p className="text-[10px] text-gray-500 dark:text-white/30 mt-1 flex items-center gap-1">
                 <History size={9} /> Feedback accumulates across runs — Claude sees the full history
               </p>
             )}
@@ -8407,15 +8407,15 @@ FALLBACK:
 
           {/* Last run info */}
           {implRuns.length > 0 && (
-            <p className="text-xs text-white/30">
+            <p className="text-xs text-gray-500 dark:text-white/30">
               Last run: Run {implRuns[implRuns.length - 1].runNumber} · {new Date(implRuns[implRuns.length - 1].startedAt).toLocaleString()}
             </p>
           )}
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 pt-2">
-            <button onClick={() => setImplStep(4)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">← Back</button>
-            <button onClick={() => setImplStep(6)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">View Logs →</button>
+            <button onClick={() => setImplStep(4)} className="px-4 py-2 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-white/60 transition-colors">← Back</button>
+            <button onClick={() => setImplStep(6)} className="px-4 py-2 text-xs font-semibold border border-gray-300 dark:border-white/15 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-white/60 transition-colors">View Logs →</button>
             <button onClick={handleRunAgain}
               className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
               <RotateCcw size={12} /> Run Again
@@ -8427,11 +8427,11 @@ FALLBACK:
       {/* ── STEP 6: Logs ──────────────────────────────── */}
       {implStep === 6 && (
         <Panel icon={<FileText size={15} />} title="Implementation Logs" sub="Platform events · Run history · AI code generation trace">
-          <div className="flex gap-0 border-b border-white/10 -mt-2 mb-4">
+          <div className="flex gap-0 border-b border-gray-200 dark:border-white/10 -mt-2 mb-4">
             {[['platform', 'Platform Logs'], ['runs', 'Run History'], ['ai', 'AI Code Trace']].map(([key, label]) => (
               <button key={key} onClick={() => setLogTab(key)}
                 className={`px-4 py-2 text-xs font-semibold border-b-2 transition-colors -mb-px
-                  ${logTab === key ? 'border-blue-500 text-blue-400' : 'border-transparent text-white/30 hover:text-white/60'}`}>
+                  ${logTab === key ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-white/30 hover:text-gray-700 dark:hover:text-white/60'}`}>
                 {label}
               </button>
             ))}
@@ -8440,22 +8440,22 @@ FALLBACK:
           {logTab === 'platform' && useBp && (() => {
             const events = bpSorted.filter(o => o.appliedAt || o.status === 'error')
               .sort((a, b) => String(a.appliedAt ?? '').localeCompare(String(b.appliedAt ?? '')));
-            if (!events.length) return <p className="text-sm text-white/40 text-center py-6">No implementation events yet.</p>;
+            if (!events.length) return <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">No implementation events yet.</p>;
             return (
               <div className="space-y-1 font-mono text-xs max-h-80 overflow-y-auto">
                 {events.map(o => {
                   const st = o.status ?? 'planned';
-                  const tag = st === 'done' ? ['OK', 'text-green-400'] : st === 'error' ? ['ERR', 'text-red-400'] : ['WARN', 'text-orange-300'];
+                  const tag = st === 'done' ? ['OK', 'text-green-600 dark:text-green-400'] : st === 'error' ? ['ERR', 'text-red-600 dark:text-red-400'] : ['WARN', 'text-orange-700 dark:text-orange-300'];
                   const steps = o.sapSteps ? Object.entries(o.sapSteps).filter(([, v]) => v === true).map(([k]) => k).join(' · ') : '';
                   return (
-                    <div key={o.id} className="flex items-start gap-3 py-1.5 px-2 rounded hover:bg-white/5">
-                      <span className="text-white/25 flex-shrink-0 w-20">{o.appliedAt ? new Date(o.appliedAt).toLocaleTimeString() : '—'}</span>
+                    <div key={o.id} className="flex items-start gap-3 py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-white/5">
+                      <span className="text-gray-400 dark:text-white/25 flex-shrink-0 w-20">{o.appliedAt ? new Date(o.appliedAt).toLocaleTimeString() : '—'}</span>
                       <span className={`${tag[1]} font-bold flex-shrink-0 w-10`}>{tag[0]}</span>
-                      <span className="text-white/60 break-words">
-                        <span className="text-blue-400">{o.name}</span>{' '}
+                      <span className="text-gray-600 dark:text-white/60 break-words">
+                        <span className="text-blue-600 dark:text-blue-400">{o.name}</span>{' '}
                         {st === 'error' ? (o.error || 'failed') : (BP_STATUS_LABEL[st] ?? st).toLowerCase()}
                         {o.appliedTransport ? ` → ${o.appliedTransport}` : ''}
-                        {steps ? <span className="text-white/30"> ({steps})</span> : null}
+                        {steps ? <span className="text-gray-500 dark:text-white/30"> ({steps})</span> : null}
                       </span>
                     </div>
                   );
@@ -8465,15 +8465,15 @@ FALLBACK:
           })()}
           {logTab === 'platform' && !useBp && (
             implLog.length === 0 ? (
-              <p className="text-sm text-white/40 text-center py-6">No implementation events yet.</p>
+              <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">No implementation events yet.</p>
             ) : (
               <div className="space-y-1 font-mono text-xs max-h-80 overflow-y-auto">
                 {implLog.map((entry, i) => (
-                  <div key={i} className="flex items-start gap-3 py-1.5 px-2 rounded hover:bg-white/5">
-                    <span className="text-white/25 flex-shrink-0">{new Date(entry.appliedAt).toLocaleTimeString()}</span>
-                    <span className="text-green-400 font-bold flex-shrink-0 w-8"> OK </span>
-                    <span className="text-white/60">
-                      <span className="text-blue-400">{entry.objectName}</span>
+                  <div key={i} className="flex items-start gap-3 py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-white/5">
+                    <span className="text-gray-400 dark:text-white/25 flex-shrink-0">{new Date(entry.appliedAt).toLocaleTimeString()}</span>
+                    <span className="text-green-600 dark:text-green-400 font-bold flex-shrink-0 w-8"> OK </span>
+                    <span className="text-gray-600 dark:text-white/60">
+                      <span className="text-blue-600 dark:text-blue-400">{entry.objectName}</span>
                       {' '}{entry.markedManual ? 'marked done manually' : 'applied'}{entry.transport ? ` → ${entry.transport}` : ''}
                     </span>
                   </div>
@@ -8485,7 +8485,7 @@ FALLBACK:
           {logTab === 'runs' && useBp && (() => {
             const runs = (settings['sap_blueprint'] ?? {})[caseData.id]?.runs ?? [];
             if (!runs.length) return (
-              <p className="text-sm text-white/40 text-center py-6">No runs recorded yet. Runs started from the blueprint canvas or the Run step are recorded here from now on.</p>
+              <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">No runs recorded yet. Runs started from the blueprint canvas or the Run step are recorded here from now on.</p>
             );
             return (
               <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -8496,40 +8496,40 @@ FALLBACK:
                   const isExpanded = expandedRun === run.runId;
                   const secs = run.finishedAt ? Math.round((new Date(run.finishedAt) - new Date(run.startedAt)) / 1000) : null;
                   return (
-                    <div key={run.runId} className="rounded-xl border border-white/10 overflow-hidden">
-                      <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-white/5 hover:bg-white/10 transition-colors text-left"
+                    <div key={run.runId} className="rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
+                      <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-left"
                         onClick={() => setExpandedRun(isExpanded ? null : run.runId)}>
-                        <ChevronRight size={12} className={`text-white/40 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                        <span className="text-xs font-bold text-white/70">Run {run.runNumber}</span>
-                        <span className="text-[10px] text-white/35 truncate">
+                        <ChevronRight size={12} className={`text-gray-500 dark:text-white/40 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        <span className="text-xs font-bold text-gray-700 dark:text-white/70">Run {run.runNumber}</span>
+                        <span className="text-[10px] text-gray-500 dark:text-white/35 truncate">
                           {new Date(run.startedAt).toLocaleString()}{secs != null ? ` · ${secs < 90 ? secs + 's' : Math.round(secs / 60) + 'm'}` : ''}{run.transport ? ` · ${run.transport}` : ''}
                         </span>
                         <div className="flex gap-2 ml-auto flex-shrink-0">
-                          {n('done')  > 0 && <span className="text-[10px] font-bold text-green-400">{n('done')} done</span>}
-                          {warn       > 0 && <span className="text-[10px] font-bold text-orange-300">{warn} unconfirmed</span>}
-                          {n('error') > 0 && <span className="text-[10px] font-bold text-red-400">{n('error')} error</span>}
-                          {run.stoppedReason && <span className="text-[10px] font-bold text-amber-400">{run.stoppedReason}</span>}
+                          {n('done')  > 0 && <span className="text-[10px] font-bold text-green-600 dark:text-green-400">{n('done')} done</span>}
+                          {warn       > 0 && <span className="text-[10px] font-bold text-orange-700 dark:text-orange-300">{warn} unconfirmed</span>}
+                          {n('error') > 0 && <span className="text-[10px] font-bold text-red-600 dark:text-red-400">{n('error')} error</span>}
+                          {run.stoppedReason && <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">{run.stoppedReason}</span>}
                         </div>
                       </button>
                       {isExpanded && (
-                        <div className="px-3 py-2.5 space-y-2 bg-black/20 border-t border-white/5">
+                        <div className="px-3 py-2.5 space-y-2 bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-white/5">
                           <div className="space-y-1">
                             {objs.map(o => (
                               <div key={o.id} className="flex items-center gap-2 font-mono text-xs">
-                                <span className={`flex-shrink-0 font-bold ${o.status === 'done' ? 'text-green-400' : o.status === 'error' ? 'text-red-400' : ['inactive', 'unverified'].includes(o.status) ? 'text-orange-300' : 'text-white/30'}`}>
+                                <span className={`flex-shrink-0 font-bold ${o.status === 'done' ? 'text-green-600 dark:text-green-400' : o.status === 'error' ? 'text-red-600 dark:text-red-400' : ['inactive', 'unverified'].includes(o.status) ? 'text-orange-700 dark:text-orange-300' : 'text-gray-500 dark:text-white/30'}`}>
                                   {o.status === 'done' ? '✓' : o.status === 'error' ? '✗' : ['inactive', 'unverified'].includes(o.status) ? '!' : '·'}
                                 </span>
-                                <span className="text-white/70 truncate">{o.name}</span>
-                                <span className="text-white/30 text-[10px] flex-shrink-0">{BP_STATUS_LABEL[o.status] ?? o.status}</span>
+                                <span className="text-gray-700 dark:text-white/70 truncate">{o.name}</span>
+                                <span className="text-gray-500 dark:text-white/30 text-[10px] flex-shrink-0">{BP_STATUS_LABEL[o.status] ?? o.status}</span>
                                 {o.error && <span className="text-red-300/70 text-[10px] truncate flex-1" title={o.error}>{o.error}</span>}
                               </div>
                             ))}
                           </div>
                           {run.log?.length > 0 && (
-                            <div className="rounded-lg bg-black/30 border border-white/5 p-2 max-h-48 overflow-y-auto font-mono text-[11px] space-y-0.5">
+                            <div className="rounded-lg bg-gray-100 dark:bg-black/30 border border-gray-100 dark:border-white/5 p-2 max-h-48 overflow-y-auto font-mono text-[11px] space-y-0.5">
                               {run.log.map((l, j) => (
-                                <div key={j} className={l.status === 'error' ? 'text-red-300' : l.status === 'done' ? 'text-green-300' : ['warn', 'skipped'].includes(l.status) ? 'text-amber-300' : 'text-white/50'}>
-                                  <span className="text-white/25">{l.ts}</span> {l.msg}
+                                <div key={j} className={l.status === 'error' ? 'text-red-700 dark:text-red-300' : l.status === 'done' ? 'text-green-700 dark:text-green-300' : ['warn', 'skipped'].includes(l.status) ? 'text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-white/50'}>
+                                  <span className="text-gray-400 dark:text-white/25">{l.ts}</span> {l.msg}
                                 </div>
                               ))}
                             </div>
@@ -8545,7 +8545,7 @@ FALLBACK:
 
           {logTab === 'runs' && !useBp && (
             implRuns.length === 0 ? (
-              <p className="text-sm text-white/40 text-center py-6">No runs recorded yet. Click <strong className="text-white/60">Run Again</strong> from the Results step to start tracking run history.</p>
+              <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">No runs recorded yet. Click <strong className="text-gray-600 dark:text-white/60">Run Again</strong> from the Results step to start tracking run history.</p>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {[...implRuns].reverse().map(run => {
@@ -8554,32 +8554,32 @@ FALLBACK:
                   const manualObjs = (run.objects ?? []).filter(o => o.status === 'manual');
                   const isExpanded = expandedRun === run.runId;
                   return (
-                    <div key={run.runId} className="rounded-xl border border-white/10 overflow-hidden">
-                      <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-white/5 hover:bg-white/8 transition-colors text-left"
+                    <div key={run.runId} className="rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
+                      <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/8 transition-colors text-left"
                         onClick={() => setExpandedRun(isExpanded ? null : run.runId)}>
-                        <ChevronRight size={12} className={`text-white/40 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                        <span className="text-xs font-bold text-white/70">Run {run.runNumber}</span>
-                        <span className="text-[10px] text-white/35 truncate">{new Date(run.startedAt).toLocaleString()}</span>
+                        <ChevronRight size={12} className={`text-gray-500 dark:text-white/40 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        <span className="text-xs font-bold text-gray-700 dark:text-white/70">Run {run.runNumber}</span>
+                        <span className="text-[10px] text-gray-500 dark:text-white/35 truncate">{new Date(run.startedAt).toLocaleString()}</span>
                         <div className="flex gap-2 ml-auto flex-shrink-0">
-                          {doneObjs.length   > 0 && <span className="text-[10px] font-bold text-green-400">{doneObjs.length} done</span>}
-                          {errorObjs.length  > 0 && <span className="text-[10px] font-bold text-red-400">{errorObjs.length} error</span>}
-                          {manualObjs.length > 0 && <span className="text-[10px] font-bold text-amber-400">{manualObjs.length} manual</span>}
+                          {doneObjs.length   > 0 && <span className="text-[10px] font-bold text-green-600 dark:text-green-400">{doneObjs.length} done</span>}
+                          {errorObjs.length  > 0 && <span className="text-[10px] font-bold text-red-600 dark:text-red-400">{errorObjs.length} error</span>}
+                          {manualObjs.length > 0 && <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">{manualObjs.length} manual</span>}
                         </div>
                       </button>
                       {isExpanded && (
-                        <div className="px-3 py-2.5 space-y-1.5 bg-black/20 border-t border-white/5">
+                        <div className="px-3 py-2.5 space-y-1.5 bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-white/5">
                           {run.feedback && (
-                            <div className="text-xs text-white/50 italic bg-blue-500/10 rounded-lg px-2.5 py-2 border border-blue-500/20 mb-2 flex items-start gap-1.5">
-                              <MessageSquare size={11} className="flex-shrink-0 mt-0.5 text-blue-400" />
+                            <div className="text-xs text-gray-600 dark:text-white/50 italic bg-blue-500/10 rounded-lg px-2.5 py-2 border border-blue-500/20 mb-2 flex items-start gap-1.5">
+                              <MessageSquare size={11} className="flex-shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
                               <span>"{run.feedback}"</span>
                             </div>
                           )}
                           {(run.objects ?? []).map((o, j) => (
                             <div key={j} className="flex items-center gap-2 font-mono text-xs">
-                              <span className={`flex-shrink-0 font-bold ${o.status === 'done' ? 'text-green-400' : o.status === 'error' ? 'text-red-400' : 'text-amber-400'}`}>
+                              <span className={`flex-shrink-0 font-bold ${o.status === 'done' ? 'text-green-600 dark:text-green-400' : o.status === 'error' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>
                                 {o.status === 'done' ? '✓' : o.status === 'error' ? '✗' : '⊘'}
                               </span>
-                              <span className="text-white/60 font-mono truncate">{o.objectName || o.activityTitle}</span>
+                              <span className="text-gray-600 dark:text-white/60 font-mono truncate">{o.objectName || o.activityTitle}</span>
                               {o.error && <span className="text-red-300/60 text-[10px] truncate flex-1" title={o.error}>{o.error}</span>}
                             </div>
                           ))}
@@ -8595,7 +8595,7 @@ FALLBACK:
           {logTab === 'ai' && useBp && (() => {
             const withCode = bpSorted.filter(o => o.generatedCode);
             if (!withCode.length) return (
-              <p className="text-sm text-white/40 text-center py-6">No code generated yet. Run the pipeline and the generated code for each object appears here.</p>
+              <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">No code generated yet. Run the pipeline and the generated code for each object appears here.</p>
             );
             return (
               <div className="space-y-3 max-h-[28rem] overflow-y-auto">
@@ -8603,31 +8603,31 @@ FALLBACK:
                   const isOpen = expandedRun === `ai_${o.id}`;
                   const lines = o.generatedCode.split('\n').length;
                   return (
-                    <div key={o.id} className="rounded-xl border border-white/10 overflow-hidden">
+                    <div key={o.id} className="rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
                       <button onClick={() => setExpandedRun(isOpen ? null : `ai_${o.id}`)}
-                        className="w-full px-3 py-2 bg-white/5 border-b border-white/10 flex items-center gap-2 text-left">
-                        <Sparkles size={11} className="text-blue-300 flex-shrink-0" />
-                        <span className="font-mono text-xs font-semibold text-white/80">{o.name}</span>
-                        <span className="text-[10px] text-white/35">{BP_TYPES[o.type]?.label ?? o.type} · {lines} lines</span>
-                        <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded border ${BP_STATUS_DARK[o.status] ?? 'bg-gray-800 border-gray-600 text-gray-400'}`}>{BP_STATUS_LABEL[o.status] ?? o.status}</span>
+                        className="w-full px-3 py-2 bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10 flex items-center gap-2 text-left">
+                        <Sparkles size={11} className="text-blue-700 dark:text-blue-300 flex-shrink-0" />
+                        <span className="font-mono text-xs font-semibold text-gray-800 dark:text-white/80">{o.name}</span>
+                        <span className="text-[10px] text-gray-500 dark:text-white/35">{BP_TYPES[o.type]?.label ?? o.type} · {lines} lines</span>
+                        <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded border ${BP_STATUS_DARK[o.status] ?? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'}`}>{BP_STATUS_LABEL[o.status] ?? o.status}</span>
                       </button>
                       {o.description && (
-                        <div className="px-3 py-2 text-xs text-blue-300/70 border-b border-white/5 bg-blue-500/10">
+                        <div className="px-3 py-2 text-xs text-blue-300/70 border-b border-gray-100 dark:border-white/5 bg-blue-500/10">
                           <span className="font-mono text-[10px] text-blue-300/50">PROMPT → </span>{o.description}
                         </div>
                       )}
                       <div className={`px-3 py-2 overflow-y-auto ${isOpen ? 'max-h-96' : 'max-h-28'}`}>
-                        <pre className="text-xs text-white/60 font-mono leading-relaxed whitespace-pre-wrap">
+                        <pre className="text-xs text-gray-600 dark:text-white/60 font-mono leading-relaxed whitespace-pre-wrap">
                           {isOpen ? o.generatedCode : o.generatedCode.slice(0, 600) + (o.generatedCode.length > 600 ? '\n…' : '')}
                         </pre>
                       </div>
-                      <div className="px-3 py-1.5 border-t border-white/5 flex items-center gap-3 text-[10px] text-white/35">
-                        {o.appliedTransport && <span>Transport <span className="font-mono text-white/60">{o.appliedTransport}</span></span>}
+                      <div className="px-3 py-1.5 border-t border-gray-100 dark:border-white/5 flex items-center gap-3 text-[10px] text-gray-500 dark:text-white/35">
+                        {o.appliedTransport && <span>Transport <span className="font-mono text-gray-600 dark:text-white/60">{o.appliedTransport}</span></span>}
                         {o.appliedAt && <span>Applied {new Date(o.appliedAt).toLocaleString()}</span>}
-                        <button onClick={() => navigator.clipboard?.writeText(o.generatedCode)} className="ml-auto flex items-center gap-1 hover:text-white/70">
+                        <button onClick={() => navigator.clipboard?.writeText(o.generatedCode)} className="ml-auto flex items-center gap-1 hover:text-gray-800 dark:hover:text-white/70">
                           <Copy size={10} /> Copy
                         </button>
-                        <button onClick={() => setExpandedRun(isOpen ? null : `ai_${o.id}`)} className="hover:text-white/70">{isOpen ? 'Collapse' : 'Show all'}</button>
+                        <button onClick={() => setExpandedRun(isOpen ? null : `ai_${o.id}`)} className="hover:text-gray-800 dark:hover:text-white/70">{isOpen ? 'Collapse' : 'Show all'}</button>
                       </div>
                     </div>
                   );
@@ -8644,18 +8644,18 @@ FALLBACK:
                   const obj = objectMap[act.id] ?? {};
                   const as  = actState[act.id] ?? {};
                   return (
-                    <div key={act.id} className="rounded-xl border border-white/10 overflow-hidden">
-                      <div className="px-3 py-2 bg-white/5 border-b border-white/10 flex justify-between items-center">
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-white/70">
+                    <div key={act.id} className="rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
+                      <div className="px-3 py-2 bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10 flex justify-between items-center">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-white/70">
                           <Sparkles size={11} /> {obj.objectName || act.title}
                         </span>
-                        <span className="text-[10px] text-green-400 font-semibold">Generated</span>
+                        <span className="text-[10px] text-green-600 dark:text-green-400 font-semibold">Generated</span>
                       </div>
-                      <div className="px-3 py-2 text-xs text-blue-300/70 border-b border-white/5 bg-blue-500/10 font-mono">
+                      <div className="px-3 py-2 text-xs text-blue-300/70 border-b border-gray-100 dark:border-white/5 bg-blue-500/10 font-mono">
                         PROMPT → {obj.objectType ?? 'program'} {obj.objectName} · {act.title}
                       </div>
                       <div className="px-3 py-2 max-h-28 overflow-y-auto">
-                        <pre className="text-xs text-white/60 font-mono leading-relaxed whitespace-pre-wrap">
+                        <pre className="text-xs text-gray-600 dark:text-white/60 font-mono leading-relaxed whitespace-pre-wrap">
                           {as.generatedCode?.slice(0, 600)}{as.generatedCode?.length > 600 ? '\n…' : ''}
                         </pre>
                       </div>
@@ -8663,7 +8663,7 @@ FALLBACK:
                   );
                 })}
               {implActivities.filter(a => actState[a.id]?.generatedCode).length === 0 && (
-                <p className="text-sm text-white/40 text-center py-6">No code generated yet. Go to <strong>Run</strong> and use Generate on any activity.</p>
+                <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">No code generated yet. Go to <strong>Run</strong> and use Generate on any activity.</p>
               )}
             </div>
           )}

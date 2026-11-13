@@ -468,13 +468,13 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                             <span className="w-4 h-4 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center font-bold text-[9px] shrink-0">{idx + 1}</span>
                             <span className="truncate">{item.title}</span>
                             {item.activities?.length > 0 && (
-                              <span className="text-blue-300 shrink-0">{item.activities.length} act.</span>
+                              <span className="text-blue-700 dark:text-blue-300 shrink-0">{item.activities.length} act.</span>
                             )}
-                            {item.est_hours && <span className="ml-auto text-blue-400 shrink-0">{item.est_hours}h</span>}
+                            {item.est_hours && <span className="ml-auto text-blue-600 dark:text-blue-400 shrink-0">{item.est_hours}h</span>}
                           </div>
                         ))}
                         {tmpl.items.length > 4 && (
-                          <p className="text-[10px] text-blue-400 pl-6">+ {tmpl.items.length - 4} more…</p>
+                          <p className="text-[10px] text-blue-600 dark:text-blue-400 pl-6">+ {tmpl.items.length - 4} more…</p>
                         )}
                       </div>
                     )}
@@ -1234,7 +1234,7 @@ function ProjectDocsTab({ projectId, auth, createdBy }) {
           <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Upload document(s)</p>
           <div className="flex gap-3 flex-wrap">
             <div className="flex-1 min-w-[160px]">
-              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Document type <span className="text-red-400">*</span></label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Document type <span className="text-red-600 dark:text-red-400">*</span></label>
               <select value={uploadType} onChange={e => setUploadType(e.target.value)}
                 className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="">— Select type —</option>
@@ -2848,7 +2848,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                     <Upload size={14} className="text-white" />
                     <span className="text-sm font-bold text-white">Import Cases from Document</span>
                   </div>
-                  <button onClick={() => setShowImportPanel(false)} className="text-violet-200 hover:text-white"><X size={15} /></button>
+                  <button onClick={() => setShowImportPanel(false)} className="text-violet-800 dark:text-violet-200 hover:text-white"><X size={15} /></button>
                 </div>
                 {!importPreview ? (
                   <div className="bg-white p-5">
@@ -3042,7 +3042,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                           <div className="flex items-center gap-2">
                             {canEdit && (
                               <button onClick={e => { e.stopPropagation(); handleRemoveCase(c.id); }}
-                                className="text-[11px] text-red-400 hover:text-red-600 font-medium px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                className="text-[11px] text-red-600 dark:text-red-400 hover:text-red-600 font-medium px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                                 {t("action.remove")}
                               </button>
                             )}
