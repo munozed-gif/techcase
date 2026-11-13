@@ -3425,7 +3425,11 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
         setGenLog(updatedLog);
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
-      } catch (_) {}
+      } catch (e) {
+        // Never lose a generated spec silently — the text is still on screen, so say it wasn't stored.
+        console.error('[spec] save failed', e);
+        setAiError(`The specification was generated but could not be saved: ${e?.message || e}. Copy it before leaving this page and try again.`);
+      }
       if (fromApprovalReview) setApprovalStep('sending');
       await saveAllSpecsAsDocuments(specA, specB, specC, specD, sapCheck, proposalCheck);
 
