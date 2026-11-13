@@ -6811,6 +6811,28 @@ const OBJ_TRANSACTION  = { table:'SE11', enhancement:'SE18', badi:'SE18', config
 // config (SPRO) has no ADT-pasteable code — pure IMG customizing
 const ADT_CODE_TYPES   = new Set(['table','structure','enhancement','badi']);
 
+// Pipeline step panel and section label for SapImplementationTab (module level so they
+// keep the same identity across renders).
+const ImplPanel = ({ icon, title, sub, children }) => (
+  <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden">
+    <div className="px-5 py-4 border-b border-gray-100 dark:border-white/10 flex items-center gap-3">
+      <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500 dark:text-blue-400 flex-shrink-0">
+        {icon}
+      </div>
+      <div>
+        <p className="font-bold text-gray-900 dark:text-white text-sm">{title}</p>
+        {sub && <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">{sub}</p>}
+      </div>
+    </div>
+    <div className="p-5 space-y-4">{children}</div>
+  </div>
+);
+
+const ImplSectionLabel = ({ children }) => (
+  <p className="text-[10px] font-bold text-gray-500 dark:text-white/40 uppercase tracking-widest border-b border-gray-200 dark:border-white/10 pb-2 mb-3">{children}</p>
+);
+
+
 function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
@@ -7757,20 +7779,9 @@ FALLBACK:
   }
 
   // ── Panel shell ─────────────────────────────────────────
-  const Panel = ({ icon, title, sub, children }) => (
-    <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 dark:border-white/10 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500 dark:text-blue-400 flex-shrink-0">
-          {icon}
-        </div>
-        <div>
-          <p className="font-bold text-gray-900 dark:text-white text-sm">{title}</p>
-          {sub && <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">{sub}</p>}
-        </div>
-      </div>
-      <div className="p-5 space-y-4">{children}</div>
-    </div>
-  );
+  // Defined at module level: a component created inside render is a new type on every
+  // keystroke, which remounts the panel and makes text inputs lose the cursor.
+  const Panel = ImplPanel;
 
   const StepNav = ({ prev, next, prevLabel = '← Back', nextLabel = 'Continue →' }) => (
     <div className="flex gap-2 pt-2">
@@ -7782,9 +7793,7 @@ FALLBACK:
     </div>
   );
 
-  const SectionLabel = ({ children }) => (
-    <p className="text-[10px] font-bold text-gray-500 dark:text-white/40 uppercase tracking-widest border-b border-gray-200 dark:border-white/10 pb-2 mb-3">{children}</p>
-  );
+  const SectionLabel = ImplSectionLabel;
 
   // ── Render ──────────────────────────────────────────────
   return (
