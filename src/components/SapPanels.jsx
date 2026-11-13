@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import mcpScript from '../../sap-mcp-server/index.js?raw';
 import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronDown, ChevronRight,
@@ -4937,6 +4938,106 @@ function AddEditBlueprintObjectModal({ existing, allObjects, onSave, onClose }) 
   );
 }
 
+// Arena-styled confirmation before writing objects to a SAP system.
+const SAP_WRITE_TYPE_LABEL = {
+  domain: 'Domain', data_element: 'Data element', table: 'Table', structure: 'Structure',
+  class: 'Class', interface: 'Interface', program: 'Report', report: 'Report', function_module: 'Function module',
+  message_class: 'Message class', cds_view: 'CDS view', enhancement: 'Enhancement', badi: 'BAdI', config: 'Customizing',
+};
+function SapWriteConfirmDialog({ request, sapConfig, packageName, transport, onClose }) {
+  useEffect(() => {
+    if (!request) return;
+    const onKey = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [request, onClose]);
+  if (!request) return null;
+  const objs = request.objects ?? [];
+  const single = objs.length === 1;
+  const confirm = () => { onClose(); request.onConfirm(); };
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm"
+      onClick={onClose} role="dialog" aria-modal="true">
+      <div onClick={e => e.stopPropagation()}
+        className="w-full max-w-lg rounded-2xl overflow-hidden border border-blue-500/30 bg-white dark:bg-[#0d1526] shadow-2xl shadow-blue-950/40">
+        {/* Header */}
+        <div className="px-5 py-4 bg-gradient-to-r from-blue-600/15 via-indigo-500/10 to-transparent border-b border-gray-100 dark:border-white/10 flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/30">
+            <Zap size={18} className="text-white" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+              {single ? `Write ${objs[0].name} to SAP?` : `Write ${objs.length} objects to SAP?`}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-blue-200/60 mt-0.5">
+              Auto-implement is on. The objects are created or updated, activated and verified directly in the system below.
+            </p>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* Target system */}
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div className="col-span-3 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-white/40">SAP system</div>
+              <div className="font-semibold text-gray-800 dark:text-white truncate">{sapConfig?.name || 'SAP'}{sapConfig?.client ? ` · client ${sapConfig.client}` : ''}</div>
+              <div className="font-mono text-[11px] text-gray-500 dark:text-white/50 truncate">{sapConfig?.host}</div>
+            </div>
+            <div className="col-span-3 sm:col-span-1 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-white/40">Package</div>
+              <div className="font-mono font-semibold text-gray-800 dark:text-white truncate">{packageName || '$TMP'}</div>
+            </div>
+            <div className="col-span-3 sm:col-span-2 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-white/40">Transport</div>
+              <div className="font-mono font-semibold text-gray-800 dark:text-white truncate">
+                {transport || (packageName && !packageName.startsWith('$') ? 'New request for this case' : 'None (local objects)')}
+              </div>
+            </div>
+          </div>
+
+          {/* Objects */}
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-white/40 mb-1.5">Objects</div>
+            {objs.length === 0 ? (
+              <p className="text-xs text-gray-500 dark:text-white/50">None of the selected objects can be written automatically.</p>
+            ) : (
+              <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                {objs.map(o => (
+                  <div key={o.id ?? o.name} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 bg-blue-500/5 dark:bg-blue-400/10 border border-blue-500/10 dark:border-blue-400/15">
+                    <Code2 size={12} className="text-blue-500 dark:text-blue-300 shrink-0" />
+                    <span className="font-mono text-xs font-semibold text-gray-800 dark:text-white truncate">{o.name}</span>
+                    <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/70 dark:bg-white/10 text-gray-500 dark:text-white/60 shrink-0">
+                      {SAP_WRITE_TYPE_LABEL[o.type] ?? o.type}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-start gap-2 text-[11px] text-amber-700 dark:text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+            <span>Existing objects with these names are overwritten. Each object is marked done only after SAP confirms it.</span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="px-5 py-3.5 border-t border-gray-100 dark:border-white/10 flex justify-end gap-2 bg-gray-50/60 dark:bg-white/[0.02]">
+          <button onClick={onClose}
+            className="px-4 py-2 text-sm font-medium rounded-xl text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+            Cancel
+          </button>
+          <button onClick={confirm} disabled={objs.length === 0} autoFocus
+            className="px-4 py-2 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-600/30 disabled:opacity-40 flex items-center gap-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent">
+            <Upload size={14} /> {single ? 'Write to SAP' : `Write ${objs.length} to SAP`}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEnabled, genModel, transportReq, packageReq, ssCtx, configOps, onTransportCreated }) {
   const { settings } = ssCtx;
   const caseId = caseData.id;
@@ -4946,6 +5047,7 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   const [objects, setObjects] = useState(saved.objects ?? []);
   const [stopOnError, setStopOnError] = useState(saved.stopOnError ?? true);
   const [running, setRunning] = useState(false);
+  const [writeConfirm, setWriteConfirm] = useState(null); // { objects, onConfirm }
   const [runLog, setRunLog] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [checkedIds, setCheckedIds] = useState(new Set());
@@ -5689,9 +5791,8 @@ Output ONLY the ABAP source code, no explanations.`;
 
   function confirmAndRun(subset) {
     if (autoImplEnabled && sapConfig?.host) {
-      const names = subset.filter(o => o.aiCapable).map(o => o.name).join(', ');
-      const msg = `Auto-implement is ON. This will write the following objects directly to SAP (${sapConfig.host}):\n\n${names || '(none AI-capable)'}\n\nContinue?`;
-      if (!window.confirm(msg)) return;
+      setWriteConfirm({ objects: subset.filter(o => o.aiCapable), onConfirm: () => handleRun(subset) });
+      return;
     }
     handleRun(subset);
   }
@@ -5712,11 +5813,14 @@ Output ONLY the ABAP source code, no explanations.`;
     setCheckedIds(prev => prev.size === objects.length ? new Set() : new Set(objects.map(o => o.id)));
   }
 
-  async function handleApplyOne(obj) {
+  async function handleApplyOne(obj, { confirmed = false } = {}) {
     if (!sapConfig?.host || !autoImplEnabled) return;
     const code = obj.generatedCode;
     if (!code) return;
-    if (!window.confirm(`Apply ${obj.name} directly to SAP (${sapConfig.host})?`)) return;
+    if (!confirmed) {
+      setWriteConfirm({ objects: [obj], onConfirm: () => handleApplyOne(obj, { confirmed: true }) });
+      return;
+    }
     updateObj(obj.id, { status: 'applying', stage: sapIsCreateOnly(obj.type) ? 'creating' : 'updating', error: null });
     // In ADT mode: always route through ADT bridge (same chain as infrastructure check)
     // In custom mode: use vm_tunnel_registry (custom server proxy)
@@ -5852,6 +5956,8 @@ Output ONLY the ABAP source code, no explanations.`;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <SapWriteConfirmDialog request={writeConfirm} sapConfig={sapConfig}
+        packageName={packageReq} transport={transportReq} onClose={() => setWriteConfirm(null)} />
       {/* Canvas header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-100 flex-wrap gap-2">
         <div className="flex items-center gap-2">
