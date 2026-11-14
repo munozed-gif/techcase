@@ -5365,6 +5365,14 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
 
   // Run history: one record per canvas run, shown in the pipeline's Logs > Run History.
   const runLogRef = useRef([]);
+  // Exact prompt sent to the AI for each object in the current run (objId -> entry).
+  const runPromptsRef = useRef({});
+  const PROMPT_MAX = 20000;
+  function notePrompt(obj, entry) {
+    const e = { ...entry, prompt: String(entry.prompt ?? '').slice(0, PROMPT_MAX), at: new Date().toISOString() };
+    runPromptsRef.current = { ...runPromptsRef.current, [obj.id]: e };
+    updateObj(obj.id, { lastPrompt: e });
+  }
   const objectsRef = useRef(objects);
   objectsRef.current = objects;
   function recordRun(meta) {
@@ -5375,6 +5383,7 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
         id: o.id, name: o.name, type: o.type, status: o.status ?? 'planned',
         error: o.error || null, transport: o.appliedTransport || null, package: o.appliedPackage || null,
         steps: o.sapSteps || null, appliedAt: o.appliedAt || null, hasCode: !!o.generatedCode,
+        ...(runPromptsRef.current[o.id] ? { ai: runPromptsRef.current[o.id] } : {}),
       }));
       const all = ssCtx.settings[bpKey] ?? {};
       const cur = all[caseId] ?? {};
@@ -5383,7 +5392,11 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
         startedAt: meta.startedAt, finishedAt: new Date().toISOString(),
         transport: meta.transport || null, stoppedReason: meta.stoppedReason || null,
         objects: outcomes, log: runLogRef.current.slice(-200),
-      }].slice(-30);
+      }].slice(-30)
+        // Keep the full prompts for the last 10 runs only, so the case record stays small.
+        .map((r, i, arr) => i < arr.length - 10
+          ? { ...r, objects: (r.objects ?? []).map(o => o.ai ? { ...o, ai: { ...o.ai, prompt: undefined, trimmed: true } } : o) }
+          : r);
       ssCtx.setSetting(bpKey, { ...all, [caseId]: { ...cur, objects: prev, stopOnError, runs } });
     }
   }
@@ -5621,6 +5634,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     setRunning(true);
     setRunLog([]);
     runLogRef.current = [];
+    runPromptsRef.current = {};
     const runStartedAt = new Date().toISOString();
     const sorted = topoSort(subset);
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
@@ -5705,9 +5719,12 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
                 if (_reuse) {
                   _ddicProps = parseDdicProps(_reuse);
                   addLog(`${obj.name}: re-applying the previous definition.`, 'generating');
+                  runPromptsRef.current = { ...runPromptsRef.current, [obj.id]: { reused: true, at: new Date().toISOString() } };
                 } else {
                   updateObj(obj.id, { status: 'generating', error: null });
                   addLog(`${obj.name}: generating ${obj.type === 'domain' ? 'domain' : 'data element'} definition...`, 'generating');
+                  notePrompt(obj, { kind: 'definition', model: genModel,
+                    system: 'You are an expert SAP ABAP Dictionary developer. Output only JSON.', prompt: _ddicPrompt });
                   const _resp = await callClaude({ model: genModel,
                     system: 'You are an expert SAP ABAP Dictionary developer. Output only JSON.',
                     messages: [{ role: 'user', content: [{ type: 'text', text: _ddicPrompt }] }], max_tokens: 1500 });
@@ -5775,6 +5792,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
         if (_reuseCode) {
           code = _reuseCode;
           addLog(`${obj.name}: re-applying previously generated code (last result: ${obj.status}).`, 'generating');
+          runPromptsRef.current = { ...runPromptsRef.current, [obj.id]: { reused: true, at: new Date().toISOString() } };
         } else {
         updateObj(obj.id, { status: 'generating', error: null });
         addLog(`${obj.name}: generating ABAP...`, 'generating');
@@ -5808,6 +5826,7 @@ Output ONLY the ABAP source code, no explanations.`;
           max_tokens: 8000,
           mcp_servers: genMcpServers,
         };
+        notePrompt(obj, { kind: ddicPrompt ? 'ddl' : 'abap', model: genModel, system: callArgs.system, prompt });
         let resp;
         try {
           resp = await callClaude(callArgs);
@@ -8592,13 +8611,31 @@ FALLBACK:
                         <div className="px-3 py-2.5 space-y-2 bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-white/5">
                           <div className="space-y-1">
                             {objs.map(o => (
-                              <div key={o.id} className="flex items-center gap-2 font-mono text-xs">
+                              <div key={o.id}>
+                              <div className="flex items-center gap-2 font-mono text-xs">
                                 <span className={`flex-shrink-0 font-bold ${o.status === 'done' ? 'text-green-600 dark:text-green-400' : o.status === 'error' ? 'text-red-600 dark:text-red-400' : ['inactive', 'unverified'].includes(o.status) ? 'text-orange-700 dark:text-orange-300' : 'text-gray-500 dark:text-white/30'}`}>
                                   {o.status === 'done' ? '✓' : o.status === 'error' ? '✗' : ['inactive', 'unverified'].includes(o.status) ? '!' : '·'}
                                 </span>
                                 <span className="text-gray-700 dark:text-white/70 truncate">{o.name}</span>
                                 <span className="text-gray-500 dark:text-white/30 text-[10px] flex-shrink-0">{BP_STATUS_LABEL[o.status] ?? o.status}</span>
                                 {o.error && <span className="text-red-300/70 text-[10px] truncate flex-1" title={o.error}>{o.error}</span>}
+                              </div>
+                              {o.ai && (
+                                <details className="ml-5 mt-0.5 mb-1">
+                                  <summary className="cursor-pointer text-[10px] text-blue-600 dark:text-blue-300 select-none">
+                                    {o.ai.reused ? 'AI not called — previous code re-applied' : `Prompt sent to AI${o.ai.model ? ` · ${o.ai.model}` : ''}${o.ai.at ? ` · ${new Date(o.ai.at).toLocaleTimeString()}` : ''}`}
+                                  </summary>
+                                  {!o.ai.reused && (o.ai.trimmed
+                                    ? <p className="text-[10px] text-gray-500 dark:text-white/40 mt-1">Prompt text kept only for the last 10 runs.</p>
+                                    : (
+                                      <div className="mt-1 space-y-1">
+                                        {o.ai.system && <p className="text-[10px] text-gray-500 dark:text-white/40"><span className="font-semibold">System:</span> {o.ai.system}</p>}
+                                        <pre className="text-[11px] whitespace-pre-wrap font-mono text-gray-700 dark:text-white/60 bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-lg p-2 max-h-72 overflow-y-auto">{o.ai.prompt}</pre>
+                                        <button onClick={() => navigator.clipboard?.writeText(o.ai.prompt ?? '')} className="text-[10px] text-gray-500 dark:text-white/40 hover:text-gray-800 dark:hover:text-white/70 flex items-center gap-1"><Copy size={10} /> Copy prompt</button>
+                                      </div>
+                                    ))}
+                                </details>
+                              )}
                               </div>
                             ))}
                           </div>
@@ -8688,11 +8725,20 @@ FALLBACK:
                         <span className="text-[10px] text-gray-500 dark:text-white/35">{BP_TYPES[o.type]?.label ?? o.type} · {lines} lines</span>
                         <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded border ${BP_STATUS_DARK[o.status] ?? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'}`}>{BP_STATUS_LABEL[o.status] ?? o.status}</span>
                       </button>
-                      {o.description && (
-                        <div className="px-3 py-2 text-xs text-blue-300/70 border-b border-gray-100 dark:border-white/5 bg-blue-500/10">
-                          <span className="font-mono text-[10px] text-blue-300/50">PROMPT → </span>{o.description}
+                      {o.lastPrompt?.prompt ? (
+                        <details className="px-3 py-2 text-xs border-b border-gray-100 dark:border-white/5 bg-blue-500/10">
+                          <summary className="cursor-pointer text-blue-700 dark:text-blue-300 select-none">
+                            Prompt sent to AI{o.lastPrompt.model ? ` · ${o.lastPrompt.model}` : ''}{o.lastPrompt.at ? ` · ${new Date(o.lastPrompt.at).toLocaleString()}` : ''}
+                          </summary>
+                          {o.lastPrompt.system && <p className="mt-1 text-[10px] text-gray-500 dark:text-white/40"><span className="font-semibold">System:</span> {o.lastPrompt.system}</p>}
+                          <pre className="mt-1 text-[11px] whitespace-pre-wrap font-mono text-gray-700 dark:text-white/60 max-h-72 overflow-y-auto">{o.lastPrompt.prompt}</pre>
+                          <button onClick={() => navigator.clipboard?.writeText(o.lastPrompt.prompt)} className="mt-1 text-[10px] text-gray-500 dark:text-white/40 hover:text-gray-800 dark:hover:text-white/70 flex items-center gap-1"><Copy size={10} /> Copy prompt</button>
+                        </details>
+                      ) : o.description ? (
+                        <div className="px-3 py-2 text-xs text-blue-700 dark:text-blue-300/70 border-b border-gray-100 dark:border-white/5 bg-blue-500/10">
+                          <span className="font-mono text-[10px] text-blue-600/70 dark:text-blue-300/50">SPEC → </span>{o.description}
                         </div>
-                      )}
+                      ) : null}
                       <div className={`px-3 py-2 overflow-y-auto ${isOpen ? 'max-h-96' : 'max-h-28'}`}>
                         <pre className="text-xs text-gray-600 dark:text-white/60 font-mono leading-relaxed whitespace-pre-wrap">
                           {isOpen ? o.generatedCode : o.generatedCode.slice(0, 600) + (o.generatedCode.length > 600 ? '\n…' : '')}
