@@ -3240,7 +3240,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const showDeploy = key === 'mcp' && !isPlatformAdtMode && (node.extra?.needsDeploy || node.status === 'error');
           const showRestartAdt = key === 'mcp' && isPlatformAdtMode && node.status === 'error';
           const showSetup = key === 'vm' && node.status === 'error';
-          const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode && node.status === 'ok';
+          const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode && node.status === 'ok' && env.vpn_required !== false;
           const showLaptopTunnel = key === 'vpn' && laptopBridgeMode;
 
           return (
