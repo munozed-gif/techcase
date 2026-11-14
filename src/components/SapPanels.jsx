@@ -443,6 +443,40 @@ function stripCodeFences(text) {
   return m ? m[1].trim() : t;
 }
 
+// Domains and data elements have no source in ADT: their definition is a set of
+// properties (type, length, domain, labels) that the bridge writes after creating them.
+// Ask the AI for those properties as JSON. `related` = other blueprint objects.
+function buildDdicPropsPrompt(type, obj, caseData, related = [], feedback = '') {
+  if (type !== 'domain' && type !== 'data_element') return null;
+  const others = (related ?? [])
+    .filter(o => o && o.id !== obj.id && ['domain', 'data_element', 'table', 'structure'].includes(o.type))
+    .map(o => `- ${o.name} (${o.type})${o.description ? ': ' + String(o.description).slice(0, 160) : ''}`)
+    .join('\n');
+  const prev = obj.previousCode ? `\nPrevious definition (revise it):\n${String(obj.previousCode).slice(0, 2000)}\n` : '';
+  const fb = feedback ? `\nFeedback to apply:\n${feedback}\n` : '';
+  const head = `SAP ABAP Dictionary ${type === 'domain' ? 'domain' : 'data element'} ${obj.name}.
+Description / spec: ${obj.description ?? ''}
+Case: ${caseData?.title ?? ''} · SAP module: ${caseData?.area_sap ?? 'general'}
+${others ? `Other objects in this solution:\n${others}\n` : ''}${prev}${fb}`;
+  if (type === 'domain') {
+    return `${head}
+Return ONLY a JSON object (no markdown) with the domain's technical definition:
+{"datatype":"CHAR","length":4,"decimals":0,"outputLength":4,"lowercase":false,"fixValues":[{"low":"A","text":"Active"}]}
+Rules: datatype is a DDIC type (CHAR, NUMC, DEC, INT4, DATS, TIMS, CURR, QUAN, CUKY, UNIT, LANG, CLNT, STRG, RAW...). Use the length the spec gives; DATS=8, TIMS=6, CUKY=5, UNIT=3, LANG=1, CLNT=3. decimals only for DEC/CURR/QUAN. fixValues only if the spec lists allowed values (low max 10 chars, text max 60), otherwise [].`;
+  }
+  return `${head}
+Return ONLY a JSON object (no markdown) with the data element's definition:
+{"domain":"ZD_EXAMPLE","dataType":"CHAR","length":4,"decimals":0,"labels":{"short":"Pay code","medium":"Payment code","long":"Payment terms code","heading":"Pay code"}}
+Rules: if a domain from the list above (or a standard SAP domain) fits, set "domain" to it and copy its dataType/length; otherwise set "domain":"" and give a DDIC dataType and length directly. Labels: short max 10, medium max 20, long max 40, heading max 55 characters, in the case's language.`;
+}
+
+function parseDdicProps(text) {
+  const t = String(text ?? '').replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+  const m = t.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('AI did not return a JSON definition');
+  return JSON.parse(m[0]);
+}
+
 // Prompt for DDIC sources edited as DDL in ADT (S/4HANA table/structure editor).
 // Returns null for other types. `related` = other blueprint objects (e.g. data
 // elements) the definition should reference.
@@ -585,6 +619,7 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
           objtype: objCfg.objtype,
           autoCreate: !!(objCfg.objtype),
           createOnly,
+          ...(opts.ddicProperties ? { ddicProperties: opts.ddicProperties, overwriteDdic: !!opts.overwriteDdic } : {}),
           policy: policy ?? SAP_ADT_WRITE_POLICY_DEFAULTS,
           capabilities: capabilities ?? SAP_ADT_CAPABILITIES_DEFAULTS,
         }),
@@ -5659,15 +5694,48 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       if (objMode === 'adt-create-only') {
         if (autoImplEnabled && sapConfig?.host) {
           try {
+            // Domains / data elements: get their definition (type, length, domain, labels)
+            // so the bridge can set it and SAP can activate them.
+            let _ddicProps = null;
+            const _ddicPrompt = buildDdicPropsPrompt(obj.type, obj, caseData, objects,
+              (runFeedbackRef.current ?? (settings['sap_impl_feedback'] ?? {})[caseId] ?? '').trim());
+            if (_ddicPrompt) {
+              try {
+                const _reuse = ['inactive', 'unverified', 'error'].includes(obj.status) && obj.generatedCode ? obj.generatedCode : null;
+                if (_reuse) {
+                  _ddicProps = parseDdicProps(_reuse);
+                  addLog(`${obj.name}: re-applying the previous definition.`, 'generating');
+                } else {
+                  updateObj(obj.id, { status: 'generating', error: null });
+                  addLog(`${obj.name}: generating ${obj.type === 'domain' ? 'domain' : 'data element'} definition...`, 'generating');
+                  const _resp = await callClaude({ model: genModel,
+                    system: 'You are an expert SAP ABAP Dictionary developer. Output only JSON.',
+                    messages: [{ role: 'user', content: [{ type: 'text', text: _ddicPrompt }] }], max_tokens: 1500 });
+                  _ddicProps = parseDdicProps(typeof _resp === 'string' ? _resp : (_resp.content?.[0]?.text ?? ''));
+                }
+                updateObj(obj.id, { generatedCode: JSON.stringify(_ddicProps, null, 2) });
+                const _d = _ddicProps;
+                addLog(`${obj.name}: definition — ${obj.type === 'domain'
+                  ? `${_d.datatype} ${_d.length}${_d.decimals ? ',' + _d.decimals : ''}${_d.fixValues?.length ? `, ${_d.fixValues.length} fixed values` : ''}`
+                  : `${_d.domain ? 'domain ' + _d.domain : `${_d.dataType} ${_d.length}`}, label "${_d.labels?.medium ?? ''}"`}.`, 'generated');
+              } catch (e) {
+                addLog(`${obj.name}: could not generate the definition (${e.message?.slice(0, 120)}) — creating the skeleton only.`, 'warn');
+                _ddicProps = null;
+              }
+            }
             updateObj(obj.id, { status: 'applying', stage: 'creating', error: null });
-            addLog(`${obj.name}: creating ADT skeleton (policy: adt-create-only)...`, 'applying');
+            addLog(`${obj.name}: creating ADT ${_ddicProps ? 'object with its definition' : 'skeleton'} (policy: adt-create-only)...`, 'applying');
             const _applyVia   = freshMcpUrl ? `${freshMcpUrl}/sap-proxy` : null;
             const _applyCfg   = _applyVia ? { ...sapConfig, proxyUrl: _applyVia } : sapConfig;
             const _r = await sapWriteSourceDetail(_applyCfg, obj.type, obj.name, null,
               obj.transport || runTransport || undefined,
               obj.package || packageReq || undefined,
               obj.description || undefined, writePolicy, sapCaps, ssCtx.settings['sap_adt_object_map'] ?? {},
-              { transportDescription: caseTransportDescription(caseData) });
+              { transportDescription: caseTransportDescription(caseData),
+                ...(_ddicProps ? { ddicProperties: _ddicProps, overwriteDdic: !!obj.previousCode } : {}) });
+            if (_r.ddic?.error) addLog(`${obj.name}: could not set the definition in SAP — ${_r.ddic.error}`, 'warn');
+            else if (_r.ddic?.reason === 'already defined in SAP') addLog(`${obj.name}: already defined in SAP — kept as is.`, 'info');
+            else if (_r.ddic?.set) addLog(`${obj.name}: definition set in SAP ✓`, 'done');
             if (_r.ok) {
               const _ut = _r.transport || obj.transport || runTransport || null;
               if (!obj.transport) adoptTransport(_r.transport, _r.transportSource);
@@ -5679,7 +5747,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
               const _out = sapApplyOutcome(_r, obj.type);
               updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), appliedCreated: true, appliedTransport: _ut, appliedPackage: _up, appliedNote: _note, appliedActivateError: _r.activateError || null });
               recordCaseTransport(caseId, _ut, obj.name, obj.type);
-              addLog(`${obj.name}: ${_out.status === 'done' ? '✓' : '⚠'} ADT skeleton created (pkg: ${_up || '$TMP'}${_ut ? `, tr: ${_ut}` : ''}${_verifyOk ? ', confirmed ✓' : _verifySkipped ? '' : ' — not confirmed in SAP'}). Set properties in SE11/SE91.`, _out.status === 'done' ? 'done' : 'warn');
+              addLog(`${obj.name}: ${_out.status === 'done' ? '✓' : '⚠'} ${_r.ddic?.set ? 'created with its definition' : 'ADT skeleton created'} (pkg: ${_up || '$TMP'}${_ut ? `, tr: ${_ut}` : ''}${_verifyOk ? ', confirmed ✓' : _verifySkipped ? '' : ' — not confirmed in SAP'}).${_r.ddic?.set || obj.type === 'message_class' ? '' : ' Set properties in SE11/SE91.'}`, _out.status === 'done' ? 'done' : 'warn');
               if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}${_r?.activateError ? ` SAP: ${_r.activateError}` : ''}`, 'warn');
               if (_r.activateError) addLog(`${obj.name}: activation warning: ${_r.activateError}`, 'warn');
               if (!_verifyOk && !_verifySkipped) addLog(`${obj.name}: ⚠ SAP verify failed — ${_r.verify?.reason || 'object not found via read-only check'}`, 'warn');

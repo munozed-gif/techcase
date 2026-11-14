@@ -23,6 +23,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import net from 'node:net';
 import https from 'node:https';
@@ -133,6 +134,108 @@ const ADT_SCRIPTS = {
   'abap-adt-readonly': resolveAdtScript('abap-adt-readonly'),
 };
 Object.entries(ADT_SCRIPTS).forEach(([k, v]) => console.log(`[bridge] ${k}: ${v}`));
+
+// ── DDIC properties for domains and data elements ─────────────────────────────
+// mcp-abap-abap-adt-api's createObject only creates DOMA/DTEL skeletons (name,
+// description, package) and it has no tool to set their properties, so SAP cannot
+// activate them ("Data type ' ' does not exist"). The library it wraps, abap-adt-api,
+// has setDomainProperties / setDataElementProperties (the same ADT PUT that Eclipse
+// does). Load that library from the MCP clone and call it with its own stateful session:
+// lock -> set properties -> unlock, one call at a time, no retries.
+const _require = createRequire(import.meta.url);
+let _adtApi = null;
+function loadAdtApi() {
+  if (_adtApi) return _adtApi;
+  const candidates = [
+    resolve(dirname(ADT_SCRIPTS['abap-adt']), '..', 'node_modules', 'abap-adt-api'),
+    resolve(__dir, 'node_modules', 'abap-adt-api'),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) { _adtApi = _require(c); return _adtApi; }
+  }
+  throw new Error('abap-adt-api not found (expected next to mcp-abap-abap-adt-api)');
+}
+
+const DDIC_TYPE_RE = /^[A-Z][A-Z0-9_]{1,9}$/;
+const ddicInt = (v, d = 0) => { const n = Math.trunc(Number(v)); return Number.isFinite(n) && n >= 0 ? n : d; };
+const ddicLabel = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+
+// Returns { set: true } | { set: false, reason } ; throws on SAP errors.
+async function setDdicProperties({ host, username, password, client, objtype, objectUrl, props, transport, overwrite }) {
+  const isDoma = /^DOMA/i.test(objtype ?? '');
+  const isDtel = /^DTEL/i.test(objtype ?? '');
+  if (!isDoma && !isDtel) return { set: false, reason: 'not a domain or data element' };
+  if (!props || typeof props !== 'object') return { set: false, reason: 'no properties sent' };
+
+  const { ADTClient, session_types } = loadAdtApi();
+  const c = new ADTClient(host, username, password, client, 'EN', { timeout: 60000 });
+  c.stateful = session_types.stateful;
+  try {
+    await c.login();
+    let current;
+    try { current = isDoma ? await c.getDomainProperties(objectUrl) : await c.getDataElementProperties(objectUrl); }
+    catch { current = isDoma ? await c.getDomainProperties(objectUrl, 'inactive') : await c.getDataElementProperties(objectUrl, 'inactive'); }
+    const meta = { ...current.metaData };
+    meta.language = meta.language || 'EN';
+    meta.masterLanguage = meta.masterLanguage || meta.language;
+    meta.responsible = meta.responsible || username.toUpperCase();
+
+    // Don't overwrite a definition someone already completed (e.g. in SE11/Eclipse)
+    // unless the app asks for it (regeneration with feedback).
+    const cp = current.properties ?? {};
+    const alreadyDefined = isDoma ? !!cp.typeInformation?.datatype : !!(cp.typeName || cp.dataType);
+    if (alreadyDefined && !overwrite) return { set: false, reason: 'already defined in SAP' };
+
+    let properties;
+    if (isDoma) {
+      const datatype = String(props.datatype ?? props.dataType ?? '').toUpperCase().trim();
+      if (!DDIC_TYPE_RE.test(datatype)) throw new Error(`invalid domain data type "${datatype}"`);
+      const length = ddicInt(props.length);
+      const fix = Array.isArray(props.fixValues) ? props.fixValues.filter(f => f && String(f.low ?? '').trim()) : [];
+      properties = {
+        typeInformation: { datatype, length, decimals: ddicInt(props.decimals) },
+        outputInformation: {
+          length: ddicInt(props.outputLength, length), style: '', conversionExit: String(props.conversionExit ?? '').toUpperCase(),
+          signExists: !!props.signExists, lowercase: !!props.lowercase, ampmFormat: false,
+        },
+        ...(fix.length ? { valueInformation: { valueTableRef: '', appendExists: false,
+          fixValues: fix.slice(0, 200).map(f => ({ low: String(f.low).slice(0, 10), ...(f.high ? { high: String(f.high).slice(0, 10) } : {}), ...(f.text ? { text: ddicLabel(f.text, 60) } : {}) })) } } : {}),
+      };
+    } else {
+      const typeName = String(props.domain ?? props.typeName ?? '').toUpperCase().trim();
+      const dataType = String(props.dataType ?? props.datatype ?? '').toUpperCase().trim();
+      if (!typeName && !DDIC_TYPE_RE.test(dataType)) throw new Error('data element needs a domain or a data type');
+      if (typeName && !/^[A-Z0-9_\/]{2,30}$/.test(typeName)) throw new Error(`invalid domain name "${typeName}"`);
+      const l = props.labels ?? props.fieldLabels ?? {};
+      const base = ddicLabel(l.long ?? l.medium ?? meta.description ?? '', 40);
+      properties = {
+        typeName,
+        dataType: typeName ? (DDIC_TYPE_RE.test(dataType) ? dataType : '') : dataType,
+        dataTypeLength: ddicInt(props.length),
+        dataTypeDecimals: ddicInt(props.decimals),
+        fieldLabels: {
+          shortFieldLabel: ddicLabel(l.short ?? base, 10),
+          mediumFieldLabel: ddicLabel(l.medium ?? base, 20),
+          longFieldLabel: ddicLabel(l.long ?? base, 40),
+          headingFieldLabel: ddicLabel(l.heading ?? l.long ?? base, 55),
+        },
+      };
+    }
+
+    const lock = await c.lock(objectUrl);
+    const handle = lock?.LOCK_HANDLE;
+    if (!handle) throw new Error('could not lock the object to set its properties');
+    try {
+      if (isDoma) await c.setDomainProperties(objectUrl, properties, meta, handle, transport || undefined);
+      else await c.setDataElementProperties(objectUrl, properties, meta, handle, transport || undefined);
+    } finally {
+      await c.unLock(objectUrl, handle).catch(() => {});
+    }
+    return { set: true, properties };
+  } finally {
+    await c.logout().catch(() => {});
+  }
+}
 
 // ── Parse SAP credentials from Authorization header ──────────
 // The app sends: Authorization: Bearer <base64(JSON)>
@@ -1149,6 +1252,22 @@ app.post('/sap-write-mcp', async (req, res) => {
           console.warn(`[bridge] Could not unlock ${resolvedName} before activate (${_coElapsed()}): ${unlockErr.message?.slice(0, 200)}`);
         }
       }
+      // Domains / data elements: write their definition (type, length, domain, labels) so
+      // SAP can activate them. The MCP unlock above released createObject's lock first.
+      let ddic = null;
+      if (/^(DOMA|DTEL)/i.test(objtype ?? '') && req.body?.ddicProperties) {
+        try {
+          console.log(`[bridge] [timing] set DDIC properties start (${_coElapsed()})`);
+          ddic = await setDdicProperties({
+            host, username, password, client: sapClient, objtype, objectUrl,
+            props: req.body.ddicProperties, transport, overwrite: !!req.body?.overwriteDdic,
+          });
+          console.log(`[bridge] [timing] set DDIC properties done (${_coElapsed()}): ${ddic.set ? 'set' : ddic.reason}`);
+        } catch (e) {
+          ddic = { set: false, error: (e?.message || String(e)).slice(0, 300) };
+          console.warn(`[bridge] set DDIC properties failed for ${resolvedName}: ${ddic.error}`);
+        }
+      }
       let activateError = null;
       const activationAttempted = !skipActivation && unlocked && effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false;
       if (activationAttempted) {
@@ -1190,7 +1309,7 @@ app.post('/sap-write-mcp', async (req, res) => {
         ok: true, status: 200, createOnly: true, created: !existedBefore,
         package: parentName,
         transport: transport || null, transportSource,
-        note: `${objtype} ${resolvedName} ${existedBefore ? 'already existed' : 'created'} in SAP (pkg: ${parentName}). Set properties (data type, length, labels) in SE11/SE91.`,
+        note: `${objtype} ${resolvedName} ${existedBefore ? 'already existed' : 'created'} in SAP (pkg: ${parentName}).${ddic?.set ? ' Properties set.' : /^(DOMA|DTEL)/i.test(objtype ?? '') ? ' Set properties (data type, length, labels) in SE11.' : ''}`,
         verify,
         // Per-step outcome so the app can tell "done" apart from "written but not
         // activated / not confirmed". null = step not applicable or skipped by policy.
@@ -1198,10 +1317,12 @@ app.post('/sap-write-mcp', async (req, res) => {
           created: !existedBefore,
           existed: existedBefore,
           unlocked: skipActivation ? null : unlocked,
+          propertiesSet: ddic ? (ddic.set ? true : (ddic.error ? false : null)) : null,
           activated: skipActivation ? null : (activationAttempted ? !activateError : (unlocked ? null : false)),
           verified: verify.skipped ? null : verify.ok === true,
         },
         ...(activateError ? { activateError } : {}),
+        ...(ddic ? { ddic: { set: !!ddic.set, ...(ddic.reason ? { reason: ddic.reason } : {}), ...(ddic.error ? { error: ddic.error } : {}) } } : {}),
       });
     }
 
