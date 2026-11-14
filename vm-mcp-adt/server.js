@@ -1154,10 +1154,10 @@ app.post('/sap-write-mcp', async (req, res) => {
       if (activationAttempted) {
         try {
           console.log(`[bridge] [timing] activate start (${_coElapsed()})`);
-          await callTool('activateByName', { objectName: resolvedName, objectUrl });
+          await activateOrThrow(callTool, resolvedName, objectUrl);
           console.log(`[bridge] [timing] activate done (${_coElapsed()})`);
         } catch (e) {
-          activateError = e.message?.slice(0, 150);
+          activateError = e.message?.slice(0, 400);
           console.log(`[bridge] [timing] activate error (${_coElapsed()}): ${activateError}`);
         }
       }
@@ -1303,9 +1303,9 @@ app.post('/sap-write-mcp', async (req, res) => {
     const activationAttempted = effectivePolicy.activateAfterWrite !== false && effectiveCaps.hasActivation !== false;
     if (activationAttempted) {
       try {
-        await callTool('activateByName', { objectName: resolvedName, objectUrl });
+        await activateOrThrow(callTool, resolvedName, objectUrl);
       } catch (e) {
-        activateError = e.message?.slice(0, 150);
+        activateError = e.message?.slice(0, 400);
       }
     }
 
@@ -1442,6 +1442,25 @@ function parseAdtPath(adtPath) {
   if ((m = p.match(/\/sap\/bc\/adt\/ddic\/(?:db)?tables\/([^/]+)\/source\/main/)))
     return { type: 'table', name: m[1] };
   return null;
+}
+
+// activateByName returns { success, messages, inactive } instead of throwing when SAP
+// refuses the activation (e.g. "Data type ' ' does not exist"). Turn that into an error so
+// a refused activation is never reported as activated.
+async function activateOrThrow(callTool, objectName, objectUrl) {
+  const r = await callTool('activateByName', { objectName, objectUrl });
+  const text = r?.content?.[0]?.text ?? '';
+  let parsed = null;
+  try { parsed = JSON.parse(text); } catch { /* not JSON */ }
+  const msgs = Array.isArray(parsed?.messages) ? parsed.messages : [];
+  const errs = msgs.filter(m => /^[EAX]$/i.test(m?.type ?? m?.severity ?? '') || /error/i.test(m?.type ?? ''));
+  const inactive = Array.isArray(parsed?.inactive) ? parsed.inactive : [];
+  if (parsed && (parsed.success === false || errs.length || inactive.length)) {
+    const detail = (errs.length ? errs : msgs).map(m => (m.shortText ?? m.text ?? m.message ?? '').trim()).filter(Boolean);
+    const unique = [...new Set(detail)].slice(0, 4).join(' · ');
+    throw new Error(`SAP did not activate ${objectName}${unique ? `: ${unique}` : ''}`);
+  }
+  return r;
 }
 
 // Create an ABAP object in SAP via ADT POST when PUT returns 404 (object not found).

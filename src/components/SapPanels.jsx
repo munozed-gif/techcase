@@ -519,9 +519,14 @@ async function recordCaseTransport(caseId, requestNumber, objectName, objectType
 // once SAP has activated it and confirmed it exists; otherwise it stays visibly
 // unfinished ('inactive' / 'unverified') and dependents remain blocked.
 // steps: true = succeeded, false = failed, null = not applicable / skipped by policy.
-function sapApplyOutcome(result) {
+// Done = written AND activated (AND confirmed). Message classes are active as soon as they
+// are created, so activation does not apply to them; everything else must report a
+// successful activation - "not attempted" (null) is not done.
+const SAP_NO_ACTIVATION_TYPES = new Set(['message_class']);
+function sapApplyOutcome(result, objectType) {
   const st = result?.steps ?? {};
-  const activated = st.activated !== undefined ? st.activated : (result?.activateError ? false : null);
+  let activated = st.activated !== undefined ? st.activated : (result?.activateError ? false : null);
+  if (activated == null && !SAP_NO_ACTIVATION_TYPES.has(objectType)) activated = false;
   const verified  = st.verified !== undefined ? st.verified
     : (result?.verify && !result.verify.skipped ? result.verify.ok === true : null);
   const steps = {
@@ -537,7 +542,7 @@ function sapApplyOutcome(result) {
 }
 
 const SAP_OUTCOME_HINT = {
-  inactive:   'Written to SAP but not activated — activate it in SAP or press Retry.',
+  inactive:   'Written to SAP but not activated — see the SAP activation messages, fix the definition and press Retry.',
   unverified: 'Written to SAP but SAP did not confirm it exists — check it in SAP or press Retry.',
 };
 
@@ -5671,11 +5676,11 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
               const _verifySkipped = _r.verify?.skipped === true;
               const _seTx = obj.type === 'message_class' ? 'SE91' : 'SE11';
               const _note = `${_verifyOk ? '✓ Confirmed in SAP.' : _verifySkipped ? '' : `⚠ Not confirmed in SAP${_r.verify?.status ? ` (HTTP ${_r.verify.status})` : ''} — check ${_seTx}.`}${_r.activateError ? ' Activation warning: ' + _r.activateError : ''}`.trim() || null;
-              const _out = sapApplyOutcome(_r);
+              const _out = sapApplyOutcome(_r, obj.type);
               updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), appliedCreated: true, appliedTransport: _ut, appliedPackage: _up, appliedNote: _note, appliedActivateError: _r.activateError || null });
               recordCaseTransport(caseId, _ut, obj.name, obj.type);
               addLog(`${obj.name}: ${_out.status === 'done' ? '✓' : '⚠'} ADT skeleton created (pkg: ${_up || '$TMP'}${_ut ? `, tr: ${_ut}` : ''}${_verifyOk ? ', confirmed ✓' : _verifySkipped ? '' : ' — not confirmed in SAP'}). Set properties in SE11/SE91.`, _out.status === 'done' ? 'done' : 'warn');
-              if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}`, 'warn');
+              if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}${_r?.activateError ? ` SAP: ${_r.activateError}` : ''}`, 'warn');
               if (_r.activateError) addLog(`${obj.name}: activation warning: ${_r.activateError}`, 'warn');
               if (!_verifyOk && !_verifySkipped) addLog(`${obj.name}: ⚠ SAP verify failed — ${_r.verify?.reason || 'object not found via read-only check'}`, 'warn');
             } else {
@@ -5781,10 +5786,10 @@ Output ONLY the ABAP source code, no explanations.`;
             const usedTransport = result.transport || obj.transport || runTransport || null;
             if (!obj.transport) adoptTransport(result.transport, result.transportSource);
             const usedPackage   = result.package   || obj.package   || packageReq   || null;
-            const _out = sapApplyOutcome(result);
+            const _out = sapApplyOutcome(result, obj.type);
             updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
             recordCaseTransport(caseId, usedTransport, obj.name, obj.type);
-            if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}`, 'warn');
+            if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}${result?.activateError ? ` SAP: ${result.activateError}` : ''}`, 'warn');
             if (result.createOnly) {
               addLog(`${obj.name}: ✓ skeleton created in SAP (pkg: ${usedPackage || '$TMP'}${usedTransport ? `, tr: ${usedTransport}` : ''}).`, 'done');
               addLog(`${obj.name}: ⚠ Set data type, length and labels in SE11/SE91 — object has no properties yet.`, 'warn');
@@ -5928,10 +5933,10 @@ Output ONLY the ABAP source code, no explanations.`;
       const usedTransport = result.transport || obj.transport || transportReq || null;
       if (!obj.transport && !transportReq && result.transport && (!result.transportSource || result.transportSource === 'created')) onTransportCreated?.(result.transport);
       const usedPackage   = result.package   || obj.package   || packageReq   || null;
-      const _out = sapApplyOutcome(result);
+      const _out = sapApplyOutcome(result, obj.type);
       updateObj(obj.id, { status: _out.status, stage: null, sapSteps: _out.steps, appliedAt: new Date().toISOString(), error: null, appliedTransport: usedTransport, appliedPackage: usedPackage, appliedNote: result.note || null, appliedCreated: result.created ?? true, appliedActivateError: result.activateError || null });
       recordCaseTransport(caseId, usedTransport, obj.name, obj.type);
-      if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}`, 'warn');
+      if (_out.status !== 'done') addLog(`${obj.name}: status ${_out.status} — ${SAP_OUTCOME_HINT[_out.status]}${result?.activateError ? ` SAP: ${result.activateError}` : ''}`, 'warn');
       if (result.createOnly) {
         addLog(`${obj.name}: ✓ skeleton created in SAP (pkg: ${usedPackage || '$TMP'}${usedTransport ? `, tr: ${usedTransport}` : ''}).`, 'done');
         addLog(`${obj.name}: ⚠ Set data type, length and labels in SE11/SE91 — object has no properties yet.`, 'warn');
@@ -6347,6 +6352,9 @@ Output ONLY the ABAP source code, no explanations.`;
                       )}
                       {SAP_OUTCOME_HINT[selectedObj.status] && (
                         <p className="text-xs text-amber-600">⚠ {SAP_OUTCOME_HINT[selectedObj.status]}</p>
+                      )}
+                      {selectedObj.status === 'inactive' && selectedObj.appliedActivateError && (
+                        <p className="text-xs text-red-600 dark:text-red-400 font-mono break-words">SAP: {selectedObj.appliedActivateError}</p>
                       )}
                       {selectedObj.appliedPackage && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">Package: {selectedObj.appliedPackage}</p>
