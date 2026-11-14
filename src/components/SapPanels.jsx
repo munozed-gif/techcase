@@ -225,6 +225,47 @@ const ABAP_CLOUD_ADT_OBJECT_MAP_PRESET = {
   structure:    { pathTpl: '/sap/bc/adt/ddic/ddls/sources/{N}', urlTpl: '/sap/bc/adt/ddic/ddls/{N}', objtype: 'DDLS/ST', createOnly: false },
 };
 
+// BTP ABAP Cloud hosts look like <id>.abap.<region>.hana.ondemand.com or *.abap.cloud.sap.
+// Anything else (an on-premise S/4HANA / NetWeaver / trial) must keep the classic
+// dictionary paths; the preset would break domains, data elements, tables and structures.
+function looksLikeBtpAbapCloud(env) {
+  const h = String(env?.host ?? '').toLowerCase();
+  return /\.abap\.[a-z0-9-]+\.hana\.ondemand\.com|abap\.cloud\.sap|\.abap-web\./.test(h) || /btp|abap_cloud|steampunk/i.test(String(env?.type ?? ''));
+}
+
+function BtpPresetButton({ env, onApply }) {
+  const [confirming, setConfirming] = useState(false);
+  const isBtp = looksLikeBtpAbapCloud(env);
+  const apply = () => { setConfirming(false); onApply(); };
+  return (
+    <div className="space-y-2">
+      <button onClick={() => (isBtp ? apply() : setConfirming(c => !c))}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/20 rounded-xl transition-colors">
+        <Sparkles size={11} />Apply ABAP Cloud (BTP) preset
+      </button>
+      {confirming && (
+        <div className="rounded-xl border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 px-3 py-2.5 space-y-2">
+          <p className="text-xs text-amber-800 dark:text-amber-200 flex items-start gap-1.5">
+            <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
+            <span>
+              <strong>{env?.name || 'This environment'}</strong> looks like an <strong>on-premise</strong> SAP system
+              {env?.host ? <> (<span className="font-mono">{String(env.host).replace(/^https?:\/\//, '')}</span>)</> : null}, not SAP BTP ABAP Cloud.
+              The preset switches domains, data elements, tables and structures to CDS (DDLS) paths, which on-premise systems
+              (S/4HANA, ECC, NetWeaver, the A4H trial) reject — implementations of those objects would fail.
+            </span>
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setConfirming(false)}
+              className="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white">Keep classic paths</button>
+            <button onClick={apply}
+              className="px-3 py-1 text-xs font-semibold rounded-lg border border-amber-400 dark:border-amber-500/50 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-500/15">Apply anyway</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function resolveAbapStandards(settings, clientId, projectId, caseId) {
   const clientStd  = (settings['abap_standards_client']  ?? {})[clientId]  ?? {};
   const projectStd = (settings['abap_standards_project'] ?? {})[projectId] ?? {};
@@ -1429,11 +1470,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                             Override ADT paths for this environment only. ABAP Cloud (BTP) uses CDS DDL paths for DDIC types.
                           </p>
                           {canEdit && (
-                            <button
-                              onClick={() => updateEnvField(env.id, 'adt_object_map', { ...(env.adt_object_map ?? {}), ...ABAP_CLOUD_ADT_OBJECT_MAP_PRESET })}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/20 rounded-xl transition-colors">
-                              <Sparkles size={11} />Apply ABAP Cloud (BTP) preset
-                            </button>
+                            <BtpPresetButton env={env} onApply={() => updateEnvField(env.id, 'adt_object_map', { ...(env.adt_object_map ?? {}), ...ABAP_CLOUD_ADT_OBJECT_MAP_PRESET })} />
                           )}
                           <div className="space-y-1.5">
                             {Object.entries({ ...ABAP_CLOUD_ADT_OBJECT_MAP_PRESET, ...(env.adt_object_map ?? {}) }).map(([type]) => {
@@ -4138,11 +4175,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                               Override ADT paths for this environment only. ABAP Cloud (BTP) uses CDS DDL paths for DDIC types.
                             </p>
                             {canEdit && (
-                              <button
-                                onClick={() => updateEnvField(env.id, 'adt_object_map', { ...(env.adt_object_map ?? {}), ...ABAP_CLOUD_ADT_OBJECT_MAP_PRESET })}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/20 rounded-xl transition-colors">
-                                <Sparkles size={11} />Apply ABAP Cloud (BTP) preset
-                              </button>
+                              <BtpPresetButton env={env} onApply={() => updateEnvField(env.id, 'adt_object_map', { ...(env.adt_object_map ?? {}), ...ABAP_CLOUD_ADT_OBJECT_MAP_PRESET })} />
                             )}
                             <div className="space-y-1.5">
                               {Object.entries({ ...ABAP_CLOUD_ADT_OBJECT_MAP_PRESET, ...(env.adt_object_map ?? {}) }).map(([type]) => {
