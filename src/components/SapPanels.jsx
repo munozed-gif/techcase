@@ -5732,7 +5732,8 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
               obj.package || packageReq || undefined,
               obj.description || undefined, writePolicy, sapCaps, ssCtx.settings['sap_adt_object_map'] ?? {},
               { transportDescription: caseTransportDescription(caseData),
-                ...(_ddicProps ? { ddicProperties: _ddicProps, overwriteDdic: !!obj.previousCode } : {}) });
+                ...(_ddicProps ? { ddicProperties: _ddicProps, overwriteDdic: !!(obj.regenerate || obj.previousCode) } : {}) });
+            if (obj.regenerate) updateObj(obj.id, { regenerate: false });
             if (_r.ddic?.error) addLog(`${obj.name}: could not set the definition in SAP — ${_r.ddic.error}`, 'warn');
             else if (_r.ddic?.reason === 'already defined in SAP') addLog(`${obj.name}: already defined in SAP — kept as is.`, 'info');
             else if (_r.ddic?.set) addLog(`${obj.name}: definition set in SAP ✓`, 'done');
@@ -5922,7 +5923,7 @@ Output ONLY the ABAP source code, no explanations.`;
     let subset = runSignal.ids ? objects.filter(o => runSignal.ids.includes(o.id)) : objects;
     if (runSignal.reset) {
       subset = subset.map(o => ({ ...o, status: 'planned', error: null, generatedCode: null,
-        previousCode: o.generatedCode || o.previousCode || null }));
+        previousCode: o.generatedCode || o.previousCode || null, regenerate: true }));
       const byId = Object.fromEntries(subset.map(o => [o.id, o]));
       setObjects(prev => {
         const next = prev.map(o => byId[o.id] ?? o);
