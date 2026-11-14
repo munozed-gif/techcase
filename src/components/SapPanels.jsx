@@ -5401,7 +5401,13 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
     }
   }
 
+  // Latest updates per object, written synchronously. A run reads dependency statuses and
+  // freshly generated definitions from here: the `objects` state captured when the run
+  // started never sees the updates made during that run.
+  const liveRef = useRef({});
+  function liveObj(o) { return o ? { ...o, ...(liveRef.current[o.id] ?? {}) } : o; }
   function updateObj(id, updates) {
+    liveRef.current[id] = { ...(liveRef.current[id] ?? {}), ...updates };
     setObjects(prev => {
       const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
       saveBlueprint(next);
@@ -5635,6 +5641,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     setRunLog([]);
     runLogRef.current = [];
     runPromptsRef.current = {};
+    liveRef.current = {};   // only this run's updates; everything else comes from objectsRef
     const runStartedAt = new Date().toISOString();
     const sorted = topoSort(subset);
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
@@ -5690,7 +5697,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
 
       // Check deps
       const depsDone = (obj.dependsOn ?? []).every(depId => {
-        const dep = objects.find(o => o.id === depId);
+        const dep = liveObj(objectsRef.current.find(o => o.id === depId) ?? objects.find(o => o.id === depId));
         return dep && (dep.status === 'done' || dep.status === 'manual' || dep.status === 'skipped');
       });
       if (!depsDone) {
@@ -5711,7 +5718,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
             // Domains / data elements: get their definition (type, length, domain, labels)
             // so the bridge can set it and SAP can activate them.
             let _ddicProps = null;
-            const _ddicPrompt = buildDdicPropsPrompt(obj.type, obj, caseData, objects,
+            const _ddicPrompt = buildDdicPropsPrompt(obj.type, obj, caseData, objectsRef.current.map(liveObj),
               (runFeedbackRef.current ?? (settings['sap_impl_feedback'] ?? {})[caseId] ?? '').trim());
             if (_ddicPrompt) {
               try {
@@ -5797,7 +5804,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
         updateObj(obj.id, { status: 'generating', error: null });
         addLog(`${obj.name}: generating ABAP...`, 'generating');
         const standardsBlock = buildAbapStandardsPrompt(standards, obj.type, obj.name, null, caseData, runTransport, false);
-        const ddicPrompt = buildDdicSourcePrompt(obj.type, obj, caseData, objects);
+        const ddicPrompt = buildDdicSourcePrompt(obj.type, obj, caseData, objectsRef.current.map(liveObj));
         const basePrompt = ddicPrompt ?? `You are an SAP ABAP developer. Create ${obj.type} ${obj.name}.
 Description: ${obj.description}
 Case: ${caseData.title}
