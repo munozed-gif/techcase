@@ -16,10 +16,10 @@ import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 // Which approved spec documents can be updated. SpecA and SpecD are ticked by default
 // (they change during development); SpecB/SpecC are proposals.
 const ASBUILT_DOCS = [
-  { key: 'specA', label: 'Technical spec (Custom ABAP)', title: 'ABAP', prefix: 'SpecA_CustomABAP', def: true },
-  { key: 'specD', label: 'Client functional spec',       title: 'Client Spec', prefix: 'SpecD_EspecCliente', def: true },
-  { key: 'specB', label: 'SAP standard spec',            title: 'SAP', prefix: 'SpecB_StandardSAP', def: false },
-  { key: 'specC', label: 'Client proposal',              title: 'Customer', prefix: 'SpecC_PropuestaCliente', def: false },
+  { key: 'specA', label: 'Spec A — Technical spec (Custom ABAP)', title: 'ABAP', prefix: 'SpecA_CustomABAP', def: true },
+  { key: 'specB', label: 'Spec B — SAP standard spec',  title: 'SAP', prefix: 'SpecB_StandardSAP', def: false },
+  { key: 'specC', label: 'Spec C — Client proposal',  title: 'Customer', prefix: 'SpecC_PropuestaCliente', def: false },
+  { key: 'specD', label: 'Spec D — Client functional spec',  title: 'Client Spec', prefix: 'SpecD_EspecCliente', def: true },
 ];
 const cut = (s, n) => { const t = String(s ?? ''); return t.length > n ? t.slice(0, n) + '\n…[truncated]' : t; };
 
