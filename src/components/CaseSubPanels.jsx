@@ -26,6 +26,7 @@ import {
   DEFAULT_ACTIVITY_PHASES, ROLE_COLORS,
 } from "../lib/businessConstants.js";
 import { sapLiveCheck, sapFetchSource, detectSapObjectType } from "../components/SapPanels.jsx";
+import AsBuiltSpecPanel from "./AsBuiltSpecPanel.jsx";
 
 function ProjectFieldEditor({ caseData, auth }) {
   const { t } = useT();
@@ -3972,6 +3973,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
     };
     return (
       <div className="space-y-4">
+        <AsBuiltSpecPanel caseData={caseData} auth={auth} spec={spec} refetch={refetch}
+          addDocument={addDocument} refetchDocuments={refetchDocuments} canApprove={canApprove}
+          genModel={genModel} buildCaseDocHtml={buildCaseDocHtml} />
         {/* Status banner */}
         {spec.status === 'approved' && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
@@ -4480,6 +4484,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
     return (
       <div className="space-y-4">
+        <AsBuiltSpecPanel caseData={caseData} auth={auth} spec={spec} refetch={refetch}
+          addDocument={addDocument} refetchDocuments={refetchDocuments} canApprove={canApprove}
+          genModel={genModel} buildCaseDocHtml={buildCaseDocHtml} />
         {/* Header + back */}
         <div className="flex items-center gap-2">
           {!specApproved && (

@@ -304,6 +304,13 @@ const GATE_CONDITIONS = [
     fixHint: "Have a manager approve the functional spec in the Spec tab",
   },
   {
+    key: "asbuilt_spec_approved",
+    label: "As-built spec approved",
+    description: "The spec was updated with what was actually built and tested in SAP, and approved",
+    check: (c, d) => d.spec?.asbuilt?.status === "approved",
+    fixHint: "Go to the Spec tab → As-built update, generate the updated spec and approve it",
+  },
+  {
     key: "activities_created",
     label: "Activities created",
     description: "At least one activity has been created for this case",

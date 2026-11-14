@@ -20,6 +20,11 @@ function useCaseSpecification(caseId, userId) {
   }, [caseId]);
 
   useEffect(() => { fetchSpec(); }, [fetchSpec]);
+  useEffect(() => {
+    const onUpd = e => { if (!e?.detail?.caseId || e.detail.caseId === caseId) fetchSpec(); };
+    window.addEventListener('arena:spec-updated', onUpd);
+    return () => window.removeEventListener('arena:spec-updated', onUpd);
+  }, [caseId, fetchSpec]);
 
   async function saveSpec(payload) {
     if (spec?.id) {

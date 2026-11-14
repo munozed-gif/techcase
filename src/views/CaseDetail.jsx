@@ -4189,9 +4189,11 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
             d.notes?.toLowerCase().includes('auto-generated') ||
             AI_NAME_PREFIXES.some(p => d.file_name?.startsWith(p))
           );
-        const protoDocs = documents.filter(d => isPrototype(d));
-        const aiDocs    = documents.filter(d => isAiDoc(d));
-        const caseDocs  = documents.filter(d => !isPrototype(d) && !isAiDoc(d));
+        const isAsBuilt = d => d.file_name?.startsWith('AsBuilt_') || d.notes?.includes('[As-built]');
+        const asBuiltDocs = documents.filter(d => isAsBuilt(d));
+        const protoDocs = documents.filter(d => !isAsBuilt(d) && isPrototype(d));
+        const aiDocs    = documents.filter(d => !isAsBuilt(d) && isAiDoc(d));
+        const caseDocs  = documents.filter(d => !isAsBuilt(d) && !isPrototype(d) && !isAiDoc(d));
         return (
           <div className="space-y-6">
             {/* ── Interactive Prototypes ── */}
@@ -4244,6 +4246,19 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                   </div>
               }
             </DocSectionHeader>
+
+            {/* ── As-built documentation ── */}
+            {asBuiltDocs.length > 0 && (
+              <DocSectionHeader Icon={CheckCircle2} iconClass="text-emerald-600 dark:text-emerald-400" label="As-built documentation" count={asBuiltDocs.length} accent="border-emerald-100">
+                <div className="space-y-2">
+                  {asBuiltDocs.map(doc => (
+                    <DocRow key={doc.id} doc={doc} auth={auth} deleteDocument={deleteDocument}
+                      openDocInNewTab={openDocInNewTab} t={t}
+                      canDownloadPdf={perms.can('export_pdf_docs')} onDownloadPdf={downloadDocAsPdf} />
+                  ))}
+                </div>
+              </DocSectionHeader>
+            )}
 
             {/* ── Case Documents ── */}
             <DocSectionHeader Icon={FolderOpen} iconClass="text-blue-600 dark:text-blue-400" label="Case Documents" count={caseDocs.length} accent="border-blue-100">
