@@ -328,23 +328,26 @@ const GATE_CONDITIONS = [
   {
     key: "sap_objects_complete",
     label: "SAP development objects complete",
-    description: "All Development phase activities are marked as completed before entering testing",
+    description: "Every object in the SAP implementation blueprint is done in SAP (created, activated, verified); manual objects marked done. Cases without a blueprint use their Development activities.",
     check: (c, d) => {
+      const objs = d.sapObjects ?? [];
+      if (objs.length > 0) return objs.every(o => ["done", "skipped"].includes(o.status));
       const devActs = (d.activities ?? []).filter(a => a.phase === "development");
       return devActs.length > 0 && devActs.every(a => a.status === "completed");
     },
-    fixHint: "Complete all Development phase activities before moving to technical testing",
+    fixHint: "SAP Implementation: run the pending objects (or mark manual ones done) until every object is Done",
   },
   {
     key: "qa_transport_completed",
     label: "Transport request completed in QA",
-    description: "At least one transport request for this case has been successfully imported in QA. Auto-passes if no transports exist.",
+    description: "Every transport request of the case was released and confirmed as imported in QA. Auto-passes if no transports exist.",
     check: (c, d) => {
       const transports = d.transportRequests ?? [];
       if (transports.length === 0) return true;
-      return transports.some(r => ["done", "in_qa", "qa_at"].includes(r.status));
+      // Released in DEV and confirmed imported in QA (Transports > Dev → QA → Prod Pipeline).
+      return transports.every(r => !!r.qa_imported_at);
     },
-    fixHint: "Import the transport request into the QA environment in the Transport tab",
+    fixHint: "Transports tab → Dev → QA → Prod Pipeline: release the requests and confirm they were imported in QA",
   },
   {
     key: "tech_test_activity_exists",

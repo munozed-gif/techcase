@@ -7,6 +7,25 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { bridgeAuthHeaders } from "../lib/bridgeAuth.js";
+
+// ── Release a transport in SAP (ADT CTS) through the ADT bridge ─────────
+// Importing into QA/PRD is not possible through ADT (it needs STMS/tp on the target
+// system), so the app releases in DEV and records the QA/PRD imports done by Basis.
+async function sapReleaseTransport(env, transport) {
+  const r = await fetch('/api/adt-write', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await bridgeAuthHeaders()) },
+    body: JSON.stringify({
+      op: 'release', bridgeUrl: env?.adt_mcp_url || undefined,
+      host: env?.host, username: env?.username, password: env?.password, client: env?.client || '100',
+      transport,
+    }),
+    signal: AbortSignal.timeout(120000),
+  });
+  const text = await r.text();
+  try { return JSON.parse(text); } catch { return { ok: false, error: `Bridge returned HTTP ${r.status}: ${text.slice(0, 200)}` }; }
+}
 
 // ── SAP CTS transport import ─────────────────────────────────
 
@@ -30,23 +49,6 @@ async function sapGetCsrfToken(config) {
     headers: { 'X-CSRF-Token': 'Fetch', Accept: 'application/atomsvc+xml' },
   });
   return res.headers.get('X-CSRF-Token') ?? '';
-}
-
-async function sapImportTransport(config, requestNumber, targetClient) {
-  let csrf = '';
-  try { csrf = await sapGetCsrfToken(config); } catch {}
-  const res = await sapApiRequest(config, `/sap/bc/cts/compatibility/imports`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': csrf,
-      'sap-client': String(targetClient || config.client || '100'),
-    },
-    body: JSON.stringify({ objects: [{ trRequest: requestNumber }] }),
-  });
-  let body = '';
-  try { body = await res.text(); } catch {}
-  return { ok: res.ok || res.status === 200 || res.status === 201 || res.status === 202, status: res.status, body };
 }
 
 // Upload an ABAP program source via ADT
@@ -348,11 +350,6 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
   // ── Top-level mode toggle ─────────────────────────────────
   const [tabMode, setTabMode] = useState('tr'); // 'tr' | 'bcset' | 'pipeline'
 
-  // ── Pipeline mode ─────────────────────────────────────────
-  const [pipelineRuns, setPipelineRuns] = useState({}); // stageIdx → { status, log, ts }
-  function setPipelineStage(idx, updates) {
-    setPipelineRuns(p => ({ ...p, [idx]: { ...(p[idx] ?? {}), ...updates } }));
-  }
 
   // ── SAP environments ──────────────────────────────────────
   const allSapConfigs = settings['sap_integration'] ?? {};
@@ -590,38 +587,58 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
   }
 
   // ── Run ───────────────────────────────────────────────────
+  // Environment the case's transports live in (the one the SAP implementation writes to).
+  const releaseEnv = (() => {
+    const caseEnvId = caseId ? (settings['sap_case_env'] ?? {})[caseId] : null;
+    const projEnvId = projectId ? (settings['sap_project_env'] ?? {})[projectId] : null;
+    return sapEnvironments.find(e => e.id === caseEnvId)
+      ?? sapEnvironments.find(e => e.id === projEnvId)
+      ?? sapEnvironments.find(e => String(e.envType ?? e.type ?? '').toLowerCase() === 'dev')
+      ?? sapEnvironments[0] ?? null;
+  })();
+
+  async function releaseOne(req) {
+    setImportField(req.id, { status: 'importing', log: [`Releasing ${req.request_number} in ${releaseEnv?.name ?? 'SAP'}…`] });
+    let result;
+    try {
+      result = releaseEnv?.host ? await sapReleaseTransport(releaseEnv, req.request_number)
+        : { ok: false, error: 'No SAP environment configured for this case' };
+    } catch (e) { result = { ok: false, error: e.message }; }
+    const msgs = (result.messages ?? []).map(m => `${m.type ? m.type + ': ' : ''}${m.text}`);
+    const log = [result.ok ? `✓ ${req.request_number} released` : `✗ ${result.error ?? 'Release failed'}`, ...msgs].join('\n');
+    setImportField(req.id, { status: result.ok ? 'done' : 'error', log: log.split('\n') });
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('case_transport_requests').update({
+      status: result.ok ? 'done' : 'error',
+      release_log: log, import_log: log,
+      import_result: { op: 'release', ok: !!result.ok, statuses: result.statuses ?? [], messages: result.messages ?? [] },
+      ...(result.ok ? { released_at: new Date().toISOString(), released_by: user?.id ?? null } : {}),
+    }).eq('id', req.id);
+    return !!result.ok;
+  }
+
+  // Release every request not released yet (customizing first, then sequence order).
   async function runImport() {
     const toRun = [...requests].sort((a, b) => {
       const typeOrd = { customizing: 0, workbench: 1 };
       return (typeOrd[a.request_type] ?? 1) - (typeOrd[b.request_type] ?? 1) || (a.seq_order ?? 0) - (b.seq_order ?? 0);
-    }).filter(r => r.status !== 'done');
-
+    }).filter(r => !r.released_at);
     for (const req of toRun) {
-      setImportField(req.id, { status: 'importing', log: [`Importing ${req.request_number}…`] });
-      try {
-        let result = { ok: false, status: 0, body: 'No SAP environment configured' };
-        if (transportMode === 'external') {
-          const envId = req.to_env_id ?? toEnvId;
-          const env   = sapEnvironments.find(e => e.id === envId) ?? sapEnvironments[0];
-          if (env) result = await sapImportTransport(env, req.request_number, req.to_client ?? toClient ?? env.client ?? '100');
-        } else {
-          result = { ok: true, status: 200, body: 'Internal client transport — marked done manually' };
-        }
-        const log = [`HTTP ${result.status}`, result.body?.slice(0, 400)].filter(Boolean);
-        setImportField(req.id, { status: result.ok ? 'done' : 'error', log });
-        await supabase.from('case_transport_requests').update({
-          status: result.ok ? 'done' : 'error',
-          import_log: log.join('\n'),
-          import_result: { status: result.status, body: result.body?.slice(0, 1000) },
-          applied_at: result.ok ? new Date().toISOString() : null,
-        }).eq('id', req.id);
-        if (!result.ok && stopOnError) { await loadRequests(); return; }
-      } catch (e) {
-        setImportField(req.id, { status: 'error', log: [e.message] });
-        await supabase.from('case_transport_requests').update({ status: 'error', import_log: e.message }).eq('id', req.id);
-        if (stopOnError) { await loadRequests(); return; }
-      }
+      const ok = await releaseOne(req);
+      if (!ok && stopOnError) break;
     }
+    await loadRequests();
+  }
+
+  // QA / PRD imports are done by Basis in STMS; record them here.
+  async function markImported(reqs, stage, value = true) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const col = stage === 'qa' ? 'qa_imported' : 'prd_imported';
+    const ids = reqs.map(r => r.id);
+    if (!ids.length) return;
+    await supabase.from('case_transport_requests').update(value
+      ? { [`${col}_at`]: new Date().toISOString(), [`${col}_by`]: user?.id ?? null }
+      : { [`${col}_at`]: null, [`${col}_by`]: null }).in('id', ids);
     await loadRequests();
   }
 
@@ -1065,23 +1082,26 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
           {/* ── Step 5: Run ────────────────────────────────────── */}
           {trStep === 5 && (
-            <TrPanel icon={<Play size={15} />} title="Import Run"
-              sub={`${totalCount} requests · ${transportMode === 'internal' ? 'internal client transport' : 'external system import'} · customizing first`}>
+            <TrPanel icon={<Play size={15} />} title="Release in SAP"
+              sub={`${totalCount} requests · released in ${releaseEnv?.name ?? 'the case SAP system'} · customizing first`}>
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-700 dark:text-blue-300">
+                Releases each request in SAP (like SE09 → Release). Importing into QA and PRD is done by Basis in STMS — confirm it in the <strong>Dev → QA → Prod Pipeline</strong> tab.
+              </div>
 
               <div className="flex justify-between text-xs text-gray-500 dark:text-white/40 mb-1.5">
                 <span>Progress</span>
-                <span>{doneCount} / {totalCount} done</span>
+                <span>{requests.filter(r => r.released_at).length} / {totalCount} released</span>
               </div>
               <div className="w-full bg-gray-100 dark:bg-white/10 rounded-full h-2 mb-2">
                 <div className="bg-green-500 h-2 rounded-full transition-all"
-                  style={{ width: totalCount ? `${Math.round(doneCount / totalCount * 100)}%` : '0%' }} />
+                  style={{ width: totalCount ? `${Math.round(requests.filter(r => r.released_at).length / totalCount * 100)}%` : '0%' }} />
               </div>
 
-              <TrToggleRow label="Stop on Error" desc="Pause if any transport import fails" value={stopOnError} onChange={setStopOnError} />
+              <TrToggleRow label="Stop on Error" desc="Stop if a release fails" value={stopOnError} onChange={setStopOnError} />
 
-              <button onClick={runImport} disabled={requests.length === 0 || requests.every(r => r.status === 'done')}
+              <button onClick={runImport} disabled={requests.length === 0 || requests.every(r => r.released_at) || !releaseEnv}
                 className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-green-600 hover:bg-green-700 text-white rounded-xl disabled:opacity-50 transition-colors">
-                <Play size={14} />Start Import Sequence
+                <Play size={14} />Release in SAP
               </button>
 
               {totalCount > 0 && (
@@ -1219,77 +1239,31 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
       {/* ══ Dev → QA → Prod Pipeline ══════════════════════════ */}
       {tabMode === 'pipeline' && (() => {
-        const PIPELINE_STAGES = [
-          { label: 'Development', short: 'DEV', types: ['DEV', 'SBX', 'TRN'], color: 'blue',   ring: 'ring-blue-500',   bg: 'bg-blue-500/15',   border: 'border-blue-500/30',   text: 'text-blue-700 dark:text-blue-300',   btn: 'bg-blue-600 hover:bg-blue-700'   },
-          { label: 'Quality',     short: 'QAS', types: ['QAS', 'QA'],          color: 'amber',  ring: 'ring-amber-500',  bg: 'bg-amber-500/15',  border: 'border-amber-500/30',  text: 'text-amber-700 dark:text-amber-300',  btn: 'bg-amber-600 hover:bg-amber-700'  },
-          { label: 'Production',  short: 'PRD', types: ['PRD', 'PROD'],        color: 'green',  ring: 'ring-green-500',  bg: 'bg-green-500/15',  border: 'border-green-500/30',  text: 'text-green-700 dark:text-green-300',  btn: 'bg-green-600 hover:bg-green-700'  },
+        const sorted = [...requests].sort((a, b) => {
+          const typeOrd = { customizing: 0, workbench: 1 };
+          return (typeOrd[a.request_type] ?? 1) - (typeOrd[b.request_type] ?? 1) || (a.seq_order ?? 0) - (b.seq_order ?? 0);
+        });
+        const released   = sorted.filter(r => r.released_at);
+        const inQa       = sorted.filter(r => r.qa_imported_at);
+        const inPrd      = sorted.filter(r => r.prd_imported_at);
+        const running    = Object.values(importStates).some(st => st?.status === 'importing');
+        const fmtAt = d => d ? new Date(d).toLocaleString() : '';
+        const STAGES = [
+          { key: 'dev', label: 'Development', short: 'DEV', tone: 'blue',
+            help: `Release each request in ${releaseEnv?.name ?? 'the case SAP system'} (like SE09 → Release).`,
+            done: r => !!r.released_at, at: r => r.released_at, ready: () => true },
+          { key: 'qa', label: 'Quality', short: 'QAS', tone: 'amber',
+            help: 'Basis imports the released requests into QA (STMS). Confirm here once they are imported.',
+            done: r => !!r.qa_imported_at, at: r => r.qa_imported_at, ready: r => !!r.released_at },
+          { key: 'prd', label: 'Production', short: 'PRD', tone: 'green',
+            help: 'After QA tests, Basis imports into Production (STMS). Confirm here once imported.',
+            done: r => !!r.prd_imported_at, at: r => r.prd_imported_at, ready: r => !!r.qa_imported_at },
         ];
-
-        // Map each stage to matching SAP environments
-        const stageEnvs = PIPELINE_STAGES.map(stage =>
-          sapEnvironments.filter(e => stage.types.includes((e.type ?? '').toUpperCase()))
-        );
-
-        // All requests sorted by seq
-        const sorted = [...requests].sort((a, b) => (a.seq_order ?? 0) - (b.seq_order ?? 0));
-
-        // Map requests to stages by their from_env type
-        const stageRequests = PIPELINE_STAGES.map(stage =>
-          sorted.filter(r => {
-            const fromEnv = sapEnvironments.find(e => e.id === r.from_env_id);
-            return fromEnv && stage.types.includes((fromEnv.type ?? '').toUpperCase());
-          })
-        );
-
-        // If no requests have from_env set, bucket all into stage 0
-        const hasStaged = stageRequests.some(s => s.length > 0);
-        if (!hasStaged && sorted.length > 0) stageRequests[0] = sorted;
-
-        async function runStage(stageIdx) {
-          const envs = stageEnvs[stageIdx];
-          const reqs = stageRequests[stageIdx];
-          const targetEnv = envs[0] ?? null;
-          if (!targetEnv) {
-            setPipelineStage(stageIdx, { status: 'error', log: ['No SAP environment configured for this stage.'], ts: new Date().toLocaleTimeString() });
-            return;
-          }
-          if (!reqs.length) {
-            setPipelineStage(stageIdx, { status: 'done', log: ['No requests for this stage.'], ts: new Date().toLocaleTimeString() });
-            return;
-          }
-          setPipelineStage(stageIdx, { status: 'running', log: [`Importing ${reqs.length} request(s) to ${targetEnv.name ?? targetEnv.host}…`], ts: new Date().toLocaleTimeString() });
-          const log = [];
-          let allOk = true;
-          for (const req of reqs) {
-            log.push(`→ ${req.request_number}…`);
-            setPipelineStage(stageIdx, { status: 'running', log: [...log], ts: new Date().toLocaleTimeString() });
-            try {
-              const res = await sapImportTransport(targetEnv, req.request_number, targetEnv.client ?? '100');
-              if (res.ok) {
-                log.push(`✓ ${req.request_number} imported`);
-                await supabase.from('case_transport_requests').update({ status: 'done' }).eq('id', req.id);
-              } else {
-                log.push(`✗ ${req.request_number} failed (HTTP ${res.status})`);
-                allOk = false;
-              }
-            } catch (e) {
-              log.push(`✗ ${req.request_number}: ${e.message}`);
-              allOk = false;
-            }
-            setPipelineStage(stageIdx, { status: 'running', log: [...log], ts: new Date().toLocaleTimeString() });
-          }
-          await loadRequests();
-          setPipelineStage(stageIdx, { status: allOk ? 'done' : 'error', log, ts: new Date().toLocaleTimeString() });
-        }
-
-        const prevStageDone = (stageIdx) => {
-          if (stageIdx === 0) return true;
-          const prev = pipelineRuns[stageIdx - 1];
-          if (prev?.status === 'done') return true;
-          // Also allow if all prev stage requests are already done in DB
-          return stageRequests[stageIdx - 1].every(r => r.status === 'done');
+        const TONE = {
+          blue:  'border-blue-500/30 bg-blue-500/5 text-blue-700 dark:text-blue-300',
+          amber: 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300',
+          green: 'border-green-500/30 bg-green-500/5 text-green-700 dark:text-green-300',
         };
-
         return (
           <div className="space-y-4">
             <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 p-4">
@@ -1297,108 +1271,100 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                 <Play size={14} className="text-emerald-600 dark:text-emerald-400" />
                 <span className="font-bold text-gray-900 dark:text-white text-sm">Transport Pipeline</span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-white/40">Run transports through each environment stage in order. Each stage gates on the previous completing successfully.</p>
+              <p className="text-xs text-gray-500 dark:text-white/40">
+                Release in DEV from here; imports into QA and PRD are done by Basis in STMS and confirmed here. The "Transport completed in QA" gate uses the QA confirmation.
+              </p>
             </div>
 
-            {/* Stage cards */}
-            <div className="grid grid-cols-1 gap-4">
-              {PIPELINE_STAGES.map((stage, idx) => {
-                const run = pipelineRuns[idx] ?? {};
-                const envs = stageEnvs[idx];
-                const reqs = stageRequests[idx];
-                const isPrev = !prevStageDone(idx);
-                const isRunning = run.status === 'running';
-                const isDone = run.status === 'done' || (!run.status && reqs.length > 0 && reqs.every(r => r.status === 'done'));
-                const hasError = run.status === 'error';
-
-                return (
-                  <div key={stage.short} className={`rounded-2xl border ${stage.border} ${stage.bg} overflow-hidden`}>
-                    {/* Stage header */}
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${stage.bg} border ${stage.border} ${stage.text}`}>
-                        {isDone ? <Check size={16} /> : idx + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-gray-900 dark:text-white text-sm">{stage.label}</span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stage.bg} border ${stage.border} ${stage.text}`}>{stage.short}</span>
-                          {envs.length > 0
-                            ? <span className="text-xs text-gray-500 dark:text-white/40">{envs.map(e => e.name ?? e.host).join(', ')}</span>
-                            : <span className="text-xs text-amber-400/70">No {stage.short} environment configured</span>}
-                        </div>
-                        <div className="text-[10px] text-gray-500 dark:text-white/30 mt-0.5">
-                          {reqs.length === 0 ? 'No requests for this stage' : `${reqs.length} request${reqs.length > 1 ? 's' : ''}`}
-                          {reqs.length > 0 && <> · {reqs.filter(r => r.status === 'done').length} done</>}
-                        </div>
-                      </div>
-                      {/* Status badge */}
-                      <div className="flex-shrink-0">
-                        {isDone && <span className="flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400"><CheckCircle2 size={13} />Done</span>}
-                        {isRunning && <span className="flex items-center gap-1 text-xs font-semibold text-blue-700 dark:text-blue-300"><Loader2 size={13} className="animate-spin" />Running</span>}
-                        {hasError && <span className="flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-400"><XCircle size={13} />Failed</span>}
-                        {isPrev && !isRunning && !isDone && !hasError && <span className="text-xs text-gray-400 dark:text-white/25">Waiting for {PIPELINE_STAGES[idx - 1].short}</span>}
-                      </div>
+            {sorted.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">No transport requests for this {caseId ? 'case' : 'project'} yet.</p>
+            ) : STAGES.map((stage, idx) => {
+              const doneN = sorted.filter(stage.done).length;
+              const pending = sorted.filter(r => !stage.done(r) && stage.ready(r));
+              const complete = doneN === sorted.length;
+              return (
+                <div key={stage.key} className={`rounded-2xl border overflow-hidden ${TONE[stage.tone]}`}>
+                  <div className="px-4 py-3 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm border border-current/30">
+                      {complete ? <Check size={16} /> : idx + 1}
                     </div>
-
-                    {/* Requests list */}
-                    {reqs.length > 0 && (
-                      <div className="px-4 py-2 space-y-1.5">
-                        {reqs.map(req => {
-                          const reqDone = req.status === 'done';
-                          return (
-                            <div key={req.id} className="flex items-center gap-2 py-1.5 border-b border-gray-100 dark:border-white/5 last:border-0">
-                              <span className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${reqDone ? 'bg-green-500' : 'bg-gray-100 dark:bg-white/15'}`} />
-                              <span className="font-mono text-xs text-gray-700 dark:text-white/70 flex-1">{req.request_number}</span>
-                              {req.description && <span className="text-[10px] text-gray-500 dark:text-white/30 truncate max-w-[140px]">{req.description}</span>}
-                              <span className={`text-[10px] font-semibold flex-shrink-0 ${reqDone ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-white/30'}`}>
-                                {reqDone ? '✓' : req.status ?? 'pending'}
-                              </span>
-                            </div>
-                          );
-                        })}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-gray-900 dark:text-white text-sm">{stage.label}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-current/30">{stage.short}</span>
+                        <span className="text-[10px] text-gray-500 dark:text-white/40">{doneN} / {sorted.length} {stage.key === 'dev' ? 'released' : 'imported'}</span>
                       </div>
-                    )}
-
-                    {/* Run log */}
-                    {run.log?.length > 0 && (
-                      <div className="mx-4 mb-3 bg-gray-100 dark:bg-black/30 rounded-xl p-3 font-mono text-[10px] space-y-0.5">
-                        {run.log.map((line, i) => (
-                          <div key={i} className={line.startsWith('✓') ? 'text-green-600 dark:text-green-400' : line.startsWith('✗') ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-white/50'}>{line}</div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Run button */}
-                    <div className="px-4 pb-4">
-                      <button
-                        onClick={() => runStage(idx)}
-                        disabled={isPrev || isRunning || envs.length === 0}
-                        className={`w-full py-2 text-xs font-semibold rounded-xl text-white transition-colors disabled:opacity-30 flex items-center justify-center gap-1.5 ${stage.btn}`}>
-                        {isRunning
-                          ? <><Loader2 size={11} className="animate-spin" />Running…</>
-                          : isDone
-                          ? <><Play size={11} />Re-run {stage.short}</>
-                          : <><Play size={11} />Run {stage.short} Stage</>}
-                      </button>
-                      {isPrev && !isRunning && <p className="text-[10px] text-gray-400 dark:text-white/25 text-center mt-1.5">Complete {PIPELINE_STAGES[idx - 1].label} stage first</p>}
+                      <p className="text-[11px] text-gray-500 dark:text-white/40 mt-0.5">{stage.help}</p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                  <div className="px-4 py-2 space-y-1.5 bg-white/60 dark:bg-transparent">
+                    {sorted.map(req => {
+                      const st = importStates[req.id];
+                      const isDone = stage.done(req);
+                      const canAct = !isDone && stage.ready(req);
+                      return (
+                        <div key={req.id} className="py-1.5 border-b border-gray-100 dark:border-white/5 last:border-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-3 h-3 rounded-full flex-shrink-0 ${isDone ? 'bg-green-500' : canAct ? 'bg-amber-400' : 'bg-gray-200 dark:bg-white/15'}`} />
+                            <span className="font-mono text-xs text-gray-800 dark:text-white/80">{req.request_number}</span>
+                            <span className="text-[10px] text-gray-500 dark:text-white/30">{req.request_type}</span>
+                            {req.description && <span className="text-[10px] text-gray-500 dark:text-white/30 truncate flex-1">{req.description}</span>}
+                            <span className="ml-auto flex-shrink-0 text-[10px]">
+                              {isDone
+                                ? <span className="text-green-700 dark:text-green-400 font-semibold" title={fmtAt(stage.at(req))}>✓ {fmtAt(stage.at(req))}</span>
+                                : stage.key === 'dev'
+                                  ? <button disabled={!releaseEnv || running} onClick={async () => { await releaseOne(req); await loadRequests(); }}
+                                      className="px-2 py-0.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-40">
+                                      {st?.status === 'importing' ? 'Releasing…' : 'Release'}
+                                    </button>
+                                  : canAct
+                                    ? <button onClick={() => markImported([req], stage.key)}
+                                        className="px-2 py-0.5 rounded-lg border border-current/40 font-semibold hover:bg-black/5 dark:hover:bg-white/10">Mark imported</button>
+                                    : <span className="text-gray-400 dark:text-white/25">waiting for {STAGES[idx - 1].short}</span>}
+                              {isDone && stage.key !== 'dev' && (
+                                <button onClick={() => markImported([req], stage.key, false)} title="Undo"
+                                  className="ml-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-white/70">↺</button>
+                              )}
+                            </span>
+                          </div>
+                          {stage.key === 'dev' && (st?.log?.length || req.release_log) && !isDone && (
+                            <pre className="mt-1 ml-5 text-[10px] font-mono whitespace-pre-wrap text-red-700 dark:text-red-300">{(st?.log ?? String(req.release_log ?? '').split('\n')).join('\n')}</pre>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {pending.length > 1 && (
+                    <div className="px-4 pb-3 pt-1">
+                      {stage.key === 'dev'
+                        ? <button onClick={runImport} disabled={!releaseEnv || running}
+                            className="w-full py-2 text-xs font-semibold rounded-xl text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 flex items-center justify-center gap-1.5">
+                            {running ? <><Loader2 size={11} className="animate-spin" />Releasing…</> : <><Play size={11} />Release all {pending.length} in SAP</>}
+                          </button>
+                        : <button onClick={() => markImported(pending, stage.key)}
+                            className="w-full py-2 text-xs font-semibold rounded-xl border border-current/40 hover:bg-black/5 dark:hover:bg-white/10">
+                            Mark all {pending.length} imported in {stage.short}
+                          </button>}
+                    </div>
+                  )}
+                  {stage.key === 'dev' && !releaseEnv && (
+                    <p className="px-4 pb-3 text-[11px] text-amber-700 dark:text-amber-300">No SAP environment configured for this {caseId ? 'case' : 'project'}.</p>
+                  )}
+                </div>
+              );
+            })}
 
-            {/* All done summary */}
-            {PIPELINE_STAGES.every((_, i) => {
-              const run = pipelineRuns[i] ?? {};
-              return run.status === 'done' || stageRequests[i].every(r => r.status === 'done');
-            }) && sorted.length > 0 && (
+            {sorted.length > 0 && inPrd.length === sorted.length && (
               <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4 flex items-center gap-3">
                 <CheckCircle2 size={20} className="text-green-600 dark:text-green-400 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-bold text-green-700 dark:text-green-300">Pipeline complete</p>
-                  <p className="text-xs text-green-400/70">All {sorted.length} transport request{sorted.length > 1 ? 's' : ''} have been imported across all stages.</p>
+                  <p className="text-xs text-green-700/70 dark:text-green-400/70">All {sorted.length} request{sorted.length > 1 ? 's were' : ' was'} released and imported into QA and Production.</p>
                 </div>
               </div>
+            )}
+            {released.length > 0 && inQa.length === 0 && (
+              <p className="text-[11px] text-gray-500 dark:text-white/40">Released requests can be imported into QA by Basis (STMS → Import queue of the QA system).</p>
             )}
           </div>
         );

@@ -13,7 +13,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useDbConnections, useProjectDbConnections } from "../hooks/useCoreHooks.js";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
-import { callClaude, logEvent } from "../lib/utils.js";
+import { callClaude, logEvent, notify, notifyManagers, sendEmail, buildEmailHtml } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import { fmtDate, fmt } from "../lib/uiUtils.jsx";
@@ -5431,7 +5431,28 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
           ? { ...r, objects: (r.objects ?? []).map(o => o.ai ? { ...o, ai: { ...o.ai, prompt: undefined, trimmed: true } } : o) }
           : r);
       ssCtx.setSetting(bpKey, { ...all, [caseId]: { ...cur, objects: prev, stopOnError, runs } });
+      notifyRunComplete(runs[runs.length - 1]);
     }
+  }
+
+  // "Notify Reviewer on Complete" (pipeline Setup): email the blueprint reviewer and notify managers.
+  function notifyRunComplete(run) {
+    if (!(ssCtx.settings['sap_impl_setup']?.[caseId]?.notifyOnComplete)) return;
+    const objs = run?.objects ?? [];
+    if (!objs.length) return;
+    const n = st => objs.filter(o => o.status === st).length;
+    const notOk = objs.filter(o => !['done', 'manual', 'skipped'].includes(o.status));
+    const summary = `${n('done')} done${notOk.length ? `, ${notOk.length} not done` : ''}${run.transport ? ` · transport ${run.transport}` : ''}`;
+    const title = `SAP implementation run ${run.runNumber} — ${caseData.title}`;
+    const rows = objs.map(o => `<tr><td style="padding:2px 8px;font-family:monospace">${o.name}</td><td style="padding:2px 8px">${o.type}</td><td style="padding:2px 8px">${o.status}${o.error ? ' — ' + String(o.error).replace(/</g, '&lt;').slice(0, 160) : ''}</td></tr>`).join('');
+    const html = buildEmailHtml({
+      title: 'SAP implementation finished',
+      bodyHtml: `<p>Run ${run.runNumber} of <strong>${caseData.title}</strong> finished: ${summary}.</p><table style="border-collapse:collapse;font-size:13px">${rows}</table>`,
+      footerNote: 'Sent because "Notify Reviewer on Complete" is on for this case.',
+    });
+    if (reviewerEmail) sendEmail(reviewerEmail, title, html).catch(() => {});
+    if (reviewerUserId) notify(reviewerUserId, 'SAP implementation finished', `${caseData.title}: ${summary}`, 'case_update').catch(() => {});
+    notifyManagers('SAP implementation finished', `${caseData.title}: ${summary}`, 'case_update').catch(() => {});
   }
 
   // Latest updates per object, written synchronously. A run reads dependency statuses and
@@ -6508,6 +6529,11 @@ Output ONLY the ABAP source code, no explanations.`;
                   {(selectedObj.status === 'error' || ((selectedObj.status === 'inactive' || selectedObj.status === 'unverified') && !selectedObj.generatedCode)) && (
                     <button onClick={() => updateObj(selectedObj.id, { status: 'planned', error: null })}
                       className="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">Retry</button>
+                  )}
+                  {canDevelop && !['done', 'applying', 'generating'].includes(selectedObj.status) && (selectedObj.status === 'manual' || !(selectedObj.aiCapable ?? BP_TYPES[selectedObj.type]?.ai ?? true)) && (
+                    <button onClick={() => updateObj(selectedObj.id, { status: 'done', manualDone: true, appliedAt: new Date().toISOString(), appliedNote: `Marked done manually by ${auth?.profile?.full_name ?? 'a user'}.`, error: null })}
+                      title="This object is configured manually in SAP — mark it done once it is in place"
+                      className="px-2.5 py-1 text-xs font-medium bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">Mark done (manual)</button>
                   )}
                   {selectedObj.status === 'done' && canDevelop && (
                     <button onClick={() => updateObj(selectedObj.id, { status: 'planned', appliedAt: null, error: null, appliedTransport: null, appliedPackage: null, appliedActivateError: null, appliedNote: null })}
@@ -7993,21 +8019,6 @@ FALLBACK:
 
           <SectionLabel>SAP Connection</SectionLabel>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {allConns.length > 0 && (
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1">Connection</label>
-                <select value={selectedConnId ?? ''} onChange={e => saveCaseConn(e.target.value)}
-                  className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-                  <option value="">— None —</option>
-                  {projectConns.map(c => (
-                    <option key={c.id} value={c.id}>{CONN_TYPE_LABELS[c.db_type] ?? c.db_type} · {c.host}{c.notes ? ` (${c.notes})` : ''}</option>
-                  ))}
-                  {clientConns.map(c => (
-                    <option key={c.id} value={c.id}>{CONN_TYPE_LABELS[c.db_type] ?? c.db_type} · {c.host} — client{c.notes ? ` (${c.notes})` : ''}</option>
-                  ))}
-                </select>
-              </div>
-            )}
             {sapEnvironments.length > 0 && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1">{t('sap.case_env_label')}</label>
@@ -8046,20 +8057,9 @@ FALLBACK:
             </div>
           </div>
 
-          <SectionLabel>Execution Options</SectionLabel>
-          <div className="flex gap-2 mb-3">
-            {[['all', <><RefreshCw size={11} /> All Objects at Once</>], ['one-by-one', <><Settings size={11} /> Object by Object</>]].map(([val, lbl]) => (
-              <button key={val} onClick={() => setImplMode(val)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold rounded-lg border transition-all
-                  ${implMode === val ? 'border-blue-500 bg-blue-500/20 text-blue-600 dark:text-blue-300' : 'border-gray-300 dark:border-white/15 text-gray-500 dark:text-white/40 hover:border-gray-400 dark:hover:border-white/25'}`}>
-                {lbl}
-              </button>
-            ))}
-          </div>
+          <SectionLabel>Notifications</SectionLabel>
           <div className="space-y-2">
-            <ToggleRow label="Stop on Error" desc="Pause the process if any object fails to implement" value={stopOnError} onChange={setStopOnError} />
-            <ToggleRow label="Include Viewer in Transport" desc="Add viewer/display variants alongside main objects" value={includeViewer} onChange={setIncludeViewer} />
-            <ToggleRow label="Notify Reviewer on Complete" desc="Send an email when implementation finishes" value={notifyOnComplete} onChange={setNotifyOnComplete} />
+            <ToggleRow label="Notify Reviewer on Complete" desc="Email the case's blueprint reviewer (and notify the managers) with the result when an implementation run finishes" value={notifyOnComplete} onChange={setNotifyOnComplete} />
           </div>
 
           <SectionLabel>ABAP Standards</SectionLabel>
@@ -9028,8 +9028,6 @@ function SapMcpPolicyPanel({ auth }) {
             <Toggle value={caps.hasRoMcp}      onChange={v => setCaps(p => ({ ...p, hasRoMcp: v }))}      disabled={!canEdit} label="R/O MCP (mcp-abap-adt)"          desc="The 16-tool read-only MCP server is installed and running on the VM alongside the bridge." />
             <Toggle value={caps.hasSyntaxCheck} onChange={v => setCaps(p => ({ ...p, hasSyntaxCheck: v }))} disabled={!canEdit} label="Syntax Check tool"              desc="The syntaxCheckCode tool is available in the R+W MCP server." />
             <Toggle value={caps.hasActivation} onChange={v => setCaps(p => ({ ...p, hasActivation: v }))} disabled={!canEdit} label="Activation tool"                  desc="The activateByName tool is available in the R+W MCP server." />
-            <Toggle value={caps.netWeaver754}  onChange={v => setCaps(p => ({ ...p, netWeaver754: v }))}  disabled={!canEdit} label="NetWeaver 7.54+"                  desc="Enables CDS view tools, BTP integration, and other NW 7.54+ features." />
-            <Toggle value={caps.isS4Hana}      onChange={v => setCaps(p => ({ ...p, isS4Hana: v }))}      disabled={!canEdit} label="S/4HANA"                          desc="Enables Behavior Definition, Service Definition, and other S/4HANA-specific tools." />
           </div>
         )}
 
@@ -9046,17 +9044,6 @@ function SapMcpPolicyPanel({ auth }) {
               { key: 'specs',     label: 'Generate Specs',    toggles: [
                 { field: 'use_mcp',              label: 'Use MCP for spec generation',             desc: 'Pass MCP servers to Claude when generating specifications.' },
                 { field: 'include_mcp_rules',    label: 'Include MCP Rules in spec generation',   desc: 'Append sap_mcp_rules text to the spec generation system prompt.' },
-                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',    desc: 'Add sap_adt_capabilities flags to the context block sent with spec prompts.' },
-              ]},
-              { key: 'blueprint', label: 'Generate Blueprint', toggles: [
-                { field: 'use_mcp',              label: 'Use MCP for blueprint generation',       desc: 'Pass MCP servers when generating the blueprint object list.' },
-                { field: 'include_mcp_rules',    label: 'Include MCP Rules',                     desc: 'Append sap_mcp_rules text to the blueprint generation prompt.' },
-                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',   desc: 'Add sap_adt_capabilities flags to the context sent with blueprint prompts.' },
-              ]},
-              { key: 'implement', label: 'Implement Objects', toggles: [
-                { field: 'use_mcp',              label: 'Use MCP (non-ADT mode)',                 desc: 'Pass MCP servers during ABAP code generation in non-ADT mode.' },
-                { field: 'include_mcp_rules',    label: 'Include MCP Rules in generation prompt', desc: 'Append sap_mcp_rules text to the ABAP code generation prompt.' },
-                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',   desc: 'Add sap_adt_capabilities flags to the context sent with implement prompts.' },
               ]},
             ].map(({ key, label, toggles }) => {
               const dflt = MCP_ADT_PIPELINE_POLICY_DEFAULTS.stages[key] ?? {};

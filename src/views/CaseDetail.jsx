@@ -208,7 +208,7 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   const [caseTransportReqs, setCaseTransportReqs] = useState([]);
   useEffect(() => {
     if (!caseData.id) return;
-    supabase.from("case_transport_requests").select("id, status").eq("case_id", caseData.id)
+    supabase.from("case_transport_requests").select("id, status, released_at, qa_imported_at, prd_imported_at").eq("case_id", caseData.id)
       .then(({ data }) => setCaseTransportReqs(data ?? []));
   }, [caseData.id]);
 
@@ -500,7 +500,9 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   const lifecycleKey = effectiveLifecycle?.preset ?? effectiveLifecycle?.key ?? "standard";
 
   // Gate runtime data bundle (same shape as GATE_CONDITIONS checks)
-  const gateData = { milestones, timeEntries, documents, invoices, activities, applications, spec: caseSpec, hhProposals, transportRequests: caseTransportReqs };
+  // SAP objects of the case blueprint (what the SAP implementation actually builds).
+  const sapBlueprintObjects = ((cdSettings['sap_blueprint'] ?? {})[caseData.id]?.objects) ?? [];
+  const gateData = { milestones, timeEntries, documents, invoices, activities, applications, spec: caseSpec, hhProposals, transportRequests: caseTransportReqs, sapObjects: sapBlueprintObjects };
 
   // Returns { blockers: [...], warnings: [...] } for a given target status
   function checkTransitionGates(toStatus) {

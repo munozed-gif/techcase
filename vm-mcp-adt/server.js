@@ -464,7 +464,7 @@ async function requireAppUser(req, res, next) {
   if (await isValidAppToken(req.headers['x-app-token'])) return next();
   return res.status(401).json({ ok: false, error: 'App login required — sign in to the platform and retry' });
 }
-app.use(['/sap-proxy', '/vpn', '/sap-write', '/sap-write-mcp', '/sap-info', '/mcp-test'], requireAppUser);
+app.use(['/sap-proxy', '/vpn', '/sap-write', '/sap-write-mcp', '/sap-info', '/mcp-test', '/transport-release'], requireAppUser);
 
 // Health endpoint (used by infrastructure check)
 app.get('/health', (_req, res) => {
@@ -938,6 +938,42 @@ async function createTransportViaAdt(host, username, password, client, descripti
 // Body: { host, username, password, client, path, source, transport?,
 //         autoCreate?, createOnly?, objtype?, name?, parentName?, description?,
 //         parentPath?, objectSpec? }
+// ── Release a transport request (ADT CTS, via mcp-abap-abap-adt-api transportRelease) ──
+// Releasing is a mutation: it is called once and never repeated automatically. SAP's
+// release report (messages E/W/I) is returned so the app can show why a release failed.
+app.post('/transport-release', async (req, res) => {
+  try {
+    const creds    = parseSapCreds(req.headers['authorization']) || {};
+    const host     = (creds.host || req.body?.host || '').replace(/\/$/, '');
+    const username = creds.username || req.body?.username || '';
+    const password = creds.password || req.body?.password || '';
+    const client   = creds.client || req.body?.client || '100';
+    const tr       = String(req.body?.transport ?? '').trim().toUpperCase();
+    if (!host || !username || !password) return res.status(401).json({ ok: false, error: 'SAP credentials required' });
+    if (!/^[A-Z0-9]{3}K\d{6}$/.test(tr)) return res.status(400).json({ ok: false, error: `Invalid transport number "${tr}"` });
+
+    const c = await getClient({ host, username, password, client, serverType: 'abap-adt' });
+    const result = await c.callTool({ name: 'transportRelease', arguments: { transportNumber: tr } }, undefined, { timeout: MCP_CALL_TIMEOUT_MS });
+    const text = result?.content?.[0]?.text ?? '';
+    if (result?.isError) return res.json({ ok: false, transport: tr, error: text.slice(0, 500) });
+    let parsed = null;
+    try { parsed = JSON.parse(text); } catch { /* not JSON */ }
+    const reports = Array.isArray(parsed?.result) ? parsed.result : [];
+    const messages = reports.flatMap(r => (r.messages ?? []).map(m => ({
+      type: m['chkrun:type'] ?? m.type ?? '', text: (m['chkrun:shortText'] ?? m.shortText ?? m.text ?? '').trim(),
+    }))).filter(m => m.text);
+    const statuses = reports.map(r => String(r['chkrun:status'] ?? r.status ?? '')).filter(Boolean);
+    const failed = messages.some(m => /^[EAX]$/i.test(m.type)) || statuses.some(st => /abort|error|fail/i.test(st));
+    console.log(`[bridge] transportRelease ${tr}: ${failed ? 'FAILED' : 'released'} ${statuses.join(',')}`);
+    res.json({
+      ok: !failed, transport: tr, statuses, messages: messages.slice(0, 30),
+      ...(failed ? { error: messages.filter(m => /^[EAX]$/i.test(m.type)).map(m => m.text).join(' · ').slice(0, 500) || `Release status: ${statuses.join(', ')}` } : {}),
+    });
+  } catch (e) {
+    res.json({ ok: false, error: (e?.message ?? String(e)).slice(0, 500) });
+  }
+});
+
 app.post('/sap-write-mcp', async (req, res) => {
   try {
     const creds      = parseSapCreds(req.headers['authorization']) || {};

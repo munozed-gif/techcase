@@ -36,12 +36,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid JSON body' });
   }
 
-  const { bridgeUrl, ...writePayload } = body;
+  const { bridgeUrl, op, ...writePayload } = body;
+  // op 'release' releases a transport request; default is an object write.
+  const bridgePath = op === 'release' ? '/transport-release' : '/sap-write-mcp';
   const targetBase = await getBridgeUrl(bridgeUrl);
   if (!targetBase) return res.status(503).json({ ok: false, error: 'ADT bridge URL not found — update it in SAP Config or ensure start-local.sh is running' });
 
   try {
-    const r = await fetch(`${targetBase}/sap-write-mcp`, {
+    const r = await fetch(`${targetBase}${bridgePath}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
