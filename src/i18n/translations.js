@@ -1133,6 +1133,11 @@ const TRANSLATIONS = {
     "roles.cap.arena_see_all_cases":        "See all cases in Arena",
     "roles.cap.export_pdf_docs":            "Export PDF documents",
     "roles.cap.upload_project_docs":        "Upload project documents",
+    "roles.cap.run_sap_implementation":     "Run SAP implementation (write to SAP)",
+    "roles.cap.edit_sap_setup":             "Edit SAP setup (environments, credentials)",
+    "roles.cap.release_transports":         "Release transports in SAP",
+    "roles.cap.confirm_transport_imports":  "Confirm QA / PRD transport imports",
+    "roles.cap.approve_asbuilt_spec":       "Approve as-built spec",
     // Wizard mode defaults
     "roles.wizard_modes_title":   "Wizard Mode Defaults",
     "roles.wizard_modes_desc":    "Set whether each role is taken directly to Express or Advanced mode when creating a case or project, or asked to choose.",
@@ -5251,6 +5256,11 @@ const TRANSLATIONS = {
     "roles.cap.arena_see_all_cases":        "Ver todos los casos en Arena",
     "roles.cap.export_pdf_docs":            "Exportar documentos PDF",
     "roles.cap.upload_project_docs":        "Subir documentos de proyecto",
+    "roles.cap.run_sap_implementation":     "Ejecutar implementación SAP (escribir en SAP)",
+    "roles.cap.edit_sap_setup":             "Editar configuración SAP (ambientes, credenciales)",
+    "roles.cap.release_transports":         "Liberar órdenes de transporte en SAP",
+    "roles.cap.confirm_transport_imports":  "Confirmar importaciones a QA / PRD",
+    "roles.cap.approve_asbuilt_spec":       "Aprobar spec as-built",
     // Wizard mode defaults
     "roles.wizard_modes_title":   "Modos por Defecto del Asistente",
     "roles.wizard_modes_desc":    "Define si cada rol va directamente al modo Express o Avanzado al crear un caso o proyecto, o si se le pregunta.",

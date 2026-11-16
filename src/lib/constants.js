@@ -9,7 +9,6 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   view_docs:                  { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:true,  internal_consultant:true,  project_manager:true  },
   add_activities:             { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:true,  project_manager:true  },
   log_time:                   { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:true,  project_manager:false },
-  approve_time:               { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   apply_to_cases:             { admin:false, manager:false, consultant:true,  client:false, key_user:false, headhunter:true,  final_user:false, internal_consultant:false, project_manager:false },
   view_reports:               { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   manage_invoices:            { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
@@ -28,6 +27,11 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   edit_lifecycle:             { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   export_pdf_docs:            { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:false, internal_consultant:true,  project_manager:true  },
   upload_project_docs:        { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
+  run_sap_implementation:     { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  edit_sap_setup:             { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  release_transports:         { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  confirm_transport_imports:  { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
+  approve_asbuilt_spec:       { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
 };
 
 // ============================================================

@@ -9,6 +9,7 @@ import { INVOICE_STATUS_COLORS, INV_STATUS_LABEL_KEYS, cap, fmtDate } from "../l
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { STATUS_COLORS } from "../lib/businessConstants.js";
 import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
+import { usePermissions } from "../hooks/useSystemSettings.jsx";
 
 function currencySymbol(code) {
   try {
@@ -18,6 +19,7 @@ function currencySymbol(code) {
 }
 
 function InvoicesView({ auth }) {
+  const canManageInv = usePermissions(auth).can('manage_invoices');
   const { t } = useT();
   const ssCtx = useSystemSettings();
   const curr  = currencySymbol(ssCtx.settings["default_currency"]);
@@ -78,7 +80,7 @@ function InvoicesView({ auth }) {
           <h1 className="text-2xl font-bold text-gray-900">{t("invoices.title")}</h1>
           <p className="text-gray-500 text-sm mt-1">{invoices.length === 1 ? t("invoices.count_one") : t("invoices.count_many").replace("{n}", invoices.length)}</p>
         </div>
-        {(auth.isAdmin || auth.isManager) && (
+        {canManageInv && (
           <button onClick={() => setShowCreate(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm">
             {t("invoices.new")}
@@ -121,7 +123,7 @@ function InvoicesView({ auth }) {
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("invoices.col_amount")}</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("invoices.col_status")}</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("invoices.col_due")}</th>
-              {(auth.isAdmin || auth.isManager) && <th className="px-5 py-3" />}
+              {canManageInv && <th className="px-5 py-3" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -137,7 +139,7 @@ function InvoicesView({ auth }) {
                   <Badge className={INVOICE_STATUS_COLORS[inv.status] ?? INVOICE_STATUS_COLORS.draft}>{INV_STATUS_LABEL_KEYS[inv.status] ? t(INV_STATUS_LABEL_KEYS[inv.status]) : cap(inv.status)}</Badge>
                 </td>
                 <td className="px-5 py-4 text-gray-500">{fmtDate(inv.due_date)}</td>
-                {(auth.isAdmin || auth.isManager) && (
+                {canManageInv && (
                   <td className="px-5 py-4">
                     <div className="flex gap-1">
                       {inv.status === "draft" && (
@@ -187,7 +189,7 @@ function InvoicesView({ auth }) {
 
       {/* Create Invoice Modal */}
       <Modal open={showCreate} onClose={() => { setShowCreate(false); setCreateError(""); }} title={t("invoices.new_title")}>
-        {(auth.isAdmin || auth.isManager) && (
+        {canManageInv && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
             <select value={form.client_id} onChange={e => setForm(p => ({ ...p, client_id: e.target.value }))}

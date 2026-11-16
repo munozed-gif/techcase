@@ -118,6 +118,7 @@ function CasesView({ auth, initialCaseId }) {
 
   // Consultants and key users see only their linked cases.
   // Headhunters see resource-need cases or cases assigned to them.
+  const _cvPerms = usePermissions(auth);
   const visibleCases = auth.isConsultant
     ? cases.filter(c =>
         c.case_assignments?.some(a => a.consultant_id === auth.user?.id) ||
@@ -128,7 +129,12 @@ function CasesView({ auth, initialCaseId }) {
     ? cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id))
     : auth.isHeadhunter
     ? cases.filter(c => c.case_type === "resource_need" || c.head_hunter_id === auth.user?.id)
-    : cases;
+    : _cvPerms.can('view_all_cases') || auth.isClient
+    ? cases
+    : cases.filter(c =>
+        c.created_by === auth.user?.id || c.manager_id === auth.user?.id || c.client_id === auth.user?.id ||
+        c.case_assignments?.some(a => a.consultant_id === auth.user?.id)
+      );
 
   // ── Client / Project chip data (admin+manager only) ──────────────────────
   const clientChips = useMemo(() => {

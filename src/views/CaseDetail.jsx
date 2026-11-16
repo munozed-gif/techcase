@@ -569,8 +569,15 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   const isTerminalStatus = lifecycleStages.find(s => s.key === caseData.status)?.is_terminal
     ?? ["completed","cancelled"].includes(caseData.status);
   const currentStage = lifecycleStages.find(s => s.key === caseData.status);
-  const stageRules   = getStageRules(currentStage, auth);
   const perms        = usePermissions(auth);
+  // Stage rules (lifecycle) AND the role permission must both allow the action.
+  const _stageRulesRaw = getStageRules(currentStage, auth);
+  const stageRules   = {
+    ..._stageRulesRaw,
+    can_upload_docs:    _stageRulesRaw.can_upload_docs    && perms.can('upload_docs'),
+    can_add_activities: _stageRulesRaw.can_add_activities && perms.can('add_activities'),
+    can_log_time:       _stageRulesRaw.can_log_time       && perms.can('log_time'),
+  };
   const canEditPhase        = perms.can('edit_activity_phase');
   const canEditPredecessors = perms.can('edit_activity_predecessors');
   const canBulkDeleteActs   = perms.can('bulk_delete_activities');
@@ -2433,9 +2440,9 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
     ...(perms.can("view_audit_log") ? [{ id: "audit_log", label: t("case.tab_audit_log"), icon: ClipboardList, count: null }] : []),
   ];
   const tabs = (() => {
-    const filtered = stageRules.visible_tabs
+    const filtered = (stageRules.visible_tabs
       ? allTabs.filter(t => stageRules.visible_tabs.includes(t.id))
-      : allTabs;
+      : allTabs).filter(t => t.id !== 'documents' || perms.can('view_docs'));
     const order = stageRules.tab_order;
     if (!order?.length) return filtered;
     return [...filtered].sort((a, b) => {
@@ -3302,7 +3309,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
               })()}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {(auth.isAdmin || auth.isManager) && (
+              {perms.can('manage_invoices') && (
                 <button onClick={() => setShowInvoiceModal(true)}
                   className="text-sm border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl px-3 py-1.5 flex items-center gap-1.5 flex-shrink-0 transition-colors">
                   <Receipt className="w-3.5 h-3.5" />{t("invoice.generate")}
@@ -4494,7 +4501,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                     {canManage && caseSpec?.status === 'approved' &&
                       activities.some(a => a.phase === 'design' || a.phase === 'development') && (
                       <button
-                        onClick={() => { setPendingDevPlanIsRegen(true); setShowDevPlanModal(true); }}
+                        onClick={() => { if (!perms.can('generate_dev_plan')) { alert('Your role cannot generate the development plan.'); return; } setPendingDevPlanIsRegen(true); setShowDevPlanModal(true); }}
                         disabled={generatingDevPlan}
                         className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-700 disabled:opacity-50 transition-colors"
                         title={t("spec.regen_tooltip")}>
@@ -4567,7 +4574,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                       {t("cd.spec_approved_desc")}
                     </p>
                     <button
-                      onClick={() => { setPendingDevPlanIsRegen(false); setShowDevPlanModal(true); }}
+                      onClick={() => { if (!perms.can('generate_dev_plan')) { alert('Your role cannot generate the development plan.'); return; } setPendingDevPlanIsRegen(false); setShowDevPlanModal(true); }}
                       disabled={generatingDevPlan}
                       className="mt-2.5 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
                       {generatingDevPlan

@@ -12,7 +12,7 @@ import { bridgeAuthHeaders, appAccessToken } from "../lib/bridgeAuth.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useDbConnections, useProjectDbConnections } from "../hooks/useCoreHooks.js";
-import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { usePlanConfig, useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
 import { callClaude, logEvent, notify, notifyManagers, sendEmail, buildEmailHtml } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
@@ -939,7 +939,7 @@ function SapIntegrationPanel({ clientId, auth }) {
   const [vpnDraft, setVpnDraft] = useState({ conn_name: '', remote_gateway: '', username: '', password: '', trusted_cert: '' });
   const [addVpnSaving, setAddVpnSaving] = useState(false);
 
-  const canEdit = auth.isAdmin || auth.isManager || auth.isClient;
+  const canEdit = usePermissions(auth).can('edit_sap_setup') || auth.isClient;
 
   async function saveEnvironments(envs) {
     setSaving(true);
@@ -1804,7 +1804,7 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
     });
   }
 
-  const canEdit = auth.isAdmin || auth.isManager;
+  const canEdit = usePermissions(auth).can('edit_sap_setup');
 
   if (!rawEnvs.length) {
     return (
@@ -3648,7 +3648,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
   const sapProjectEnv = ssCtx.settings['sap_project_env'] ?? {};
   const selectedEnvId = sapProjectEnv[projectId] ?? '';
 
-  const canEdit = auth.isAdmin || auth.isManager || createdBy === auth.user?.id;
+  const canEdit = usePermissions(auth).can('edit_sap_setup') || createdBy === auth.user?.id;
 
   async function saveEnvironments(envs) {
     setSaving(true);
@@ -5136,7 +5136,8 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   const userRole = auth?.profile?.role ?? auth?.role ?? '';
   const isReadOnly = ['client', 'invited_client'].includes(userRole);
   const isFunctional = ['key_user', 'project_manager', 'internal_consultant'].includes(userRole);
-  const canDevelop = !isReadOnly && !isFunctional; // consultant, admin, manager
+  // Who can write to SAP: Settings → Roles & Perms → "Run SAP implementation".
+  const canDevelop = usePermissions(auth).can('run_sap_implementation');
 
   // Blueprint templates
   const [showTemplates, setShowTemplates] = useState(false);
@@ -5678,6 +5679,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
 
   async function handleRun(subset) {
     if (running) { stopRef.current = true; return; }
+    if (!canDevelop) { addLog('⛔ Your role is not allowed to run the SAP implementation (Settings → Roles & Perms).', 'error'); return; }
     stopRef.current = false;
     // One transport for the whole run: the case's transport, or the first one the
     // bridge returns (found via transportInfo or created), reused for every later object.
@@ -6030,6 +6032,7 @@ Output ONLY the ABAP source code, no explanations.`;
 
   async function handleApplyOne(obj, { confirmed = false } = {}) {
     if (!sapConfig?.host || !autoImplEnabled) return;
+    if (!canDevelop) { addLog('⛔ Your role is not allowed to run the SAP implementation (Settings → Roles & Perms).', 'error'); return; }
     const code = obj.generatedCode;
     if (!code) return;
     if (!confirmed) {
@@ -7018,6 +7021,7 @@ const ImplSectionLabel = ({ children }) => (
 
 function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const { t } = useT();
+  const implPerms = usePermissions(auth);
   const ssCtx = useSystemSettings();
   const { settings } = ssCtx;
 
@@ -7361,6 +7365,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
   }
   async function handleApplyToSap(act) {
     if (!sapConfig?.host || !autoImplEnabled) return;
+    if (!implPerms.can('run_sap_implementation')) { alert('Your role is not allowed to run the SAP implementation.'); return; }
     const obj  = objectMap[act.id];
     const code = actState[act.id]?.generatedCode;
     if (!obj?.objectName || !code) return;

@@ -1120,8 +1120,9 @@ function SettingsRolesTab({ ssCtx }) {
 
   const PERM_GROUPS = [
     { label: "Cases",               icon: FolderOpen,  caps: ["create_cases","view_all_cases","apply_to_cases","arena_see_all_cases","reopen_cases"] },
-    { label: "Documents & Specs",   icon: FileText,    caps: ["upload_docs","view_docs","approve_specs","regen_specs","submit_specs","generate_dev_plan","export_pdf_docs"] },
-    { label: "Activities & Time",   icon: ListChecks,  caps: ["add_activities","log_time","approve_time","edit_activity_phase","edit_activity_predecessors","bulk_delete_activities","bulk_delete_subcases"] },
+    { label: "Documents & Specs",   icon: FileText,    caps: ["upload_docs","view_docs","approve_specs","regen_specs","submit_specs","generate_dev_plan","export_pdf_docs","approve_asbuilt_spec"] },
+    { label: "SAP Implementation", icon: Zap,         caps: ["run_sap_implementation","edit_sap_setup","release_transports","confirm_transport_imports"] },
+    { label: "Activities & Time",   icon: ListChecks,  caps: ["add_activities","log_time","edit_activity_phase","edit_activity_predecessors","bulk_delete_activities","bulk_delete_subcases"] },
     { label: "Lifecycle",           icon: Zap,         caps: ["view_lifecycle","edit_lifecycle"] },
     { label: "Projects",            icon: Briefcase,   caps: ["create_projects","upload_project_docs"] },
     { label: "Invoices & Reports",  icon: Receipt,     caps: ["manage_invoices","view_reports"] },

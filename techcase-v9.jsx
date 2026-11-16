@@ -702,6 +702,12 @@ const _approveMatch = typeof window !== 'undefined' && window.location.pathname.
 // Intercept /review/:token — customer-facing spec review link, no auth required
 const _reviewMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/review\/([^/?#]+)/);
 
+// Renders children only when the role permission matrix allows `cap` (inside the settings provider).
+function PermGate({ auth, cap, fallback = null, children }) {
+  const { can } = usePermissions(auth);
+  return can(cap) ? children : fallback;
+}
+
 export default function App() {
   const auth = useAuth();
   const [activeView, setActiveView]       = useState("dashboard");
@@ -962,7 +968,7 @@ export default function App() {
                                : <ProfileView auth={auth} initialTab={profileInitialTab} key={profileInitialTab} />;
       case "consultants":    return <ConsultantsView auth={auth} onNavigate={({ view, clientId }) => { setPendingClientId(clientId ?? null); setActiveView(view); }} />;
       case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
-      case "reports":        return (auth.isAdmin || auth.isManager) ? <ReportsView /> : <Dashboard auth={auth} />;
+      case "reports":        return <PermGate auth={auth} cap="view_reports" fallback={<Dashboard auth={auth} />}><ReportsView /></PermGate>;
       case "sla":            return (auth.isAdmin || auth.isManager) ? <SlaView auth={auth} /> : <Dashboard auth={auth} />;
       case "db-connections": return <DbConnectionsView auth={auth} />;
       case "team-members":   return <ClientTeamView auth={auth} />;

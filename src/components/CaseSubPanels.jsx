@@ -3974,7 +3974,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
     return (
       <div className="space-y-4">
         <AsBuiltSpecPanel caseData={caseData} auth={auth} spec={spec} refetch={refetch}
-          addDocument={addDocument} refetchDocuments={refetchDocuments} canApprove={canApprove}
+          addDocument={addDocument} refetchDocuments={refetchDocuments} canApprove={perms.can('approve_asbuilt_spec')}
           genModel={genModel} buildCaseDocHtml={buildCaseDocHtml} />
         {/* Status banner */}
         {spec.status === 'approved' && (
@@ -4485,7 +4485,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
     return (
       <div className="space-y-4">
         <AsBuiltSpecPanel caseData={caseData} auth={auth} spec={spec} refetch={refetch}
-          addDocument={addDocument} refetchDocuments={refetchDocuments} canApprove={canApprove}
+          addDocument={addDocument} refetchDocuments={refetchDocuments} canApprove={perms.can('approve_asbuilt_spec')}
           genModel={genModel} buildCaseDocHtml={buildCaseDocHtml} />
         {/* Header + back */}
         <div className="flex items-center gap-2">

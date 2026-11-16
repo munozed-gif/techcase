@@ -6,7 +6,7 @@ import {
   Trash2, Upload, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
 import { bridgeAuthHeaders } from "../lib/bridgeAuth.js";
 
 // ── Release a transport in SAP (ADT CTS) through the ADT bridge ─────────
@@ -341,6 +341,9 @@ function TrRequestRow({ req, i, showStatus, importStates, caseId, projectCases, 
 export function TransportTab({ caseData, projectData, projectCases = [], auth }) {
   const ssCtx = useSystemSettings();
   const { settings } = ssCtx;
+  const trPerms = usePermissions(auth);
+  const canRelease = trPerms.can('release_transports');
+  const canConfirmImports = trPerms.can('confirm_transport_imports');
 
   const projectId = caseData?.project_id ?? projectData?.id;
   const caseId    = caseData?.id ?? null;
@@ -598,6 +601,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
   })();
 
   async function releaseOne(req) {
+    if (!canRelease) { alert('Your role is not allowed to release transports (Settings → Roles & Perms).'); return false; }
     setImportField(req.id, { status: 'importing', log: [`Releasing ${req.request_number} in ${releaseEnv?.name ?? 'SAP'}…`] });
     let result;
     try {
@@ -632,6 +636,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
   // QA / PRD imports are done by Basis in STMS; record them here.
   async function markImported(reqs, stage, value = true) {
+    if (!canConfirmImports) { alert('Your role is not allowed to confirm transport imports (Settings → Roles & Perms).'); return; }
     const { data: { user } } = await supabase.auth.getUser();
     const col = stage === 'qa' ? 'qa_imported' : 'prd_imported';
     const ids = reqs.map(r => r.id);
@@ -1099,7 +1104,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
               <TrToggleRow label="Stop on Error" desc="Stop if a release fails" value={stopOnError} onChange={setStopOnError} />
 
-              <button onClick={runImport} disabled={requests.length === 0 || requests.every(r => r.released_at) || !releaseEnv}
+              <button onClick={runImport} disabled={!canRelease || requests.length === 0 || requests.every(r => r.released_at) || !releaseEnv}
                 className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-green-600 hover:bg-green-700 text-white rounded-xl disabled:opacity-50 transition-colors">
                 <Play size={14} />Release in SAP
               </button>
@@ -1313,15 +1318,15 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                               {isDone
                                 ? <span className="text-green-700 dark:text-green-400 font-semibold" title={fmtAt(stage.at(req))}>✓ {fmtAt(stage.at(req))}</span>
                                 : stage.key === 'dev'
-                                  ? <button disabled={!releaseEnv || running} onClick={async () => { await releaseOne(req); await loadRequests(); }}
+                                  ? <button disabled={!canRelease || !releaseEnv || running} onClick={async () => { await releaseOne(req); await loadRequests(); }}
                                       className="px-2 py-0.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-40">
                                       {st?.status === 'importing' ? 'Releasing…' : 'Release'}
                                     </button>
-                                  : canAct
+                                  : canAct && canConfirmImports
                                     ? <button onClick={() => markImported([req], stage.key)}
                                         className="px-2 py-0.5 rounded-lg border border-current/40 font-semibold hover:bg-black/5 dark:hover:bg-white/10">Mark imported</button>
                                     : <span className="text-gray-400 dark:text-white/25">waiting for {STAGES[idx - 1].short}</span>}
-                              {isDone && stage.key !== 'dev' && (
+                              {isDone && stage.key !== 'dev' && canConfirmImports && (
                                 <button onClick={() => markImported([req], stage.key, false)} title="Undo"
                                   className="ml-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-white/70">↺</button>
                               )}
@@ -1337,11 +1342,11 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                   {pending.length > 1 && (
                     <div className="px-4 pb-3 pt-1">
                       {stage.key === 'dev'
-                        ? <button onClick={runImport} disabled={!releaseEnv || running}
+                        ? <button onClick={runImport} disabled={!canRelease || !releaseEnv || running}
                             className="w-full py-2 text-xs font-semibold rounded-xl text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 flex items-center justify-center gap-1.5">
                             {running ? <><Loader2 size={11} className="animate-spin" />Releasing…</> : <><Play size={11} />Release all {pending.length} in SAP</>}
                           </button>
-                        : <button onClick={() => markImported(pending, stage.key)}
+                        : canConfirmImports && <button onClick={() => markImported(pending, stage.key)}
                             className="w-full py-2 text-xs font-semibold rounded-xl border border-current/40 hover:bg-black/5 dark:hover:bg-white/10">
                             Mark all {pending.length} imported in {stage.short}
                           </button>}

@@ -1280,7 +1280,7 @@ function ArenaView({ auth, onNavigate }) {
             </div>
 
             {/* Apply CTA — consultant */}
-            {auth.isConsultant && (
+            {auth.isConsultant && can('apply_to_cases') && (
               alreadyApplied ? (
                 <button disabled style={{ width:'100%', background:'rgba(5,150,105,0.1)', border:'1px solid rgba(5,150,105,0.3)', borderRadius:12, color:'#059669', fontSize:14, fontWeight:600, padding:'11px', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
                   <Check size={13} />{t('arena.applied')}
@@ -1963,7 +1963,7 @@ function ArenaView({ auth, onNavigate }) {
           openCases={openCases}
           applications={applications}
           auth={auth}
-          onApply={c => !appliedCaseIds.has(c.id) && setApplying(c)}
+          onApply={c => can('apply_to_cases') && !appliedCaseIds.has(c.id) && setApplying(c)}
           appliedCaseIds={appliedCaseIds}
           platformLogoUrl={branding.logoUrl}
           consultantCaseCounts={consultantCaseCounts}
