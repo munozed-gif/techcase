@@ -466,6 +466,57 @@ async function requireAppUser(req, res, next) {
 }
 app.use(['/sap-proxy', '/vpn', '/sap-write', '/sap-write-mcp', '/sap-info', '/mcp-test', '/transport-release'], requireAppUser);
 
+// ── Write tickets (server-side validation) ───────────────────
+// /api/adt-write checks the user's role permission and the case's validation rules
+// (Global → Customer → Project) and then issues a one-time ticket for that exact write or
+// release (table sap_action_tickets). SAP writes and transport releases are only done with
+// a valid, unused ticket, so those checks cannot be skipped by calling this bridge directly.
+// BRIDGE_REQUIRE_TICKET=0 turns this off (emergency only).
+const _normHost = (h) => String(h ?? '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+async function consumeTicket(ticketId, { action, objectName = null, transport = null, host = null }) {
+  if (!/^[0-9a-f-]{36}$/i.test(String(ticketId ?? ''))) return { ok: false, error: 'missing write ticket' };
+  for (const [url, key] of APP_AUTH_PROJECTS) {
+    try {
+      const now = new Date().toISOString();
+      const r = await fetch(`${url}/rest/v1/sap_action_tickets?id=eq.${ticketId}&used_at=is.null&expires_at=gt.${encodeURIComponent(now)}`, {
+        method: 'PATCH',
+        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify({ used_at: now }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) continue;
+      const rows = await r.json().catch(() => []);
+      const t = Array.isArray(rows) ? rows[0] : null;
+      if (!t) continue;
+      if (t.action !== action) return { ok: false, error: 'ticket is for a different action' };
+      if (objectName && t.object_name && String(t.object_name).toUpperCase() !== String(objectName).toUpperCase()) return { ok: false, error: 'ticket is for a different object' };
+      if (transport && t.transport && String(t.transport).toUpperCase() !== String(transport).toUpperCase()) return { ok: false, error: 'ticket is for a different transport' };
+      if (host && t.sap_host && t.sap_host !== _normHost(host)) return { ok: false, error: 'ticket is for a different SAP system' };
+      return { ok: true, ticket: t };
+    } catch { /* try the next project */ }
+  }
+  return { ok: false, error: 'write ticket is invalid, expired or already used' };
+}
+function requireTicket(action) {
+  return async (req, res, next) => {
+    if (req.method === 'OPTIONS') return next();
+    if (process.env.BRIDGE_REQUIRE_TICKET === '0' || process.env.BRIDGE_ALLOW_ANONYMOUS === '1') return next();
+    if (!APP_AUTH_PROJECTS.length) return next(); // no Supabase credentials: cannot check (warned above)
+    const creds = parseSapCreds(req.headers['authorization']) || {};
+    const r = await consumeTicket(req.body?.ticket, {
+      action,
+      objectName: action === 'write' ? (req.body?.name || null) : null,
+      transport: action === 'release' ? (req.body?.transport || null) : null,
+      host: creds.host || req.body?.host || null,
+    });
+    if (r.ok) return next();
+    console.warn(`[bridge] ${req.path} refused: ${r.error}`);
+    return res.status(403).json({ ok: false, validation: true, error: `Server validation: ${r.error} — run it from the platform (case → SAP implementation / Transports)` });
+  };
+}
+app.post(['/sap-write', '/sap-write-mcp'], requireTicket('write'));
+app.post('/transport-release', requireTicket('release'));
+
 // Health endpoint (used by infrastructure check)
 app.get('/health', (_req, res) => {
   res.json({

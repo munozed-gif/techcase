@@ -13,7 +13,7 @@ import { resolvePolicies } from "../lib/validationPolicies.js";
 // ── Release a transport in SAP (ADT CTS) through the ADT bridge ─────────
 // Importing into QA/PRD is not possible through ADT (it needs STMS/tp on the target
 // system), so the app releases in DEV and records the QA/PRD imports done by Basis.
-async function sapReleaseTransport(env, transport) {
+async function sapReleaseTransport(env, transport, scope = {}) {
   const r = await fetch('/api/adt-write', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await bridgeAuthHeaders()) },
@@ -21,6 +21,8 @@ async function sapReleaseTransport(env, transport) {
       op: 'release', bridgeUrl: env?.adt_mcp_url || undefined,
       host: env?.host, username: env?.username, password: env?.password, client: env?.client || '100',
       transport,
+      // Server-side validation (/api/adt-write): the case / project the transport belongs to
+      caseId: scope.caseId || undefined, projectId: scope.projectId || undefined,
     }),
     signal: AbortSignal.timeout(120000),
   });
@@ -612,7 +614,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     setImportField(req.id, { status: 'importing', log: [`Releasing ${req.request_number} in ${releaseEnv?.name ?? 'SAP'}…`] });
     let result;
     try {
-      result = releaseEnv?.host ? await sapReleaseTransport(releaseEnv, req.request_number)
+      result = releaseEnv?.host ? await sapReleaseTransport(releaseEnv, req.request_number, { caseId: req.case_id ?? caseId, projectId: req.project_id ?? projectId })
         : { ok: false, error: 'No SAP environment configured for this case' };
     } catch (e) { result = { ok: false, error: e.message }; }
     const msgs = (result.messages ?? []).map(m => `${m.type ? m.type + ': ' : ''}${m.text}`);

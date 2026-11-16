@@ -5,6 +5,8 @@
 // Reads the current bridge URL from Supabase system_settings so it stays fresh
 // even when the Cloudflare quick tunnel URL rotates.
 
+import { validateSapAction } from './_sapValidation.js';
+
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
 
@@ -25,7 +27,7 @@ async function getBridgeUrl(explicitUrl) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-App-Token');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -39,6 +41,12 @@ export default async function handler(req, res) {
   const { bridgeUrl, op, ...writePayload } = body;
   // op 'release' releases a transport request; default is an object write.
   const bridgePath = op === 'release' ? '/transport-release' : '/sap-write-mcp';
+  // Server-side validation: role permission + the case's validation rules. On success a
+  // one-time ticket is passed to the bridge, which refuses writes / releases without one.
+  const check = await validateSapAction(req.headers['x-app-token'] || null, op === 'release' ? 'release' : 'write', writePayload);
+  if (!check.ok) return res.status(check.status ?? 403).json({ ok: false, validation: true, error: check.error });
+  writePayload.ticket = check.ticket;
+
   const targetBase = await getBridgeUrl(bridgeUrl);
   if (!targetBase) return res.status(503).json({ ok: false, error: 'ADT bridge URL not found — update it in SAP Config or ensure start-local.sh is running' });
 
