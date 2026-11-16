@@ -33,6 +33,7 @@ import {
   PRIORITY_COLORS, STATUS_COLORS, GATE_CONDITIONS,
 } from "../lib/businessConstants.js";
 import { STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, fmt, cap, fmtDate } from "../lib/uiUtils.jsx";
+import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 
 const DELIVERABLE_ICON_MAP = {
   "Business Blueprint":       { Icon: BookOpen,      color: "text-blue-600 dark:text-blue-400",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
@@ -2053,6 +2054,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     ...(canEdit ? [{ id: "spec_gen",  label: "Spec Gen",                 icon: Sparkles,   count: null }] : []),
+    ...((auth.isAdmin || auth.isManager) ? [{ id: "validations", label: "Validations", icon: Shield, count: null }] : []),
     ...((auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id || consultants.some(c => c.user_id === auth.user?.id)) ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
     ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) ? [{ id: "transport", label: "Transports", icon: Truck, count: null }] : []),
   ];
@@ -3330,6 +3332,17 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         })()}
 
         {/* Spec Gen Template tab */}
+        {tab.id === "validations" && (auth.isAdmin || auth.isManager) && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-800 dark:text-white mb-1">Validation rules for this project</p>
+              <p className="text-sm text-gray-500 dark:text-white/40">Override the customer and global rules for the cases of this project. "Inherit" keeps the rule from the level above (Global → Customer → Project).</p>
+            </div>
+            <ValidationRulesEditor level="project" entityId={project.id} parentClientId={project.client_id ?? null}
+              defaultLifecycle={project.case_lifecycle?.preset ?? 'support'} canEdit={auth.isAdmin || auth.isManager} />
+          </div>
+        )}
+
         {tab.id === "spec_gen" && canEdit && (
           <div className="space-y-5">
             <div>

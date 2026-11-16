@@ -34,6 +34,7 @@ import { PersonAvatar } from "./Projects.jsx";
 import { AbapTemplatesSection, SapMcpPolicyPanel } from "../components/SapPanels.jsx";
 import { SlaClientView } from "./OperationsViews.jsx";
 import { ConsultantProfilePanel } from "./ArenaView.jsx";
+import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 
 // Nova Logo preview for settings branding section
 if (typeof document !== 'undefined') {
@@ -5321,6 +5322,36 @@ function SettingsSpecGenTemplatesTab({ ssCtx, auth }) {
   );
 }
 
+// Settings → Workflow → Validations: global policy defaults + per-customer rules.
+function ValidationsSettingsPanel({ auth }) {
+  const canEdit = auth.isAdmin || auth.isManager;
+  const [clients, setClients] = useState([]);
+  const [clientId, setClientId] = useState('');
+  useEffect(() => {
+    supabase.from("users").select("id, full_name, client_profiles(company_name)").eq("role", "client").order("full_name")
+      .then(({ data }) => setClients(data ?? []));
+  }, []);
+  return (
+    <div className="space-y-6">
+      <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 p-5">
+        <p className="font-bold text-gray-900 dark:text-white text-sm">Global validation rules</p>
+        <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5 mb-4">Defaults for every customer and project. Stage requirements (gates) are set in Transition Gates. Customers and projects can override both (Global → Customer → Project; no case-level overrides).</p>
+        <ValidationRulesEditor level="global" canEdit={canEdit} />
+      </div>
+      <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 p-5">
+        <p className="font-bold text-gray-900 dark:text-white text-sm">Customer rules</p>
+        <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5 mb-3">Override the global rules for one customer. Projects of that customer inherit these, and can override them in the project's Validations tab.</p>
+        <select value={clientId} onChange={e => setClientId(e.target.value)}
+          className="mb-4 w-full sm:w-80 text-sm border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+          <option value="">— Choose a customer —</option>
+          {clients.map(c => <option key={c.id} value={c.id}>{c.client_profiles?.company_name || c.full_name}</option>)}
+        </select>
+        {clientId && <ValidationRulesEditor key={clientId} level="client" entityId={clientId} canEdit={canEdit} />}
+      </div>
+    </div>
+  );
+}
+
 function SettingsWorkflowTab({ auth, ssCtx }) {
   const [wTab, setWTab] = useState("lifecycle");
   const WTABS = [
@@ -5328,6 +5359,7 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
     { id: "spec_gen",   label: "Spec Gen Templates",    Icon: Sparkles },
     { id: "defaults",   label: "Defaults",              Icon: Settings },
     { id: "gates",     label: "Transition Gates",    Icon: Lock },
+    { id: "validations", label: "Validations",        Icon: Shield },
     { id: "phases",    label: "Activity Phases",     Icon: ListChecks },
     { id: "sla",       label: "SLA",                 Icon: Shield },
     { id: "migration", label: "Migration",            Icon: Rocket },
@@ -5348,6 +5380,7 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
       {wTab === "spec_gen"   && <SettingsSpecGenTemplatesTab ssCtx={ssCtx} auth={auth} />}
       {wTab === "defaults"   && <SettingsDefaultLifecycleTab ssCtx={ssCtx} />}
       {wTab === "gates"      && <TransitionGatesPanel auth={auth} />}
+      {wTab === "validations" && <ValidationsSettingsPanel auth={auth} />}
       {wTab === "phases"     && <SettingsPhasesTab ssCtx={ssCtx} />}
       {wTab === "sla"        && <SlaClientView auth={auth} />}
       {wTab === "migration"  && <SettingsMigrationTab ssCtx={ssCtx} />}

@@ -54,6 +54,8 @@ import {
   SAP_AREAS, INDUSTRY_AREAS, LIFECYCLE_PRESETS,
   DEFAULT_ACTIVITY_PHASES, getLifecycleStages, GATE_CONDITIONS,
 } from "../lib/businessConstants.js";
+import { resolveGate } from "../lib/validationPolicies.js";
+import { EffectiveRulesPanel } from "../components/ValidationRulesPanel.jsx";
 
 // ── HTML document builder for AI-generated markdown docs ──────────────────────
 function buildMarkdownHtmlDoc({ eyebrow, title, caseTitle, date, accentRgb, metaRows, markdown }) {
@@ -505,10 +507,10 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   const gateData = { milestones, timeEntries, documents, invoices, activities, applications, spec: caseSpec, hhProposals, transportRequests: caseTransportReqs, sapObjects: sapBlueprintObjects };
 
   // Returns { blockers: [...], warnings: [...] } for a given target status
+  // Gates: global (Settings → Workflow) with customer and project overrides applied.
+  const validationScope = { clientId: caseData.client_id ?? caseData.project?.client?.id ?? null, projectId: caseData.project_id ?? null };
   function checkTransitionGates(toStatus) {
-    const allGates = cdSettings["transition_gates"] ?? {};
-    const lcGates = allGates[lifecycleKey] ?? {};
-    const gate = lcGates[toStatus];
+    const gate = resolveGate(cdSettings, lifecycleKey, toStatus, validationScope);
     if (!gate?.enabled) return { blockers: [], warnings: [] };
 
     // Check if user's role is exempt
@@ -2752,9 +2754,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
         const TEST_STAGES = ['technical_test', 'functional_test', 'user_test'];
 
         function stageGateItems(stageKey) {
-          const allGates = cdSettings["transition_gates"] ?? {};
-          const lcGates = allGates[lifecycleKey] ?? {};
-          const gate = lcGates[stageKey];
+          const gate = resolveGate(cdSettings, lifecycleKey, stageKey, validationScope);
           if (!gate?.enabled) return [];
           return (gate.conditions ?? []).filter(c => c.enabled).map(c => {
             const def = GATE_CONDITIONS.find(d => d.key === c.key);
@@ -3256,6 +3256,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                     {/* Detail Tab */}
                     {tab.id === "detail" && (
         <div className="space-y-4">
+          <EffectiveRulesPanel caseData={caseData} lifecycleKey={lifecycleKey} stages={lifecycleStages} />
           {/* Start-date countdown banner */}
           {caseData.status === "assigned" && caseData.start_date && (() => {
             const d = Math.ceil((new Date(caseData.start_date + "T00:00:00") - Date.now()) / 86400000);

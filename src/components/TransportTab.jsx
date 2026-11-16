@@ -8,6 +8,7 @@ import {
 import { supabase } from "../lib/supabase.js";
 import { useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
 import { bridgeAuthHeaders } from "../lib/bridgeAuth.js";
+import { resolvePolicies } from "../lib/validationPolicies.js";
 
 // ── Release a transport in SAP (ADT CTS) through the ADT bridge ─────────
 // Importing into QA/PRD is not possible through ADT (it needs STMS/tp on the target
@@ -602,6 +603,12 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
   async function releaseOne(req) {
     if (!canRelease) { alert('Your role is not allowed to release transports (Settings → Roles & Perms).'); return false; }
+    const _relPol = resolvePolicies(settings, { clientId, projectId }).transport_release_requires_approval;
+    if (_relPol.mode === 'block' && batchApproval?.status !== 'approved') {
+      const msg = '✗ Validation: release requires the transport approval link to be approved first (Approval step).';
+      setImportField(req.id, { status: 'error', log: [msg] });
+      return false;
+    }
     setImportField(req.id, { status: 'importing', log: [`Releasing ${req.request_number} in ${releaseEnv?.name ?? 'SAP'}…`] });
     let result;
     try {

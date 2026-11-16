@@ -13,6 +13,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useDbConnections, useProjectDbConnections } from "../hooks/useCoreHooks.js";
 import { usePlanConfig, useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
+import { resolvePolicies, isProtectedSapEnv, sapNamingProblems } from "../lib/validationPolicies.js";
 import { callClaude, logEvent, notify, notifyManagers, sendEmail, buildEmailHtml } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
@@ -5736,13 +5737,43 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       } catch { /* best-effort */ }
     }
 
-    // Warn or block based on package requirement policy
-    if (autoImplEnabled && sapConfig?.host && !packageReq) {
-      if (writePolicy.requirePackage) {
-        addLog('⛔ Write policy requires a SAP package — configure one before running. Disable "Require Package" in SAP MCP Policy settings to allow $TMP.', 'error');
-        setRunning(false);
-        recordRun({ objectIds: sorted.map(o => o.id), startedAt: runStartedAt, transport: runTransport, stoppedReason: 'No SAP package configured' });
-        return;
+    // ── Validations (Global → Customer → Project; see Settings → Workflow) ──
+    const valPol = resolvePolicies(settings, { clientId: caseData.client_id ?? caseData.project?.client?.id ?? null, projectId: caseData.project_id ?? null });
+    const stopRun = (reason) => {
+      setRunning(false);
+      recordRun({ objectIds: sorted.map(o => o.id), startedAt: runStartedAt, transport: runTransport, stoppedReason: reason });
+    };
+    // Always enforced: never write to QA / Production SAP systems.
+    if (autoImplEnabled && isProtectedSapEnv(sapConfig)) {
+      addLog(`⛔ ${sapConfig?.name ?? 'This SAP environment'} is a ${String(sapConfig?.envType).toUpperCase()} system — the platform only writes to development/sandbox systems.`, 'error');
+      return stopRun('Protected SAP environment (QA/PRD)');
+    }
+    // Spec approved and case In Progress (or later, not closed).
+    if (autoImplEnabled && valPol.sap_require_spec_and_stage.mode !== 'off') {
+      const PRE_DEV = ['open', 'new', 'confirmed', 'returned', 'estimated', 'assigned', 'screening', 'shortlisted', 'triage', 'in_analysis'];
+      const CLOSED  = ['completed', 'cancelled', 'terminated', 'closed', 'resolved', 'approved'];
+      const st = String(caseData.status ?? '').toLowerCase();
+      const { data: _sp } = await supabase.from('case_specifications').select('status').eq('case_id', caseData.id)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const why = [
+        _sp?.status !== 'approved' ? 'the spec is not approved' : null,
+        PRE_DEV.includes(st) ? `the case is still "${caseData.status}" (not In Progress yet)` : null,
+        CLOSED.includes(st) ? `the case is closed ("${caseData.status}")` : null,
+      ].filter(Boolean);
+      if (why.length) {
+        if (valPol.sap_require_spec_and_stage.mode === 'block') {
+          addLog(`⛔ Validation: cannot write to SAP because ${why.join(' and ')}. (${valPol.sap_require_spec_and_stage.source} rule)`, 'error');
+          return stopRun('Spec / case stage validation');
+        }
+        addLog(`⚠ Validation: ${why.join(' and ')} — continuing (warning only).`, 'warn');
+      }
+    }
+    // Package required.
+    const pkgMode = valPol.sap_require_package.source === 'default' && writePolicy.requirePackage ? 'block' : valPol.sap_require_package.mode;
+    if (autoImplEnabled && sapConfig?.host && !packageReq && pkgMode !== 'off') {
+      if (pkgMode === 'block') {
+        addLog('⛔ Validation: a SAP package is required — set one in the pipeline Setup before running ($TMP is not allowed).', 'error');
+        return stopRun('No SAP package configured');
       }
       addLog('⚠ No SAP package configured — objects will be created in $TMP (local, not transportable). Enter a package in the settings above to assign them to a transport.', 'warn');
     }
@@ -5767,6 +5798,28 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
         updateObj(obj.id, { status: 'manual' });
         addLog(`${obj.name}: manual (policy: ${obj.type} → manual).`, 'manual');
         continue;
+      }
+      // Per-object validations: SAP naming rules and object approval.
+      if (autoImplEnabled) {
+        const nm = valPol.sap_naming_check.mode !== 'off' ? sapNamingProblems(obj.type, obj.name) : [];
+        if (nm.length) {
+          const msg = `SAP naming: ${nm.join('; ')}`;
+          if (valPol.sap_naming_check.mode === 'block') {
+            updateObj(obj.id, { status: 'error', error: `${msg}. Rename the object (Edit) and run again.` });
+            addLog(`${obj.name}: ⛔ ${msg}`, 'error');
+            if (stopOnError) { addLog('Stopped on error.', 'error'); break; }
+            continue;
+          }
+          addLog(`${obj.name}: ⚠ ${msg}`, 'warn');
+        }
+        if (valPol.sap_require_object_approval.mode !== 'off' && obj.approval_status !== 'approved') {
+          if (valPol.sap_require_object_approval.mode === 'block') {
+            updateObj(obj.id, { status: 'blocked', error: 'Not approved yet — submit it for review and get it approved before writing to SAP.' });
+            addLog(`${obj.name}: ⛔ not approved (object review required before writing).`, 'blocked');
+            continue;
+          }
+          addLog(`${obj.name}: ⚠ not approved yet (object review) — continuing.`, 'warn');
+        }
       }
       if (objMode === 'adt-create-only') {
         if (autoImplEnabled && sapConfig?.host) {
@@ -6032,6 +6085,12 @@ Output ONLY the ABAP source code, no explanations.`;
 
   async function handleApplyOne(obj, { confirmed = false } = {}) {
     if (!sapConfig?.host || !autoImplEnabled) return;
+    if (isProtectedSapEnv(sapConfig)) { addLog(`⛔ ${sapConfig?.name ?? 'This environment'} is a QA/Production system — the platform does not write to it.`, 'error'); return; }
+    {
+      const _vp = resolvePolicies(settings, { clientId: caseData.client_id ?? caseData.project?.client?.id ?? null, projectId: caseData.project_id ?? null });
+      const _nm = _vp.sap_naming_check.mode === 'block' ? sapNamingProblems(obj.type, obj.name) : [];
+      if (_nm.length) { updateObj(obj.id, { status: 'error', error: `SAP naming: ${_nm.join('; ')}` }); addLog(`${obj.name}: ⛔ SAP naming: ${_nm.join('; ')}`, 'error'); return; }
+    }
     if (!canDevelop) { addLog('⛔ Your role is not allowed to run the SAP implementation (Settings → Roles & Perms).', 'error'); return; }
     const code = obj.generatedCode;
     if (!code) return;
