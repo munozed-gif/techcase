@@ -15,7 +15,7 @@ BEGIN
   IF NEW.key <> 'sap_integration' OR jsonb_typeof(NEW.value) <> 'object' THEN RETURN NEW; END IF;
   out := NEW.value;
   FOR k, v IN SELECT * FROM jsonb_each(NEW.value) LOOP
-    IF jsonb_typeof(v -> 'environments') <> 'array' THEN CONTINUE; END IF;
+    IF jsonb_typeof(v -> 'environments') IS DISTINCT FROM 'array' THEN CONTINUE; END IF;
     envs := '[]'::jsonb;
     FOR e IN SELECT * FROM jsonb_array_elements(v -> 'environments') LOOP
       IF coalesce(e ->> 'password', '') <> '' AND coalesce(e ->> 'id', '') <> '' THEN
