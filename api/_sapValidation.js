@@ -59,11 +59,14 @@ export async function validateSapAction(token, action, body) {
   if (uErr || !userId) return fail(401, 'your session expired — sign in again and retry');
 
   const [{ data: prof }, { data: rows }] = await Promise.all([
-    db.from('profiles').select('role').eq('id', userId).maybeSingle(),
+    db.from('users').select('role, verification_status').eq('id', userId).maybeSingle(),
     db.from('system_settings').select('key, value').in('key', SETTING_KEYS),
   ]);
   const settings = Object.fromEntries((rows ?? []).map(r => [r.key, r.value]));
   const role = prof?.role ?? null;
+  if (prof && prof.verification_status && prof.verification_status !== 'approved') {
+    return fail(403, 'your account is not approved yet');
+  }
 
   const cap = action === 'release' ? 'release_transports' : 'run_sap_implementation';
   if (!can(role, cap, settings.role_permissions)) {
