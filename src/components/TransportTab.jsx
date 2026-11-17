@@ -14,11 +14,18 @@ import { resolvePolicies } from "../lib/validationPolicies.js";
 // Importing into QA/PRD is not possible through ADT (it needs STMS/tp on the target
 // system), so the app releases in DEV and records the QA/PRD imports done by Basis.
 async function sapReleaseTransport(env, transport, scope = {}) {
+  // The bridge's Cloudflare tunnel URL changes when the VM restarts: use the URL it registered
+  // (as the SAP implementation run does), and the environment's saved URL only as a fallback.
+  let bridgeUrl = env?.adt_mcp_url?.trim() || undefined;
+  try {
+    const { data } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+    if (typeof data?.value === 'string' && data.value.trim()) bridgeUrl = data.value.trim().replace(/\/$/, '');
+  } catch { /* keep the saved URL */ }
   const r = await fetch('/api/adt-write', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await bridgeAuthHeaders()) },
     body: JSON.stringify({
-      op: 'release', bridgeUrl: env?.adt_mcp_url || undefined,
+      op: 'release', bridgeUrl,
       host: env?.host, username: env?.username, password: env?.password, client: env?.client || '100',
       transport,
       // Server-side validation (/api/adt-write): the case / project the transport belongs to
