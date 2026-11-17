@@ -1083,17 +1083,46 @@ app.post('/transport-release', async (req, res) => {
     if (!/^[A-Z0-9]{3}K\d{6}$/.test(tr)) return res.status(400).json({ ok: false, error: `Invalid transport number "${tr}"` });
 
     const c = await getClient({ host, username, password, client, serverType: 'abap-adt' });
-    const result = await c.callTool({ name: 'transportRelease', arguments: { transportNumber: tr } }, undefined, { timeout: MCP_CALL_TIMEOUT_MS });
-    const text = result?.content?.[0]?.text ?? '';
-    if (result?.isError) return res.json({ ok: false, transport: tr, error: text.slice(0, 500) });
-    let parsed = null;
-    try { parsed = JSON.parse(text); } catch { /* not JSON */ }
-    const reports = Array.isArray(parsed?.result) ? parsed.result : [];
-    const messages = reports.flatMap(r => (r.messages ?? []).map(m => ({
-      type: m['chkrun:type'] ?? m.type ?? '', text: (m['chkrun:shortText'] ?? m.shortText ?? m.text ?? '').trim(),
-    }))).filter(m => m.text);
-    const statuses = reports.map(r => String(r['chkrun:status'] ?? r.status ?? '')).filter(Boolean);
-    const failed = messages.some(m => /^[EAX]$/i.test(m.type)) || statuses.some(st => /abort|error|fail/i.test(st));
+    // One release call: returns { failed, statuses, messages } or { error } when the tool failed.
+    const releaseOnce = async (number) => {
+      const result = await c.callTool({ name: 'transportRelease', arguments: { transportNumber: number } }, undefined, { timeout: MCP_CALL_TIMEOUT_MS });
+      const text = result?.content?.[0]?.text ?? '';
+      if (result?.isError) return { error: text.slice(0, 500) };
+      let parsed = null;
+      try { parsed = JSON.parse(text); } catch { /* not JSON */ }
+      const reports = Array.isArray(parsed?.result) ? parsed.result : [];
+      const msgs = reports.flatMap(r => (r.messages ?? []).map(m => ({
+        type: m['chkrun:type'] ?? m.type ?? '', text: (m['chkrun:shortText'] ?? m.shortText ?? m.text ?? '').trim(),
+      }))).filter(m => m.text);
+      const sts = reports.map(r => String(r['chkrun:status'] ?? r.status ?? '')).filter(Boolean);
+      const bad = msgs.some(m => /^[EAX]$/i.test(m.type)) || sts.some(st => /abort|error|fail/i.test(st));
+      return { failed: bad, statuses: sts, messages: msgs };
+    };
+
+    let out = await releaseOnce(tr);
+    if (out.error) return res.json({ ok: false, transport: tr, error: out.error });
+    // Like SE09: a request is released only after its tasks. When SAP answers
+    // "Referencing task X not yet released", release those tasks of this request, then retry once.
+    const taskMessages = [];
+    if (out.failed) {
+      const tasks = [...new Set(out.messages
+        .map(m => m.text.match(/task\s+([A-Z0-9]{3}K\d{6})\s+not yet released/i)?.[1])
+        .filter(t => t && t !== tr))];
+      if (tasks.length) {
+        for (const task of tasks) {
+          const tOut = await releaseOnce(task);
+          const okTask = !tOut.error && !tOut.failed;
+          console.log(`[bridge] transportRelease task ${task} (of ${tr}): ${okTask ? 'released' : 'FAILED'}`);
+          taskMessages.push({ type: okTask ? 'S' : 'E', text: okTask ? `Task ${task} released` : `Task ${task}: ${tOut.error ?? tOut.messages.map(m => m.text).join(' · ')}` });
+          if (!okTask) return res.json({ ok: false, transport: tr, messages: taskMessages.concat(tOut.messages ?? []).slice(0, 30),
+            error: `Could not release task ${task}: ${(tOut.error ?? tOut.messages.filter(m => /^[EAX]$/i.test(m.type)).map(m => m.text).join(' · ')).slice(0, 400)}` });
+        }
+        out = await releaseOnce(tr);
+        if (out.error) return res.json({ ok: false, transport: tr, messages: taskMessages, error: out.error });
+      }
+    }
+    const { failed, statuses } = out;
+    const messages = taskMessages.concat(out.messages);
     console.log(`[bridge] transportRelease ${tr}: ${failed ? 'FAILED' : 'released'} ${statuses.join(',')}`);
     res.json({
       ok: !failed, transport: tr, statuses, messages: messages.slice(0, 30),
