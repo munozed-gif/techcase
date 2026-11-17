@@ -19,19 +19,13 @@ export function JoinScreen({ token, onJoined }) {
   useEffect(() => {
     if (!token) { setState("invalid"); return; }
     (async () => {
-      const { data, error } = await supabase
-        .from("case_invitations")
-        .select("*, cases(id, title, description, area_sap)")
-        .eq("token", token)
-        .maybeSingle();
+      // The token is checked in the database (case_invitation_by_token); invitations aren't
+      // readable without logging in. Expired invitations are marked there too.
+      const { data, error } = await supabase.rpc("case_invitation_by_token", { p_token: token });
 
       if (error || !data) { setState("invalid"); return; }
       if (data.status === "accepted") { setState("accepted"); return; }
-      if (data.status === "expired" || new Date(data.expires_at) < new Date()) {
-        await supabase.from("case_invitations").update({ status: "expired" }).eq("id", data.id);
-        setState("expired");
-        return;
-      }
+      if (data.status === "expired") { setState("expired"); return; }
       setInvite(data);
       setCaseData(data.cases ?? null);
       // Pre-fill name if provided
@@ -48,34 +42,6 @@ export function JoinScreen({ token, onJoined }) {
     if (!form.full_name.trim()) { setErrMsg(t("join.err_no_name")); return; }
     setSubmitting(true);
     try {
-      // Check if this email already has an account — avoid creating duplicates
-      const { data: existingUser } = await supabase
-        .from("users")
-        .select("id, full_name, role")
-        .eq("email", invite.invited_email.toLowerCase())
-        .maybeSingle();
-
-      if (existingUser) {
-        // Account already exists — mark invitation accepted and ask them to sign in
-        await supabase.from("case_invitations").update({ status: "accepted" }).eq("id", invite.id);
-        // Also ensure the case is linked to this user
-        await supabase.from("cases").update({ client_id: existingUser.id }).eq("id", invite.case_id);
-        // Notify the person who sent the invite
-        if (invite.invited_by) {
-          supabase.from("notifications").insert({
-            user_id: invite.invited_by,
-            title: "Client accepted invitation",
-            body: `${existingUser.full_name || invite.invited_email} joined the case.`,
-            is_read: false,
-            case_id: invite.case_id,
-            event_type: "case_invitation_accepted",
-          }).catch(() => {});
-        }
-        setState("already_has_account");
-        setSubmitting(false);
-        return;
-      }
-
       // Determine client signup flow from system settings
       const clientFlow = joinSettings?.["signup_flow_per_role"]?.["client"] ?? "email_verify";
       const needsApproval = clientFlow === "admin_approval" || clientFlow === "email_and_approval";
@@ -86,7 +52,15 @@ export function JoinScreen({ token, onJoined }) {
         password: form.password,
         options: { data: { full_name: form.full_name.trim(), role: "invited_client" } },
       });
-      if (signUpErr) throw signUpErr;
+      if (signUpErr) {
+        // The email already has an account: they sign in instead (the invitation stays open).
+        if (/already (been )?registered|already exists/i.test(signUpErr.message ?? "")) {
+          setState("already_has_account");
+          setSubmitting(false);
+          return;
+        }
+        throw signUpErr;
+      }
 
       // If Supabase returned a session (email auto-confirmed), create the user row
       // with the correct verification_status before useAuth can auto-approve it
@@ -100,24 +74,13 @@ export function JoinScreen({ token, onJoined }) {
           verification_status: needsApproval ? "pending" : "approved",
           is_active: true,
         }).catch(() => {}); // ignore if row already exists
-        // Link the case to the new user
-        await supabase.from("cases").update({ client_id: newSession.user.id }).eq("id", invite.case_id);
       }
 
-      // Mark invitation accepted
-      await supabase.from("case_invitations").update({ status: "accepted" }).eq("id", invite.id);
-
-      // Notify the person who sent the invite
-      if (invite.invited_by) {
-        supabase.from("notifications").insert({
-          user_id: invite.invited_by,
-          title: "Client accepted invitation",
-          body: `${form.full_name.trim() || invite.invited_email} joined the case.`,
-          is_read: false,
-          case_id: invite.case_id,
-          event_type: "case_invitation_accepted",
-        }).catch(() => {});
-      }
+      // Mark the invitation accepted and notify the inviter; with a session (email already
+      // confirmed) this also links the case to the new user. Done in the database
+      // (case_invitation_complete), checked against the invited email.
+      const { error: compErr } = await supabase.rpc("case_invitation_complete", { p_token: token });
+      if (compErr) console.warn("[join] could not complete the invitation:", compErr.message);
 
       if (needsApproval && newSession) {
         // Sign out so the pending user can't access the app until approved

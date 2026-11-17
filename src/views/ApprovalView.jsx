@@ -160,37 +160,30 @@ export default function ApprovalView({ token }) {
 
   useEffect(() => {
     async function load() {
-      const [brandRes, reqRes] = await Promise.all([
+      // The link token is checked in the database (approval_request_by_token); the page
+      // can't read the approval tables directly without logging in.
+      const [brandRes, linkRes] = await Promise.all([
         supabase.from("system_settings").select("key, value").in("key", ["platform_name", "platform_tagline"]),
-        supabase
-          .from("approval_requests")
-          .select("id, reviewer_email, reviewer_name, reviewer_avatar_url, status, expires_at, case_id, project_id, cases(title, area_sap, reviewer_name), projects(name)")
-          .eq("token", token)
-          .single(),
+        supabase.rpc("approval_request_by_token", { p_token: token }),
       ]);
       if (brandRes.data) {
         const m = Object.fromEntries(brandRes.data.map(r => [r.key, r.value]));
         setBranding({ name: m.platform_name || "Arena", tagline: m.platform_tagline || "Consultant Case Management" });
       }
-      if (reqRes.error || !reqRes.data) {
+      const reqData = linkRes.data?.request;
+      if (linkRes.error || !reqData) {
         setError(t("approval.invalid_link"));
         setLoading(false);
         return;
       }
-      setRequest(reqRes.data);
+      setRequest(reqData);
 
       // Build reviewer profile from request or joined case data
-      const name = reqRes.data.reviewer_name ?? reqRes.data.cases?.reviewer_name ?? null;
-      const avatar = reqRes.data.reviewer_avatar_url ?? null;
+      const name = reqData.reviewer_name ?? reqData.cases?.reviewer_name ?? null;
+      const avatar = reqData.reviewer_avatar_url ?? null;
       if (name || avatar) setReviewerProfile({ full_name: name, avatar_url: avatar });
 
-      const { data: objs } = await supabase
-        .from("approval_request_objects")
-        .select("*")
-        .eq("approval_request_id", reqRes.data.id)
-        .order("object_phase")
-        .order("object_name");
-      setObjects(objs ?? []);
+      setObjects(linkRes.data?.objects ?? []);
       setLoading(false);
     }
     if (token) load();
@@ -204,10 +197,14 @@ export default function ApprovalView({ token }) {
 
   async function handleDecide(objId, decision, reason) {
     setSaving(p => ({ ...p, [objId]: true }));
-    await supabase
-      .from("approval_request_objects")
-      .update({ decision, rejection_reason: reason || null, decided_at: new Date().toISOString() })
-      .eq("id", objId);
+    const { error: decErr } = await supabase.rpc("approval_request_decide", {
+      p_token: token, p_object_id: objId, p_decision: decision, p_reason: reason || null,
+    });
+    if (decErr) {
+      alert(decErr.message || "Could not save the decision.");
+      setSaving(p => ({ ...p, [objId]: false }));
+      return;
+    }
     setObjects(p => p.map(o => o.id === objId
       ? { ...o, decision, rejection_reason: reason || null, decided_at: new Date().toISOString() }
       : o

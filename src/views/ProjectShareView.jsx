@@ -39,21 +39,20 @@ export default function ProjectShareView({ token }) {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [brandRes, projRes] = await Promise.all([
+      // The link token is checked in the database (project_share_by_token); the page can't
+      // read the projects / cases tables directly without logging in.
+      const [brandRes, shareRes] = await Promise.all([
         supabase.from("system_settings").select("key, value").in("key", ["platform_name", "platform_tagline"]),
-        supabase.from("projects").select("id, name, description, status, start_date, end_date, area_sap").eq("share_token", token).single(),
+        supabase.rpc("project_share_by_token", { p_token: token }),
       ]);
       if (brandRes.data) {
         const map = Object.fromEntries(brandRes.data.map(r => [r.key, r.value]));
         setBranding({ name: map['platform_name'] || 'Arena', tagline: map['platform_tagline'] || 'Consultant Case Management' });
       }
-      const proj = projRes.data;
-      if (projRes.error || !proj) { setError("Project not found or link is invalid."); setLoading(false); return; }
+      const proj = shareRes.data?.project;
+      if (shareRes.error || !proj) { setError("Project not found or link is invalid."); setLoading(false); return; }
       setProject(proj);
-      const { data: caseRows } = await supabase
-        .from("cases").select("id, title, status, priority, progress_pct, area_sap")
-        .eq("project_id", proj.id).order("created_at", { ascending: true });
-      setCases(caseRows ?? []);
+      setCases(shareRes.data?.cases ?? []);
       setLoading(false);
     }
     if (token) load();

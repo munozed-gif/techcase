@@ -122,21 +122,22 @@ export default function CustomerSpecReviewView({ token }) {
     async function load() {
       setLoading(true);
       try {
-        const [brandRes, tokenRes] = await Promise.all([
+        // The link token is checked in the database (spec_review_by_token): it returns this
+        // review's case details and documents only; the tables aren't readable without login.
+        const [brandRes, linkRes] = await Promise.all([
           supabase.from('system_settings').select('key, value').in('key', ['platform_name', 'platform_tagline']),
-          supabase.from('spec_review_tokens').select('*').eq('token', token).single(),
+          supabase.rpc('spec_review_by_token', { p_token: token }),
         ]);
 
-        if (tokenRes.error || !tokenRes.data) {
+        const tkn = linkRes.data?.token;
+        if (linkRes.error || !tkn) {
           setError(REVIEW_LANGS[getInitialReviewLang()]?.linkExpired ?? 'Review link not found or has expired.');
           setLoading(false);
           return;
         }
-
-        const tkn = tokenRes.data;
         setTokenData(tkn);
 
-        // Use branding embedded in token first (RLS blocks anon reads of system_settings)
+        // Use branding embedded in token first
         const tokenPlatform = tkn.doc_ids?._platform;
         if (tokenPlatform?.name) {
           setBranding({ name: tokenPlatform.name, tagline: tokenPlatform.tagline || 'SAP Solutions' });
@@ -145,40 +146,9 @@ export default function CustomerSpecReviewView({ token }) {
           setBranding({ name: map.platform_name || 'Arena Solution Platform', tagline: map.platform_tagline || 'SAP Solutions' });
         }
 
-        // Fetch case details (accessible via anon policy for tokens)
-        if (tkn.case_id) {
-          const { data: cd } = await supabase
-            .from('cases')
-            .select('description, area_sap, area_industry, priority, due_date, projects(name)')
-            .eq('id', tkn.case_id)
-            .maybeSingle();
-          if (cd) setCaseDetails(cd);
-        }
-
-        // Try to get creator's name from users table (may not be anon-accessible)
-        if (tkn.created_by) {
-          try {
-            const { data: creator } = await supabase
-              .from('users')
-              .select('full_name')
-              .eq('id', tkn.created_by)
-              .maybeSingle();
-            if (creator?.full_name) setCreatorName(creator.full_name);
-          } catch (_) {}
-        }
-
-        const docIds = tkn.doc_ids ?? {};
-        const allDocIds = Object.entries(docIds)
-          .filter(([k]) => k !== '_platform')
-          .map(([, v]) => v)
-          .filter(v => v && typeof v === 'string');
-        if (allDocIds.length > 0) {
-          const { data: docs } = await supabase
-            .from('case_documents')
-            .select('id, file_name, file_url, file_type')
-            .in('id', allDocIds);
-          setDocuments(docs ?? []);
-        }
+        if (linkRes.data?.case) setCaseDetails(linkRes.data.case);
+        if (linkRes.data?.creator_name) setCreatorName(linkRes.data.creator_name);
+        setDocuments(linkRes.data?.documents ?? []);
       } catch (e) {
         setError(e.message || (REVIEW_LANGS[getInitialReviewLang()]?.failedReview ?? 'Failed to load review.'));
       } finally {
@@ -206,10 +176,7 @@ export default function CustomerSpecReviewView({ token }) {
   async function handleApprove() {
     setSubmitting(true);
     try {
-      const { error: upErr } = await supabase
-        .from('spec_review_tokens')
-        .update({ status: 'approved', approved_at: new Date().toISOString(), feedback: feedback || null })
-        .eq('token', token).eq('status', 'pending');
+      const { error: upErr } = await supabase.rpc('spec_review_submit', { p_token: token, p_status: 'approved', p_feedback: feedback || null });
       if (upErr) throw upErr;
       setTokenData(p => ({ ...p, status: 'approved' }));
     } catch (e) { alert(e.message || 'Failed to submit approval.'); }
@@ -220,10 +187,7 @@ export default function CustomerSpecReviewView({ token }) {
     if (!feedback.trim()) { setShowFeedback(true); return; }
     setSubmitting(true);
     try {
-      const { error: upErr } = await supabase
-        .from('spec_review_tokens')
-        .update({ status: 'changes_requested', feedback })
-        .eq('token', token).eq('status', 'pending');
+      const { error: upErr } = await supabase.rpc('spec_review_submit', { p_token: token, p_status: 'changes_requested', p_feedback: feedback });
       if (upErr) throw upErr;
       setTokenData(p => ({ ...p, status: 'changes_requested' }));
     } catch (e) { alert(e.message || 'Failed to submit feedback.'); }
