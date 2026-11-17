@@ -433,11 +433,13 @@ const APP_AUTH_PROJECTS = [
   [process.env.SUPABASE_URL_DEV, process.env.SUPABASE_SERVICE_KEY_DEV],
 ].map(([u, k]) => [String(u || '').trim().replace(/\/$/, ''), String(k || '').trim().replace(/[^\x21-\x7E]/g, '')])
  .filter(([u, k]) => u && k);
-const _appTokenCache = new Map(); // token -> valid-until (ms)
-async function isValidAppToken(token) {
-  if (!token || typeof token !== 'string') return false;
+const _appTokenCache = new Map(); // token -> { until (ms), user: { id, url, key } }
+// The app user behind a token (and which Supabase project it belongs to), or null.
+async function appUserFromToken(token) {
+  if (!token || typeof token !== 'string') return null;
   const now = Date.now();
-  if ((_appTokenCache.get(token) ?? 0) > now) return true;
+  const hit = _appTokenCache.get(token);
+  if (hit && hit.until > now) return hit.user;
   for (const [url, key] of APP_AUTH_PROJECTS) {
     try {
       const r = await fetch(`${url}/auth/v1/user`, {
@@ -445,13 +447,19 @@ async function isValidAppToken(token) {
         signal: AbortSignal.timeout(8000),
       });
       if (r.ok) {
+        const body = await r.json().catch(() => ({}));
+        if (!body?.id) continue;
+        const user = { id: body.id, url, key };
         if (_appTokenCache.size > 500) _appTokenCache.clear();
-        _appTokenCache.set(token, now + 5 * 60 * 1000);
-        return true;
+        _appTokenCache.set(token, { until: now + 5 * 60 * 1000, user });
+        return user;
       }
     } catch { /* try the next project */ }
   }
-  return false;
+  return null;
+}
+async function isValidAppToken(token) {
+  return !!(await appUserFromToken(token));
 }
 let _warnedNoAppAuth = false;
 async function requireAppUser(req, res, next) {
@@ -461,10 +469,72 @@ async function requireAppUser(req, res, next) {
     if (!_warnedNoAppAuth) { console.warn('[bridge] No Supabase credentials — cannot verify app users; action endpoints are OPEN'); _warnedNoAppAuth = true; }
     return next();
   }
-  if (await isValidAppToken(req.headers['x-app-token'])) return next();
+  const user = await appUserFromToken(req.headers['x-app-token']);
+  if (user) { req.appUser = user; return next(); }
   return res.status(401).json({ ok: false, error: 'App login required — sign in to the platform and retry' });
 }
 app.use(['/sap-proxy', '/vpn', '/sap-write', '/sap-write-mcp', '/sap-info', '/mcp-test', '/transport-release'], requireAppUser);
+
+// ── SAP passwords filled in server-side ──────────────────────
+// SAP environment passwords are kept in the database (sap_env_secrets), readable only with
+// the service key. The app sends host + SAP user without the password; here it is looked
+// up for the logged-in user (sap_env_password_for checks they may use that SAP system:
+// staff, the customer, or someone on one of its cases/projects). A password sent by the
+// caller is used as is.
+async function supabaseRpc(url, key, fn, args) {
+  const r = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!r.ok) throw new Error(`${fn}: HTTP ${r.status}`);
+  return r.json();
+}
+async function lookupSapPassword(user, host, username, client) {
+  if (!user || !host || !username) return null;
+  try {
+    const pw = await supabaseRpc(user.url, user.key, 'sap_env_password_for',
+      { p_user: user.id, p_host: String(host), p_username: String(username), p_client: client ? String(client) : null });
+    return typeof pw === 'string' && pw ? pw : null;
+  } catch (e) {
+    console.warn(`[bridge] SAP password lookup failed: ${e.message}`);
+    return null;
+  }
+}
+async function fillSapPassword(req, _res, next) {
+  if (req.method === 'OPTIONS' || !req.appUser) return next();
+  try {
+    const auth = String(req.headers['authorization'] ?? '');
+    if (auth.startsWith('Bearer ')) {
+      // base64(JSON) credentials token (same format as /mcp)
+      const creds = parseSapCreds(auth);
+      if (creds?.host && creds?.username && !creds.password) {
+        const pw = await lookupSapPassword(req.appUser, creds.host, creds.username, creds.client);
+        if (pw) req.headers['authorization'] = 'Bearer ' + Buffer.from(JSON.stringify({ ...creds, password: pw })).toString('base64');
+      }
+    } else if (auth.startsWith('Basic ') && req.headers['x-sap-target']) {
+      // SAP proxy: Basic user:password, target in X-Sap-Target
+      const dec = Buffer.from(auth.slice(6), 'base64').toString('utf8');
+      const i = dec.indexOf(':');
+      const user = i >= 0 ? dec.slice(0, i) : dec;
+      const pass = i >= 0 ? dec.slice(i + 1) : '';
+      if (user && (!pass || pass === 'undefined')) {
+        const pw = await lookupSapPassword(req.appUser, req.headers['x-sap-target'], user, req.headers['sap-client']);
+        if (pw) req.headers['authorization'] = 'Basic ' + Buffer.from(`${user}:${pw}`).toString('base64');
+      }
+    }
+    const b = req.body;
+    if (b && typeof b === 'object' && !Buffer.isBuffer(b) && b.host && b.username && !b.password) {
+      const pw = await lookupSapPassword(req.appUser, b.host, b.username, b.client);
+      if (pw) b.password = pw;
+    }
+  } catch (e) {
+    console.warn(`[bridge] fillSapPassword: ${e.message}`);
+  }
+  next();
+}
+app.use(['/sap-proxy', '/sap-write', '/sap-write-mcp', '/sap-info', '/mcp-test', '/transport-release'], fillSapPassword);
 
 // ── Write tickets (server-side validation) ───────────────────
 // /api/adt-write checks the user's role permission and the case's validation rules
@@ -1566,6 +1636,18 @@ function buildServer(client) {
 app.post('/mcp', async (req, res) => {
   try {
     const creds = parseSapCreds(req.headers['authorization']);
+    // The AI's SAP tools are called from Anthropic's servers (no app login): instead of the
+    // password the app sends a 30-minute ticket, resolved here to the password of the user
+    // who issued it (sap_mcp_ticket_password).
+    if (creds?.username && !creds.password && creds.mcp_ticket) {
+      for (const [url, key] of APP_AUTH_PROJECTS) {
+        try {
+          const pw = await supabaseRpc(url, key, 'sap_mcp_ticket_password',
+            { p_ticket: String(creds.mcp_ticket), p_host: String(creds.host ?? ''), p_username: String(creds.username), p_client: creds.client ? String(creds.client) : null });
+          if (typeof pw === 'string' && pw) { creds.password = pw; break; }
+        } catch { /* try the next project */ }
+      }
+    }
     // Require the caller's SAP credentials (no fallback to the VM's .env user).
     if (!creds?.username || !creds?.password) {
       return res.status(401).json({ jsonrpc: '2.0', error: { code: -32001, message: 'SAP credentials required in Authorization token' }, id: null });

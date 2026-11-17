@@ -12,22 +12,40 @@ const normHost = (h) => String(h ?? "").trim().toLowerCase().replace(/^https?:\/
 // Only logged-in, approved platform users, and only towards SAP hosts saved in the
 // platform's SAP settings (otherwise this endpoint would relay requests to any host).
 async function checkCaller(token, sapTarget) {
-  if (!SB_URL || !SB_ANON) return "SAP proxy is not configured on the server";
-  if (!token) return "App login required — sign in to the platform and retry";
+  if (!SB_URL || !SB_ANON) return { error: "SAP proxy is not configured on the server" };
+  if (!token) return { error: "App login required — sign in to the platform and retry" };
   const db = createClient(SB_URL, SB_ANON, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: u } = await db.auth.getUser(token);
-  if (!u?.user?.id) return "Your session expired — sign in again and retry";
+  const userId = u?.user?.id;
+  if (!userId) return { error: "Your session expired — sign in again and retry" };
   // RLS: settings are only readable by approved users.
   const { data: row } = await db.from("system_settings").select("value").eq("key", "sap_integration").maybeSingle();
   const target = normHost(sapTarget);
   for (const cfg of Object.values(row?.value ?? {})) {
     const envs = Array.isArray(cfg?.environments) ? cfg.environments : (cfg?.host ? [cfg] : []);
-    if (envs.some(e => e?.host && normHost(e.host) === target)) return null;
+    if (envs.some(e => e?.host && normHost(e.host) === target)) return { userId };
   }
-  return `${target} is not a SAP system saved in the platform`;
+  return { error: `${target} is not a SAP system saved in the platform` };
+}
+
+// SAP passwords are kept server-side (sap_env_secrets): the app sends "user:" and the
+// password is looked up for this user (sap_env_password_for checks access).
+const SVC_URL = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim();
+const SVC_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+async function fillPassword(authHeader, userId, sapTarget, sapClient) {
+  if (!authHeader?.startsWith("Basic ") || !SVC_URL || !SVC_KEY) return authHeader;
+  const dec = Buffer.from(authHeader.slice(6), "base64").toString("utf8");
+  const i = dec.indexOf(":");
+  const user = i >= 0 ? dec.slice(0, i) : dec;
+  const pass = i >= 0 ? dec.slice(i + 1) : "";
+  if (!user || (pass && pass !== "undefined")) return authHeader;
+  const svc = createClient(SVC_URL, SVC_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: pw } = await svc.rpc("sap_env_password_for",
+    { p_user: userId, p_host: String(sapTarget), p_username: user, p_client: sapClient ? String(sapClient) : null });
+  return typeof pw === "string" && pw ? "Basic " + Buffer.from(`${user}:${pw}`).toString("base64") : authHeader;
 }
 
 const agent = new https.Agent({ rejectUnauthorized: false });
@@ -66,8 +84,8 @@ export default async function handler(req, res) {
 
   const sapTarget = req.headers["x-sap-target"];
   if (!sapTarget) return res.status(400).json({ error: "Missing X-Sap-Target header" });
-  const denied = await checkCaller(req.headers["x-app-token"] || null, sapTarget);
-  if (denied) return res.status(403).json({ error: denied });
+  const caller = await checkCaller(req.headers["x-app-token"] || null, sapTarget);
+  if (caller.error) return res.status(403).json({ error: caller.error });
 
   const urlPath = req.url.replace(/^\/api\/sap-proxy/, "") || "/";
   const sapUrl = `${sapTarget.replace(/\/$/, "")}${urlPath}`;
@@ -75,6 +93,9 @@ export default async function handler(req, res) {
   const forwardHeaders = {};
   for (const key of ["authorization", "accept", "sap-client", "x-csrf-token", "content-type"]) {
     if (req.headers[key]) forwardHeaders[key] = req.headers[key];
+  }
+  if (forwardHeaders.authorization) {
+    forwardHeaders.authorization = await fillPassword(forwardHeaders.authorization, caller.userId, sapTarget, req.headers["sap-client"]);
   }
 
   let body = Buffer.alloc(0);

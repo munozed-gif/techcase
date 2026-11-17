@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { bridgeAuthHeaders, appAccessToken } from "../lib/bridgeAuth.js";
+import { sapHasPassword, sapMcpAuthToken, storeSapEnvPasswords } from "../lib/sapCreds.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useDbConnections, useProjectDbConnections } from "../hooks/useCoreHooks.js";
@@ -369,33 +370,28 @@ function buildAbapStandardsPrompt(standards, objectType, objectName, act, caseDa
  * Encode SAP env credentials as a base64 Bearer token for the MCP server.
  * The MCP server decodes this to make ADT calls server-side.
  */
-function buildSapMcpToken(sapConfig, serverTypeOverride) {
-  if (!sapConfig?.host || !sapConfig?.username || !sapConfig?.password) return null;
-  const payload = {
-    host:       sapConfig.host,
-    username:   sapConfig.username,
-    password:   sapConfig.password,
-    client:     sapConfig.client ?? '100',
-    type:       sapConfig.type ?? 's4hana',
-    proxyUrl:   sapConfig.proxyUrl ?? '',
-    serverType: serverTypeOverride ?? sapConfig.mcp_type ?? '',
-  };
-  return btoa(JSON.stringify(payload));
+async function buildSapMcpToken(sapConfig, serverTypeOverride) {
+  // Password-less (server-side) environments get a short-lived ticket instead (sapCreds.js).
+  return sapMcpAuthToken(sapConfig, {
+    type:       sapConfig?.type ?? 's4hana',
+    proxyUrl:   sapConfig?.proxyUrl ?? '',
+    serverType: serverTypeOverride ?? sapConfig?.mcp_type ?? '',
+  });
 }
 
 /**
  * Build the mcp_servers array for callClaude when a SAP env + MCP server URL are configured.
  * Returns undefined when either is missing so callClaude falls back to plain generation.
  */
-function buildSapMcpConfig(sapConfig, mcpServerUrl) {
+async function buildSapMcpConfig(sapConfig, mcpServerUrl) {
   if (!sapConfig?.host) return undefined;
 
   // Both ADT servers simultaneously — two entries, one per subprocess
   if (sapConfig.mcp_type === 'abap-adt-both') {
     const adtUrl = sapConfig.adt_mcp_url?.trim().replace(/\/$/, '');
     if (!adtUrl) return undefined;
-    const tokenRW = buildSapMcpToken(sapConfig, 'abap-adt');
-    const tokenRO = buildSapMcpToken(sapConfig, 'abap-adt-readonly');
+    const tokenRW = await buildSapMcpToken(sapConfig, 'abap-adt');
+    const tokenRO = await buildSapMcpToken(sapConfig, 'abap-adt-readonly');
     return [
       { type: 'url', url: adtUrl + '/mcp', name: 'sap-adt-rw', ...(tokenRW ? { authorization_token: tokenRW } : {}) },
       { type: 'url', url: adtUrl + '/mcp', name: 'sap-adt-ro', ...(tokenRO ? { authorization_token: tokenRO } : {}) },
@@ -406,13 +402,13 @@ function buildSapMcpConfig(sapConfig, mcpServerUrl) {
   if (sapConfig.mcp_type === 'abap-adt' || sapConfig.mcp_type === 'abap-adt-readonly') {
     const adtUrl = sapConfig.adt_mcp_url?.trim().replace(/\/$/, '');
     if (!adtUrl) return undefined;
-    const token = buildSapMcpToken(sapConfig);
+    const token = await buildSapMcpToken(sapConfig);
     return [{ type: 'url', url: adtUrl + '/mcp', name: 'sap-tools', ...(token ? { authorization_token: token } : {}) }];
   }
 
   // Default: custom SAP-MCP server
   if (!mcpServerUrl?.trim()) return undefined;
-  const token = buildSapMcpToken(sapConfig);
+  const token = await buildSapMcpToken(sapConfig);
   if (!token) return undefined;
   return [
     {
@@ -438,7 +434,7 @@ async function sapApiRequest(config, path, opts = {}) {
     proxyUrl = `${window.location.origin}/api/sap-proxy`;
   }
   const base = (proxyUrl || config.host.trim()).replace(/\/$/, '');
-  const auth = btoa(`${config.username}:${config.password}`);
+  const auth = btoa(`${config.username}:${config.password ?? ''}`);
   const headers = {
     Authorization: `Basic ${auth}`,
     Accept: 'application/xml, text/xml, text/plain',
@@ -949,7 +945,12 @@ function SapIntegrationPanel({ clientId, auth }) {
 
   async function saveEnvironments(envs) {
     setSaving(true);
-    await ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: { ...(allConfigs[clientId] ?? {}), environments: envs } });
+    // Passwords go to the protected server-side store; the settings keep only has_password.
+    let stored;
+    try { stored = await storeSapEnvPasswords(clientId, envs); }
+    catch (e) { setSaving(false); alert(e.message); return; }
+    setEnvironments(stored);
+    await ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: { ...(allConfigs[clientId] ?? {}), environments: stored } });
     setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
@@ -1188,7 +1189,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                         <div>
                           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_password')}</label>
                           <div className="relative">
-                            <input type={showPasswords[env.id] ? 'text' : 'password'} value={env.password} onChange={e => updateEnvField(env.id, 'password', e.target.value)} disabled={!canEdit}
+                            <input type={showPasswords[env.id] ? 'text' : 'password'} value={env.password ?? ''} placeholder={env.has_password ? 'Saved securely — type to replace' : ''} onChange={e => updateEnvField(env.id, 'password', e.target.value)} disabled={!canEdit}
                               className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100"
                               autoComplete="new-password" />
                             <button type="button" onClick={() => setShowPasswords(p => ({ ...p, [env.id]: !p[env.id] }))}
@@ -1611,8 +1612,6 @@ function EnvOverrideForm({ env, override, onSave, onClear }) {
     adt_mcp_url:   override.adt_mcp_url   ?? '',
     vpn_mode:      override.vpn_mode      ?? '',
     mcp_server_url: override.mcp_server_url ?? '',
-    username:      override.username      ?? '',
-    password:      override.password      ?? '',
   }));
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
@@ -1695,21 +1694,10 @@ function EnvOverrideForm({ env, override, onSave, onClear }) {
           className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100" />
       </div>
 
-      {/* SAP Username + Password */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">SAP Username</label>
-          <input value={draft.username} onChange={e => f('username', e.target.value)}
-            placeholder={env.username || 'env default'}
-            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100" autoComplete="off" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">SAP Password</label>
-          <input type="password" value={draft.password} onChange={e => f('password', e.target.value)}
-            placeholder="env default"
-            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-700 dark:text-gray-100" autoComplete="new-password" />
-        </div>
-      </div>
+      {/* SAP user: not overridable here (passwords are stored server-side per environment). */}
+      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+        The SAP user and password come from the environment. To use a different SAP user, add it as its own environment.
+      </p>
 
       {/* Actions */}
       <div className="flex items-center gap-3 pt-1">
@@ -2928,7 +2916,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     setLiveNode('sap', { status: 'checking', detail: 'Testing SAP ADT connection…', log: [], extra: {} });
     addLog('sap', `Chain: ${currentMcpBase} → /sap-info (MCP subprocess) → ${env.host || '(no host)'}…`);
 
-    if (!env.host || !env.username || !env.password) {
+    if (!env.host || !env.username || !sapHasPassword(env)) {
       setLiveNode('sap', { ...liveNodes.current.sap, status: 'warning', detail: 'No SAP credentials configured' });
       addLog('sap', 'Host, username or password not configured — skipping SAP check', 'warn');
     } else {
@@ -3571,7 +3559,7 @@ function VpnStatusBanner({ linkedConn, isVpn, mcpUrl, env }) {
     }
 
     // 2. SAP connection check (only if we have credentials)
-    if (env?.host && env?.username && env?.password) {
+    if (env?.host && env?.username && sapHasPassword(env)) {
       try {
         const result = await sapLiveCheck(env);
         sap = !result?.error;
@@ -3658,7 +3646,12 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
 
   async function saveEnvironments(envs) {
     setSaving(true);
-    await ssCtx.setSetting('sap_integration', { ...allConfigs, [storageKey]: { ...(allConfigs[storageKey] ?? {}), environments: envs } });
+    // Passwords go to the protected server-side store; the settings keep only has_password.
+    let stored;
+    try { stored = await storeSapEnvPasswords(storageKey, envs); }
+    catch (e) { setSaving(false); alert(e.message); return; }
+    setEnvironments(stored);
+    await ssCtx.setSetting('sap_integration', { ...allConfigs, [storageKey]: { ...(allConfigs[storageKey] ?? {}), environments: stored } });
     setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
@@ -3722,7 +3715,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
         }
       } catch { /* vm stays false */ }
     }
-    if (env.host && env.username && env.password) {
+    if (env.host && env.username && sapHasPassword(env)) {
       try {
         const enriched = enrichEnvWithVpn(env);
         const sapCfg = mcpUrl && !enriched.proxyUrl?.trim() && !enriched._vpnProxyUrl
@@ -3903,7 +3896,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                           <div>
                             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_password')}</label>
                             <div className="relative">
-                              <input type={showPasswords[env.id] ? 'text' : 'password'} value={env.password} onChange={e => updateEnvField(env.id, 'password', e.target.value)} disabled={!canEdit}
+                              <input type={showPasswords[env.id] ? 'text' : 'password'} value={env.password ?? ''} placeholder={env.has_password ? 'Saved securely — type to replace' : ''} onChange={e => updateEnvField(env.id, 'password', e.target.value)} disabled={!canEdit}
                                 className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100"
                                 autoComplete="new-password" />
                               <button type="button" onClick={() => setShowPasswords(p => ({ ...p, [env.id]: !p[env.id] }))}
@@ -5943,7 +5936,7 @@ Output ONLY the ABAP source code, no explanations.`;
         // In ADT mode, Cloudflare quick tunnels block SSE from Anthropic's servers,
         // so MCP for generation never works. Skip it — generation goes directly.
         // The write step uses the bridge's own MCP subprocess pool (not SSE).
-        const genMcpServers = isAdtMode ? undefined : buildSapMcpConfig(sapConfig, freshMcpUrl);
+        const genMcpServers = isAdtMode ? undefined : await buildSapMcpConfig(sapConfig, freshMcpUrl);
         const callArgs = {
           model: genModel,
           system: ddicPrompt
@@ -7424,7 +7417,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
         system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP source code. Follow all coding standards provided in the user message without exception.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
         max_tokens: 4000,
-        mcp_servers: buildSapMcpConfig(sapConfig, sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']),
+        mcp_servers: await buildSapMcpConfig(sapConfig, sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']),
       });
       const code = stripCodeFences(typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? ''));
       setActField(act.id, { generating: false, generatedCode: code });

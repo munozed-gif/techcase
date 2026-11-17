@@ -35,7 +35,7 @@ async function sapReleaseTransport(env, transport, scope = {}) {
 async function sapApiRequest(config, path, opts = {}) {
   const proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
   const base = (proxyUrl || config.host.trim()).replace(/\/$/, '');
-  const basicAuth = btoa(`${config.username}:${config.password}`);
+  const basicAuth = btoa(`${config.username}:${config.password ?? ''}`);
   const headers = {
     Authorization: `Basic ${basicAuth}`,
     Accept: 'application/xml, application/json, */*',

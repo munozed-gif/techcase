@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { bridgeAuthHeaders } from "../lib/bridgeAuth.js";
+import { sapMcpAuthToken } from "../lib/sapCreds.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
@@ -914,17 +915,13 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const effectiveBaseCheck = clientLiveCheckVal !== null ? clientLiveCheckVal : liveCheckEnabled;
 
   // Build MCP servers config for spec generation when SAP MCP server is configured and connection is verified
-  function buildMcpConfig(overrideUrl) {
+  async function buildMcpConfig(overrideUrl) {
     const effectiveMcpUrl = (overrideUrl || sapConnCfg?.mcp_server_url?.trim() || sapMcpServerUrl).trim();
     if (!effectiveMcpUrl || !sapConnCfg || !sapConnTest?.ok) return [];
     try {
-      const token = btoa(JSON.stringify({
-        host:     sapConnCfg.host,
-        username: sapConnCfg.username,
-        password: sapConnCfg.password,
-        client:   sapConnCfg.client ?? '100',
-        ...(sapConnCfg._vpnProxyUrl ? { proxyUrl: sapConnCfg._vpnProxyUrl } : {}),
-      }));
+      // Password-less (server-side) environments get a short-lived ticket instead (sapCreds.js).
+      const token = await sapMcpAuthToken(sapConnCfg, sapConnCfg._vpnProxyUrl ? { proxyUrl: sapConnCfg._vpnProxyUrl } : {});
+      if (!token) return [];
       return [{ type: 'url', url: `${effectiveMcpUrl}/mcp`, name: 'techcase-sap', authorization_token: token }];
     } catch { return []; }
   }
@@ -3342,7 +3339,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       } catch { /* best-effort */ }
       const _specsStoredPP     = ssCtx.settings['mcp_adt_pipeline_policy'] ?? {};
       const _specsStage        = { use_mcp: true, include_mcp_rules: true, include_capabilities: false, ...(_specsStoredPP.stages?.specs ?? {}) };
-      const _allMcpServers     = buildMcpConfig(freshMcpUrl);
+      const _allMcpServers     = await buildMcpConfig(freshMcpUrl);
       const mcpServers         = _specsStage.use_mcp ? _allMcpServers : [];
       const mcpNote = mcpServers.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
       const mcpRulesNote = (mcpServers.length && _specsStage.include_mcp_rules && sapMcpRules) ? `\n\n${sapMcpRules}` : '';
@@ -3507,7 +3504,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const docBlocks = await buildDocumentBlocks();
       const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
       const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
-      const mcpServersD = buildMcpConfig();
+      const mcpServersD = await buildMcpConfig();
       const mcpNoteD = mcpServersD.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
       const mcpRulesNoteD = mcpServersD.length && sapMcpRules ? `\n\n${sapMcpRules}` : '';
       const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${mcpNoteD}${mcpRulesNoteD}`;
@@ -3595,7 +3592,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
     const needsAbap = profile?.spec_a?.technical_objects || profile?.spec_c?.technical_objects;
     const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
-    const mcpServersR = buildMcpConfig();
+    const mcpServersR = await buildMcpConfig();
     const mcpNoteR = mcpServersR.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
     const mcpRulesNoteR = mcpServersR.length && sapMcpRules ? `\n\n${sapMcpRules}` : '';
     const callSpec = async (rawPrompt, extraBlocks = []) => {
@@ -5431,7 +5428,7 @@ ${sectionBlocks}`;
                   // and pipeline policy allows MCP at the analyze stage
                   const _analyzeStoredPP  = ssCtx.settings['mcp_adt_pipeline_policy'] ?? {};
                   const _analyzeStage     = { use_mcp: true, include_mcp_rules: false, ...(_analyzeStoredPP.stages?.analyze ?? {}) };
-                  const _mcpForAnalyze    = buildMcpConfig();
+                  const _mcpForAnalyze    = await buildMcpConfig();
                   const mcpServers        = _analyzeStage.use_mcp ? _mcpForAnalyze : [];
                   const _analyzeRulesNote = _analyzeStage.include_mcp_rules && sapMcpRules ? `\n\n${sapMcpRules}` : '';
                   let fullResult = result;
