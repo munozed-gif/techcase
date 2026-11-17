@@ -5,11 +5,12 @@ import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronDown, ChevronRight,
   Clock, Code2, Copy, Eye, FileCode2, FileText, FolderOpen, History, LayoutGrid, Loader2,
   Link2, Mail, MessageSquare, RefreshCw, RotateCcw,
-  Laptop, Monitor, Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle, Zap,
+  Laptop, Lock, Monitor, Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { bridgeAuthHeaders, appAccessToken } from "../lib/bridgeAuth.js";
 import { sapHasPassword, sapMcpAuthToken, storeSapEnvPasswords } from "../lib/sapCreds.js";
+import { ProjectVpnSelector, projectVpnAction } from "./SapVpnProfiles.jsx";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useDbConnections, useProjectDbConnections } from "../hooks/useCoreHooks.js";
@@ -1223,6 +1224,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                         {[
                           { value: 'platform', label: 'Platform VPN', desc: 'VM manages VPN connection (openfortivpn)' },
                           { value: 'user',     label: 'User VPN',     desc: 'Local VPN client (FortiClient) — platform skips VPN check' },
+                          { value: 'project',  label: 'Project VPN',  desc: 'This environment\'s own VPN, isolated on the VM (several customers at once)' },
                         ].map(opt => {
                           const active = (env.vpn_mode ?? 'platform') === opt.value;
                           return (
@@ -1235,7 +1237,10 @@ function SapIntegrationPanel({ clientId, auth }) {
                           );
                         })}
                       </div>
-                      {(env.vpn_mode ?? 'platform') === 'platform' ? (
+                      {env.vpn_mode === 'project' ? (
+                        <ProjectVpnSelector env={env} scopeKeys={[clientId]} ownScopeKey={clientId} canEdit={canEdit}
+                          onChange={id => updateEnvField(env.id, 'vpn_profile_id', id)} />
+                      ) : (env.vpn_mode ?? 'platform') === 'platform' ? (
                         <div className="space-y-1.5">
                           <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
                             <input type="checkbox" checked={env.vpn_required === false} disabled={!canEdit}
@@ -2519,6 +2524,26 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       } catch (e) {
         setLiveNode('vpn', { status: 'warning', detail: 'VPN status check failed' });
         addLog('vpn', `VPN check error: ${e.message?.slice(0, 60)}`, 'warn');
+      }
+    } else if (env.vpn_mode === 'project') {
+      // Project VPN: the bridge connects this environment's own VPN in its isolated network space.
+      setLiveNode('vpn', { status: 'checking', detail: 'Connecting the project VPN…', log: [] });
+      addLog('vpn', 'Project VPN — connecting through the ADT bridge (isolated network space on the VM)…');
+      const r = await projectVpnAction({ ...env, adt_mcp_url: currentMcpBase || env.adt_mcp_url }, 'connect');
+      if (r?.mode === 'direct') {
+        setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'warning', detail: 'No VPN profile chosen for this environment' });
+        addLog('vpn', 'This environment is in Project VPN mode but has no VPN profile — choose one and save.', 'warn');
+      } else if (r?.ok && r.vpn?.state === 'up') {
+        const ip = r.vpn.iface ? ` · ${r.vpn.iface}` : '';
+        setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: `${r.vpn.name ?? 'Project VPN'} connected${ip}` });
+        addLog('vpn', `Project VPN "${r.vpn.name}" connected${ip}`, 'success');
+      } else {
+        setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: r?.error?.slice(0, 120) || 'Project VPN did not connect' });
+        addLog('vpn', `Project VPN: ${r?.error ?? 'did not connect'}`, 'error');
+        setStoppedAt('vpn');
+        setRunning(false);
+        diagnoseFailure('vpn');
+        return;
       }
     } else if (!infraCfg.vpn.enabled) {
       setLiveNode('vpn', { status: 'warning', detail: 'Disabled in settings', log: [{ ts: ts(), msg: 'Node disabled in platform settings', level: 'warn' }] });
@@ -3929,6 +3954,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                             {[
                               { value: 'platform', label: 'Platform VPN', icon: <Monitor size={12} />, desc: 'VM manages VPN (openfortivpn)' },
                               { value: 'user',     label: 'User VPN',     icon: <Laptop size={12} />,  desc: 'FortiClient or local VPN — platform skips VPN check' },
+                              { value: 'project',  label: 'Project VPN',  icon: <Lock size={12} />,    desc: 'This project\'s own VPN, isolated on the VM (several customers at once)' },
                             ].map(opt => {
                               const active = (env.vpn_mode ?? 'platform') === opt.value;
                               return (
@@ -3941,7 +3967,10 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                               );
                             })}
                           </div>
-                          {(env.vpn_mode ?? 'platform') === 'platform' ? (
+                          {env.vpn_mode === 'project' ? (
+                            <ProjectVpnSelector env={env} scopeKeys={[storageKey]} ownScopeKey={storageKey} canEdit={canEdit}
+                              onChange={id => updateEnvField(env.id, 'vpn_profile_id', id)} />
+                          ) : (env.vpn_mode ?? 'platform') === 'platform' ? (
                             <div className="space-y-1.5">
                               <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
                                 <input type="checkbox" checked={env.vpn_required === false} disabled={!canEdit}

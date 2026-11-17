@@ -29,6 +29,11 @@ import net from 'node:net';
 import https from 'node:https';
 import http from 'node:http';
 import { SocksProxyAgent } from 'socks-proxy-agent';
+import os from 'node:os';
+import {
+  netContext, currentNet, ensureNetwork, disconnectNetwork, networkStatus,
+  reapIdleNetworks, spawnInNetwork, touchNetwork, helperAvailable,
+} from './netns.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -62,13 +67,18 @@ function isSocksUp() {
 //   1. Skip self-signed cert validation (SAP uses self-signed certs)
 //   2. Optionally route through SOCKS5 when laptop tunnel is active
 async function sapFetch(url, options = {}) {
-  const useSocks = process.env.NO_SOCKS ? false : await isSocksUp();
+  // A project with its own VPN: go through the SOCKS proxy inside that VPN's namespace.
+  const vnet = currentNet();
+  if (vnet) touchNetwork(vnet.id);
+  const useSocks = vnet ? false : (process.env.NO_SOCKS ? false : await isSocksUp());
   const parsed = new URL(url);
   const isHttps = parsed.protocol === 'https:';
   const mod = isHttps ? https : http;
   // The agent must match the protocol: an https.Agent on an http:// URL (e.g. a
   // private trial system on port 50000) throws 'Protocol "http:" not supported'.
-  const agent = useSocks
+  const agent = vnet
+    ? new SocksProxyAgent(vnet.socksUrl)
+    : useSocks
     ? new SocksProxyAgent(SOCKS_URL)
     : (isHttps ? new https.Agent({ rejectUnauthorized: false }) : new http.Agent());
   return new Promise((resolve, reject) => {
@@ -257,6 +267,36 @@ const SAP_REQUEST_TIMEOUT_MS = 90000;
 const MCP_CALL_TIMEOUT_MS    = SAP_REQUEST_TIMEOUT_MS + 15000;
 
 const clientPool = new Map();
+// Per connection: { lastUsed, inFlight, netId }. Several SAP systems stay connected at once;
+// the limit follows the VM's memory (each connection process takes ~100-150 MB).
+const clientMeta = new Map();
+const MAX_POOL_CLIENTS = Number(process.env.MAX_SAP_CONNECTIONS) ||
+  Math.max(2, Math.min(16, Math.floor((os.totalmem() / 1048576 - 1200) / 180)));
+const CLIENT_IDLE_MS = Number(process.env.SAP_CONNECTION_IDLE_MINUTES ?? 15) * 60 * 1000;
+// Pool key of a SAP connection (same format getClient() uses), in the current request's network.
+function poolKeyFor(host, user, serverType) { return `${host}|${user}|${serverType}|${currentNet()?.id ?? 'vm'}`; }
+function touchClient(key) { const m = clientMeta.get(key); if (m) m.lastUsed = Date.now(); }
+function closeClient(key, why) {
+  const c = clientPool.get(key);
+  try { c?.close?.(); } catch {}
+  clientPool.delete(key);
+  clientMeta.delete(key);
+  console.log(`[bridge] Closed SAP connection ${key} (${why})`);
+}
+function makeRoomInPool() {
+  while (clientPool.size >= MAX_POOL_CLIENTS) {
+    const idle = [...clientMeta.entries()].filter(([, m]) => m.inFlight === 0).sort((a, b) => a[1].lastUsed - b[1].lastUsed);
+    if (!idle.length) break;  // all busy: go over the limit briefly rather than cut a call
+    closeClient(idle[0][0], 'pool full, least recently used');
+  }
+}
+setInterval(() => {
+  for (const [k, m] of [...clientMeta.entries()]) {
+    if (m.inFlight === 0 && Date.now() - m.lastUsed > CLIENT_IDLE_MS) closeClient(k, 'idle');
+  }
+  const netsInUse = new Set([...clientMeta.values()].map(m => m.netId).filter(Boolean));
+  reapIdleNetworks(netsInUse).catch(e => console.warn(`[netns] reap: ${e.message}`));
+}, 60_000).unref();
 // Serializes all subprocess spawning — only one subprocess may be created at a time on this VM.
 let _spawnMutex = Promise.resolve();
 
@@ -271,25 +311,25 @@ async function getClient(creds) {
 
   const adtScript = ADT_SCRIPTS[serverType] ?? ADT_SCRIPTS['abap-adt'];
 
-  const key = `${sapUrl}|${sapUser}|${serverType}`;
+  const vnet = currentNet();
+  const key = `${sapUrl}|${sapUser}|${serverType}|${vnet?.id ?? 'vm'}`;
   // Fast path — subprocess already connected
-  if (clientPool.has(key)) return clientPool.get(key);
+  if (clientPool.has(key)) { touchClient(key); return clientPool.get(key); }
 
   // Acquire global spawn mutex: concurrent callers (e.g. infra check + write-queue poller)
   // both pass the pool check above because getClient is async. The mutex ensures only one
   // subprocess is ever being spawned at a time, preventing OOM on memory-constrained VMs.
   const _spawnResult = _spawnMutex.then(async () => {
     // Re-check after acquiring the lock — a concurrent call may have just spawned this client.
-    if (clientPool.has(key)) return clientPool.get(key);
+    if (clientPool.has(key)) { touchClient(key); return clientPool.get(key); }
 
-    // Evict all OTHER subprocess types before spawning (single-subprocess policy for this VM).
-    for (const [k, c] of clientPool.entries()) {
-      if (k !== key) { try { c.close?.(); } catch {} clientPool.delete(k); }
-    }
+    // Keep several SAP connections open (limit sized to the VM's memory): make room by
+    // closing the least recently used idle ones — never one with a call in progress.
+    makeRoomInPool();
 
     // Pass SOCKS5 proxy env vars to subprocesses — respected by axios, undici, and some node:https uses
     const proxyEnv = {};
-    const socksActive = process.env.NO_SOCKS ? false : await isSocksUp();
+    const socksActive = vnet ? false : (process.env.NO_SOCKS ? false : await isSocksUp());
     if (socksActive) {
       proxyEnv.ALL_PROXY   = SOCKS_URL;
       proxyEnv.HTTPS_PROXY = SOCKS_URL;
@@ -322,9 +362,11 @@ async function getClient(creds) {
           TLS_REJECT_UNAUTHORIZED: '0',
         };
 
+    // Inside the project's VPN namespace when it has one (as the same user, same environment).
+    const spawnSpec = spawnInNetwork(vnet, vnet ? process.execPath : 'node', ['--max-old-space-size=256', adtScript]);
     const transport = new StdioClientTransport({
-      command: 'node',
-      args: ['--max-old-space-size=256', adtScript],
+      command: spawnSpec.command,
+      args: spawnSpec.args,
       env: {
         ...process.env,
         SAP_URL:      sapUrl,
@@ -349,18 +391,26 @@ async function getClient(creds) {
     const rawClientCallTool = client.callTool.bind(client);
     let callChain = Promise.resolve();
     client.callTool = (...callArgs) => {
+      const meta = clientMeta.get(key);
+      if (meta) { meta.inFlight++; meta.lastUsed = Date.now(); }
+      if (vnet) touchNetwork(vnet.id);
       const run = callChain.then(() => rawClientCallTool(...callArgs));
       callChain = run.then(() => {}, () => {});
-      return run;
+      return run.finally(() => {
+        const m = clientMeta.get(key);
+        if (m) { m.inFlight = Math.max(0, m.inFlight - 1); m.lastUsed = Date.now(); }
+      });
     };
 
     transport.onclose = () => {
       console.warn(`[bridge] Client closed for ${key} — will respawn`);
       clientPool.delete(key);
+      clientMeta.delete(key);
     };
 
     clientPool.set(key, client);
-    console.log(`[bridge] Connected subprocess (${serverType}) for ${sapUrl} / ${sapUser}`);
+    clientMeta.set(key, { lastUsed: Date.now(), inFlight: 0, netId: vnet?.id ?? null });
+    console.log(`[bridge] Connected subprocess (${serverType}) for ${sapUrl} / ${sapUser}${vnet ? ` via VPN ${vnet.ns}` : ''} — ${clientPool.size}/${MAX_POOL_CLIENTS} open`);
     return client;
   });
 
@@ -500,27 +550,56 @@ async function supabaseRpc(url, key, fn, args) {
   }
   return r.json();
 }
-async function lookupSapPassword(user, host, username, client) {
+// Password + VPN profile of the SAP environment (host / SAP user / client) for this platform
+// user — sap_env_connection_for checks they may use it. { password, vpn } or null.
+async function lookupSapConnection(user, host, username, client) {
   if (!user || !host || !username) return null;
+  const args = { p_user: user.id, p_host: String(host), p_username: String(username), p_client: client ? String(client) : null };
   try {
-    const pw = await supabaseRpc(user.url, user.key, 'sap_env_password_for',
-      { p_user: user.id, p_host: String(host), p_username: String(username), p_client: client ? String(client) : null });
-    return typeof pw === 'string' && pw ? pw : null;
+    const c = await supabaseRpc(user.url, user.key, 'sap_env_connection_for', args);
+    return c && typeof c === 'object' ? c : null;
   } catch (e) {
-    console.warn(`[bridge] SAP password lookup failed: ${e.message}`);
+    // Database without per-project VPNs yet: fall back to the password lookup only.
+    if (/HTTP 404/.test(e.message)) {
+      try {
+        const pw = await supabaseRpc(user.url, user.key, 'sap_env_password_for', args);
+        return { password: typeof pw === 'string' && pw ? pw : null, vpn: null };
+      } catch (e2) { console.warn(`[bridge] SAP password lookup failed: ${e2.message}`); return null; }
+    }
+    console.warn(`[bridge] SAP connection lookup failed: ${e.message}`);
     return null;
   }
 }
-async function fillSapPassword(req, _res, next) {
+
+// Runs the rest of the request inside the SAP environment's VPN (when it has a profile):
+// connects it if needed, then sapFetch()/getClient() use that network via netContext.
+async function runInSapNetwork(conn, res, next) {
+  if (!conn?.vpn) return next();
+  let vnet;
+  try {
+    vnet = await ensureNetwork(conn.vpn);
+  } catch (e) {
+    const setupHint = (await helperAvailable()) ? '' : ' — the VM is not set up for project VPNs yet (run vm-mcp-adt/setup-netns.sh)';
+    return res.status(502).json({ ok: false, vpn: true, error: `VPN "${conn.vpn.name ?? ''}" could not connect: ${e.message}${setupHint}` });
+  }
+  return netContext.run({ net: vnet }, () => next());
+}
+
+async function fillSapPassword(req, res, next) {
   if (req.method === 'OPTIONS' || !req.appUser) return next();
+  let conn = null;
   try {
     const auth = String(req.headers['authorization'] ?? '');
+    const b = req.body;
+    const hasBody = b && typeof b === 'object' && !Buffer.isBuffer(b);
     if (auth.startsWith('Bearer ')) {
       // base64(JSON) credentials token (same format as /mcp)
       const creds = parseSapCreds(auth);
-      if (creds?.host && creds?.username && !creds.password) {
-        const pw = await lookupSapPassword(req.appUser, creds.host, creds.username, creds.client);
-        if (pw) req.headers['authorization'] = 'Bearer ' + Buffer.from(JSON.stringify({ ...creds, password: pw })).toString('base64');
+      if (creds?.host && creds?.username) {
+        conn = await lookupSapConnection(req.appUser, creds.host, creds.username, creds.client);
+        if (!creds.password && conn?.password) {
+          req.headers['authorization'] = 'Bearer ' + Buffer.from(JSON.stringify({ ...creds, password: conn.password })).toString('base64');
+        }
       }
     } else if (auth.startsWith('Basic ') && req.headers['x-sap-target']) {
       // SAP proxy: Basic user:password, target in X-Sap-Target
@@ -528,22 +607,52 @@ async function fillSapPassword(req, _res, next) {
       const i = dec.indexOf(':');
       const user = i >= 0 ? dec.slice(0, i) : dec;
       const pass = i >= 0 ? dec.slice(i + 1) : '';
-      if (user && (!pass || pass === 'undefined')) {
-        const pw = await lookupSapPassword(req.appUser, req.headers['x-sap-target'], user, req.headers['sap-client']);
-        if (pw) req.headers['authorization'] = 'Basic ' + Buffer.from(`${user}:${pw}`).toString('base64');
+      if (user) {
+        conn = await lookupSapConnection(req.appUser, req.headers['x-sap-target'], user, req.headers['sap-client']);
+        if ((!pass || pass === 'undefined') && conn?.password) {
+          req.headers['authorization'] = 'Basic ' + Buffer.from(`${user}:${conn.password}`).toString('base64');
+        }
       }
     }
-    const b = req.body;
-    if (b && typeof b === 'object' && !Buffer.isBuffer(b) && b.host && b.username && !b.password) {
-      const pw = await lookupSapPassword(req.appUser, b.host, b.username, b.client);
-      if (pw) b.password = pw;
+    if (hasBody && b.host && b.username) {
+      conn = conn ?? await lookupSapConnection(req.appUser, b.host, b.username, b.client);
+      if (!b.password && conn?.password) b.password = conn.password;
     }
   } catch (e) {
     console.warn(`[bridge] fillSapPassword: ${e.message}`);
   }
-  next();
+  return runInSapNetwork(conn, res, next);
 }
 app.use(['/sap-proxy', '/sap-write', '/sap-write-mcp', '/sap-info', '/mcp-test', '/transport-release'], fillSapPassword);
+
+// ── Project VPN status / connect / disconnect (SAP setup screens) ──
+// Body: { host, username, client } of a SAP environment. Only users who may use that
+// environment see or change its VPN (sap_env_connection_for checks it).
+app.post('/net/:action(status|connect|disconnect)', requireAppUser, async (req, res) => {
+  try {
+    const { host, username, client } = req.body ?? {};
+    if (!host || !username) return res.status(400).json({ ok: false, error: 'host and username are required' });
+    const conn = await lookupSapConnection(req.appUser, host, username, client);
+    if (!conn) return res.status(404).json({ ok: false, error: 'No SAP environment you can use matches this host and user' });
+    if (!conn.vpn) return res.json({ ok: true, mode: 'direct', vpn: null });
+    const base = { id: conn.vpn.id, name: conn.vpn.name, type: conn.vpn.type, gateway: conn.vpn.gateway };
+    if (!(await helperAvailable())) {
+      return res.json({ ok: false, mode: 'vpn', vpn: { ...base, state: 'not-set-up' },
+        error: 'The VM is not set up for project VPNs yet (run vm-mcp-adt/setup-netns.sh)' });
+    }
+    const action = req.params.action;
+    if (action === 'connect') {
+      try { await ensureNetwork(conn.vpn); }
+      catch (e) { return res.json({ ok: false, mode: 'vpn', vpn: { ...base, ...(await networkStatus(conn.vpn.id)) }, error: e.message }); }
+    } else if (action === 'disconnect') {
+      await disconnectNetwork(conn.vpn.id);
+    }
+    const st = await networkStatus(conn.vpn.id);
+    res.json({ ok: action !== 'connect' || st.state === 'up', mode: 'vpn', vpn: { ...base, ...st } });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: (e?.message ?? String(e)).slice(0, 300) });
+  }
+});
 
 // ── Write tickets (server-side validation) ───────────────────
 // /api/adt-write checks the user's role permission and the case's validation rules
@@ -839,7 +948,7 @@ app.post('/mcp-test', async (req, res) => {
   } catch (e) {
     rw.error = e.message?.slice(0, 150) ?? 'spawn failed';
   } finally {
-    const rwKey = `${host}|${username}|abap-adt`;
+    const rwKey = poolKeyFor(host, username, 'abap-adt');
     if (clientPool.has(rwKey)) {
       try { clientPool.get(rwKey).close?.(); } catch {}
       clientPool.delete(rwKey);
@@ -855,7 +964,7 @@ app.post('/mcp-test', async (req, res) => {
   } catch (e) {
     ro.error = e.message?.slice(0, 150) ?? 'spawn failed';
   } finally {
-    const roKey = `${host}|${username}|abap-adt-readonly`;
+    const roKey = poolKeyFor(host, username, 'abap-adt-readonly');
     if (clientPool.has(roKey)) {
       try { clientPool.get(roKey).close?.(); } catch {}
       clientPool.delete(roKey);
@@ -1216,7 +1325,7 @@ app.post('/sap-write-mcp', async (req, res) => {
         }
         return result;
       }
-      const poolKey = `${host}|${username}|abap-adt`;
+      const poolKey = poolKeyFor(host, username, 'abap-adt');
       async function respawn() {
         try { clientPool.get(poolKey)?.close?.(); } catch {}
         clientPool.delete(poolKey);
@@ -1357,7 +1466,7 @@ app.post('/sap-write-mcp', async (req, res) => {
       console.log(`[bridge] [timing] createOnly start: ${objtype} ${resolvedName} pkg=${parentName} tr=${transport || 'none'}`);
       // Evict R/O subprocess from pool before spawning R+W — prevents simultaneous
       // subprocesses that exhaust VM memory (OOM/SIGKILL).
-      const roKey = `${host}|${username}|abap-adt-readonly`;
+      const roKey = poolKeyFor(host, username, 'abap-adt-readonly');
       if (clientPool.has(roKey)) {
         try { clientPool.get(roKey).close?.(); } catch {}
         clientPool.delete(roKey);
@@ -1677,15 +1786,35 @@ app.post('/mcp', async (req, res) => {
     // The AI's SAP tools are called from Anthropic's servers (no app login): instead of the
     // password the app sends a 30-minute ticket, resolved here to the password of the user
     // who issued it (sap_mcp_ticket_password).
-    if (creds?.username && !creds.password && creds.mcp_ticket) {
+    let mcpConn = null;
+    if (creds?.username && creds.mcp_ticket) {
+      const tArgs = { p_ticket: String(creds.mcp_ticket), p_host: String(creds.host ?? ''), p_username: String(creds.username), p_client: creds.client ? String(creds.client) : null };
       for (const [url, key] of APP_AUTH_PROJECTS) {
         try {
-          const pw = await supabaseRpc(url, key, 'sap_mcp_ticket_password',
-            { p_ticket: String(creds.mcp_ticket), p_host: String(creds.host ?? ''), p_username: String(creds.username), p_client: creds.client ? String(creds.client) : null });
-          if (typeof pw === 'string' && pw) { creds.password = pw; break; }
-        } catch { /* try the next project */ }
+          mcpConn = await supabaseRpc(url, key, 'sap_mcp_ticket_connection', tArgs);
+        } catch (e) {
+          if (/HTTP 404/.test(e.message)) {   // database without per-project VPNs yet
+            const pw = await supabaseRpc(url, key, 'sap_mcp_ticket_password', tArgs).catch(() => null);
+            mcpConn = typeof pw === 'string' && pw ? { password: pw, vpn: null } : null;
+          }
+        }
+        if (mcpConn) break;
       }
+      if (!creds.password && mcpConn?.password) creds.password = mcpConn.password;
     }
+    if (mcpConn?.vpn) {
+      // Continue this MCP request inside the environment's VPN.
+      return runInSapNetwork(mcpConn, res, () => handleMcpRequest(req, res, creds));
+    }
+    return handleMcpRequest(req, res, creds);
+  } catch (err) {
+    console.error('[bridge] /mcp error:', err.message);
+    if (!res.headersSent) res.status(500).json({ jsonrpc: '2.0', error: { code: -32603, message: err.message }, id: null });
+  }
+});
+
+async function handleMcpRequest(req, res, creds) {
+  try {
     // Require the caller's SAP credentials (no fallback to the VM's .env user).
     if (!creds?.username || !creds?.password) {
       return res.status(401).json({ jsonrpc: '2.0', error: { code: -32001, message: 'SAP credentials required in Authorization token' }, id: null });
@@ -1727,7 +1856,7 @@ app.post('/mcp', async (req, res) => {
       });
     }
   }
-});
+}
 
 // GET /mcp — SSE for server-initiated messages
 app.get('/mcp', async (req, res) => {
