@@ -481,14 +481,23 @@ app.use(['/sap-proxy', '/vpn', '/sap-write', '/sap-write-mcp', '/sap-info', '/mc
 // up for the logged-in user (sap_env_password_for checks they may use that SAP system:
 // staff, the customer, or someone on one of its cases/projects). A password sent by the
 // caller is used as is.
+// Service-role headers. Supabase's newer secret keys (sb_secret_…) are not JWTs and are
+// rejected in "Authorization: Bearer"; send them only as apikey. Legacy service_role JWTs
+// work either way.
+function serviceHeaders(key, extra = {}) {
+  return { apikey: key, ...(String(key).startsWith('eyJ') ? { Authorization: `Bearer ${key}` } : {}), ...extra };
+}
 async function supabaseRpc(url, key, fn, args) {
   const r = await fetch(`${url}/rest/v1/rpc/${fn}`, {
     method: 'POST',
-    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    headers: serviceHeaders(key, { 'Content-Type': 'application/json' }),
     body: JSON.stringify(args),
     signal: AbortSignal.timeout(8000),
   });
-  if (!r.ok) throw new Error(`${fn}: HTTP ${r.status}`);
+  if (!r.ok) {
+    const body = (await r.text().catch(() => '')).slice(0, 200);
+    throw new Error(`${fn}: HTTP ${r.status} ${body}`);
+  }
   return r.json();
 }
 async function lookupSapPassword(user, host, username, client) {
@@ -550,7 +559,7 @@ async function consumeTicket(ticketId, { action, objectName = null, transport = 
       const now = new Date().toISOString();
       const r = await fetch(`${url}/rest/v1/sap_action_tickets?id=eq.${ticketId}&used_at=is.null&expires_at=gt.${encodeURIComponent(now)}`, {
         method: 'PATCH',
-        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        headers: serviceHeaders(key, { 'Content-Type': 'application/json', Prefer: 'return=representation' }),
         body: JSON.stringify({ used_at: now }),
         signal: AbortSignal.timeout(8000),
       });
