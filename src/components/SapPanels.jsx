@@ -444,7 +444,9 @@ async function sapApiRequest(config, path, opts = {}) {
     Accept: 'application/xml, text/xml, text/plain',
     'sap-client': String(config.client || '100'),
     ...(proxyUrl ? { 'X-Sap-Target': config.host.trim().replace(/\/$/, '') } : {}),
-    ...(proxyUrl && !/\/api\/sap-proxy\b/.test(proxyUrl) ? await bridgeAuthHeaders(base) : {}),
+    // VM bridge: token only for its registered URL. Our own /api/sap-proxy: always (it
+    // only serves logged-in users and SAP hosts saved in the platform).
+    ...(proxyUrl ? await bridgeAuthHeaders(/\/api\/sap-proxy\b/.test(proxyUrl) ? null : base) : {}),
     ...(opts.headers ?? {}),
   };
   const url = `${base}${path}`;

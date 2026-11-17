@@ -41,6 +41,7 @@ async function sapApiRequest(config, path, opts = {}) {
     Accept: 'application/xml, application/json, */*',
     'sap-client': String(config.client || '100'),
     ...(proxyUrl ? { 'X-Sap-Target': config.host.trim().replace(/\/$/, '') } : {}),
+    ...(proxyUrl ? await bridgeAuthHeaders(/\/api\/sap-proxy\b/.test(proxyUrl) ? null : base) : {}),
     ...(opts.headers ?? {}),
   };
   return fetch(`${base}${path}`, { ...opts, headers, credentials: 'omit' });
