@@ -185,8 +185,21 @@ function SystemSettingsProvider({ children }) {
     setSettings(prev => ({ ...prev, [key]: value }));
   }
 
+  // Update one entry (e.g. one case) of a setting that holds an object per case. The merge
+  // happens in the database (set_setting_entry), so other cases' entries are never
+  // overwritten with a stale copy, and the per-case guard only sees this entry change.
+  async function setSettingEntry(key, entry, value) {
+    const { error } = await supabase.rpc("set_setting_entry", { p_key: key, p_entry: String(entry), p_value: value ?? null });
+    if (error) throw error;
+    setSettings(prev => {
+      const cur = { ...(prev[key] ?? {}) };
+      if (value == null) delete cur[entry]; else cur[entry] = value;
+      return { ...prev, [key]: cur };
+    });
+  }
+
   return (
-    <SystemSettingsContext.Provider value={{ settings, loading, dbError, setSetting, reload: load }}>
+    <SystemSettingsContext.Provider value={{ settings, loading, dbError, setSetting, setSettingEntry, reload: load }}>
       {children}
     </SystemSettingsContext.Provider>
   );
@@ -196,7 +209,7 @@ function useSystemSettings() {
   const ctx = useContext(SystemSettingsContext);
   if (!ctx) {
     // Fallback for components rendered outside the provider (e.g. AuthScreen)
-    return { settings: {}, loading: false, dbError: null, setSetting: async () => {}, reload: async () => {} };
+    return { settings: {}, loading: false, dbError: null, setSetting: async () => {}, setSettingEntry: async () => {}, reload: async () => {} };
   }
   return ctx;
 }

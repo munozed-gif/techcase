@@ -5398,7 +5398,13 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
 
   async function saveBlueprint(newObjects, newStopOnError) {
     const all = settings[bpKey] ?? {};
-    await ssCtx.setSetting(bpKey, { ...all, [caseId]: { ...(all[caseId] ?? {}), objects: newObjects, stopOnError: newStopOnError ?? stopOnError } });
+    try {
+      await ssCtx.setSettingEntry(bpKey, caseId, { ...(all[caseId] ?? {}), objects: newObjects, stopOnError: newStopOnError ?? stopOnError });
+    } catch (e) {
+      // Refused by the database guard (e.g. approving without being a reviewer).
+      alert(`The blueprint was not saved: ${e?.message ?? e}`);
+      ssCtx.reload?.();
+    }
   }
 
   // Run history: one record per canvas run, shown in the pipeline's Logs > Run History.
@@ -5435,7 +5441,7 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
         .map((r, i, arr) => i < arr.length - 10
           ? { ...r, objects: (r.objects ?? []).map(o => o.ai ? { ...o, ai: { ...o.ai, prompt: undefined, trimmed: true } } : o) }
           : r);
-      ssCtx.setSetting(bpKey, { ...all, [caseId]: { ...cur, objects: prev, stopOnError, runs } });
+      ssCtx.setSettingEntry(bpKey, caseId, { ...cur, objects: prev, stopOnError, runs }).catch(e => console.warn('[blueprint] save run failed', e?.message));
       notifyRunComplete(runs[runs.length - 1]);
     }
   }
@@ -7536,7 +7542,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     if (bpObjects.length > 0) {
       const newBpObjects = bpObjects.map(o => o.status === 'done' ? o : { ...o, status: 'planned', error: null, generatedCode: null });
       const cur = settings['sap_blueprint'] ?? {};
-      await ssCtx.setSetting('sap_blueprint', { ...cur, [caseData.id]: { ...(cur[caseData.id] ?? {}), objects: newBpObjects } });
+      await ssCtx.setSettingEntry('sap_blueprint', caseData.id, { ...(cur[caseData.id] ?? {}), objects: newBpObjects });
     }
     setImplStep(4);
   }

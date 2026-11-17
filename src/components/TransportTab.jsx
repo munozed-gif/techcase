@@ -450,7 +450,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
         project_id: projectId,
         case_id: caseId,
       };
-      await ssCtx.setSetting('transport_approvals', { ...transportApprovals, [scopeKey]: batch });
+      await ssCtx.setSettingEntry('transport_approvals', scopeKey, batch);
       const pending = requests.filter(r => r.status === 'pending').map(r => r.id);
       if (pending.length > 0) {
         await supabase.from('case_transport_requests').update({ approval_status: 'pending_review' }).in('id', pending);
