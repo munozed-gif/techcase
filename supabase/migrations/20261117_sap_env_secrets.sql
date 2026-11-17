@@ -23,7 +23,7 @@ REVOKE ALL ON public.sap_env_secrets FROM anon, authenticated;
 
 CREATE TABLE IF NOT EXISTS public.sap_mcp_tickets (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id      uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id      uuid NOT NULL,
   sap_host     text NOT NULL,
   sap_username text NOT NULL,
   sap_client   text,
@@ -93,7 +93,8 @@ BEGIN
       AND (p_client IS NULL OR p_client = '' OR coalesce(nullif(e ->> 'client', ''), '100') = p_client)
   LOOP
     IF NOT public._user_can_use_sap_scope(p_user, r.scope) THEN CONTINUE; END IF;
-    SELECT password INTO v_pw FROM sap_env_secrets WHERE scope_key = r.scope AND env_id = coalesce(r.env ->> 'id', 'default');
+    v_pw := NULL;
+    SELECT nullif(password, '') INTO v_pw FROM sap_env_secrets WHERE scope_key = r.scope AND env_id = coalesce(r.env ->> 'id', 'default');
     v_pw := coalesce(v_pw, nullif(r.env ->> 'password', ''));
     IF v_pw IS NOT NULL THEN RETURN v_pw; END IF;
   END LOOP;
@@ -121,7 +122,9 @@ BEGIN
     VALUES (p_scope, p_env_id, p_password, now(), auth.uid())
     ON CONFLICT (scope_key, env_id) DO UPDATE SET password = EXCLUDED.password, updated_at = now(), updated_by = auth.uid();
   ELSE
-    DELETE FROM sap_env_secrets WHERE scope_key = p_scope AND env_id = p_env_id;
+    -- Cleared: kept as an empty password (treated as none).
+    UPDATE sap_env_secrets SET password = '', updated_at = now(), updated_by = auth.uid()
+     WHERE scope_key = p_scope AND env_id = p_env_id;
   END IF;
   UPDATE system_settings s
      SET value = jsonb_set(s.value, ARRAY[p_scope, 'environments'],
@@ -138,7 +141,6 @@ RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_id uuid;
 BEGIN
   IF auth.uid() IS NULL OR NOT public.is_approved_user() THEN RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501'; END IF;
-  DELETE FROM sap_mcp_tickets WHERE expires_at < now() - interval '1 day';
   INSERT INTO sap_mcp_tickets (user_id, sap_host, sap_username, sap_client)
   VALUES (auth.uid(), public._norm_sap_host(p_host), upper(coalesce(p_username, '')), nullif(p_client, ''))
   RETURNING id INTO v_id;
