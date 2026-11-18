@@ -18,6 +18,12 @@ const ROLE_COLORS = {
 };
 
 const DEFAULT_PLAN_CONFIG = {
+  // Partner accounts (consultants / firms running their own customers). -1 = unlimited.
+  // The database (partner_limits) enforces these; plan_config.partner overrides them.
+  partner: {
+    free: { label: 'Free', maxCustomers: 1,  maxProjects: 1,  maxOpenCases: 3,  maxMembers: 1, maxSapEnvs: 1,  projectVpn: false, sapImplementation: false, validations: false },
+    pro:  { label: 'Pro',  maxCustomers: -1, maxProjects: -1, maxOpenCases: -1, maxMembers: 5, maxSapEnvs: -1, projectVpn: true,  sapImplementation: true,  validations: true },
+  },
   client: {
     free:       { label: 'Free',       maxCases: 3,  maxTeam: 2,  ai: false, analytics: false, helpDesk: false },
     growth:     { label: 'Growth',     maxCases: 5,  maxTeam: 10, ai: true,  analytics: true,  helpDesk: false },
@@ -410,6 +416,7 @@ const DEFAULT_PLAN_PRICES = {
   headhunter_pro:        { label: 'Headhunter Pro',         amount: 99,  currency: 'usd', roleType: 'headhunter', planKey: 'pro'        },
   headhunter_agency:     { label: 'Headhunter Agency',      amount: 249, currency: 'usd', roleType: 'headhunter', planKey: 'agency'     },
   user_ai_pro:           { label: 'AI Pro',                 amount: 19,  currency: 'usd', roleType: 'user',       planKey: 'ai_pro'     },
+  partner_pro:           { label: 'Partner Pro',            amount: 49,  currency: 'usd', roleType: 'partner',    planKey: 'pro'        },
 };
 
 // ── Migration methodology defaults ────────────────────────────

@@ -5326,18 +5326,31 @@ function SettingsSpecGenTemplatesTab({ ssCtx, auth }) {
 // Settings → Workflow → Validations: global policy defaults + per-customer rules.
 function ValidationsSettingsPanel({ auth }) {
   const canEdit = auth.isAdmin || auth.isManager;
-  const [clients, setClients] = useState([]);
+  const [partners, setPartners] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [partnerId, setPartnerId] = useState('');
   const [clientId, setClientId] = useState('');
   useEffect(() => {
-    supabase.from("users").select("id, full_name, client_profiles(company_name)").eq("role", "client").order("full_name")
-      .then(({ data }) => setClients(data ?? []));
+    supabase.from("partners").select("id, name, plan").eq("status", "approved").order("name").then(({ data }) => setPartners(data ?? []));
+    supabase.from("customers").select("id, name, partner_id").eq("archived", false).order("name").then(({ data }) => setCustomers(data ?? []));
   }, []);
+  const customerPartner = customers.find(c => c.id === clientId)?.partner_id ?? null;
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 p-5">
         <p className="font-bold text-gray-900 dark:text-white text-sm">Global validation rules</p>
-        <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5 mb-4">Defaults for every customer and project. Stage requirements (gates) are set in Transition Gates. Customers and projects can override both (Global → Customer → Project; no case-level overrides).</p>
+        <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5 mb-4">Defaults for every customer and project. Stage requirements (gates) are set in Transition Gates. Partners, customers and projects can override both (Global → Partner → Customer → Project; no case-level overrides).</p>
         <ValidationRulesEditor level="global" canEdit={canEdit} />
+      </div>
+      <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 p-5">
+        <p className="font-bold text-gray-900 dark:text-white text-sm">Partner rules</p>
+        <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5 mb-3">Override the global rules for every customer and project of one partner.</p>
+        <select value={partnerId} onChange={e => setPartnerId(e.target.value)}
+          className="mb-4 w-full sm:w-80 text-sm border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+          <option value="">— Choose a partner —</option>
+          {partners.map(p => <option key={p.id} value={p.id}>{p.name}{p.plan === 'pro' ? ' · Pro' : ''}</option>)}
+        </select>
+        {partnerId && <ValidationRulesEditor key={partnerId} level="partner" entityId={partnerId} canEdit={canEdit} />}
       </div>
       <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-gray-200 dark:border-white/10 p-5">
         <p className="font-bold text-gray-900 dark:text-white text-sm">Customer rules</p>
@@ -5345,9 +5358,13 @@ function ValidationsSettingsPanel({ auth }) {
         <select value={clientId} onChange={e => setClientId(e.target.value)}
           className="mb-4 w-full sm:w-80 text-sm border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
           <option value="">— Choose a customer —</option>
-          {clients.map(c => <option key={c.id} value={c.id}>{c.client_profiles?.company_name || c.full_name}</option>)}
+          {partners.map(p => (
+            <optgroup key={p.id} label={p.name}>
+              {customers.filter(c => c.partner_id === p.id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </optgroup>
+          ))}
         </select>
-        {clientId && <ValidationRulesEditor key={clientId} level="client" entityId={clientId} canEdit={canEdit} />}
+        {clientId && <ValidationRulesEditor key={clientId} level="client" entityId={clientId} parentPartnerId={customerPartner} canEdit={canEdit} />}
       </div>
     </div>
   );

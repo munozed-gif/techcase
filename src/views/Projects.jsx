@@ -1690,6 +1690,9 @@ function ProjectConnectionsTab({ projectId, clientId, auth, createdBy }) {
 function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [], importedCasesCount = 0 }) {
   const { t } = useT();
   const wizardMode = useWizardMode(auth);
+  const projPartnerCtx = usePartnerContext(auth.user?.id);
+  const projPartner = project?.partner_id ? projPartnerCtx.partnerById(project.partner_id) : null;
+  const projPartnerManage = !!projPartner && projPartner.status === "approved" && ["owner", "admin"].includes(projPartner.role);
   const { createCase, updateCase, deleteCase } = useCases({});
   const { settings: _importSS, setSetting: ssSetSetting, loading: ssLoading } = useSystemSettings();
   const [projCases, setProjCases] = useState([]);
@@ -2074,7 +2077,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     setShowAssign(true);
   }
 
-  const canEdit = auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id;
+  const canEdit = auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id || projPartnerManage;
   const canEditLifecycle = auth.isAdmin || auth.isManager || auth.profile?.role === "project_manager" || project.created_by === auth.user?.id;
   const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
   const projProgress = projCases.length === 0 ? 0 : Math.round(projCases.filter(c => TERMINAL.includes(c.status)).length / projCases.length * 100);
@@ -2118,7 +2121,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     ...(canEdit ? [{ id: "spec_gen",  label: "Spec Gen",                 icon: Sparkles,   count: null }] : []),
-    ...((auth.isAdmin || auth.isManager) ? [{ id: "validations", label: "Validations", icon: Shield, count: null }] : []),
+    ...((auth.isAdmin || auth.isManager || projPartnerManage) ? [{ id: "validations", label: "Validations", icon: Shield, count: null }] : []),
     ...((auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id || consultants.some(c => c.user_id === auth.user?.id)) ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
     ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) ? [{ id: "transport", label: "Transports", icon: Truck, count: null }] : []),
   ];
@@ -3396,14 +3399,19 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         })()}
 
         {/* Spec Gen Template tab */}
-        {tab.id === "validations" && (auth.isAdmin || auth.isManager) && (
+        {tab.id === "validations" && (auth.isAdmin || auth.isManager || projPartnerManage) && (
           <div className="space-y-4">
             <div>
               <p className="text-sm font-semibold text-gray-800 dark:text-white mb-1">Validation rules for this project</p>
-              <p className="text-sm text-gray-500 dark:text-white/40">Override the customer and global rules for the cases of this project. "Inherit" keeps the rule from the level above (Global → Customer → Project).</p>
+              <p className="text-sm text-gray-500 dark:text-white/40">Override the partner, customer and global rules for the cases of this project. "Inherit" keeps the rule from the level above (Global → Partner → Customer → Project).</p>
+              {!(auth.isAdmin || auth.isManager) && projPartner && !projPartner.limits?.validations && (
+                <p className="text-xs text-amber-700 mt-1">Custom validation rules need the Partner Pro plan (Partner → Plan).</p>
+              )}
             </div>
-            <ValidationRulesEditor level="project" entityId={project.id} parentClientId={project.client_id ?? null}
-              defaultLifecycle={project.case_lifecycle?.preset ?? 'support'} canEdit={auth.isAdmin || auth.isManager} />
+            <ValidationRulesEditor level="project" entityId={project.id} parentPartnerId={project.partner_id ?? null}
+              parentClientId={project.customer_id ?? project.client_id ?? null}
+              defaultLifecycle={project.case_lifecycle?.preset ?? 'support'}
+              canEdit={auth.isAdmin || auth.isManager || (projPartnerManage && !!projPartner?.limits?.validations)} />
           </div>
         )}
 

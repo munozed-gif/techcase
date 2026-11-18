@@ -198,8 +198,27 @@ function SystemSettingsProvider({ children }) {
     });
   }
 
+  // SAP setup of one customer ("<customerId>") or project ("proj_<id>"): saved through
+  // set_sap_integration_entry, which checks who may manage it and the partner plan's limits.
+  async function setSapIntegrationEntry(scope, value) {
+    const { error } = await supabase.rpc("set_sap_integration_entry", { p_scope: String(scope), p_value: value ?? {} });
+    if (error) throw error;
+    setSettings(prev => ({ ...prev, sap_integration: { ...(prev.sap_integration ?? {}), [scope]: value ?? {} } }));
+  }
+
+  // Validation overrides of one partner / customer ('client') / project (Pro plan for partners).
+  async function setValidationOverride(level, entity, value) {
+    const { error } = await supabase.rpc("set_validation_override", { p_level: level, p_entity: String(entity), p_value: value ?? {} });
+    if (error) throw error;
+    setSettings(prev => {
+      const ov = { ...(prev.validation_overrides ?? {}) };
+      ov[level] = { ...(ov[level] ?? {}), [entity]: value ?? {} };
+      return { ...prev, validation_overrides: ov };
+    });
+  }
+
   return (
-    <SystemSettingsContext.Provider value={{ settings, loading, dbError, setSetting, setSettingEntry, reload: load }}>
+    <SystemSettingsContext.Provider value={{ settings, loading, dbError, setSetting, setSettingEntry, setSapIntegrationEntry, setValidationOverride, reload: load }}>
       {children}
     </SystemSettingsContext.Provider>
   );
@@ -209,7 +228,7 @@ function useSystemSettings() {
   const ctx = useContext(SystemSettingsContext);
   if (!ctx) {
     // Fallback for components rendered outside the provider (e.g. AuthScreen)
-    return { settings: {}, loading: false, dbError: null, setSetting: async () => {}, setSettingEntry: async () => {}, reload: async () => {} };
+    return { settings: {}, loading: false, dbError: null, setSetting: async () => {}, setSettingEntry: async () => {}, setSapIntegrationEntry: async () => {}, setValidationOverride: async () => {}, reload: async () => {} };
   }
   return ctx;
 }

@@ -15,7 +15,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useDbConnections, useProjectDbConnections } from "../hooks/useCoreHooks.js";
 import { usePlanConfig, useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
-import { resolvePolicies, isProtectedSapEnv, sapNamingProblems } from "../lib/validationPolicies.js";
+import { resolvePolicies, caseValidationScope, isProtectedSapEnv, sapNamingProblems } from "../lib/validationPolicies.js";
 import { callClaude, logEvent, notify, notifyManagers, sendEmail, buildEmailHtml } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
@@ -914,7 +914,7 @@ const SAP_ENV_TYPE_META = {
   snd: { label: 'Sandbox (SND)',    color: 'bg-green-100 text-green-700' },
 };
 
-function SapIntegrationPanel({ clientId, auth }) {
+function SapIntegrationPanel({ clientId, auth, editable = null }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
   const allConfigs = ssCtx.settings['sap_integration'] ?? {};
@@ -942,7 +942,8 @@ function SapIntegrationPanel({ clientId, auth }) {
   const [vpnDraft, setVpnDraft] = useState({ conn_name: '', remote_gateway: '', username: '', password: '', trusted_cert: '' });
   const [addVpnSaving, setAddVpnSaving] = useState(false);
 
-  const canEdit = usePermissions(auth).can('edit_sap_setup') || auth.isClient;
+  const _permEdit = usePermissions(auth).can('edit_sap_setup') || auth.isClient;
+  const canEdit = editable ?? _permEdit;
 
   async function saveEnvironments(envs) {
     setSaving(true);
@@ -951,7 +952,8 @@ function SapIntegrationPanel({ clientId, auth }) {
     try { stored = await storeSapEnvPasswords(clientId, envs); }
     catch (e) { setSaving(false); alert(e.message); return; }
     setEnvironments(stored);
-    await ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: { ...(allConfigs[clientId] ?? {}), environments: stored } });
+    try { await ssCtx.setSapIntegrationEntry(clientId, { ...(allConfigs[clientId] ?? {}), environments: stored }); }
+    catch (e) { setSaving(false); alert(e.message); return; }
     setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
@@ -1563,7 +1565,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                 const val = clientRaw[key] ?? clientRaw['allowProjectAdtOverride'] ?? true;
                 return (
                   <button disabled={!canEdit}
-                    onClick={() => ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: { ...clientRaw, [key]: !val } })}
+                    onClick={() => ssCtx.setSapIntegrationEntry(clientId, { ...clientRaw, [key]: !val }).catch(e => alert(e.message))}
                     className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${val ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'}`}
                     role="switch" aria-checked={val}>
                     <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${val ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -2028,10 +2030,9 @@ function AbapTemplateSection({ projectId, canEdit }) {
   }, [projectId]);
 
   async function saveTemplates(list) {
-    await ssCtx.setSetting('sap_integration', {
-      ...allConfigs,
-      [storageKey]: { ...projCfg, abap_templates: list, abap_template: undefined },
-    });
+    const { abap_template: _legacy, ...rest } = projCfg ?? {};
+    try { await ssCtx.setSapIntegrationEntry(storageKey, { ...rest, abap_templates: list }); }
+    catch (e) { alert(e.message); }
   }
 
   async function handleSelect(docId) {
@@ -3709,7 +3710,8 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
     try { stored = await storeSapEnvPasswords(storageKey, envs); }
     catch (e) { setSaving(false); alert(e.message); return; }
     setEnvironments(stored);
-    await ssCtx.setSetting('sap_integration', { ...allConfigs, [storageKey]: { ...(allConfigs[storageKey] ?? {}), environments: stored } });
+    try { await ssCtx.setSapIntegrationEntry(storageKey, { ...(allConfigs[storageKey] ?? {}), environments: stored }); }
+    catch (e) { setSaving(false); alert(e.message); return; }
     setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
@@ -5805,8 +5807,8 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       } catch { /* best-effort */ }
     }
 
-    // ── Validations (Global → Customer → Project; see Settings → Workflow) ──
-    const valPol = resolvePolicies(settings, { clientId: caseData.client_id ?? caseData.project?.client?.id ?? null, projectId: caseData.project_id ?? null });
+    // ── Validations (Global → Partner → Customer → Project; see Settings → Workflow) ──
+    const valPol = resolvePolicies(settings, caseValidationScope(caseData));
     const stopRun = (reason) => {
       setRunning(false);
       recordRun({ objectIds: sorted.map(o => o.id), startedAt: runStartedAt, transport: runTransport, stoppedReason: reason });
@@ -6155,7 +6157,7 @@ Output ONLY the ABAP source code, no explanations.`;
     if (!sapConfig?.host || !autoImplEnabled) return;
     if (isProtectedSapEnv(sapConfig)) { addLog(`⛔ ${sapConfig?.name ?? 'This environment'} is a QA/Production system — the platform does not write to it.`, 'error'); return; }
     {
-      const _vp = resolvePolicies(settings, { clientId: caseData.client_id ?? caseData.project?.client?.id ?? null, projectId: caseData.project_id ?? null });
+      const _vp = resolvePolicies(settings, caseValidationScope(caseData));
       const _nm = _vp.sap_naming_check.mode === 'block' ? sapNamingProblems(obj.type, obj.name) : [];
       if (_nm.length) { updateObj(obj.id, { status: 'error', error: `SAP naming: ${_nm.join('; ')}` }); addLog(`${obj.name}: ⛔ SAP naming: ${_nm.join('; ')}`, 'error'); return; }
     }
@@ -7161,8 +7163,9 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     await ssCtx.setSetting('sap_case_conn', { ...sapCaseConnMap, [caseData.id]: connId || null });
   }
   const allSapConfigs   = settings['sap_integration'] ?? {};
-  const clientSapData   = caseData.client_id
-    ? (allSapConfigs[caseData.client_id] ?? {})
+  const _custKey = caseData.customer_id ?? caseData.client_id;
+  const clientSapData   = _custKey
+    ? (allSapConfigs[_custKey] ?? allSapConfigs[caseData.client_id] ?? allSapConfigs[`proj_${caseData.project_id}`] ?? {})
     : (allSapConfigs[`proj_${caseData.project_id}`] ?? {});
   const sapEnvironmentsFromSettings = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
   // Fall back to db_connections records of SAP/HANA type when no sap_integration setting exists

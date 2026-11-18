@@ -4,13 +4,15 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Building2, Check, CheckCircle2, Clock, CreditCard, Crown, Handshake, Layers, Mail, Pencil,
-  Plus, RefreshCw, Rocket, Send, ShieldAlert, UserPlus, Users, X, XCircle,
+  Plus, RefreshCw, Rocket, Send, Server, Shield, ShieldAlert, UserPlus, Users, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { CountrySelect, EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import { Spinner } from "../components/ProfileComponents.jsx";
 import { usePartnerContext, PARTNER_LIMIT_LABELS, fmtLimit } from "../hooks/usePartnerContext.js";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { SapIntegrationPanel } from "../components/SapPanels.jsx";
+import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 
 const OPEN_CASE_EXCLUDED = ["completed", "closed", "cancelled", "resolved", "terminated"];
 const CLOSED_PROJECT = ["cancelled", "completed", "closed", "archived"];
@@ -302,8 +304,9 @@ function CustomerUsers({ customer, canManage }) {
   );
 }
 
-function CustomersTab({ partner, canManage, onChanged }) {
+function CustomersTab({ partner, canManage, onChanged, auth }) {
   const [rows, setRows] = useState(null);
+  const [sapFor, setSapFor] = useState(null);
   const [editing, setEditing] = useState(null);   // customer row or {} for new
   const [openId, setOpenId] = useState(null);
   const [nonce, setNonce] = useState(0);
@@ -353,6 +356,9 @@ function CustomersTab({ partner, canManage, onChanged }) {
             <button onClick={() => setOpenId(openId === c.id ? null : c.id)} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
               <Users size={13} />Users
             </button>
+            <button onClick={() => setSapFor(c)} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
+              <Server size={13} />SAP systems
+            </button>
             {canManage && <button onClick={() => setEditing(c)} className="p-1.5 text-gray-400 hover:text-gray-700"><Pencil size={14} /></button>}
             {canManage && <button onClick={() => setArchived(c, true)} className="text-xs text-gray-400 hover:text-red-600">Archive</button>}
           </div>
@@ -376,6 +382,17 @@ function CustomersTab({ partner, canManage, onChanged }) {
           </div>
         </details>
       )}
+      <Modal open={!!sapFor} onClose={() => setSapFor(null)} title={sapFor ? `SAP systems — ${sapFor.name}` : ""} wide>
+        {sapFor && (
+          <div>
+            <p className="text-xs text-gray-500 mb-3">
+              Development / sandbox systems of this customer. Your plan allows {fmtLimit(partner.limits?.maxSapEnvs, "count").toLowerCase()} SAP environment(s) per customer
+              {partner.limits?.projectVpn ? "" : "; per-project VPNs need the Pro plan"}.
+            </p>
+            <SapIntegrationPanel clientId={sapFor.id} auth={auth} editable={canManage} />
+          </div>
+        )}
+      </Modal>
       <Modal open={!!editing} onClose={() => setEditing(null)} title={editing?.id ? "Edit customer" : "New customer"} wide>
         {editing && <CustomerForm partnerId={partner.id} initial={editing.id ? editing : null}
           onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); setNonce(n => n + 1); onChanged(); }} />}
@@ -415,6 +432,38 @@ function ProjectsTab({ partner, onNavigate }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Validations (Pro) ──────────────────────────────────────────────────────
+function ValidationsTab({ partner, canManage }) {
+  const [customers, setCustomers] = useState([]);
+  const [customerId, setCustomerId] = useState("");
+  useEffect(() => {
+    supabase.from("customers").select("id, name").eq("partner_id", partner.id).eq("archived", false).order("name")
+      .then(({ data }) => setCustomers(data ?? []));
+  }, [partner.id]);
+  const allowed = canManage && !!partner.limits?.validations;
+  return (
+    <div className="space-y-6 max-w-4xl">
+      {!partner.limits?.validations && (
+        <Banner>Custom validation rules are part of the Partner Pro plan. On Free, your cases follow the platform's global rules.</Banner>
+      )}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <p className="font-bold text-gray-900 text-sm">Rules for all of {partner.name}</p>
+        <p className="text-xs text-gray-500 mt-0.5 mb-4">Override the platform's global rules for every customer and project of this partner (Global → Partner → Customer → Project).</p>
+        <ValidationRulesEditor level="partner" entityId={partner.id} canEdit={allowed} />
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <p className="font-bold text-gray-900 text-sm">Rules for one customer</p>
+        <p className="text-xs text-gray-500 mt-0.5 mb-3">Projects can override these again in the project's Validations tab.</p>
+        <select value={customerId} onChange={e => setCustomerId(e.target.value)} className="mb-4 w-full sm:w-80 text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white">
+          <option value="">— Choose a customer —</option>
+          {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        {customerId && <ValidationRulesEditor key={customerId} level="client" entityId={customerId} parentPartnerId={partner.id} canEdit={allowed} />}
+      </div>
     </div>
   );
 }
@@ -496,7 +545,7 @@ function PlanTab({ partner, auth, canManage }) {
   const partnerPlans = planCfg.config?.partner ?? {};
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const proPrice = partnerPlans.pro?.price;
+  const proPrice = (ss.settings?.plan_prices ?? {}).partner_pro?.amount ?? partnerPlans.pro?.price ?? null;
   const priceId = (ss.settings?.stripe_price_ids ?? {}).partner_pro;
 
   async function upgrade() {
@@ -585,6 +634,7 @@ function PartnerView({ auth, onNavigate }) {
     { id: "customers", label: "Customers", Icon: Building2 },
     { id: "projects",  label: "Projects",  Icon: Layers },
     { id: "members",   label: "Team",      Icon: Users },
+    { id: "validations", label: "Validations", Icon: Shield },
     { id: "plan",      label: "Plan",      Icon: CreditCard },
   ];
 
@@ -622,7 +672,8 @@ function PartnerView({ auth, onNavigate }) {
               </button>
             ))}
           </div>
-          {tab === "customers" && <CustomersTab partner={partner} canManage={canManage} onChanged={changed} />}
+          {tab === "customers" && <CustomersTab partner={partner} canManage={canManage} onChanged={changed} auth={auth} />}
+          {tab === "validations" && <ValidationsTab partner={partner} canManage={canManage} />}
           {tab === "projects"  && <ProjectsTab partner={partner} onNavigate={onNavigate} />}
           {tab === "members"   && <MembersTab partner={partner} canManage={canManage} isOwner={partner.role === "owner"} myId={auth.user?.id} onChanged={changed} />}
           {tab === "plan"      && <PlanTab partner={partner} auth={auth} canManage={canManage} />}

@@ -46,6 +46,16 @@ async function updateUserPlan(userId, plan, roleType) {
   }
 }
 
+// Partner plans (metadata.partnerId): set partners.plan and keep the Stripe ids. The service role
+// passes the partner guard (only the server or administrators can change a plan).
+async function updatePartnerPlan(partnerId, plan, { customer, subscription } = {}) {
+  const patch = { plan, plan_updated_at: new Date().toISOString() };
+  if (customer) patch.stripe_customer_id = customer;
+  if (subscription !== undefined) patch.stripe_subscription_id = subscription;
+  const { error } = await supabase.from("partners").update(patch).eq("id", partnerId);
+  if (error) console.error("[stripe-webhook] partner plan:", error.message);
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
@@ -61,8 +71,11 @@ export default async function handler(req, res) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const { userId, planKey, roleType } = session.metadata ?? {};
-    if (userId && planKey && roleType) {
+    const { userId, planKey, roleType, partnerId } = session.metadata ?? {};
+    if (partnerId && roleType === "partner") {
+      await updatePartnerPlan(partnerId, planKey === "pro" ? "pro" : "free",
+        { customer: session.customer ?? null, subscription: session.subscription ?? null });
+    } else if (userId && planKey && roleType) {
       await updateUserPlan(userId, planKey, roleType);
     }
   }
@@ -70,8 +83,10 @@ export default async function handler(req, res) {
   if (event.type === "customer.subscription.deleted") {
     // Downgrade to free when subscription cancelled
     const sub = event.data.object;
-    const { userId, roleType } = sub.metadata ?? {};
-    if (userId && roleType) {
+    const { userId, roleType, partnerId } = sub.metadata ?? {};
+    if (partnerId && roleType === "partner") {
+      await updatePartnerPlan(partnerId, "free", { subscription: null });
+    } else if (userId && roleType) {
       await updateUserPlan(userId, "free", roleType);
     }
   }

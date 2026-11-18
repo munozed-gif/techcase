@@ -1,7 +1,7 @@
 // Server-side validation for SAP writes and transport releases (Phase 4).
 // /api/adt-write calls validateSapAction() before forwarding to the ADT bridge. It repeats
-// the checks the app makes (role permissions + the case's validation rules, resolved
-// Global → Customer → Project) so they cannot be skipped by calling the API directly,
+// the checks the app makes (role permissions, the partner's plan, and the case's validation
+// rules, resolved Global → Partner → Customer → Project) so they cannot be skipped by calling the API directly,
 // then issues a one-time ticket the bridge requires for the write / release.
 //
 // Reads use the caller's own token (RLS: a user who cannot see the case cannot write for
@@ -82,24 +82,36 @@ export async function validateSapAction(token, action, body) {
   const caseId = body?.caseId || null;
   let projectId = body?.projectId || null;
   let clientId = null;
+  let partnerId = null;
   let caseRow = null;
   if (caseId) {
-    const { data } = await db.from('cases').select('id, status, client_id, project_id').eq('id', caseId).maybeSingle();
+    const { data } = await db.from('cases').select('id, status, client_id, customer_id, partner_id, project_id').eq('id', caseId).maybeSingle();
     if (!data) return fail(403, 'case not found or you have no access to it');
     caseRow = data;
     projectId = data.project_id ?? null;
-    clientId = data.client_id ?? null;
+    clientId = data.customer_id ?? data.client_id ?? null;
+    partnerId = data.partner_id ?? null;
   } else if (action === 'write') {
     return fail(400, 'SAP writes must be made from a case (no case was given)');
   }
   if (projectId) {
-    const { data: prj } = await db.from('projects').select('id, client_id').eq('id', projectId).maybeSingle();
+    const { data: prj } = await db.from('projects').select('id, client_id, customer_id, partner_id').eq('id', projectId).maybeSingle();
     if (!prj && !caseRow) return fail(403, 'project not found or you have no access to it');
-    clientId = clientId ?? prj?.client_id ?? null;
+    clientId = clientId ?? prj?.customer_id ?? prj?.client_id ?? null;
+    partnerId = partnerId ?? prj?.partner_id ?? null;
   }
   if (!caseRow && !projectId) return fail(400, 'no case or project was given');
 
-  const pol = resolvePolicies(settings, { clientId, projectId });
+  // SAP implementation (writes and releases) is a Partner Pro feature. Staff are not limited.
+  if (partnerId && !['admin', 'manager'].includes(role)) {
+    const { data: lim, error: limErr } = await db.rpc('partner_limits', { p: partnerId });
+    if (limErr) return fail(503, `could not read the partner's plan (${limErr.message})`);
+    if (lim?.sapImplementation !== true) {
+      return fail(403, 'the SAP implementation (writing to SAP and releasing transports) needs the Partner Pro plan — upgrade in Partner → Plan');
+    }
+  }
+
+  const pol = resolvePolicies(settings, { partnerId, clientId, projectId });
   const warnings = [];
   let objectName = null;
   let transport = null;

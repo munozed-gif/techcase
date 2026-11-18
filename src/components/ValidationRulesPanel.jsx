@@ -3,14 +3,14 @@ import { ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { GATE_CONDITIONS } from "../lib/businessConstants.js";
-import { VALIDATION_POLICIES, resolvePolicies, resolveGate } from "../lib/validationPolicies.js";
+import { VALIDATION_POLICIES, resolvePolicies, resolveGate, caseValidationScope } from "../lib/validationPolicies.js";
 
 const MODE_STYLE = {
   block: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30',
   warn:  'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30',
   off:   'bg-gray-100 text-gray-500 border-gray-200 dark:bg-white/5 dark:text-white/40 dark:border-white/10',
 };
-const SOURCE_LABEL = { default: 'Default', global: 'Global', customer: 'Customer', project: 'Project' };
+const SOURCE_LABEL = { default: 'Default', global: 'Global', partner: 'Partner', customer: 'Customer', project: 'Project' };
 const ModeBadge = ({ mode }) => (
   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase ${MODE_STYLE[mode] ?? MODE_STYLE.off}`}>{mode}</span>
 );
@@ -19,11 +19,14 @@ const selectCls = 'text-xs border border-gray-200 dark:border-white/15 rounded-l
 /**
  * Validation rules editor.
  *   level 'global'  → validation_policies (global defaults for the policies)
- *   level 'client'  → validation_overrides.client[entityId]  (policies + gate overrides)
+ *   level 'partner' → validation_overrides.partner[entityId] (policies + gate overrides)
+ *   level 'client'  → validation_overrides.client[entityId]  (customer; policies + gate overrides)
  *   level 'project' → validation_overrides.project[entityId] (policies + gate overrides)
- * `parentClientId` (project level) shows what the project inherits from its customer.
+ * `parentPartnerId` / `parentClientId` show what the level inherits from the levels above.
+ * Overrides are saved through set_validation_override (partner owners/admins on the Pro plan,
+ * or staff).
  */
-export function ValidationRulesEditor({ level, entityId, parentClientId = null, defaultLifecycle = 'support', canEdit }) {
+export function ValidationRulesEditor({ level, entityId, parentPartnerId = null, parentClientId = null, defaultLifecycle = 'support', canEdit }) {
   const ssCtx = useSystemSettings();
   const { settings } = ssCtx;
   const { templates, getTemplateStages } = useLifecycleTemplates();
@@ -35,11 +38,13 @@ export function ValidationRulesEditor({ level, entityId, parentClientId = null, 
   const [saving, setSaving] = useState(false);
 
   // What this level inherits (everything above it).
-  const inheritScope = level === 'project' ? { clientId: parentClientId } : {};
+  const inheritScope = level === 'project' ? { partnerId: parentPartnerId, clientId: parentClientId }
+                     : level === 'client'  ? { partnerId: parentPartnerId } : {};
+  const [saveError, setSaveError] = useState(null);
   const inheritedPolicies = resolvePolicies(settings, inheritScope);
 
   async function savePolicy(key, value) {
-    setSaving(true);
+    setSaving(true); setSaveError(null);
     try {
       if (isGlobal) {
         const cur = { ...(settings['validation_policies'] ?? {}) };
@@ -48,21 +53,21 @@ export function ValidationRulesEditor({ level, entityId, parentClientId = null, 
       } else {
         const ent = { ...(mine ?? {}), policies: { ...(mine?.policies ?? {}) } };
         if (value) ent.policies[key] = value; else delete ent.policies[key];
-        await ssCtx.setSetting('validation_overrides', { ...overrides, [level]: { ...(overrides[level] ?? {}), [entityId]: ent } });
+        await ssCtx.setValidationOverride(level, entityId, ent);
       }
-    } finally { setSaving(false); }
+    } catch (e) { setSaveError(e.message); } finally { setSaving(false); }
   }
 
   async function saveGate(stage, condKey, value) {
-    setSaving(true);
+    setSaving(true); setSaveError(null);
     try {
       const gates = { ...(mine?.gates ?? {}) };
       const lc = { ...(gates[lifecycleKey] ?? {}) };
       const st = { ...(lc[stage] ?? {}) };
       if (value) st[condKey] = value; else delete st[condKey];
       lc[stage] = st; gates[lifecycleKey] = lc;
-      await ssCtx.setSetting('validation_overrides', { ...overrides, [level]: { ...(overrides[level] ?? {}), [entityId]: { ...(mine ?? {}), gates } } });
-    } finally { setSaving(false); }
+      await ssCtx.setValidationOverride(level, entityId, { ...(mine ?? {}), gates });
+    } catch (e) { setSaveError(e.message); } finally { setSaving(false); }
   }
 
   const lifecycleOptions = useMemo(() => {
@@ -112,7 +117,7 @@ export function ValidationRulesEditor({ level, entityId, parentClientId = null, 
               {lifecycleOptions.map(k => <option key={k} value={k}>{templates.find(t => t.key === k)?.name ?? k}</option>)}
             </select>
           </div>
-          <p className="text-xs text-gray-500 dark:text-white/40 mb-2">Requirements to move a case into each stage. "Inherit" keeps the {level === 'project' ? 'customer / global' : 'global'} rule (Settings → Workflow).</p>
+          <p className="text-xs text-gray-500 dark:text-white/40 mb-2">Requirements to move a case into each stage. "Inherit" keeps the {level === 'project' ? 'partner / customer / global' : level === 'client' ? 'partner / global' : 'global'} rule (Settings → Workflow).</p>
           <div className="space-y-1.5">
             {stages.map(stage => {
               const inherited = resolveGate(settings, lifecycleKey, stage.key, inheritScope);
@@ -158,7 +163,8 @@ export function ValidationRulesEditor({ level, entityId, parentClientId = null, 
           </div>
         </div>
       )}
-      {!canEdit && <p className="text-xs text-gray-500 dark:text-white/40">Only admins and managers can change validation rules.</p>}
+      {saveError && <p className="text-xs text-red-600">{saveError}</p>}
+      {!canEdit && <p className="text-xs text-gray-500 dark:text-white/40">Only administrators, or the partner's owner and admins on the Pro plan, can change validation rules.</p>}
     </div>
   );
 }
@@ -167,7 +173,7 @@ export function ValidationRulesEditor({ level, entityId, parentClientId = null, 
 export function EffectiveRulesPanel({ caseData, lifecycleKey, stages }) {
   const { settings } = useSystemSettings();
   const [open, setOpen] = useState(false);
-  const scope = { clientId: caseData.client_id ?? caseData.project?.client?.id ?? null, projectId: caseData.project_id ?? null };
+  const scope = caseValidationScope(caseData);
   const pols = resolvePolicies(settings, scope);
   const gateRows = (stages ?? []).map(s => ({ stage: s, gate: resolveGate(settings, lifecycleKey, s.key, scope) }))
     .filter(r => r.gate.enabled);
@@ -176,7 +182,7 @@ export function EffectiveRulesPanel({ caseData, lifecycleKey, stages }) {
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-4 py-3 text-left">
         <ShieldCheck size={15} className="text-blue-600 dark:text-blue-400" />
         <span className="text-sm font-semibold text-gray-900 dark:text-white">Validation rules for this case</span>
-        <span className="text-[11px] text-gray-500 dark:text-white/40">Global → Customer → Project</span>
+        <span className="text-[11px] text-gray-500 dark:text-white/40">Global → Partner → Customer → Project</span>
         {open ? <ChevronDown size={14} className="ml-auto text-gray-400" /> : <ChevronRight size={14} className="ml-auto text-gray-400" />}
       </button>
       {open && (

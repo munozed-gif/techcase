@@ -54,7 +54,7 @@ import {
   SAP_AREAS, INDUSTRY_AREAS, LIFECYCLE_PRESETS,
   DEFAULT_ACTIVITY_PHASES, getLifecycleStages, GATE_CONDITIONS,
 } from "../lib/businessConstants.js";
-import { resolveGate } from "../lib/validationPolicies.js";
+import { resolveGate, caseValidationScope } from "../lib/validationPolicies.js";
 import { EffectiveRulesPanel } from "../components/ValidationRulesPanel.jsx";
 
 // ── HTML document builder for AI-generated markdown docs ──────────────────────
@@ -247,8 +247,8 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   // Priority: client-linked envs → project-owned envs (when no client)
   const ssCtxCD = useSystemSettings();
   const _sapAllConfigs  = cdSettings['sap_integration'] ?? {};
-  const _sapClientData  = caseData.client_id
-    ? (_sapAllConfigs[caseData.client_id] ?? {})
+  const _sapClientData  = (caseData.customer_id ?? caseData.client_id)
+    ? (_sapAllConfigs[caseData.customer_id ?? caseData.client_id] ?? _sapAllConfigs[`proj_${caseData.project_id}`] ?? {})
     : (_sapAllConfigs[`proj_${caseData.project_id}`] ?? {});
   const _sapEnvs        = _sapClientData.environments ?? (_sapClientData.host ? [_sapClientData] : []);
   const _sapCaseEnvMap  = cdSettings['sap_case_env'] ?? {};
@@ -508,7 +508,7 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
 
   // Returns { blockers: [...], warnings: [...] } for a given target status
   // Gates: global (Settings → Workflow) with customer and project overrides applied.
-  const validationScope = { clientId: caseData.client_id ?? caseData.project?.client?.id ?? null, projectId: caseData.project_id ?? null };
+  const validationScope = caseValidationScope(caseData);
   function checkTransitionGates(toStatus) {
     const gate = resolveGate(cdSettings, lifecycleKey, toStatus, validationScope);
     if (!gate?.enabled) return { blockers: [], warnings: [] };
@@ -1847,13 +1847,13 @@ canvas{display:block;width:100%}
 
     await Promise.all(fetches);
 
-    if (caseData.client_id) {
+    if (caseData.customer_id ?? caseData.client_id) {
       const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
         supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
         supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
         supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
       ]);
-      const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
+      const clientSapData = (sapCfgRow?.value ?? {})[caseData.customer_id ?? caseData.client_id] ?? {};
       const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
       const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
         ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]

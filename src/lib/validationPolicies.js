@@ -1,10 +1,12 @@
-// ── Validation levels: Global → Customer → Project ──────────────────────────
+// ── Validation levels: Global → Partner → Customer → Project ────────────────
 // Global values live in system settings ('transition_gates', 'validation_policies');
-// customers and projects can override them ('validation_overrides'). The most
-// specific level wins. There are no case-level overrides (by design).
+// partners, customers and projects can override them ('validation_overrides'). The most
+// specific level wins. There are no case-level overrides (by design). Customers are keyed
+// under 'client' (migrated customers keep the id of their former client account).
 //
 // validation_overrides = {
-//   client:  { [clientId]:  { policies: { [policyKey]: mode }, gates: { [lifecycleKey]: { [stage]: { [condKey]: mode } } } } },
+//   partner: { [partnerId]: { ...same shape } },
+//   client:  { [customerId]:  { policies: { [policyKey]: mode }, gates: { [lifecycleKey]: { [stage]: { [condKey]: mode } } } } },
 //   project: { [projectId]: { ...same shape } },
 // }
 // mode: 'block' | 'warn' | 'off'   (absent = inherit from the level above)
@@ -50,16 +52,27 @@ export function isProtectedSapEnv(env) {
 
 const POLICY_BY_KEY = Object.fromEntries(VALIDATION_POLICIES.map(p => [p.key, p]));
 
+/** Validation scope of a case: { partnerId, clientId (= customer), projectId }. */
+export function caseValidationScope(c) {
+  return {
+    partnerId: c?.partner_id ?? c?.project?.partner_id ?? null,
+    clientId: c?.customer_id ?? c?.project?.customer_id ?? c?.client_id ?? c?.project?.client?.id ?? null,
+    projectId: c?.project_id ?? null,
+  };
+}
+
 /** Effective policy modes + where each came from. */
-export function resolvePolicies(settings, { clientId = null, projectId = null } = {}) {
+export function resolvePolicies(settings, { partnerId = null, clientId = null, projectId = null } = {}) {
   const global = settings?.validation_policies ?? {};
   const ov = settings?.validation_overrides ?? {};
+  const par = partnerId ? ov.partner?.[partnerId]?.policies ?? {} : {};
   const cli = clientId ? ov.client?.[clientId]?.policies ?? {} : {};
   const prj = projectId ? ov.project?.[projectId]?.policies ?? {} : {};
   const out = {};
   for (const p of VALIDATION_POLICIES) {
     let mode = p.default, source = 'default';
     if (global[p.key]) { mode = global[p.key]; source = 'global'; }
+    if (par[p.key])    { mode = par[p.key];    source = 'partner'; }
     if (cli[p.key])    { mode = cli[p.key];    source = 'customer'; }
     if (prj[p.key])    { mode = prj[p.key];    source = 'project'; }
     if (!p.modes.includes(mode)) mode = p.default;
@@ -70,12 +83,13 @@ export function resolvePolicies(settings, { clientId = null, projectId = null } 
 
 /**
  * Effective gate for a lifecycle + target stage: the global gate (Settings → Workflow)
- * with customer then project condition overrides applied.
+ * with partner, customer then project condition overrides applied.
  * Returns { enabled, exempt_roles, conditions: [{ key, mode, enabled, source }] }.
  */
-export function resolveGate(settings, lifecycleKey, stageKey, { clientId = null, projectId = null } = {}) {
+export function resolveGate(settings, lifecycleKey, stageKey, { partnerId = null, clientId = null, projectId = null } = {}) {
   const base = settings?.transition_gates?.[lifecycleKey]?.[stageKey] ?? null;
   const ov = settings?.validation_overrides ?? {};
+  const par = partnerId ? ov.partner?.[partnerId]?.gates?.[lifecycleKey]?.[stageKey] ?? {} : {};
   const cli = clientId ? ov.client?.[clientId]?.gates?.[lifecycleKey]?.[stageKey] ?? {} : {};
   const prj = projectId ? ov.project?.[projectId]?.gates?.[lifecycleKey]?.[stageKey] ?? {} : {};
   const conds = new Map();
@@ -84,7 +98,7 @@ export function resolveGate(settings, lifecycleKey, stageKey, { clientId = null,
       conds.set(c.key, { key: c.key, mode: c.mode ?? 'block', enabled: !!c.enabled, source: 'global' });
     }
   }
-  for (const [lvl, src] of [[cli, 'customer'], [prj, 'project']]) {
+  for (const [lvl, src] of [[par, 'partner'], [cli, 'customer'], [prj, 'project']]) {
     for (const [key, mode] of Object.entries(lvl)) {
       if (!mode) continue;
       conds.set(key, { key, mode: mode === 'off' ? 'block' : mode, enabled: mode !== 'off', source: src });

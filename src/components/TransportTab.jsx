@@ -358,7 +358,8 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
   const projectId = caseData?.project_id ?? projectData?.id;
   const caseId    = caseData?.id ?? null;
-  const clientId  = caseData?.client_id ?? projectData?.client_id ?? null;
+  const clientId  = caseData?.customer_id ?? caseData?.client_id ?? projectData?.customer_id ?? projectData?.client_id ?? null;
+  const partnerId = caseData?.partner_id ?? projectData?.partner_id ?? null;
   const scopeKey  = caseId ? `case_${caseId}` : `project_${projectId}`;
 
   // ── Top-level mode toggle ─────────────────────────────────
@@ -613,7 +614,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
   async function releaseOne(req) {
     if (!canRelease) { alert('Your role is not allowed to release transports (Settings → Roles & Perms).'); return false; }
-    const _relPol = resolvePolicies(settings, { clientId, projectId }).transport_release_requires_approval;
+    const _relPol = resolvePolicies(settings, { partnerId, clientId, projectId }).transport_release_requires_approval;
     if (_relPol.mode === 'block' && batchApproval?.status !== 'approved') {
       const msg = '✗ Validation: release requires the transport approval link to be approved first (Approval step).';
       setImportField(req.id, { status: 'error', log: [msg] });
