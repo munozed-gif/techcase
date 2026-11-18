@@ -13,16 +13,18 @@ import { NovaLandingMark } from "./LandingView.jsx";
 
 // AuthScreen — sign-in, sign-up wizard, password reset
 
-function AuthScreen({ onAuth, onBack }) {
+// resumeUser: a signed-in account whose sign-up was never finished (no role chosen in the
+// profile step) — the screen opens on Sign up with that email, and skips the email code.
+function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
   const { t } = useT();
   const branding = usePlatformBranding();
-  const [mode, setMode]         = useState("signin");
+  const [mode, setMode]         = useState(resumeUser ? "signup" : "signin");
   // Sign-in fields
   const [siEmail, setSiEmail]   = useState("");
   const [siPass,  setSiPass]    = useState("");
   // Sign-up wizard
   const [step, setStep]         = useState(0);
-  const [email, setEmail]       = useState("");
+  const [email, setEmail]       = useState(resumeUser?.email ?? "");
   const [codeSent, setCodeSent] = useState(false);
   const [code, setCode]         = useState("");
   const [role, setRole]         = useState("");
@@ -49,7 +51,7 @@ function AuthScreen({ onAuth, onBack }) {
   // Internal consultant / project manager detection (set after email lookup)
   const [internalConsultantClient, setInternalConsultantClient] = useState(null); // { clientId, companyName } | null
   const [projectManagerClient, setProjectManagerClient] = useState(null);         // { clientId, companyName } | null
-  const [otpVerified, setOtpVerified]   = useState(false);
+  const [otpVerified, setOtpVerified]   = useState(!!resumeUser);
   const [approvalDone, setApprovalDone] = useState(false); // admin_approval success screen
 
   const [error, setError]           = useState("");
@@ -102,7 +104,7 @@ function AuthScreen({ onAuth, onBack }) {
 
   function switchMode(m) {
     setMode(m); setError(""); setEmailTaken(false); setMagicSent(false); setStep(0);
-    setCodeSent(false); setCode(""); setRole(""); setOtpVerified(false); setApprovalDone(false);
+    setCodeSent(false); setCode(""); setRole(""); setOtpVerified(!!resumeUser); setApprovalDone(false);
   }
 
   async function sendMagicLink() {
@@ -178,7 +180,11 @@ function AuthScreen({ onAuth, onBack }) {
     try {
       await checkEmailPreReg(email);
       const flow = getRoleFlow(r);
-      if (flow === "admin_approval") {
+      if (resumeUser) {
+        // Already signed in (email confirmed): go straight to the profile step.
+        setOtpVerified(true);
+        setStep(2);
+      } else if (flow === "admin_approval") {
         setOtpVerified(false);
         setStep(2);
       } else {
@@ -222,6 +228,11 @@ function AuthScreen({ onAuth, onBack }) {
       } else if (!data?.user || data.user.identities?.length === 0) {
         // Supabase returns an empty identities array when the email already exists
         setError(t("auth.error_email_taken")); setEmailTaken(true);
+      } else if (data.session) {
+        // Email confirmation is off in this Supabase project: the account is already confirmed
+        // and signed in, and no code is sent. Go straight to the profile step.
+        setOtpVerified(true);
+        setStep(2);
       } else {
         setCodeSent(true);
         setCode("");
@@ -555,7 +566,13 @@ function AuthScreen({ onAuth, onBack }) {
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-1">{t("auth.verify_heading")}</h2>
                 <p className="text-sm text-gray-500 mb-5">Enter your email and choose your role to get started.</p>
-                <Input label={t("auth.email")} type="email" value={email}
+                {resumeUser && (
+                  <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    Your email is confirmed — choose how you'll use the platform to finish creating your account.
+                    {onSignOut && <button type="button" onClick={onSignOut} className="block mt-1 text-xs underline">Use another email</button>}
+                  </div>
+                )}
+                <Input label={t("auth.email")} type="email" value={email} disabled={!!resumeUser}
                   onChange={e => { setEmail(e.target.value); setKeyUserCompany(null); setFinalUserClient(null); setInternalConsultantClient(null); setProjectManagerClient(null); }}
                   onBlur={e => { if (e.target.value.trim()) checkEmailPreReg(e.target.value); }}
                   placeholder={t("auth.ph_email")} />

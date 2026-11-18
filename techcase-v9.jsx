@@ -713,6 +713,7 @@ export default function App() {
   const auth = useAuth();
   const [activeView, setActiveView]       = useState("dashboard");
   const [authed, setAuthed]               = useState(false);
+  const [signupResumed, setSignupResumed] = useState(false);
   const [showAuth, setShowAuth]           = useState(() => {
     try { return !!localStorage.getItem('arena_returning'); } catch { return false; }
   });
@@ -885,6 +886,28 @@ export default function App() {
               auth.refreshProfile();
               setAuthed(true);
               setShowAuth(false);
+              if (newRole) setOnboarding(newRole);
+            }} />
+        </LanguageProvider>
+      </SystemSettingsProvider>
+    );
+  }
+
+  // Signed in, but the sign-up profile step was never finished (e.g. Supabase confirmed the
+  // email right away and the page was reloaded): let them finish it instead of showing
+  // "Account under review" with no role / partner choice saved.
+  if (auth.profile && auth.profile.verification_status === 'pending' && !auth.profile.approved_at
+      && !auth.user?.user_metadata?.role && !signupResumed) {
+    return (
+      <SystemSettingsProvider>
+        <LanguageProvider userId={null}>
+          <AuthScreen
+            resumeUser={auth.user}
+            onBack={() => {}}
+            onSignOut={async () => { await auth.signOut(); setAuthed(false); setShowAuth(true); }}
+            onAuth={(newRole = null) => {
+              setSignupResumed(true);
+              auth.refreshProfile();
               if (newRole) setOnboarding(newRole);
             }} />
         </LanguageProvider>
