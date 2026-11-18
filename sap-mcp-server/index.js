@@ -877,6 +877,11 @@ async function registerTunnelUrl() {
     return;
   }
 
+  // On the VM, start-sap-mcp-tunnel.sh registers the tunnel URL in every Supabase project
+  // (prod + preprod). Scanning logs here picked up an old, dead URL from a previous tunnel and
+  // overwrote the good one a few seconds later — so only scan when explicitly asked to.
+  if (process.env.REGISTER_TUNNEL_FROM_LOGS !== '1') return;
+
   // Mode 2: cloudflared log file written by start-local.sh
   const CF_LOG = process.env.CLOUDFLARED_LOG ?? '/tmp/cloudflared-techcase.log';
 
