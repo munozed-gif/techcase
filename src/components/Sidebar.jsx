@@ -9,6 +9,7 @@ import { useT } from "../i18n/index.jsx";
 import { usePlatformBranding, useVisibilitySettings, useSystemSettings, usePlanConfig } from "../hooks/useSystemSettings.jsx";
 import { ROLE_TO_PLAN_TYPE } from "../lib/businessConstants.js";
 import { NotificationBell } from "./NotificationBell.jsx";
+import { usePartnerContext } from "../hooks/usePartnerContext.js";
 import { PersonAvatar } from "../views/Projects.jsx";
 
 const NOVA_KEYFRAMES = `@keyframes nova-orbit {
@@ -67,6 +68,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
   const branding = usePlatformBranding();
   const ssCtx = useSystemSettings();
   const planCfg = usePlanConfig();
+  const partnerCtx = usePartnerContext(auth?.user?.id);
 
   const NAV_CONCEPT = { 'my-cases': 'cases', 'leader-cases': 'cases' };
   const conceptOf = id => NAV_CONCEPT[id] ?? id;
@@ -188,6 +190,13 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
   };
 
   let items = navItems[role] ?? [];
+  // Partner area: consultants can ask for a partner account; anyone already in a partner sees it.
+  const PARTNER_NAV = { id: "partner", Icon: Handshake, labelKey: "nav.partner" };
+  if (!items.some(i => i.id === "partner")
+      && (['consultant', 'internal_consultant', 'project_manager'].includes(role) || partnerCtx.partners.some(p => p.status !== 'rejected'))) {
+    const at = items.findIndex(i => i.id === "projects");
+    items = at >= 0 ? [...items.slice(0, at + 1), PARTNER_NAV, ...items.slice(at + 1)] : [...items, PARTNER_NAV];
+  }
   // Hide consultants nav for clients in Internal mode — they don't participate in marketplace
   if (role === 'client' && auth?.user?.id) {
     const compVis = sidebarVisCfg.getCompanyVisibility(auth.user.id);

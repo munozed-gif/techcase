@@ -6,6 +6,7 @@ const TRANSLATIONS = {
     "nav.users":          "Users",
     "nav.dashboard":      "Dashboard",
     "nav.projects":       "Projects",
+    "nav.partner":        "Partner",
     "nav.cases":          "Cases",
     "nav.my_cases":       "My Cases",
     "nav.kanban":         "Kanban",
@@ -3353,6 +3354,7 @@ const TRANSLATIONS = {
     // Navigation
     "nav.dashboard":      "Panel",
     "nav.projects":       "Proyectos",
+    "nav.partner":        "Partner",
     "nav.cases":          "Casos",
     "nav.my_cases":       "Mis Casos",
     "nav.kanban":         "Tablero",

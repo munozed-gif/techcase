@@ -35,6 +35,7 @@ import { AbapTemplatesSection, SapMcpPolicyPanel } from "../components/SapPanels
 import { SlaClientView } from "./OperationsViews.jsx";
 import { ConsultantProfilePanel } from "./ArenaView.jsx";
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
+import { PartnersAdminPanel } from "./PartnerView.jsx";
 
 // Nova Logo preview for settings branding section
 if (typeof document !== 'undefined') {
@@ -6037,6 +6038,7 @@ function SystemSettingsView({ auth, onNavigate }) {
 
   const TABS = [
     { id: "people",      label: "People",          Icon: Users },
+    { id: "partners",    label: "Partners",        Icon: Handshake },
     { id: "roles",       label: "Roles & Perms",   Icon: Shield },
     { id: "plans",       label: "Plans",           Icon: CreditCard },
     { id: "pricing",     label: "Pricing",         Icon: DollarSign },
@@ -6073,6 +6075,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       </div>
 
       {activeTab === "people"      && <SettingsPeopleTab ssCtx={ssCtx} auth={auth} onNavigate={onNavigate} />}
+      {activeTab === "partners"    && <PartnersAdminPanel />}
       {activeTab === "roles"       && <SettingsRolesTab ssCtx={ssCtx} />}
       {activeTab === "plans"       && <SettingsPlansTab ssCtx={ssCtx} auth={auth} />}
       {activeTab === "pricing"     && <SettingsPricingTab ssCtx={ssCtx} auth={auth} />}

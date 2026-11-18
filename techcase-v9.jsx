@@ -193,6 +193,7 @@ import {
 // CASES VIEW
 // ============================================================
 import { CasesView } from "./src/views/CasesView.jsx";
+import { PartnerView } from "./src/views/PartnerView.jsx";
 
 
 import {
@@ -959,7 +960,8 @@ export default function App() {
       case "hh-candidates":  return auth.isHeadhunter ? <HeadhunterCandidates auth={auth} /> : <Dashboard auth={auth} />;
       case "hh-pipeline":    return auth.isHeadhunter ? <HeadhunterPipeline auth={auth} /> : <Dashboard auth={auth} />;
       case "hh-placements":  return auth.isHeadhunter ? <HeadhunterPlacements auth={auth} /> : <Dashboard auth={auth} />;
-      case "projects":       return <ProjectsView auth={auth} initialProjectId={pendingProjectId} />;
+      case "projects":       return <ProjectsView auth={auth} initialProjectId={pendingProjectId} onNavigate={(view) => setActiveView(view)} />;
+      case "partner":        return <PartnerView auth={auth} onNavigate={(view, opts) => { if (view === "projects") setPendingProjectId(opts?.projectId ?? null); setActiveView(view); }} />;
       case "cases":          return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
       case "my-cases":       return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
       case "arena":          return <ArenaView auth={auth} onNavigate={({ view, clientId }) => { setPendingClientId(clientId ?? null); setActiveView(view); }} />;

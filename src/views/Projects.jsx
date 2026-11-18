@@ -34,6 +34,7 @@ import {
 } from "../lib/businessConstants.js";
 import { STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, fmt, cap, fmtDate } from "../lib/uiUtils.jsx";
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
+import { usePartnerContext } from "../hooks/usePartnerContext.js";
 
 const DELIVERABLE_ICON_MAP = {
   "Business Blueprint":       { Icon: BookOpen,      color: "text-blue-600 dark:text-blue-400",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
@@ -102,6 +103,33 @@ const PROJECT_NEXT_META = {
 
 const EXPRESS_PROJECT_STEP_IDS = [1, 2, 7]; // basics, scope, review
 
+// Partner / customer options for the project wizard. Staff see every approved partner; partner
+// owners/admins see their own partners. Each partner offers its customers plus "internal".
+function useProjectOwnerOptions(auth) {
+  const pctx = usePartnerContext(auth.user?.id);
+  const isStaff = auth.isAdmin || auth.isManager;
+  const [partners, setPartners] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const manageableKey = pctx.manageablePartners.map(p => p.id).join(",");
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      let parts = pctx.manageablePartners.map(p => ({ id: p.id, name: p.name, plan: p.plan }));
+      if (isStaff) {
+        const { data } = await supabase.from("partners").select("id, name, plan").eq("status", "approved").order("name");
+        parts = data ?? parts;
+      }
+      const ids = parts.map(p => p.id);
+      const { data: cust } = ids.length
+        ? await supabase.from("customers").select("id, name, partner_id, client_user_id").in("partner_id", ids).eq("archived", false).order("name")
+        : { data: [] };
+      if (alive) { setPartners(parts); setCustomers(cust ?? []); }
+    })();
+    return () => { alive = false; };
+  }, [isStaff, manageableKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { partners, customers, loading: pctx.loading, canPick: isStaff || pctx.manageablePartners.length > 0 };
+}
+
 function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel, clients = [], initialData = null, defaultMode = null }) {
   const { t } = useT();
   const { settings: catalogSettings } = useSystemSettings();
@@ -145,6 +173,28 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const [basics, setBasics] = useState({ name: initialData?.name ?? "", description: initialData?.description ?? "", status: initialData?.status ?? "draft", project_type: initialData?.project_type ?? "consulting" });
   // Step 1: Scope
   const [scopeData, setScopeData] = useState({ total_budget: initialData?.total_budget ?? "", start_date: initialData?.start_date ?? "", end_date: initialData?.end_date ?? "", area_sap: initialData?.area_sap ?? "", industry: initialData?.industry ?? "", client_id: auth.isClient ? auth.user?.id : (initialData?.client_id ?? "") });
+  const owners = useProjectOwnerOptions(auth);
+  const isStaffUser = auth.isAdmin || auth.isManager;
+  // "c:<customer id>" or "p:<partner id>" (partner's internal project)
+  const [ownerSel, setOwnerSel] = useState(initialData?.customer_id ? `c:${initialData.customer_id}` : initialData?.partner_id ? `p:${initialData.partner_id}` : "");
+  useEffect(() => {
+    if (ownerSel || isEdit || !owners.partners.length || auth.isClient) return;
+    // Default: the only customer of the only partner, else the partner itself.
+    if (owners.partners.length === 1) {
+      const cs = owners.customers.filter(c => c.partner_id === owners.partners[0].id);
+      setOwnerSel(cs.length === 1 ? `c:${cs[0].id}` : `p:${owners.partners[0].id}`);
+    }
+  }, [owners.partners, owners.customers]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ownerFields = (() => {
+    if (!ownerSel) return {};
+    const [k, id] = ownerSel.split(":");
+    if (k === "c") {
+      const c = owners.customers.find(x => x.id === id);
+      return { customer_id: id, partner_id: c?.partner_id ?? null, client_id: c?.client_user_id ?? null };
+    }
+    return { partner_id: id, customer_id: null, client_id: null };
+  })();
+  const ownerLocked = isEdit && !isStaffUser;
   // Step 2: Objectives
   const [objectives, setObj] = useState({ objectives: initialData?.objectives ?? "", deliverables: initialData?.deliverables ?? [], success_criteria: initialData?.success_criteria ?? "", out_of_scope: initialData?.out_of_scope ?? "" });
   // Step 3: Team
@@ -175,8 +225,10 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   function validateStep() {
     if (stepId === 'basics' && !basics.name.trim())
       return "Project name is required — please enter a name before continuing.";
-    if (stepId === 'scope' && (auth.isAdmin || auth.isManager) && !scopeData.client_id)
-      return "Please select a client before continuing.";
+    if (stepId === 'scope' && !auth.isClient && owners.canPick && !ownerSel)
+      return "Please choose the partner and customer of this project before continuing.";
+    if (stepId === 'scope' && !auth.isClient && !isStaffUser && !owners.canPick && !isEdit)
+      return "Creating your own projects needs an approved Partner account — open Partner in the menu to request one.";
     return null;
   }
   function handleContinue() {
@@ -223,6 +275,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         ...basics,
         ...scopeData,
         client_id: auth.isClient ? auth.user?.id : (scopeData.client_id || null),
+        ...(auth.isClient || ownerLocked ? {} : ownerFields),
         total_budget: scopeData.total_budget ? Number(scopeData.total_budget) : null,
         start_date: scopeData.start_date || null,
         end_date: scopeData.end_date || null,
@@ -243,7 +296,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
       } else {
         const newProject = await createProject({ ...payload, created_by: auth.user?.id });
         if (!newProject?.id) throw new Error("Project was saved but its ID could not be confirmed — cases were not imported. Open the project and add cases manually.");
-        const clientId = auth.isClient ? auth.user?.id : (scopeData.client_id || null);
+        const clientId = auth.isClient ? auth.user?.id : (newProject.client_id ?? ownerFields.client_id ?? scopeData.client_id ?? null);
         const allCases = [
           ...templateCases.map(item => ({
             title:           item.title,
@@ -580,19 +633,30 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step1_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("proj.step1_desc")}</p>
-            {(auth.isAdmin || auth.isManager) && (
+            {!auth.isClient && owners.canPick && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.client")}</label>
-                <select value={scopeData.client_id}
-                  onChange={e => setScopeData(p => ({ ...p, client_id: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">{t("proj.select_client")}</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.client_profiles?.company_name || c.full_name}
-                    </option>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Partner / customer</label>
+                <select value={ownerSel} disabled={ownerLocked}
+                  onChange={e => setOwnerSel(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50">
+                  <option value="">Choose who this project is for…</option>
+                  {owners.partners.map(p => (
+                    <optgroup key={p.id} label={`${p.name}${p.plan === "pro" ? " · Pro" : " · Free"}`}>
+                      {owners.customers.filter(c => c.partner_id === p.id).map(c => (
+                        <option key={c.id} value={`c:${c.id}`}>{c.name}</option>
+                      ))}
+                      <option value={`p:${p.id}`}>{p.name} — internal (no customer)</option>
+                    </optgroup>
                   ))}
                 </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  {ownerLocked ? "Only an administrator can move a project to another partner." : "Add customers in Partner → Customers."}
+                </p>
+              </div>
+            )}
+            {!auth.isClient && !isStaffUser && !owners.canPick && !owners.loading && !isEdit && (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Creating your own projects needs an approved <b>Partner</b> account. Open <b>Partner</b> in the menu to request one.
               </div>
             )}
             <Input label={t("proj.budget_label")} type="number" value={scopeData.total_budget}
@@ -3478,9 +3542,10 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
   );
 }
 
-function ProjectsView({ auth, initialProjectId }) {
+function ProjectsView({ auth, initialProjectId, onNavigate }) {
   const { t } = useT();
   const perms = usePermissions(auth);
+  const partnerCtx = usePartnerContext(auth.user?.id);
   const wizardMode = useWizardMode(auth);
   const clientFetchFilter = auth.isClient ? { client_id: auth.user?.id } : {};
   const { projects, loading, createProject, updateProject, closeProject } = useProjects(clientFetchFilter);
@@ -3589,7 +3654,7 @@ function ProjectsView({ auth, initialProjectId }) {
           <h1 className="text-2xl font-bold text-gray-900">{t("projects.title")}</h1>
           <p className="text-gray-500 text-sm mt-1">{t(displayed.length !== 1 ? "count.project_many" : "count.project_one").replace("{n}", displayed.length)}</p>
         </div>
-        {(auth.isAdmin || auth.isManager || auth.isClient || perms.can("create_projects")) && (
+        {(auth.isAdmin || auth.isManager || auth.isClient || perms.can("create_projects") || partnerCtx.canCreateProjects) && (
           <button onClick={() => setShowCreate(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm transition-colors">
             {t("projects.new")}
