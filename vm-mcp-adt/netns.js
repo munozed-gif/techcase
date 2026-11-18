@@ -94,6 +94,24 @@ async function vpnInterface(ns) {
   try { return await helper(['status', ns], { timeout: 5000 }); } catch { return null; }
 }
 
+// A readable reason from the VPN client's log (certificate pin to confirm, login refused…).
+async function explainVpnFailure(ns) {
+  const log = await helper(['log', ns], { timeout: 5000 }).catch(() => '');
+  const pin = log.match(/trusted-cert\s*=?\s*([0-9a-f]{64})/i)?.[1];
+  if (pin) {
+    const subject = log.match(/subject:[\s\S]{0,40}?CN=([*\w.-]+)/i)?.[1];
+    return `the gateway's certificate${subject ? ` (${subject})` : ''} could not be verified. If you trust it, paste this pin in the profile's "Gateway certificate" field: ${pin}`;
+  }
+  if (/permission denied|authentication failed|login failed|invalid (user|password)|VPN credentials/i.test(log)) {
+    return 'the gateway refused the login — check the VPN user and password (and whether this account needs MFA)';
+  }
+  if (/could not resolve|name or service not known|connection refused|timed out|no route/i.test(log)) {
+    return 'the VM could not reach the gateway — check the gateway host and port';
+  }
+  const last = log.split('\n').map(l => l.trim()).filter(l => /error|fail/i.test(l)).slice(-2).join(' · ');
+  return last ? last.slice(0, 300) : `check gateway, user and password (log: ${BASE}/${ns}/vpn.log on the VM)`;
+}
+
 async function bringUp(vpn) {
   const ns = nsName(vpn.id);
   const idx = await pickIndex(ns);
@@ -110,7 +128,7 @@ async function bringUp(vpn) {
   }
   if (!iface) {
     await helper(['vpn-stop', ns]).catch(() => {});
-    throw new Error(`The VPN "${vpn.name ?? vpn.id}" did not connect within ${CONNECT_TIMEOUT_MS / 1000}s — check gateway, user and password (log: ${BASE}/${ns}/vpn.log on the VM)`);
+    throw new Error(`The VPN "${vpn.name ?? vpn.id}" did not connect within ${CONNECT_TIMEOUT_MS / 1000}s — ${await explainVpnFailure(ns)}`);
   }
   await helper(['socks', ns, String(idx)]);
   console.log(`[netns] ${vpn.type} VPN "${vpn.name ?? vpn.id}" up in ${ns} (${iface})`);
