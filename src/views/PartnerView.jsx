@@ -228,15 +228,15 @@ function CustomerUsers({ customer, canManage, partnerName }) {
 
   useEffect(() => {
     (async () => {
-      const [{ data: m }, { data: inv }] = await Promise.all([
-        supabase.from("customer_members").select("user_id, role, created_at").eq("customer_id", customer.id),
+      const [{ data: people }, { data: inv }] = await Promise.all([
+        supabase.rpc("customer_people", { p_customer: customer.id }),
         canManage
           ? supabase.from("customer_invites").select("id, email, role, status, created_at").eq("customer_id", customer.id).eq("status", "pending")
           : Promise.resolve({ data: [] }),
       ]);
-      setMembers(m ?? []);
+      setMembers((people ?? []).filter(x => x.role !== "account_owner"));
       setInvites(inv ?? []);
-      setUsers(await loadUsers([...(m ?? []).map(x => x.user_id), customer.client_user_id]));
+      setUsers(Object.fromEntries((people ?? []).map(x => [x.user_id, x])));
     })();
   }, [customer.id, nonce, canManage, customer.client_user_id]);
 
@@ -286,7 +286,7 @@ function CustomerUsers({ customer, canManage, partnerName }) {
         )}
         {members.map(m => (
           <div key={m.user_id} className="flex items-center justify-between px-3 py-2 text-sm gap-2">
-            <span className="truncate">{users[m.user_id]?.full_name ?? m.user_id} <span className="text-gray-400">· {users[m.user_id]?.email}</span></span>
+            <span className="truncate">{users[m.user_id]?.full_name || users[m.user_id]?.email || "Unknown user"} <span className="text-gray-400">· {users[m.user_id]?.email}</span></span>
             {canManage
               ? <select value={m.role} onChange={e => changeRole(m.user_id, e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white">
                   {CUSTOMER_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -494,9 +494,9 @@ function MembersTab({ partner, canManage, isOwner, myId, onChanged }) {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("partner_members").select("user_id, role, created_at").eq("partner_id", partner.id).order("created_at");
+      const { data } = await supabase.rpc("partner_people", { p_partner: partner.id });
       setRows(data ?? []);
-      setUsers(await loadUsers((data ?? []).map(r => r.user_id)));
+      setUsers(Object.fromEntries((data ?? []).map(r => [r.user_id, r])));
     })();
   }, [partner.id, nonce]);
 
@@ -520,7 +520,7 @@ function MembersTab({ partner, canManage, isOwner, myId, onChanged }) {
         {rows.map(r => (
           <div key={r.user_id} className="flex items-center gap-3 px-4 py-3 text-sm">
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-gray-900 truncate">{users[r.user_id]?.full_name ?? r.user_id}{r.user_id === myId ? " (you)" : ""}</div>
+              <div className="font-medium text-gray-900 truncate">{users[r.user_id]?.full_name || users[r.user_id]?.email || "Unknown user"}{r.user_id === myId ? " (you)" : ""}</div>
               <div className="text-xs text-gray-500 truncate">{users[r.user_id]?.email}</div>
             </div>
             {canManage && r.role !== "owner" && r.user_id !== myId
@@ -661,7 +661,7 @@ function PartnerView({ auth, onNavigate }) {
           <h1 className="text-2xl font-bold text-gray-900 truncate">{partner.name}</h1>
           <div className="flex items-center gap-2 mt-0.5">
             <PlanBadge plan={partner.plan} /><StatusBadge status={partner.status} />
-            <span className="text-xs text-gray-500 capitalize">{partner.kind === "individual" ? "Independent consultant" : partner.kind === "firm" ? "Consulting firm" : "Direct customer"} · you are {partner.role}</span>
+            <span className="text-xs text-gray-500">{partner.kind === "individual" ? "Independent consultant" : partner.kind === "firm" ? "Consulting firm" : "Direct customer"} · your role: {partner.role}</span>
           </div>
         </div>
         {visible.length > 1 && (
