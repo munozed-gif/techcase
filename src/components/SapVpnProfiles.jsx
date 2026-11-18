@@ -172,10 +172,16 @@ export function ProjectVpnSelector({ env, scopeKeys, ownScopeKey, canEdit, onCha
   const selected = profiles.find(p => p.id === env.vpn_profile_id) ?? null;
 
   async function act(action) {
-    setBusy(action); setStatus(null);
+    setBusy(action);
+    if (action !== 'status') setStatus(null);
     setStatus(await projectVpnAction(env, action));
     setBusy(null);
   }
+
+  // Show the current state as soon as a profile is selected (and after the panel re-renders).
+  useEffect(() => {
+    if (selected?.id && env.host && env.username) act('status');
+  }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const st = status?.vpn?.state;
   return (
@@ -215,9 +221,13 @@ export function ProjectVpnSelector({ env, scopeKeys, ownScopeKey, canEdit, onCha
             <Lock size={12} className="text-gray-400" />
             <span className="font-medium text-gray-700 dark:text-gray-200">{selected.name}</span>
             <span className="text-gray-400">{selected.gateway ?? typeMeta(selected.vpn_type).label}</span>
-            {st && (
+            {busy === 'connect' && (
+              <span className="ml-auto px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Connecting… (up to a minute)</span>
+            )}
+            {busy !== 'connect' && st && (
               <span className={`ml-auto px-1.5 py-0.5 rounded text-[10px] font-semibold ${st === 'up' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : st === 'error' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>
-                {st === 'up' ? `Connected${status.vpn.iface ? ' · ' + status.vpn.iface.split(' ')[1] : ''}` : st}
+                {st === 'up' ? `Connected${status.vpn.iface ? ' · ' + (status.vpn.iface.split(' ')[1] ?? status.vpn.iface) : ''}`
+                  : st === 'down' ? 'Not connected' : st === 'not-set-up' ? 'VM not set up' : st}
               </span>
             )}
           </div>
