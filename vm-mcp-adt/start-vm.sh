@@ -83,7 +83,16 @@ pkill -f "cloudflared tunnel.*$PORT" 2>/dev/null || true
 fuser -k ${PORT}/tcp 2>/dev/null || true
 sleep 1
 
-# ── Start cloudflared quick tunnel ────────────────────────────
+# ── Public URL: fixed (named Cloudflare tunnel) or a quick tunnel ──
+# With BRIDGE_PUBLIC_URL in .env (e.g. https://bridge.arenasolutionsplatform.com) the
+# 'cloudflared' service of the named tunnel publishes this port, so no quick tunnel is
+# started and the URL never changes. Without it, a temporary trycloudflare.com URL is used.
+FIXED_URL=$(grep -h '^BRIDGE_PUBLIC_URL=' "$SCRIPT_DIR/.env" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' | sed 's|/$||')
+CF_PID=""
+if [ -n "$FIXED_URL" ]; then
+  TUNNEL_URL="$FIXED_URL"
+  echo "[tunnel] Using the fixed URL $TUNNEL_URL (named Cloudflare tunnel) — no quick tunnel"
+else
 echo "[cloudflared] Starting quick tunnel → localhost:$PORT ..."
 rm -f "$CF_LOG"
 cloudflared tunnel --url "http://localhost:$PORT" > "$CF_LOG" 2>&1 &
@@ -102,6 +111,7 @@ if [ -z "$TUNNEL_URL" ]; then
   echo "        Check $CF_LOG for details."
   kill $CF_PID 2>/dev/null
   exit 1
+fi
 fi
 
 echo ""
@@ -228,6 +238,12 @@ if [ -n "$SUPABASE_URL" ] || [ -n "$SUPABASE_URL_DEV" ]; then
       _ts_dev=$( _poll_ts "$SUPABASE_URL_DEV" "$SUPABASE_SERVICE_KEY_DEV")
       _req_ts=$(printf '%s\n%s\n' "$_ts_prod" "$_ts_dev" | grep -v '^$' | sort -rn | head -1)
       if [ -n "$_req_ts" ] && [ "$(( _req_ts / 1000 ))" -gt "$_last_handled" ] 2>/dev/null; then
+        if [ -n "$FIXED_URL" ]; then
+          echo "[restart] Remote restart requested — fixed URL in use, re-registering $FIXED_URL"
+          _register_tunnel_url "$FIXED_URL" >/dev/null 2>&1
+          _last_handled=$(date -u +%s)
+          continue
+        fi
         echo "[restart] Remote restart command received — restarting cloudflared tunnel..."
         kill $CF_PID 2>/dev/null || true
         sleep 2

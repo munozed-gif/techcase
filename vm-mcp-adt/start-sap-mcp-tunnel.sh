@@ -75,7 +75,16 @@ CF_PID=""
 TUNNEL_URL=""
 
 # ── Start cloudflared tunnel ───────────────────────────────────
+# Fixed URL of the named Cloudflare tunnel (e.g. https://mcp.arenasolutionsplatform.com):
+# no quick tunnel is started and the URL never changes.
+FIXED_URL=$( { grep -h '^MCP_PUBLIC_URL=' "$SCRIPT_DIR/.env" 2>/dev/null; grep -h '^MCP_PUBLIC_URL=' /etc/vm-mcp-adt.env 2>/dev/null; } | head -1 | cut -d'=' -f2- | tr -d '"' | sed 's|/$||')
+
 start_tunnel() {
+  if [ -n "$FIXED_URL" ]; then
+    TUNNEL_URL="$FIXED_URL"; CF_PID=""
+    echo "[tunnel] Using the fixed URL $TUNNEL_URL (named Cloudflare tunnel) — no quick tunnel"
+    return 0
+  fi
   pkill -f "cloudflared tunnel.*$PORT" 2>/dev/null || true
   sleep 1
   rm -f "$CF_LOG"
@@ -192,6 +201,7 @@ MONITOR_PID=$!
 # ── Keep alive: restart tunnel if cloudflared dies ─────────────
 while true; do
   sleep 60
+  if [ -n "$FIXED_URL" ]; then continue; fi
   if ! kill -0 "$CF_PID" 2>/dev/null; then
     echo "[watchdog] cloudflared exited — restarting tunnel..."
     start_tunnel
