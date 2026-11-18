@@ -224,21 +224,30 @@ export function ProjectVpnSelector({ env, scopeKeys, ownScopeKey, canEdit, onCha
 
       {selected && (
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-2.5 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs">
-            <Lock size={12} className="text-gray-400" />
-            <span className="font-medium text-gray-700 dark:text-gray-200">{selected.name}</span>
-            <span className="text-gray-400">{selected.gateway ?? typeMeta(selected.vpn_type).label}</span>
-            {busy === 'connect' && (
-              <span className="ml-auto px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Connecting… (up to a minute)</span>
-            )}
-            {busy !== 'connect' && st && (
-              <span className={`ml-auto px-1.5 py-0.5 rounded text-[10px] font-semibold ${st === 'up' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : st === 'error' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>
+          <div className="flex items-start gap-2 text-xs min-w-0">
+            <Lock size={12} className="text-gray-400 mt-0.5 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="font-medium text-gray-700 dark:text-gray-200 truncate">{selected.name}</div>
+              <div className="text-gray-400 break-all">{selected.gateway ?? typeMeta(selected.vpn_type).label}</div>
+            </div>
+          </div>
+          {/* State on its own line: a long gateway name must never push it out of view. */}
+          <div className="text-xs">
+            {busy === 'connect' ? (
+              <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Connecting… (up to a minute)</span>
+            ) : busy === 'status' && !st ? (
+              <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Loader2 size={11} className="animate-spin" />Checking…</span>
+            ) : st ? (
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold ${st === 'up' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : st === 'error' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>
+                {st === 'up' && <CheckCircle2 size={11} />}
                 {st === 'up' ? `Connected${status.vpn.iface ? ' · ' + (status.vpn.iface.split(' ')[1] ?? status.vpn.iface) : ''}`
                   : st === 'down' ? 'Not connected' : st === 'not-set-up' ? 'VM not set up' : st}
               </span>
-            )}
+            ) : !status ? (
+              <span className="text-[11px] text-gray-400">State unknown — press Status</span>
+            ) : null}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button onClick={() => act('status')} disabled={!!busy} className="flex items-center gap-1 px-2 py-1 text-[11px] rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50">
               {busy === 'status' ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}Status
             </button>
