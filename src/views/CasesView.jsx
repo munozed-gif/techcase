@@ -12,6 +12,7 @@ import { useCases } from "../hooks/useCaseHooks.js";
 import { useProjects } from "../hooks/useCoreHooks.js";
 import { filterCasesByVisibility, usePlanConfig, usePermissions, useSystemSettings, useVisibilitySettings, useWizardMode } from "../hooks/useSystemSettings.jsx";
 import { logEvent } from "../lib/utils.js";
+import { usePartnerContext } from "../hooks/usePartnerContext.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input } from "../components/ui.jsx";
 import { fmtDate, fmt, cap, STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS } from "../lib/uiUtils.jsx";
@@ -68,41 +69,48 @@ function CasesView({ auth, initialCaseId }) {
   // Key users get their cases directly from case_key_users to avoid pagination issues
   const [_kuCases, _setKuCases] = useState([]);
   const [_kuLoading, _setKuLoading] = useState(false);
-  useEffect(() => {
-    if (!auth.isKeyUser || !auth.user?.id) return;
-    _setKuLoading(true);
-    supabase.from('case_key_users')
-      .select(`case_id, area, cases(
-        *, created_by,
+  // Partner / customer membership: cases of the user's partners and customers are visible too.
+  const _pctx = usePartnerContext(auth.user?.id);
+  const _myPartnerIds  = useMemo(() => new Set(_pctx.approvedPartners.map(p => p.id)), [_pctx.approvedPartners]);
+  const _myCustomerIds = useMemo(() => new Set(_pctx.customers.map(c => c.id)), [_pctx.customers]);
+  const _custKey = [..._myCustomerIds].sort().join(',');
+  const inMyOrg = (c) => (!!c.partner_id && _myPartnerIds.has(c.partner_id)) || (!!c.customer_id && _myCustomerIds.has(c.customer_id));
+  const KU_SELECT = `*, created_by,
         client:client_id(id, full_name, email, avatar_url, client_profiles(company_name)),
         manager:manager_id(id, full_name, email, avatar_url),
         case_assignments(consultant_id, time_commitment, users:consultant_id(id, full_name, avatar_url)),
         case_key_users(user_id, area, users:user_id(full_name, email, role)),
         applications(consultant_id, submitted_at, consultant:consultant_id(full_name, avatar_url)),
-        project:project_id(id, name, avatar_url, client:client_id(id, avatar_url))
-      )`)
-      .eq('user_id', auth.user.id)
-      .then(({ data, error }) => {
-        if (error) console.error('[CasesView] key user cases:', error.message);
-        _setKuCases((data ?? []).map(r => r.cases).filter(Boolean));
-        _setKuLoading(false);
-      });
-  }, [auth.isKeyUser, auth.user?.id, debouncedSearch]);
+        project:project_id(id, name, avatar_url, client:client_id(id, avatar_url))`;
+  function loadKeyUserCases() {
+    if (!auth.user?.id) return;
+    _setKuLoading(true);
+    const ids = [..._myCustomerIds];
+    Promise.all([
+      supabase.from('case_key_users').select(`case_id, area, cases(${KU_SELECT})`).eq('user_id', auth.user.id),
+      ids.length ? supabase.from('cases').select(KU_SELECT).in('customer_id', ids) : Promise.resolve({ data: [] }),
+    ]).then(([{ data, error }, { data: custCases }]) => {
+      if (error) console.error('[CasesView] key user cases:', error.message);
+      const byId = new Map();
+      [...(data ?? []).map(r => r.cases), ...(custCases ?? [])].filter(Boolean).forEach(c => byId.set(c.id, c));
+      _setKuCases([...byId.values()]);
+      _setKuLoading(false);
+    });
+  }
+  useEffect(() => {
+    if (!auth.isKeyUser || !auth.user?.id) return;
+    loadKeyUserCases();
+  }, [auth.isKeyUser, auth.user?.id, debouncedSearch, _custKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loading = auth.isKeyUser ? _kuLoading : _loadingCV;
-  const refetch = auth.isKeyUser
-    ? () => {
-        if (!auth.user?.id) return;
-        _setKuLoading(true);
-        supabase.from('case_key_users')
-          .select(`case_id, area, cases(*, created_by, client:client_id(id, full_name, email, avatar_url, client_profiles(company_name)), manager:manager_id(id, full_name, email, avatar_url), case_assignments(consultant_id, time_commitment, users:consultant_id(id, full_name, avatar_url)), case_key_users(user_id, area, users:user_id(full_name, email, role)), applications(consultant_id, submitted_at, consultant:consultant_id(full_name, avatar_url)), project:project_id(id, name, avatar_url, client:client_id(id, avatar_url)))`)
-          .eq('user_id', auth.user.id)
-          .then(({ data }) => { _setKuCases((data ?? []).map(r => r.cases).filter(Boolean)); _setKuLoading(false); });
-      }
-    : _refetchCV;
+  const refetch = auth.isKeyUser ? loadKeyUserCases : _refetchCV;
 
   const _rawCasesForVis = auth.isKeyUser ? _kuCases : _rawCasesCV;
-  const cases = auth.isKeyUser ? _kuCases : filterCasesByVisibility(_rawCasesForVis, auth, _casesViewVisCfg);
+  const cases = useMemo(() => {
+    if (auth.isKeyUser) return _kuCases;
+    const vis = new Set(filterCasesByVisibility(_rawCasesForVis, auth, _casesViewVisCfg).map(c => c.id));
+    return (_rawCasesForVis ?? []).filter(c => vis.has(c.id) || inMyOrg(c));
+  }, [auth.isKeyUser, _kuCases, _rawCasesForVis, _casesViewVisCfg, _myPartnerIds, _myCustomerIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Open a specific case when navigated from GlobalSearch
   const [initialCaseOpened, setInitialCaseOpened] = useState(false);
@@ -123,17 +131,18 @@ function CasesView({ auth, initialCaseId }) {
     ? cases.filter(c =>
         c.case_assignments?.some(a => a.consultant_id === auth.user?.id) ||
         c.created_by === auth.user?.id ||
-        c.manager_id === auth.user?.id
+        c.manager_id === auth.user?.id ||
+        inMyOrg(c)
       )
     : auth.isKeyUser
-    ? cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id))
+    ? cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id) || inMyOrg(c))
     : auth.isHeadhunter
     ? cases.filter(c => c.case_type === "resource_need" || c.head_hunter_id === auth.user?.id)
     : _cvPerms.can('view_all_cases') || auth.isClient
     ? cases
     : cases.filter(c =>
         c.created_by === auth.user?.id || c.manager_id === auth.user?.id || c.client_id === auth.user?.id ||
-        c.case_assignments?.some(a => a.consultant_id === auth.user?.id)
+        c.case_assignments?.some(a => a.consultant_id === auth.user?.id) || inMyOrg(c)
       );
 
   // ── Client / Project chip data (admin+manager only) ──────────────────────

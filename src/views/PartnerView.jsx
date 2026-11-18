@@ -12,6 +12,7 @@ import { Spinner } from "../components/ProfileComponents.jsx";
 import { usePartnerContext, PARTNER_LIMIT_LABELS, fmtLimit } from "../hooks/usePartnerContext.js";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { SapIntegrationPanel } from "../components/SapPanels.jsx";
+import { buildEmailHtml, sendEmail } from "../lib/utils.js";
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 
 const OPEN_CASE_EXCLUDED = ["completed", "closed", "cancelled", "resolved", "terminated"];
@@ -216,7 +217,7 @@ function CustomerForm({ partnerId, initial, onSaved, onCancel }) {
   );
 }
 
-function CustomerUsers({ customer, canManage }) {
+function CustomerUsers({ customer, canManage, partnerName }) {
   const [members, setMembers] = useState(null);
   const [invites, setInvites] = useState([]);
   const [users, setUsers] = useState({});
@@ -243,9 +244,23 @@ function CustomerUsers({ customer, canManage }) {
     setMsg(null);
     const { data, error } = await supabase.rpc("invite_customer_member", { p_customer: customer.id, p_email: email, p_role: role });
     if (error) { setMsg({ kind: "error", text: errText(error) }); return; }
+    let mailed = false;
+    if (data !== "linked") {
+      try {
+        const url = window.location.origin;
+        await sendEmail(email, `You're invited to ${customer.name} on the platform`, buildEmailHtml({
+          title: `Join ${customer.name}`,
+          preheader: `${partnerName ?? "Your consultant"} invited you to follow ${customer.name}'s projects`,
+          bodyHtml: `<p>${partnerName ?? "Your consultant"} invited you to follow the projects and cases of <b>${customer.name}</b>.</p>
+                     <p>Sign up with this email address (${email}); once your account is approved you'll see ${customer.name} automatically.</p>`,
+          ctaText: "Create your account", ctaUrl: url,
+        }));
+        mailed = true;
+      } catch { /* the invitation stays valid without the email */ }
+    }
     setMsg({ kind: "ok", text: data === "linked"
       ? `${email} already has an account — they now have access to ${customer.name}.`
-      : `Invitation saved. When ${email} signs up with that email, they get access to ${customer.name}.` });
+      : `Invitation saved${mailed ? " and emailed" : ""}. When ${email} signs up with that email, they get access to ${customer.name}.` });
     setEmail(""); setNonce(n => n + 1);
   }
   async function revoke(id) {
@@ -364,7 +379,7 @@ function CustomersTab({ partner, canManage, onChanged, auth }) {
           </div>
           {openId === c.id && (
             <div className="px-5 pb-4 border-t border-gray-100 pt-3">
-              <CustomerUsers customer={c} canManage={canManage} />
+              <CustomerUsers customer={c} canManage={canManage} partnerName={partner.name} />
             </div>
           )}
         </div>
