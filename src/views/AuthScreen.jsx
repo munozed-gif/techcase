@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   BadgeCheck, Briefcase, Building2, Check, Crosshair, FolderKanban,
-  Globe, Loader2, Mail, Send, Shield, UserCheck, UserCog,
+  Globe, Handshake, Loader2, Mail, Send, Shield, UserCheck, UserCog,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -31,6 +31,10 @@ function AuthScreen({ onAuth, onBack }) {
   const [confirmPass, setConf]  = useState("");
   // Consultant-specific
   const [headline, setHeadline]       = useState("");
+  // "Partner" sign-up: a consultant account plus a partner request (approved with the account).
+  const [asPartner, setAsPartner]     = useState(false);
+  const [partnerName, setPartnerName] = useState("");
+  const [partnerKind, setPartnerKind] = useState("firm");
   const [skills, setSkills]           = useState("");
   const [yearsExp, setYearsExp]       = useState("");
   const [hourlyRate, setHourly]       = useState("");
@@ -167,8 +171,9 @@ function AuthScreen({ onAuth, onBack }) {
   }
 
   // ── Step 0: role chosen → decide OTP or skip ─────────────────
-  async function handleRoleSelect(r) {
+  async function handleRoleSelect(r, { partner = false } = {}) {
     if (!email.trim()) { setError(t("auth.error_email_first")); return; }
+    setAsPartner(partner);
     setError(""); setRole(r); setLoad(true);
     try {
       await checkEmailPreReg(email);
@@ -258,13 +263,17 @@ function AuthScreen({ onAuth, onBack }) {
     if (!name.trim()) { setError(t("auth.error_name")); return; }
     if (password.length < 6) { setError(t("auth.error_password_short")); return; }
     if (password !== confirmPass) { setError(t("auth.error_password_match")); return; }
-    if (role === "consultant" && !headline.trim()) { setError(t("auth.error_headline")); return; }
+    if (asPartner && !partnerName.trim()) { setError("Enter the name of your firm (or your own name if you work independently)."); return; }
+    if (role === "consultant" && !asPartner && !headline.trim()) { setError(t("auth.error_headline")); return; }
     if (role === "client" && !companyName.trim()) { setError(t("auth.error_company")); return; }
     if (role === "key_user"            && requiresTeamFor("key_user")            && !keyUserCompany)                         { setError(t("auth.error_key_user"));  return; }
     if (role === "final_user"          && requiresTeamFor("final_user")          && !finalUserClient)                        { setError(t("auth.error_team_code")); return; }
     if (role === "internal_consultant" && requiresTeamFor("internal_consultant") && !finalUserClient && !keyUserCompany)     { setError(t("auth.error_team_code")); return; }
     if (role === "project_manager"     && requiresTeamFor("project_manager")     && !finalUserClient && !keyUserCompany)     { setError(t("auth.error_team_code")); return; }
     setError(""); setLoad(true);
+    // Read by the database (partner_from_signup_meta): creates the pending partner request.
+    const partnerMeta = asPartner && role === "consultant"
+      ? { partner_request: { name: partnerName.trim(), kind: partnerKind } } : {};
     try {
       // Name, role and approval status are saved server-side by complete_signup,
       // which applies signup_flow_per_role / auto_approve_domains itself.
@@ -272,14 +281,14 @@ function AuthScreen({ onAuth, onBack }) {
       let userId, userEmail;
       if (otpVerified) {
         // OTP path: user is already authenticated, just set password
-        await supabase.auth.updateUser({ password, data: { full_name: name.trim(), role } });
+        await supabase.auth.updateUser({ password, data: { full_name: name.trim(), role, ...partnerMeta } });
         const { data: { user } } = await supabase.auth.getUser();
         userId = user.id; userEmail = user.email;
       } else {
         // Admin-approval path: sign up with email+password directly
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
           email: email.trim(), password,
-          options: { data: { full_name: name.trim(), role } },
+          options: { data: { full_name: name.trim(), role, ...partnerMeta } },
         });
         if (signUpErr) {
           const raw = signUpErr.message ?? "";
@@ -306,7 +315,7 @@ function AuthScreen({ onAuth, onBack }) {
       if (role === "consultant") {
         const skillsArr = skills.split(",").map(s => s.trim()).filter(Boolean);
         await supabase.from("consultant_profiles").upsert({
-          id: userId, headline: headline.trim(), skills: skillsArr,
+          id: userId, headline: headline.trim() || (asPartner ? partnerName.trim() : ""), skills: skillsArr,
           years_experience: yearsExp ? parseInt(yearsExp, 10) : null,
           hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
           expertise_level: expertiseLevel,
@@ -560,11 +569,15 @@ function AuthScreen({ onAuth, onBack }) {
                     { role: "client",     Icon: Building2, label: t("auth.build_client"),     desc: t("auth.tell_consultants") },
                     { role: "headhunter", Icon: Crosshair, label: t("auth.build_headhunter"), desc: t("auth.help_headhunter") },
                   ].filter(o => visibleSignup.includes(o.role));
+                  if (visibleSignup.includes("consultant") || visibleSignup.includes("partner")) {
+                    generalRoles.push({ role: "consultant", partner: true, Icon: Handshake, label: "Partner",
+                      desc: "Consulting firm or independent consultant running your own customers and projects" });
+                  }
                   const isLinkedToTeam = !!(keyUserCompany || finalUserClient || internalConsultantClient || projectManagerClient);
                   return generalRoles.length > 0 ? (
-                    <div className={`grid gap-3 ${generalRoles.length === 1 ? "grid-cols-1" : generalRoles.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
+                    <div className={`grid gap-3 ${generalRoles.length === 1 ? "grid-cols-1" : generalRoles.length === 2 || generalRoles.length === 4 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
                       {generalRoles.map(opt => (
-                        <button key={opt.role} onClick={() => handleRoleSelect(opt.role)} disabled={loading || isLinkedToTeam}
+                        <button key={opt.role + (opt.partner ? "_partner" : "")} onClick={() => handleRoleSelect(opt.role, { partner: !!opt.partner })} disabled={loading || isLinkedToTeam}
                           className={`flex flex-col items-center gap-2 p-4 border-2 rounded-2xl transition-all text-center group
                             ${isLinkedToTeam
                               ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
@@ -684,13 +697,16 @@ function AuthScreen({ onAuth, onBack }) {
             {!approvalDone && step === 2 && (
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-1">
-                  {role === "consultant" ? t("auth.build_consultant")
+                  {role === "consultant" && asPartner ? "Create your partner account"
+                    : role === "consultant" ? t("auth.build_consultant")
                     : role === "key_user" ? t("auth.build_key_user")
                     : role === "final_user" ? t("auth.role_final_user")
                     : t("auth.build_client")}
                 </h2>
                 <p className="text-sm text-gray-500 mb-5">
-                  {role === "consultant"
+                  {role === "consultant" && asPartner
+                    ? "Run your own customers, projects and cases. An administrator reviews your account and partner request together; you start on the Free plan."
+                    : role === "consultant"
                     ? t("auth.help_clients")
                     : role === "key_user"
                     ? t("auth.key_user_access").replace("{n}", keyUserCompany ?? "your company")
@@ -718,6 +734,22 @@ function AuthScreen({ onAuth, onBack }) {
                   onChange={e => setPass(e.target.value)} placeholder={t("auth.ph_password")} />
                 <Input label={t("auth.confirm_password")} type="password" value={confirmPass}
                   onChange={e => setConf(e.target.value)} placeholder={t("auth.ph_password_dots")} />
+
+                {/* ── Partner fields ── */}
+                {role === "consultant" && asPartner && (<>
+                  <div className="border-t border-gray-100 my-4" />
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">I am</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[["firm", "A consulting firm"], ["individual", "An independent consultant"]].map(([k, l]) => (
+                        <button key={k} type="button" onClick={() => setPartnerKind(k)}
+                          className={`px-3 py-2.5 rounded-xl border-2 text-sm font-medium ${partnerKind === k ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600"}`}>{l}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <Input label={partnerKind === "firm" ? "Firm name" : "Partner name (usually your own name)"} value={partnerName}
+                    onChange={e => setPartnerName(e.target.value)} placeholder={partnerKind === "firm" ? "e.g. Acme SAP Consulting" : "e.g. Jane Doe Consulting"} />
+                </>)}
 
                 {/* ── Consultant fields ── */}
                 {role === "consultant" && (<>

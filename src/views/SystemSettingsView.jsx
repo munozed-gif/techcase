@@ -2373,7 +2373,13 @@ function UserApprovalQueue() {
       .select('id, full_name, email, role, created_at, verification_status, trust_level, avg_rating, completed_cases_count')
       .eq('verification_status', 'pending')
       .order('created_at', { ascending: true });
-    setUsers(data ?? []);
+    // Partner requests made at sign-up: approved together with the account.
+    const ids = (data ?? []).map(u => u.id);
+    const { data: prs } = ids.length
+      ? await supabase.from('partners').select('owner_id, name, kind').in('owner_id', ids).eq('via_signup', true).eq('status', 'pending')
+      : { data: [] };
+    const byOwner = Object.fromEntries((prs ?? []).map(p => [p.owner_id, p]));
+    setUsers((data ?? []).map(u => ({ ...u, _partner: byOwner[u.id] ?? null })));
     setLoading(false);
   }
 
@@ -2593,8 +2599,14 @@ function UserApprovalQueue() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-gray-900">{u.full_name || '—'}</p>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-500'}`}>{ROLE_LABELS[u.role] ?? u.role}</span>
+                    {u._partner && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-violet-100 text-violet-700">+ Partner</span>}
                   </div>
                   <p className="text-xs text-gray-400 mt-0.5">{u.email} · Signed up {new Date(u.created_at).toLocaleDateString()}</p>
+                  {u._partner && (
+                    <p className="text-xs text-violet-700 mt-0.5">
+                      Partner request: <b>{u._partner.name}</b> ({u._partner.kind === 'firm' ? 'consulting firm' : 'independent'}) — approving the account approves the partner on the Free plan
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button onClick={() => setRejectModal(u)} disabled={processing === u.id || bulkProcessing}
