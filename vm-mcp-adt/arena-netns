@@ -93,7 +93,7 @@ case "$cmd" in
         ;;
       wireguard)
         # wg-quick runs PreUp/PostUp/... as root: drop them. DNS is written into the namespace only.
-        grep -iE '^\s*DNS\s*=' "$dir/wg.conf" | sed 's/^[^=]*=//' | tr ',' ' ' > "$dir/dns" || true
+        grep -iE '^\s*DNS\s*=' "$dir/wg.conf" | sed 's/^[^=]*=//' | tr ',' ' ' >> "$dir/dns" || true
         grep -viE '^\s*(PreUp|PostUp|PreDown|PostDown|SaveConfig|DNS)\s*=' "$dir/wg.conf" > "$dir/wga.conf"
         chmod 600 "$dir/wga.conf"
         ip netns exec "$ns" wg-quick up "$dir/wga.conf" >>"$dir/vpn.log" 2>&1
@@ -127,9 +127,9 @@ case "$cmd" in
     # The VPN's DNS servers, for this namespace only (/etc/netns/<ns>/resolv.conf), then a public
     # resolver as fallback. Sources: openfortivpn log, OpenVPN pushed options, WireGuard config.
     ns="$1"; check_ns "$ns"; dir="$BASE/$ns"
-    servers="$( { grep -oE '(primary|secondary) +DNS address +[0-9.]+' "$dir/vpn.log" 2>/dev/null | awk '{print $NF}';
-                  grep -oE 'dhcp-option +DNS +[0-9.]+' "$dir/vpn.log" 2>/dev/null | awk '{print $NF}';
-                  cat "$dir/dns" 2>/dev/null | tr ' ' '\n'; } | grep -E '^[0-9.]+$' | awk '!seen[$0]++' | head -2 || true)"
+    servers="$( { cat "$dir/dns" 2>/dev/null | tr ' ' '\n';
+                  grep -oE '(primary|secondary) +DNS address +[0-9.]+' "$dir/vpn.log" 2>/dev/null | awk '{print $NF}';
+                  grep -oE 'dhcp-option +DNS +[0-9.]+' "$dir/vpn.log" 2>/dev/null | awk '{print $NF}'; } | grep -E '^[0-9.]+$' | awk '!seen[$0]++' | head -2 || true)"
     if [ -n "$servers" ]; then
       { for d in $servers; do echo "nameserver $d"; done; echo "nameserver 1.1.1.1"; } > "/etc/netns/$ns/resolv.conf"
     fi

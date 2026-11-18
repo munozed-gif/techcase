@@ -62,6 +62,7 @@ function ProfileForm({ scopeKey, profile, onSaved, onCancel }) {
     name: profile?.name ?? '', vpn_type: profile?.vpn_type ?? 'fortinet', gateway: profile?.gateway ?? '',
     port: profile?.port ?? '', username: profile?.username ?? '', secret: '', config: '',
     trusted_cert: profile?.trusted_cert ?? '', realm: profile?.realm ?? '',
+    dns: profile?.options?.dns ?? '',
   }));
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
@@ -80,7 +81,7 @@ function ProfileForm({ scopeKey, profile, onSaved, onCancel }) {
       p_config: meta.fields.includes('config') && d.config ? d.config : null,
       p_trusted_cert: meta.fields.includes('trusted_cert') ? d.trusted_cert : null,
       p_realm: meta.fields.includes('realm') ? d.realm : null,
-      p_options: {},
+      p_options: { ...(profile?.options ?? {}), dns: d.dns.trim() },
     });
     setSaving(false);
     if (error) { setErr(error.message); return; }
@@ -121,6 +122,12 @@ function ProfileForm({ scopeKey, profile, onSaved, onCancel }) {
               className={inputCls} />
           </div>
         ))}
+        <div className="sm:col-span-2">
+          <label className="block text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">
+            DNS servers (optional — the customer's internal DNS, if SAP host names only exist there)
+          </label>
+          <input value={d.dns} onChange={e => set('dns', e.target.value)} placeholder="e.g. 10.0.0.10, 10.0.0.11" className={inputCls} />
+        </div>
         {meta.fields.includes('config') && (
           <div className="sm:col-span-2">
             <label className="block text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">

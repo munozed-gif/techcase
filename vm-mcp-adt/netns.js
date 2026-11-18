@@ -61,6 +61,9 @@ async function writeVpnFiles(ns, vpn) {
   const w = (name, content) => writeFile(`${dir}/${name}`, String(content ?? ''), { mode: 0o600 });
   const clean = (v) => String(v ?? '').replace(/[\r\n]/g, '').trim();
   await w('type', vpn.type);
+  // DNS servers set in the profile (customer's internal DNS); WireGuard may add its own.
+  const dnsList = String(vpn.options?.dns ?? '').split(/[\s,;]+/).filter(x => /^\d{1,3}(\.\d{1,3}){3}$/.test(x));
+  await w('dns', dnsList.join(' '));
   if (vpn.type === 'fortinet') {
     const gw = clean(vpn.gateway).replace(/^https?:\/\//, '').replace(/\/.*$/, '');
     const [host, portInHost] = gw.split(':');
