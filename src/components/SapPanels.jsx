@@ -2527,6 +2527,34 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       }
     } else if (env.vpn_mode === 'project') {
       // Project VPN: the bridge connects this environment's own VPN in its isolated network space.
+      // The project VPN runs inside the ADT bridge: use the bridge's registered (current) URL —
+      // the saved one goes stale whenever the tunnel restarts.
+      setLiveNode('mcp', { status: 'checking', detail: 'Checking ABAP ADT Bridge…', log: [], extra: {} });
+      try {
+        const { data: sData } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+        const reg = typeof sData?.value === 'string' ? sData.value.trim().replace(/\/$/, '') : '';
+        if (reg && reg !== currentMcpBase) {
+          addLog('mcp', `Using the bridge's registered URL: ${reg}`, 'info');
+          currentMcpBase = reg;
+          if (onUpdateAdtUrl) onUpdateAdtUrl(reg);
+        }
+      } catch {}
+      const bridgeHealth = currentMcpBase
+        ? await fetch(`${currentMcpBase}/health`, { signal: AbortSignal.timeout(8000) }).then(r => r.ok ? r.json() : null).catch(() => null)
+        : null;
+      if (!bridgeHealth) {
+        setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'error', detail: 'ADT bridge not responding — is vm-mcp-adt running on the VM?' });
+        addLog('mcp', `ADT bridge not responding at ${currentMcpBase || '(no URL)'}`, 'error');
+        setStoppedAt('mcp'); setRunning(false); diagnoseFailure('mcp');
+        return;
+      }
+      {
+        const rwOk = bridgeHealth.servers?.['abap-adt']?.available !== false;
+        const roOk = bridgeHealth.servers?.['abap-adt-readonly']?.available !== false;
+        setLiveNode('mcp', { ...liveNodes.current.mcp, status: (rwOk && roOk) ? 'ok' : 'warning',
+          detail: `ADT bridge ${bridgeHealth.version ? `v${bridgeHealth.version}` : 'running'} · R+W ${rwOk ? '✓' : '✗'} · R/O ${roOk ? '✓' : '✗'}` });
+        addLog('mcp', `ADT bridge OK at ${currentMcpBase}`, 'success');
+      }
       setLiveNode('vpn', { status: 'checking', detail: 'Connecting the project VPN…', log: [] });
       addLog('vpn', 'Project VPN — connecting through the ADT bridge (isolated network space on the VM)…');
       const r = await projectVpnAction({ ...env, adt_mcp_url: currentMcpBase || env.adt_mcp_url }, 'connect');
@@ -3336,13 +3364,13 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           const showDeploy = key === 'mcp' && !isPlatformAdtMode && (node.extra?.needsDeploy || node.status === 'error');
           const showRestartAdt = key === 'mcp' && isPlatformAdtMode && node.status === 'error';
           const showSetup = key === 'vm' && node.status === 'error';
-          const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode && node.status === 'ok' && env.vpn_required !== false;
+          const showStopVpn = key === 'vpn' && !!getMcpBase() && !laptopBridgeMode && env.vpn_mode !== 'project' && node.status === 'ok' && env.vpn_required !== false;
           const showLaptopTunnel = key === 'vpn' && laptopBridgeMode;
 
           return (
             <div key={key} className={`rounded-lg border transition-colors ${nodeBg(node.status)}`}>
               {/* Node row */}
-              <div className="flex items-start gap-2.5 px-3 py-2">
+              <div className="flex flex-wrap sm:flex-nowrap items-start gap-2.5 px-3 py-2">
                 <div className="shrink-0 mt-0.5">{statusIcon(node.status)}</div>
                 <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full bg-gray-100 dark:bg-gray-700 text-[9px] font-bold text-gray-500 dark:text-gray-400 flex items-center justify-center leading-none">{idx + 1}</span>
                 <div className="flex-1 min-w-0">
@@ -3354,6 +3382,9 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                     <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug break-words">{node.detail}</p>
                   )}
                 </div>
+                {/* Action buttons: their own line on phones, so the detail text keeps its width. */}
+                {(showStopVpn || showRestartAdt || showSetup || showDeploy) && (
+                <div className="order-last sm:order-none basis-full sm:basis-auto flex flex-wrap gap-1.5 pl-[3.25rem] sm:pl-0">
                 {showStopVpn && (
                   <button onClick={stopVmVpn} disabled={stoppingVpn}
                     className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition-colors">
@@ -3388,6 +3419,8 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
                     {deploying ? <RefreshCw size={9} className="animate-spin" /> : <Upload size={9} />}
                     {deploying ? 'Deploying…' : 'Deploy'}
                   </button>
+                )}
+                </div>
                 )}
                 {hasLog && (
                   <button onClick={() => setExpanded(e => ({ ...e, [key]: !e[key] }))}
