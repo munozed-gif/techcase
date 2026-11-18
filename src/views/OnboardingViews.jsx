@@ -9,7 +9,8 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent } from "../lib/utils.js";
 import { Badge, ConsultantProjectsHierarchy, ProfileCompleteWizard, Spinner } from "../components/ProfileComponents.jsx";
-import { Input, Select, Textarea } from "../components/ui.jsx";
+import { Input, Select, Textarea, CountrySelect } from "../components/ui.jsx";
+import { countryFlag, codeForCountryName } from "../lib/countries.js";
 import { fmt, fmtDate } from "../lib/uiUtils.jsx";
 import { ROLE_COLORS, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES } from "../lib/businessConstants.js";
 import { useClientProfile } from "../components/SapPanels.jsx";
@@ -65,7 +66,7 @@ function OnboardingRoadmap({ steps, current }) {
 }
 
 function ConsultantOnboardingView({ auth, onComplete }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { profile, loading, updateProfile, addCustomer, addProject, addWorkAuth } =
     useConsultantProfile(auth.user?.id);
 
@@ -246,7 +247,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               <div className="grid grid-cols-2 gap-3 mb-5">
                 {profile.work_authorizations.map(w => (
                   <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
-                    <span className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : <Globe size={18} />}</span>
+                    <span className="text-2xl">{countryFlag(w.country_code || codeForCountryName(w.country_name)) || <Globe size={18} />}</span>
                     <div>
                       <div className="text-sm font-medium">{w.country_name}</div>
                       <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
@@ -258,12 +259,10 @@ function ConsultantOnboardingView({ auth, onComplete }) {
             <div className={`${(profile?.work_authorizations?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("ob.add_country")}</p>
               <div className="grid grid-cols-3 gap-3">
-                <Input label={t("ob.country_name_label")} value={authForm.country_name}
-                  onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))}
-                  placeholder={t("ob.ph_country_name")} />
-                <Input label={t("ob.country_code_label")} value={authForm.country_code}
-                  onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))}
-                  placeholder="US" />
+                <div className="col-span-2">
+                  <CountrySelect label={t("ob.country_name_label")} lang={lang} value={authForm.country_code}
+                    onChange={(code, name) => setAuthForm(p => ({ ...p, country_code: code, country_name: name }))} />
+                </div>
                 <Select label={t("ob.auth_type_label")} value={authForm.auth_type}
                   onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
                   options={[

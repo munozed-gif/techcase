@@ -16,7 +16,8 @@ import {
   ProfileCompleteWizard, ProfileOnboardingScreen,
 } from "../components/ProfileComponents.jsx";
 import { ConsultantProfileView } from "../components/ConsultantProfileView.jsx";
-import { Input, Select, Textarea } from "../components/ui.jsx";
+import { Input, Select, Textarea, CountrySelect } from "../components/ui.jsx";
+import { countryFlag, codeForCountryName } from "../lib/countries.js";
 import { fmtDate, fmt, cap, AVAIL_LABEL_KEYS, EXPERTISE_LABEL_KEYS, WORK_MODE_LABEL_KEYS } from "../lib/uiUtils.jsx";
 import { ROLE_COLORS, SAP_AREAS, INDUSTRY_AREAS } from "../lib/businessConstants.js";
 import { useRatings } from "../hooks/useCaseHooks.js";
@@ -173,7 +174,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   const [editingCust, setEditingCust] = useState(null); // { id, company_name, role_held, start_date, end_date, description }
   const [editingProj, setEditingProj] = useState(null); // { id, title, consulting_company, client_name, role, description, tech_stack, url, _tech }
   const [projForm, setProjForm] = useState({ title: "", consulting_company: "", client_name: "", role: "", url: "", description: "", _tech: "" });
-  const [authForm, setAuthForm] = useState({ country_name: "", auth_type: "citizen" });
+  const [authForm, setAuthForm] = useState({ country_name: "", country_code: "", auth_type: "citizen" });
   const [savingExp, setSavingExp] = useState(false);
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
   const [skillPickerCat, setSkillPickerCat] = useState("technical");
@@ -268,7 +269,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
 
   async function handleAddWorkAuth() {
     setSavingExp(true);
-    try { await addWorkAuth(authForm); setAuthForm({ country_name: "", auth_type: "citizen" }); }
+    try { await addWorkAuth(authForm); setAuthForm({ country_name: "", country_code: "", auth_type: "citizen" }); }
     catch (e) { alert(e.message); }
     setSavingExp(false);
   }
@@ -1088,7 +1089,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                   : <div className="grid grid-cols-2 gap-3 mb-4">
                       {profile.work_authorizations.map(w => (
                         <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
-                          <div className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : <Globe size={18} />}</div>
+                          <div className="text-2xl">{countryFlag(w.country_code || codeForCountryName(w.country_name)) || <Globe size={18} />}</div>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium">{w.country_name}</div>
                             <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
@@ -1103,7 +1104,8 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                 <div className="border-t border-gray-100 pt-4">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_auth")}</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <Input label={t("profile.country")} value={authForm.country_name} onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))} />
+                    <CountrySelect label={t("profile.country")} lang={lang} value={authForm.country_code}
+                      onChange={(code, name) => setAuthForm(p => ({ ...p, country_code: code, country_name: name }))} />
                     <Select label={t("profile.auth_type")} value={authForm.auth_type} onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
                       options={[{ value: "citizen", label: t("profile.auth_citizen") }, { value: "permanent_resident", label: t("profile.auth_perm_resident") }, { value: "work_visa", label: t("profile.auth_work_visa") }, { value: "other", label: t("profile.auth_other") }]} />
                   </div>
