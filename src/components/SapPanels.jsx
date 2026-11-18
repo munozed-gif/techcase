@@ -1360,7 +1360,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                             </button>
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            Run <code className="text-blue-600 dark:text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {envBridgePort}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.
+                            The ADT bridge runs on the platform VM and is published at a fixed address (e.g. <code className="text-blue-600 dark:text-blue-400">https://bridge.arenasolutionsplatform.com</code>), registered in Supabase automatically. The ↻ button loads the registered address.
                           </p>
                             </>);
                           })()}
@@ -4100,7 +4100,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                                 <p className="text-xs text-gray-400 mt-0.5">
                                   {env.vpn_mode === 'user'
                                     ? <>Run <code className="text-blue-600 dark:text-blue-400">vm-mcp-adt/start-local.sh</code> on your laptop (FortiClient must be connected) — the tunnel URL is printed on startup and auto-registered.</>
-                                    : <>Run <code className="text-blue-600 dark:text-blue-400">vm-mcp-adt/start-vm.sh</code> on your VM — it starts the bridge on port {envBridgePort}, opens a Cloudflare tunnel and registers the URL in Supabase automatically.</>
+                                    : <>The ADT bridge runs on the platform VM and is published at a fixed address (e.g. <code className="text-blue-600 dark:text-blue-400">https://bridge.arenasolutionsplatform.com</code>), registered in Supabase automatically. The ↻ button loads the registered address.</>
                                   }
                                 </p>
                                   </>);
@@ -4149,6 +4149,8 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
 
                       {/* VPN / connection banner */}
                       {(() => {
+                        // Project VPN: the bridge connects it itself — the old 'connect before testing' hint doesn't apply.
+                        if (env.vpn_mode === 'project') return null;
                         const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
                         if (!linkedConn) return null;
                         const isVpn = linkedConn.db_type === 'vpn';
