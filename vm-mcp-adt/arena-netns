@@ -18,6 +18,7 @@
 #   arena-netns socks <ns> <idx>       start the SOCKS proxy (as the calling user)
 #   arena-netns status <ns>            print the VPN interface and address, exit 1 if down
 #   arena-netns log <ns>               last lines of the VPN client log
+#   arena-netns dns <ns>               use the VPN's DNS servers inside the namespace
 #   arena-netns exec <ns> <cmd...>     run a command inside, as the calling user, keeping its env
 #   arena-netns down <ns> <idx>        stop everything inside and remove the namespace
 #   arena-netns list                   "<ns> <idx>" for every arena namespace
@@ -68,13 +69,15 @@ case "$cmd" in
       fortinet)
         # Config written by the bridge (host, port, username, password, trusted-cert): no
         # free-form directives, so nothing in it can run commands.
-        setsid -f ip netns exec "$ns" openfortivpn -c "$dir/forti.conf" --set-dns=1 --pppd-use-peerdns=1 \
+        # DNS: never through openfortivpn/pppd — on Ubuntu that reaches the VM's systemd-resolved
+        # (the whole VM would use the customer's DNS). 'dns' writes it into the namespace only.
+        setsid -f ip netns exec "$ns" openfortivpn -c "$dir/forti.conf" --set-dns=0 --pppd-use-peerdns=0 \
           >>"$dir/vpn.log" 2>&1
         ;;
       anyconnect|globalprotect|pulse)
         proto="$type"; [ "$type" = "globalprotect" ] && proto="gp"; [ "$type" = "pulse" ] && proto="pulse"
         args=(--protocol="$proto" --non-inter --background --pid-file="$dir/vpn.pid" --passwd-on-stdin
-              --script=/usr/share/vpnc-scripts/vpnc-script)
+              --script=/usr/local/sbin/arena-vpnc-script)
         [ -s "$dir/user" ]       && args+=(--user="$(cat "$dir/user")")
         [ -s "$dir/servercert" ] && args+=(--servercert="$(cat "$dir/servercert")")
         [ -s "$dir/authgroup" ]  && args+=(--authgroup="$(cat "$dir/authgroup")")
@@ -90,7 +93,8 @@ case "$cmd" in
         ;;
       wireguard)
         # wg-quick runs PreUp/PostUp/... as root: drop them. DNS is written into the namespace only.
-        grep -viE '^\s*(PreUp|PostUp|PreDown|PostDown|SaveConfig)\s*=' "$dir/wg.conf" > "$dir/wga.conf"
+        grep -iE '^\s*DNS\s*=' "$dir/wg.conf" | sed 's/^[^=]*=//' | tr ',' ' ' > "$dir/dns" || true
+        grep -viE '^\s*(PreUp|PostUp|PreDown|PostDown|SaveConfig|DNS)\s*=' "$dir/wg.conf" > "$dir/wga.conf"
         chmod 600 "$dir/wga.conf"
         ip netns exec "$ns" wg-quick up "$dir/wga.conf" >>"$dir/vpn.log" 2>&1
         ;;
@@ -119,6 +123,19 @@ case "$cmd" in
     echo "socks 10.231.$idx.2:1080"
     ;;
 
+  dns)
+    # The VPN's DNS servers, for this namespace only (/etc/netns/<ns>/resolv.conf), then a public
+    # resolver as fallback. Sources: openfortivpn log, OpenVPN pushed options, WireGuard config.
+    ns="$1"; check_ns "$ns"; dir="$BASE/$ns"
+    servers="$( { grep -oE '(primary|secondary) +DNS address +[0-9.]+' "$dir/vpn.log" 2>/dev/null | awk '{print $NF}';
+                  grep -oE 'dhcp-option +DNS +[0-9.]+' "$dir/vpn.log" 2>/dev/null | awk '{print $NF}';
+                  cat "$dir/dns" 2>/dev/null | tr ' ' '\n'; } | grep -E '^[0-9.]+$' | awk '!seen[$0]++' | head -2 || true)"
+    if [ -n "$servers" ]; then
+      { for d in $servers; do echo "nameserver $d"; done; echo "nameserver 1.1.1.1"; } > "/etc/netns/$ns/resolv.conf"
+    fi
+    echo "dns ${servers//$'\n'/ }"
+    ;;
+
   log)
     # Last lines of the VPN client log (the file is root-only; secrets are never written to it).
     ns="$1"; check_ns "$ns"; tail -n 40 "$BASE/$ns/vpn.log" 2>/dev/null || true
@@ -126,7 +143,9 @@ case "$cmd" in
 
   status)
     ns="$1"; check_ns "$ns"
-    line="$(ip netns exec "$ns" ip -o -4 addr show 2>/dev/null | awk '$2 ~ /^(ppp|tun|wg|vpn)/ {print $2, $4; exit}')"
+    # No early 'exit' in awk: with pipefail + set -e, ip would die of SIGPIPE and fail the check.
+    out="$(ip netns exec "$ns" ip -o -4 addr show 2>/dev/null || true)"
+    line="$(printf '%s\n' "$out" | awk '$2 ~ /^(ppp|tun|wg|vpn)/ && !f {print $2, $4; f=1}')"
     [ -n "$line" ] && { echo "$line"; exit 0; }
     exit 1
     ;;
@@ -155,5 +174,5 @@ case "$cmd" in
     done
     ;;
 
-  *) die "usage: arena-netns up|vpn-start|vpn-stop|socks|status|log|exec|down|list" ;;
+  *) die "usage: arena-netns up|vpn-start|vpn-stop|socks|status|dns|log|exec|down|list" ;;
 esac

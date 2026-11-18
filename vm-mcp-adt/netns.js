@@ -91,7 +91,7 @@ async function writeVpnFiles(ns, vpn) {
 }
 
 async function vpnInterface(ns) {
-  try { return await helper(['status', ns], { timeout: 5000 }); } catch { return null; }
+  try { return await helper(['status', ns], { timeout: 10_000 }); } catch { return null; }
 }
 
 // A readable reason from the VPN client's log (certificate pin to confirm, login refused…).
@@ -130,8 +130,10 @@ async function bringUp(vpn) {
     await helper(['vpn-stop', ns]).catch(() => {});
     throw new Error(`The VPN "${vpn.name ?? vpn.id}" did not connect within ${CONNECT_TIMEOUT_MS / 1000}s — ${await explainVpnFailure(ns)}`);
   }
+  // The VPN's DNS servers, inside this namespace only (never the VM's own DNS).
+  const dns = await helper(['dns', ns], { timeout: 10_000 }).catch(e => `dns: ${e.message}`);
   await helper(['socks', ns, String(idx)]);
-  console.log(`[netns] ${vpn.type} VPN "${vpn.name ?? vpn.id}" up in ${ns} (${iface})`);
+  console.log(`[netns] ${vpn.type} VPN "${vpn.name ?? vpn.id}" up in ${ns} (${iface}; ${dns})`);
   return { ns, idx, iface, socksUrl: `socks5h://10.231.${idx}.2:1080` };
 }
 

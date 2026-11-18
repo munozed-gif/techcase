@@ -16,6 +16,7 @@ apt-get install -y -qq openfortivpn openconnect vpnc-scripts openvpn wireguard-t
 
 echo "[setup] Installing /usr/local/sbin/arena-netns…"
 install -o root -g root -m 0755 "$HERE/arena-netns" /usr/local/sbin/arena-netns
+install -o root -g root -m 0755 "$HERE/arena-vpnc-script" /usr/local/sbin/arena-vpnc-script
 mkdir -p /var/lib/arena-netns && chown "$BRIDGE_USER:$BRIDGE_USER" /var/lib/arena-netns && chmod 700 /var/lib/arena-netns
 
 echo "[setup] Allowing $BRIDGE_USER to run only arena-netns as root…"

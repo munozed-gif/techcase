@@ -1,0 +1,13 @@
+#!/bin/sh
+# openconnect script for arena-netns namespaces (installed as /usr/local/sbin/arena-vpnc-script).
+# Addresses and routes are set by the standard vpnc-script inside the namespace; DNS is NOT passed
+# to it (it would update the VM's systemd-resolved) but written to the namespace's resolv.conf —
+# inside 'ip netns exec', /etc/resolv.conf is /etc/netns/<ns>/resolv.conf.
+VPN_DNS="$INTERNAL_IP4_DNS"
+unset INTERNAL_IP4_DNS INTERNAL_IP6_DNS CISCO_DEF_DOMAIN CISCO_SPLIT_DNS
+/usr/share/vpnc-scripts/vpnc-script "$@"
+rc=$?
+if [ "$reason" = "connect" ] && [ -n "$VPN_DNS" ]; then
+  { for d in $VPN_DNS; do echo "nameserver $d"; done; echo "nameserver 1.1.1.1"; } > /etc/resolv.conf
+fi
+exit $rc
