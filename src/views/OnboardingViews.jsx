@@ -8,7 +8,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent } from "../lib/utils.js";
-import { Badge, ConsultantProjectsHierarchy, ProfileCompleteWizard, Spinner } from "../components/ProfileComponents.jsx";
+import { Badge, ConsultantProjectsHierarchy, ProfileCompleteWizard, ResumeImporter, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Select, Textarea, CountrySelect } from "../components/ui.jsx";
 import { countryFlag, codeForCountryName } from "../lib/countries.js";
 import { fmt, fmtDate } from "../lib/uiUtils.jsx";
@@ -67,8 +67,9 @@ function OnboardingRoadmap({ steps, current }) {
 
 function ConsultantOnboardingView({ auth, onComplete }) {
   const { t, lang } = useT();
-  const { profile, loading, updateProfile, addCustomer, addProject, addWorkAuth } =
+  const { profile, loading, updateProfile, addCustomer, addProject, addWorkAuth, refetch } =
     useConsultantProfile(auth.user?.id);
+  const [importNote, setImportNote] = useState(null);
 
   const [step, setSt]    = useState(0);
   const [saving, setSaving] = useState(false);
@@ -117,6 +118,53 @@ function ConsultantOnboardingView({ auth, onComplete }) {
       });
     } catch (e) { alert(e.message); }
     setSaving(false);
+  }
+
+  // AI resume import (same importer as Profile → Edit): fills the basics here and saves the
+  // past customers, projects and skills, so the next steps start pre-filled.
+  async function handleResumeExtracted(data) {
+    setBasicsForm(p => ({
+      ...p,
+      ...(data.headline         ? { headline: data.headline } : {}),
+      ...(data.bio              ? { bio: data.bio } : {}),
+      ...(data.linkedin_url     ? { linkedin_url: data.linkedin_url } : {}),
+      ...(data.hourly_rate      ? { hourly_rate: String(data.hourly_rate) } : {}),
+      ...(data.years_experience ? { years_experience: Number(data.years_experience) || 0 } : {}),
+    }));
+    const toDate = v => (!v ? null : /^\d{4}-\d{2}$/.test(v) ? `${v}-01` : v);
+    const errors = [];
+    const known = new Set((profile?.consultant_customers ?? []).map(c => String(c.company_name ?? "").toLowerCase()));
+    let customers = 0, projects = 0;
+    for (const exp of (data.work_experience ?? [])) {
+      const key = String(exp.company_name ?? "").trim().toLowerCase();
+      if (!key || known.has(key)) continue;
+      known.add(key);
+      try { await addCustomer({ company_name: exp.company_name.trim(), role_held: exp.role_held || null, start_date: toDate(exp.start_date), end_date: toDate(exp.end_date), description: exp.description || null }); customers++; }
+      catch (e) { errors.push(e?.message); }
+    }
+    for (const proj of (data.projects ?? [])) {
+      const co = String(proj.consulting_company ?? "").trim();
+      if (co && !known.has(co.toLowerCase())) {
+        known.add(co.toLowerCase());
+        try { await addCustomer({ company_name: co }); customers++; } catch (e) { errors.push(e?.message); }
+      }
+      if (!proj.title) continue;
+      try { await addProject({ title: proj.title, consulting_company: co || null, client_name: proj.client_name || null, role: proj.role || null, description: proj.description || null, tech_stack: proj.tech_stack || [], url: proj.url || null }); projects++; }
+      catch (e) { errors.push(e?.message); }
+    }
+    let skills = 0;
+    if (data.skills?.length) {
+      const current = profile?.skills ?? [];
+      const merged = [...new Set([...current, ...data.skills.map(x => String(x).trim()).filter(Boolean)])];
+      skills = merged.length - current.length;
+      if (skills > 0) { try { await updateProfile({ skills: merged }); } catch (e) { errors.push(e?.message); } }
+    }
+    await refetch?.(true);
+    setImportNote({
+      ok: !errors.length,
+      text: `Filled from your resume: basic info${customers ? `, ${customers} past customer(s)` : ""}${projects ? `, ${projects} project(s)` : ""}${skills ? `, ${skills} skill(s)` : ""}. Review everything and continue.`
+        + (errors.length ? ` ${errors.length} item(s) could not be saved.` : ""),
+    });
   }
 
   async function handleNext() {
@@ -188,6 +236,12 @@ function ConsultantOnboardingView({ auth, onComplete }) {
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("ob.basics_title")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("ob.basics_subtitle")}</p>
+            <ResumeImporter onExtracted={handleResumeExtracted} />
+            {importNote && (
+              <div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${importNote.ok ? "border-green-200 bg-green-50 text-green-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                {importNote.text}
+              </div>
+            )}
             <Input label={t("ob.headline_label")} value={basicsForm.headline}
               onChange={e => setBasicsForm(p => ({ ...p, headline: e.target.value }))}
               placeholder={t("profile.ph_headline_ob")} />
