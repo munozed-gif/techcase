@@ -650,7 +650,6 @@ function AuthScreen({ onAuth, onBack }) {
                   </div>
                 </button>}
                 {loading && <p className="text-xs text-center text-gray-400 mt-3">Checking…</p>}
-                )}
               </div>
             )}
 
