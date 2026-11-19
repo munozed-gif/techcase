@@ -7,7 +7,7 @@ import {
   UserCheck, Users, Wand2, X, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { bridgeAuthHeaders } from "../lib/bridgeAuth.js";
+import { bridgeAuthHeaders, resolveVmUrl } from "../lib/bridgeAuth.js";
 import { sapMcpAuthToken } from "../lib/sapCreds.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -2617,29 +2617,30 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     // Auto-refresh tunnel URL from vm_tunnel_registry so a restarted cloudflared never
     // requires a manual settings update before the live check or spec generation.
     // In User VPN mode, always use the latest registry URL (laptop's start-local.sh tunnel).
+    // Same route as Check Infrastructure: in ABAP ADT mode the ADT bridge (it runs the
+    // project's VPN and fills in the saved SAP password); otherwise the SAP MCP server.
+    // The registry only replaces an empty or temporary (trycloudflare) address.
     let resolvedCfg = baseCfg;
-    try {
-      const { data } = await supabase
-        .from('vm_tunnel_registry')
-        .select('tunnel_url')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (data?.tunnel_url) {
-        const registeredUrl = data.tunnel_url.replace(/\/$/, '');
-        const currentUrl = (baseCfg.mcp_server_url?.trim() || sapMcpServerUrl || '').replace(/\/$/, '');
-        const isUserVpn = baseCfg.vpn_mode === 'user';
-        // User VPN: always apply registry URL (laptop tunnel may differ from env config)
-        // Platform VPN: only update when the URL has actually changed
-        if (registeredUrl && (isUserVpn || registeredUrl !== currentUrl)) {
-          resolvedCfg = { ...baseCfg, mcp_server_url: registeredUrl };
-          setSapConnCfg(resolvedCfg);
-        }
+    const isAdtEnv = ['abap-adt', 'abap-adt-readonly', 'abap-adt-both'].includes(baseCfg.mcp_type);
+    let mcpBase = '';
+    if (isAdtEnv) {
+      let adt = (baseCfg.adt_mcp_url ?? '').trim();
+      if (!adt) {
+        try {
+          const { data: sData } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+          adt = String(sData?.value ?? '').trim();
+        } catch { /* best-effort */ }
       }
-    } catch { /* registry lookup is best-effort */ }
-
-    const mcpBase = ((resolvedCfg.mcp_server_url?.trim() || sapMcpServerUrl) || '')
-      .replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
+      mcpBase = adt.replace(/\/mcp\/?$/, '').replace(/\/$/, '');
+    } else {
+      const current = (baseCfg.mcp_server_url?.trim() || sapMcpServerUrl || '').replace(/\/mcp\/?$/, '');
+      const resolved = baseCfg.vpn_mode === 'user' ? await resolveVmUrl('') || current : await resolveVmUrl(current);
+      if (resolved && resolved !== current.replace(/\/$/, '')) {
+        resolvedCfg = { ...baseCfg, mcp_server_url: resolved };
+        setSapConnCfg(resolvedCfg);
+      }
+      mcpBase = (resolved || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
+    }
     try {
       if (mcpBase) {
         // Route through MCP server — server-side, bypasses CORS, uses VM's VPN access
@@ -3329,15 +3330,14 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       // Refresh tunnel URL from registry before building MCP config so a restarted
       // cloudflared tunnel doesn't cause spec generation to fail with stale URL
       let freshMcpUrl = null;
-      try {
-        const { data: regRow } = await supabase
-          .from('vm_tunnel_registry').select('tunnel_url')
-          .order('updated_at', { ascending: false }).limit(1).maybeSingle();
-        if (regRow?.tunnel_url) {
-          freshMcpUrl = regRow.tunnel_url.replace(/\/$/, '');
+      {
+        const current = (sapConnCfg?.mcp_server_url?.trim() || sapMcpServerUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '');
+        const resolved = await resolveVmUrl(current);
+        if (resolved && resolved !== current) {
+          freshMcpUrl = resolved;
           setSapConnCfg(prev => prev ? { ...prev, mcp_server_url: freshMcpUrl } : prev);
         }
-      } catch { /* best-effort */ }
+      }
       const _specsStoredPP     = ssCtx.settings['mcp_adt_pipeline_policy'] ?? {};
       const _specsStage        = { use_mcp: true, include_mcp_rules: true, include_capabilities: false, ...(_specsStoredPP.stages?.specs ?? {}) };
       const _allMcpServers     = await buildMcpConfig(freshMcpUrl);
@@ -4665,13 +4665,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
             {activeNode === 5 && (
               <div className="space-y-3">
                 {(effectiveBaseCheck || caseLiveCheck === true) && (
-                  <div className="border border-blue-800 rounded-xl p-3 flex items-start gap-2">
+                  <div className="border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-transparent rounded-xl p-3 flex items-start gap-2">
                     <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-gray-400">{t("spec.sap_conn_desc")}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">{t("spec.sap_conn_desc")}</p>
                   </div>
                 )}
                 {!(effectiveBaseCheck || caseLiveCheck === true) && (
-                  <div className="border border-gray-700 rounded-xl p-3 flex items-start gap-2 opacity-60">
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex items-start gap-2 opacity-60">
                     <Zap className="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-gray-500">SAP live check is currently disabled. Enable it in System Settings or the client/project SAP tab, or set the override below to "Enabled" for this case.</p>
                   </div>
@@ -4725,7 +4725,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     )}
                     {/* Test result — only shown after an explicit live test, not the seeded green */}
                     {sapConnTest && sapConnTest !== 'testing' && !sapConnTest.seeded && (
-                      <div className={`rounded-xl p-3 flex items-start gap-2 ${sapConnTest.ok ? 'bg-green-950 border border-green-700' : 'bg-red-950 border border-red-700'}`}>
+                      <div className={`rounded-xl p-3 flex items-start gap-2 ${sapConnTest.ok ? 'bg-green-50 border border-green-200 dark:bg-green-950 dark:border-green-700' : 'bg-red-50 border border-red-200 dark:bg-red-950 dark:border-red-700'}`}>
                         {sapConnTest.ok
                           ? <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
                           : <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />}
@@ -4733,20 +4733,20 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           <p className={`text-xs font-semibold ${sapConnTest.ok ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                             {sapConnTest.ok ? t("spec.sap_conn_ok") : t("spec.sap_conn_fail")}
                           </p>
-                          {sapConnTest.info && <p className="text-xs text-gray-400 mt-0.5 break-all">{sapConnTest.info}</p>}
-                          {sapConnTest.message && <p className="text-xs text-gray-400 mt-0.5 break-all">{sapConnTest.message}</p>}
+                          {sapConnTest.info && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 break-all">{sapConnTest.info}</p>}
+                          {sapConnTest.message && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 break-all">{sapConnTest.message}</p>}
                         </div>
                       </div>
                     )}
 
                     {/* Prompt to test if only seeded (no real test run yet) */}
                     {sapConnTest?.seeded && (
-                      <p className="text-xs text-gray-500 text-center py-1">Click <strong className="text-gray-300">Test Connection</strong> to retrieve live SAP system data.</p>
+                      <p className="text-xs text-gray-500 text-center py-1">Click <strong className="text-gray-700 dark:text-gray-300">Test Connection</strong> to retrieve live SAP system data.</p>
                     )}
 
                     {/* Live data extracted from SAP — shown after a real test */}
                     {sapConnTest && sapConnTest !== 'testing' && sapConnTest.ok && !sapConnTest.seeded && (
-                      <div className="rounded-xl overflow-hidden border border-gray-700 divide-y divide-gray-700">
+                      <div className="rounded-xl overflow-hidden border border-gray-200 divide-y divide-gray-200 dark:border-gray-700 dark:divide-gray-700">
                         {sapConnTest.info && (
                           <div className="px-3 py-2">
                             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide leading-none mb-1">SAP System</p>
@@ -4758,7 +4758,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide leading-none mb-2">ADT Capabilities</p>
                             <div className="flex flex-wrap gap-1">
                               {sapConnTest.capabilities.map((cap, i) => (
-                                <span key={i} className="text-xs bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-700/50 rounded-md px-2 py-0.5">{cap}</span>
+                                <span key={i} className="text-xs bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700/50 rounded-md px-2 py-0.5">{cap}</span>
                               ))}
                             </div>
                           </div>
@@ -4768,7 +4768,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide leading-none mb-2">Software Components</p>
                             <div className="flex flex-wrap gap-1">
                               {sapConnTest.components.map((comp, i) => (
-                                <span key={i} className="text-xs bg-slate-800 text-slate-300 border border-slate-600 rounded-md px-2 py-0.5 font-mono">{comp}</span>
+                                <span key={i} className="text-xs bg-slate-100 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 rounded-md px-2 py-0.5 font-mono">{comp}</span>
                               ))}
                             </div>
                           </div>
@@ -4782,10 +4782,10 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         disabled={sapConnTest === 'testing'}
                         className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                           sapConnTest === 'testing'
-                            ? 'bg-gray-800 border border-gray-600 text-gray-200'
+                            ? 'bg-gray-100 border border-gray-300 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200'
                             : sapConnTest?.ok
-                              ? 'bg-green-900 border border-green-600 text-green-300 hover:bg-green-800'
-                              : 'bg-red-900 border border-red-600 text-red-300 hover:bg-red-800'
+                              ? 'bg-green-50 border border-green-300 text-green-700 hover:bg-green-100 dark:bg-green-900 dark:border-green-600 dark:text-green-300 dark:hover:bg-green-800'
+                              : 'bg-white border border-blue-300 text-blue-700 hover:bg-blue-50 dark:bg-red-900 dark:border-red-600 dark:text-red-300 dark:hover:bg-red-800'
                         }`}>
                         {sapConnTest === 'testing'
                           ? <><Spinner />{t("spec.sap_conn_testing")}</>
@@ -4812,8 +4812,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
                 {/* Per-case SAP live check override — only shown if allowed by client + project */}
                 {caseOverrideAllowed ? (
-                  <div className="pt-3 border-t border-gray-700 mt-1">
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                  <div className="pt-3 border-t border-gray-200 dark:border-gray-700 mt-1">
+                    <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
                       SAP Live Check (this case)
                     </label>
                     <p className="text-xs text-gray-500 mb-2">Override the system/client/project live check setting for this case only.</p>
@@ -4831,7 +4831,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                               ? opt.val === false ? 'bg-amber-50 dark:bg-amber-900/60 border-amber-500 text-amber-700 dark:text-amber-300'
                                 : opt.val === true  ? 'bg-green-50 dark:bg-green-900/60 border-green-500 text-green-700 dark:text-green-300'
                                 : 'bg-blue-50 dark:bg-blue-900/60 border-blue-500 text-blue-700 dark:text-blue-300'
-                              : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-400'}`}>
+                              : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400'}`}>
                           {opt.label}
                         </button>
                       ))}
@@ -4843,7 +4843,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     )}
                   </div>
                 ) : (
-                  <div className="pt-3 border-t border-gray-700 mt-1">
+                  <div className="pt-3 border-t border-gray-200 dark:border-gray-700 mt-1">
                     <p className="text-xs text-gray-500 flex items-center gap-1.5">
                       <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />
                       Case-level override is not permitted. Enable it in the client or project SAP settings.

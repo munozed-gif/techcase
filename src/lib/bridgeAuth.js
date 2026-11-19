@@ -55,3 +55,22 @@ export async function bridgeAuthHeaders(targetUrl = null) {
     return {};
   }
 }
+
+// The VM address to use for an environment. The registry (vm_tunnel_registry) holds the URL the
+// VM last registered; it only replaces an environment's own address when that address is empty
+// or a temporary quick tunnel (*.trycloudflare.com). Fixed addresses (named Cloudflare tunnel,
+// e.g. https://bridge.arenasolutionsplatform.com) are always kept — the registry can hold an old
+// quick-tunnel URL, or the URL of the other VM server.
+export const isQuickTunnelUrl = (u) => /\.trycloudflare\.com/i.test(String(u ?? ""));
+export async function resolveVmUrl(currentUrl) {
+  const cur = String(currentUrl ?? "").trim().replace(/\/$/, "");
+  if (cur && !isQuickTunnelUrl(cur)) return cur;
+  try {
+    const { data } = await supabase
+      .from("vm_tunnel_registry").select("tunnel_url").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    const reg = String(data?.tunnel_url ?? "").trim().replace(/\/$/, "");
+    return reg || cur;
+  } catch {
+    return cur;
+  }
+}

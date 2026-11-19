@@ -8,7 +8,7 @@ import {
   Laptop, Lock, Monitor, Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { bridgeAuthHeaders, appAccessToken } from "../lib/bridgeAuth.js";
+import { bridgeAuthHeaders, appAccessToken, resolveVmUrl } from "../lib/bridgeAuth.js";
 import { sapHasPassword, sapMcpAuthToken, storeSapEnvPasswords } from "../lib/sapCreds.js";
 import { ProjectVpnSelector, projectVpnAction } from "./SapVpnProfiles.jsx";
 import { useT } from "../i18n/index.jsx";
@@ -5799,12 +5799,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       } catch { /* best-effort */ }
     } else {
       // Refresh tunnel URL from vm_tunnel_registry before starting pipeline
-      try {
-        const { data: regRow } = await supabase
-          .from('vm_tunnel_registry').select('tunnel_url')
-          .order('updated_at', { ascending: false }).limit(1).maybeSingle();
-        if (regRow?.tunnel_url) freshMcpUrl = regRow.tunnel_url.replace(/\/$/, '');
-      } catch { /* best-effort */ }
+      freshMcpUrl = (await resolveVmUrl(freshMcpUrl)) || freshMcpUrl;
     }
 
     // ── Validations (Global → Partner → Customer → Project; see Settings → Workflow) ──
@@ -6021,10 +6016,7 @@ Output ONLY the ABAP source code, no explanations.`;
           const isMcpError = !isAdtMode && /mcp|communicat|connection|tunnel/i.test(mcpErr.message ?? '');
           if (isMcpError) {
             try {
-              const { data: retryRow } = await supabase
-                .from('vm_tunnel_registry').select('tunnel_url')
-                .order('updated_at', { ascending: false }).limit(1).maybeSingle();
-              if (retryRow?.tunnel_url) freshMcpUrl = retryRow.tunnel_url.replace(/\/$/, '');
+              freshMcpUrl = (await resolveVmUrl(freshMcpUrl)) || freshMcpUrl;
             } catch { /* ignore */ }
             addLog(`${obj.name}: MCP unreachable — retrying without live SAP context...`, 'generating');
             resp = await callClaude({ ...callArgs, mcp_servers: undefined });
@@ -7373,12 +7365,7 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
         ? (enrichedSapConfig.adt_mcp_url?.trim().replace(/\/$/, '') || '')
         : (enrichedSapConfig.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']?.trim() || '');
       mcpBase = mcpBase.replace(/\/mcp\/?$/, '').replace(/\/$/, '');
-      if (mcpBase && !_isAdtScript) {
-        try {
-          const { data } = await supabase.from('vm_tunnel_registry').select('tunnel_url').order('updated_at', { ascending: false }).limit(1).maybeSingle();
-          if (data?.tunnel_url) mcpBase = data.tunnel_url.replace(/\/$/, '');
-        } catch {}
-      }
+      if (mcpBase && !_isAdtScript) mcpBase = (await resolveVmUrl(mcpBase)) || mcpBase;
       if (mcpBase) addLog(`Using MCP proxy: ${mcpBase}/sap-proxy`);
       const effectiveCfg = mcpBase
         ? { ...enrichedSapConfig, proxyUrl: `${mcpBase}/sap-proxy` }
@@ -7422,12 +7409,7 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
         ? (enrichedSapConfig.adt_mcp_url?.trim().replace(/\/$/, '') || '')
         : (enrichedSapConfig.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']?.trim() || '');
       mcpBase = mcpBase.replace(/\/mcp\/?$/, '').replace(/\/$/, '');
-      if (mcpBase && !_isAdtRun) {
-        try {
-          const { data } = await supabase.from('vm_tunnel_registry').select('tunnel_url').order('updated_at', { ascending: false }).limit(1).maybeSingle();
-          if (data?.tunnel_url) mcpBase = data.tunnel_url.replace(/\/$/, '');
-        } catch {}
-      }
+      if (mcpBase && !_isAdtRun) mcpBase = (await resolveVmUrl(mcpBase)) || mcpBase;
       const effectiveCfg = mcpBase ? { ...enrichedSapConfig, proxyUrl: `${mcpBase}/sap-proxy` } : enrichedSapConfig;
       const csrfToken = await sapGetCsrfToken(effectiveCfg);
       const runResp = await sapApiRequest(effectiveCfg, `/sap/bc/adt/programs/programs/${programName}/executions`, {
