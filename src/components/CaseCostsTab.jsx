@@ -53,8 +53,8 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
     let alive = true;
     (async () => {
       const cid = caseData.id;
-      const [te, inv, ai, ex, apps, ops, prj, cust, hist, partner, pcases] = await Promise.all([
-        supabase.from('time_entries').select('id, consultant_id, hours, activity_id, is_billable, date').eq('case_id', cid),
+      const [te0, inv, ai, ex, apps, ops, prj, cust, hist, partner, pcases, tl] = await Promise.all([
+        supabase.from('time_entries').select('id, consultant_id, hours, activity_id, is_billable, date, start_time, end_time').eq('case_id', cid),
         supabase.from('invoices').select('id, amount, status, issue_date, due_date').eq('case_id', cid),
         supabase.from('ai_usage_events').select('feature, cost_usd, input_tokens, output_tokens, mcp, created_at').eq('case_id', cid),
         supabase.from('case_expenses').select('*').eq('case_id', cid).eq('archived', false).order('expense_date'),
@@ -66,7 +66,14 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
           .in('event_type', ['case.status_changed', 'case.reopened']).order('created_at'),
         caseData.partner_id ? supabase.from('partners').select('id, name, plan').eq('id', caseData.partner_id).maybeSingle() : Promise.resolve({ data: null }),
         caseData.partner_id ? supabase.from('cases').select('id, created_at, completed_at, status').eq('partner_id', caseData.partner_id) : Promise.resolve({ data: [] }),
+        // Hours reported in the case's Time tab (no activity) count too.
+        supabase.from('time_logs').select('id, user_id, hours, log_date, start_time, end_time').eq('case_id', cid),
       ]);
+      const te = { data: [
+        ...(te0.data ?? []),
+        ...(tl.data ?? []).map(l => ({ id: `log-${l.id}`, consultant_id: l.user_id, hours: l.hours, activity_id: null, is_billable: true,
+          date: l.log_date, start_time: l.start_time, end_time: l.end_time, _timeTab: true })),
+      ] };
       const consultantIds = [...new Set([
         ...(te.data ?? []).map(t => t.consultant_id),
         ...(caseData.case_assignments ?? []).map(a => a.consultant_id),
@@ -121,7 +128,8 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
 
     // Cost of quality: hours reported while the case was in a rework stage, or after go-live.
     const statusOn = statusTimeline(data.hist, caseData.status);
-    const tagged = data.te.map(t => ({ ...t, st: statusOn(t.date) }));
+    const tagged = data.te.map(t => ({ ...t, st: statusOn(t.date, t.start_time) }));
+    const withTime = data.te.filter(t => t.start_time).length;
     const reworkTe = tagged.filter(t => cfg.rework_stages.includes(t.st));
     const hyperTe = tagged.filter(t => cfg.hypercare_stages.includes(t.st));
     const reworkHours = sum(reworkTe, t => t.hours), reworkCost = sum(reworkTe, t => (Number(t.hours) || 0) * rateOf(t.consultant_id));
@@ -177,7 +185,7 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
     return { planRate, planRateSrc, hArena, hStd, agreedPrice, stdPrice, actualHours, actualCost, byActivity, unassignedHours, byConsultant,
       budgetUsd, invoiced, paid, incomeBasis, aiTotal, aiBy, vmRows, vmTotal, arenaFee, supportFee, paymentFees, paidCount, hhCommission,
       expenses, contingency, taxes, costsActual, costsPlanned,
-      reworkHours, reworkCost, hyperHours, hyperCost, reworkByStage, hasHistory, partnerShare, partnerMonths, partnerName: data.partner?.name,
+      reworkHours, reworkCost, hyperHours, hyperCost, reworkByStage, hasHistory, withTime, entriesCount: data.te.length, partnerShare, partnerMonths, partnerName: data.partner?.name,
       marginPlanned: incomeBasis - costsPlanned, marginActual: incomeBasis - costsActual,
       remaining: agreedPrice - actualCost, arenaSaving: stdPrice - agreedPrice };
   }, [data, activities, caseData, settings]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -247,7 +255,7 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
             </tbody>
           </table></div>
         )}
-        {calc.unassignedHours > 0 && <p className="text-[11px] text-gray-400 mt-2">{L(`${calc.unassignedHours} h reported without an activity.`, `${calc.unassignedHours} h reportadas sin actividad.`)}</p>}
+        {calc.unassignedHours > 0 && <p className="text-[11px] text-gray-400 mt-2">{L(`${Math.round(calc.unassignedHours * 10) / 10} h reported without an activity (including the case's Time tab).`, `${Math.round(calc.unassignedHours * 10) / 10} h reportadas sin actividad (incluye la pestaña Tiempo del caso).`)}</p>}
         {calc.byConsultant.length > 0 && (
           <div className="mt-3 space-y-1">
             {calc.byConsultant.map(c => (
@@ -278,6 +286,7 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
       {/* ── Cost of quality ── */}
       <Card icon={RotateCcw} title={L('Rework & hypercare', 'Retrabajo e hypercare')} right={M(calc.reworkCost + calc.hyperCost)} open={false}>
         <p className="text-[11px] text-gray-400 mb-1">{L('Part of the consultant cost above (not added again): hours reported while the case was in a rework stage, or after go-live.', 'Parte del costo de consultores (no se suma de nuevo): horas reportadas con el caso en una etapa de retrabajo, o después de la salida en vivo.')}</p>
+        <p className="text-[11px] text-gray-400 mb-1">{L(`${calc.withTime} of ${calc.entriesCount} time entries have a start time (exact stage); the rest use midday of their date.`, `${calc.withTime} de ${calc.entriesCount} registros de horas tienen hora de inicio (etapa exacta); el resto usa el mediodía de su fecha.`)}</p>
         {!calc.hasHistory && <p className="text-[11px] text-amber-600 mb-1">{L('No status history recorded for this case — all hours count as regular work.', 'No hay historial de estados de este caso — todas las horas cuentan como trabajo normal.')}</p>}
         <Line label={L('Rework', 'Retrabajo')} sub={`${Math.round(calc.reworkHours * 10) / 10} h · ${cfg.rework_stages.join(', ')}`} value={M(calc.reworkCost)} tone={calc.reworkCost > 0 ? 'neg' : undefined} />
         {calc.reworkByStage.map(([st, h]) => <div key={st} className="pl-3 text-[11px] text-gray-400">{st}: {Math.round(h * 10) / 10} h</div>)}

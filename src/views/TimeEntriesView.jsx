@@ -7,13 +7,13 @@ import { useProjects, useTimeEntries } from "../hooks/useCoreHooks.js";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
-import { EmptyState, Input, Select, Textarea } from "../components/ui.jsx";
+import { EmptyState, Input, Select, Textarea, TimeRangeFields, fmtTimeRange } from "../components/ui.jsx";
 import { fmtDate } from "../lib/uiUtils.jsx";
 import { ROLE_COLORS } from "../lib/businessConstants.js";
 import { PersonAvatar } from "./Projects.jsx";
 
 function TimeEntriesView({ auth }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { entries, loading, addTimeEntry, approveEntry, deleteEntry } = useTimeEntries();
 
   // Period
@@ -140,7 +140,7 @@ function TimeEntriesView({ auth }) {
     if (!form.hours || !form.description.trim()) return;
     setSaving(true);
     try {
-      await addTimeEntry({ ...form, hours: Number(form.hours) });
+      await addTimeEntry({ ...form, hours: Number(form.hours), start_time: form.start_time || null, end_time: form.end_time || null });
       setForm({ case_id: "", date: _todayStr, hours: 1, description: "", is_billable: true });
       setShowForm(false);
     } catch (e) { alert(e.message); }
@@ -175,7 +175,7 @@ function TimeEntriesView({ auth }) {
             <tbody className="divide-y divide-gray-50">
               {filtered.map(e => (
                 <tr key={e.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{fmtDate(e.date)}</td>
+                  <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{fmtDate(e.date)}{e.start_time && <span className="block text-[11px] text-gray-400">{fmtTimeRange(e.start_time, e.end_time)}</span>}</td>
                   {!auth.isConsultant && (
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
@@ -253,7 +253,7 @@ function TimeEntriesView({ auth }) {
               <div className="mt-2 divide-y divide-gray-50">
                 {g.entries.slice(0, 6).map(e => (
                   <div key={e.id} className="flex items-center justify-between py-1.5 text-xs text-gray-500">
-                    <span className="truncate max-w-sm">{fmtDate(e.date)}{!auth.isConsultant ? ` · ${e.consultant?.full_name ?? ''}` : ''} · {e.description}</span>
+                    <span className="truncate max-w-sm">{fmtDate(e.date)}{e.start_time ? ` ${fmtTimeRange(e.start_time, e.end_time)}` : ''}{!auth.isConsultant ? ` · ${e.consultant?.full_name ?? ''}` : ''} · {e.description}</span>
                     <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                       <span className="font-semibold text-gray-700 tabular-nums">{e.hours}h</span>
                       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${e.is_approved ? "bg-green-400" : "bg-amber-400"}`} />
@@ -354,7 +354,7 @@ function TimeEntriesView({ auth }) {
                       <tbody className="divide-y divide-gray-50">
                         {g.entries.map(e => (
                           <tr key={e.id} className={e.is_approved ? "" : "bg-amber-50/40"}>
-                            <td className="py-2 pr-3 whitespace-nowrap text-gray-500 tabular-nums">{fmtDate(e.date)}</td>
+                            <td className="py-2 pr-3 whitespace-nowrap text-gray-500 tabular-nums">{fmtDate(e.date)}{e.start_time ? ` ${fmtTimeRange(e.start_time, e.end_time)}` : ''}</td>
                             <td className="py-2 pr-3 text-gray-600 max-w-[130px] truncate">{e.case?.title ?? '—'}</td>
                             <td className="py-2 pr-3 text-gray-500 max-w-[190px] truncate">{e.description}</td>
                             <td className="py-2 pr-3 font-semibold text-blue-700 text-right tabular-nums whitespace-nowrap">{e.hours}h</td>
@@ -593,6 +593,10 @@ function TimeEntriesView({ auth }) {
           <div className="grid grid-cols-2 gap-3">
             <Input label={t("label.date")} type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
             <Input label={t("label.hours")} type="number" min="0.25" step="0.25" value={form.hours} onChange={e => setForm(p => ({ ...p, hours: e.target.value }))} />
+          </div>
+          <div className="mb-4">
+            <TimeRangeFields lang={lang} start={form.start_time} end={form.end_time}
+              onChange={r => setForm(p => ({ ...p, start_time: r.start_time, end_time: r.end_time, ...(r.hours ? { hours: r.hours } : {}) }))} />
           </div>
           <Textarea label={t("label.description")} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder={t("time.worked_on")} />
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mb-4">

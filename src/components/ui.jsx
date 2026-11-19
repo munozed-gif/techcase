@@ -91,3 +91,32 @@ function Select({ label, options, ...props }) {
 }
 
 export { EmptyState, Modal, Input, Textarea, Select, CountrySelect };
+
+// Optional start / end time of reported work. With both, the hours are calculated (end − start).
+export function hoursBetween(start, end) {
+  if (!start || !end) return null;
+  const [sh, sm] = String(start).split(':').map(Number), [eh, em] = String(end).split(':').map(Number);
+  let mins = (eh * 60 + em) - (sh * 60 + sm);
+  if (mins <= 0) mins += 24 * 60;              // past midnight
+  return Math.round((mins / 60) * 4) / 4;      // quarter hours
+}
+export const fmtTimeRange = (s, e) => (s ? `${String(s).slice(0, 5)}${e ? `–${String(e).slice(0, 5)}` : ''}` : '');
+export function TimeRangeFields({ start, end, onChange, lang = 'en', small = false }) {
+  const cls = small
+    ? "w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+    : "w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const lbl = small ? "text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1" : "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
+  const set = (s, e) => onChange({ start_time: s || '', end_time: e || '', hours: hoursBetween(s, e) });
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <label className={lbl}>{lang === 'es' ? 'Desde' : 'From'}</label>
+        <input type="time" value={start ?? ''} onChange={e => set(e.target.value, end)} className={cls} />
+      </div>
+      <div>
+        <label className={lbl}>{lang === 'es' ? 'Hasta' : 'To'}</label>
+        <input type="time" value={end ?? ''} onChange={e => set(start, e.target.value)} className={cls} />
+      </div>
+    </div>
+  );
+}

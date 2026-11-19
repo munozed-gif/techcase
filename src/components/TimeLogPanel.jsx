@@ -6,9 +6,10 @@ import { useTimeEntries } from "../hooks/useCoreHooks.js";
 import { fmtDate } from "../lib/uiUtils.jsx";
 import { Spinner } from "./ProfileComponents.jsx";
 import { logEvent } from "../lib/utils.js";
+import { TimeRangeFields, fmtTimeRange } from "./ui.jsx";
 
 function TimeLogPanel({ caseId, caseTitle, auth }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [logs, setLogs]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -44,6 +45,8 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
         hours:       hrs,
         description: form.description.trim() || null,
         log_date:    form.log_date,
+        start_time:  form.start_time || null,
+        end_time:    form.end_time || null,
       });
       if (error) throw error;
       logEvent('time.logged', { entityType: 'case', entityId: caseId, metadata: { hours: hrs, description: form.description } });
@@ -96,6 +99,8 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
+          <TimeRangeFields lang={lang} start={form.start_time} end={form.end_time}
+            onChange={r => setForm(p => ({ ...p, start_time: r.start_time, end_time: r.end_time, ...(r.hours ? { hours: r.hours } : {}) }))} />
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{t("time.description")}</label>
             <textarea rows={2} value={form.description}
@@ -129,7 +134,7 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
           <tbody className="divide-y divide-gray-50">
             {logs.map(log => (
               <tr key={log.id} className="hover:bg-gray-50">
-                <td className="py-2 pr-4 text-gray-600 font-variant-numeric tabular-nums">{log.log_date}</td>
+                <td className="py-2 pr-4 text-gray-600 font-variant-numeric tabular-nums">{log.log_date}{log.start_time && <span className="block text-[11px] text-gray-400">{fmtTimeRange(log.start_time, log.end_time)}</span>}</td>
                 <td className="py-2 pr-4 font-semibold text-blue-700 font-variant-numeric tabular-nums">{parseFloat(log.hours).toFixed(1)}h</td>
                 <td className="py-2 pr-4 text-gray-500 max-w-xs truncate">{log.description || "—"}</td>
                 <td className="py-2 pr-4 text-gray-700">{log.users?.full_name ?? "—"}</td>

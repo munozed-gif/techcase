@@ -59,6 +59,7 @@ import { applyArenaEstimate, arenaHours, estimateTotals, IMPL_MODE_LABEL, SENIOR
 import { caseEstimationContext } from "../lib/estimationContext.js";
 import { setAiContext } from "../lib/utils.js";
 import { CaseCostsTab } from "../components/CaseCostsTab.jsx";
+import { TimeRangeFields } from "../components/ui.jsx";
 import { Coins } from "lucide-react";
 import { EffectiveRulesPanel } from "../components/ValidationRulesPanel.jsx";
 
@@ -867,7 +868,7 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
     if (!timeForm.hours || !timeForm.description.trim()) return;
     setSavingTime(true);
     try {
-      const entryData = { ...timeForm, case_id: caseData.id, hours: Number(timeForm.hours) };
+      const entryData = { ...timeForm, case_id: caseData.id, hours: Number(timeForm.hours), start_time: timeForm.start_time || null, end_time: timeForm.end_time || null };
       if (!entryData.activity_id) delete entryData.activity_id;
       await addTimeEntry(entryData);
       // Auto-transition: if activity was pending, move it to in_progress
@@ -5669,6 +5670,8 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                                       className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
                                   </div>
                                 </div>
+                                <TimeRangeFields small lang={lang} start={timeForm.start_time} end={timeForm.end_time}
+                                  onChange={r => setTimeForm(p => ({ ...p, start_time: r.start_time, end_time: r.end_time, ...(r.hours ? { hours: r.hours } : {}) }))} />
                                 <div>
                                   <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("label.description")} *</label>
                                   <input type="text" value={timeForm.description} placeholder={t("cd.ph_work_done")}
@@ -5692,7 +5695,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                                       onClick={async () => {
                                         setSavingTime(true);
                                         try {
-                                          await addTimeEntry({ ...timeForm, case_id: caseData.id, hours: Number(timeForm.hours) });
+                                          await addTimeEntry({ ...timeForm, case_id: caseData.id, hours: Number(timeForm.hours), start_time: timeForm.start_time || null, end_time: timeForm.end_time || null });
                                           if (act.status === 'pending') await updateActivity(act.id, { status: 'in_progress' });
                                           setLogTimeActId(null);
                                         } catch (e) { alert(e.message); }

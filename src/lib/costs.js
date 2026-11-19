@@ -99,8 +99,10 @@ export function statusTimeline(events, currentStatus) {
     from: e.old_value?.status ?? null,
     to: e.event_type === 'case.reopened' ? 'reopened' : (e.new_value?.status ?? null),
   })).filter(e => e.to).sort((a, b) => a.t - b.t);
-  return (date) => {
-    const t = new Date(`${String(date).slice(0, 10)}T12:00:00`).getTime();
+  // time: the reported start time (HH:MM); without it, midday of that date.
+  return (date, time) => {
+    const hhmm = /^\d{2}:\d{2}/.test(String(time ?? '')) ? String(time).slice(0, 5) : '12:00';
+    const t = new Date(`${String(date).slice(0, 10)}T${hhmm}:00`).getTime();
     let st = ev.length ? (ev[0].from ?? 'open') : (currentStatus ?? 'open');
     for (const e of ev) { if (e.t <= t) st = e.to; else break; }
     return st;
