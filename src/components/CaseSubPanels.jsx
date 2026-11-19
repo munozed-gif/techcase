@@ -915,9 +915,26 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const effectiveBaseCheck = clientLiveCheckVal !== null ? clientLiveCheckVal : liveCheckEnabled;
 
   // Build MCP servers config for spec generation when SAP MCP server is configured and connection is verified
+  // ABAP ADT environments: the AI's SAP tools go through the ADT bridge's /mcp (it runs the
+  // project's VPN and resolves the password from the ticket). Other environments: the SAP MCP
+  // server. Only used once the live connection test of this case has passed.
   async function buildMcpConfig(overrideUrl) {
-    const effectiveMcpUrl = (overrideUrl || sapConnCfg?.mcp_server_url?.trim() || sapMcpServerUrl).trim();
-    if (!effectiveMcpUrl || !sapConnCfg || !sapConnTest?.ok) return [];
+    if (!sapConnCfg || !sapConnTest?.ok) return [];
+    const isAdtEnv = ['abap-adt', 'abap-adt-readonly', 'abap-adt-both'].includes(sapConnCfg.mcp_type);
+    let effectiveMcpUrl = '';
+    if (isAdtEnv) {
+      effectiveMcpUrl = (sapConnCfg.adt_mcp_url ?? '').trim();
+      if (!effectiveMcpUrl) {
+        try {
+          const { data: sData } = await supabase.from('system_settings').select('value').eq('key', 'adt_bridge_tunnel_url').maybeSingle();
+          effectiveMcpUrl = String(sData?.value ?? '').trim();
+        } catch { /* best-effort */ }
+      }
+    } else {
+      effectiveMcpUrl = (overrideUrl || sapConnCfg?.mcp_server_url?.trim() || sapMcpServerUrl || '').trim();
+    }
+    effectiveMcpUrl = effectiveMcpUrl.replace(/\/mcp\/?$/, '').replace(/\/$/, '');
+    if (!effectiveMcpUrl) return [];
     try {
       // Password-less (server-side) environments get a short-lived ticket instead (sapCreds.js).
       const token = await sapMcpAuthToken(sapConnCfg, sapConnCfg._vpnProxyUrl ? { proxyUrl: sapConnCfg._vpnProxyUrl } : {});
