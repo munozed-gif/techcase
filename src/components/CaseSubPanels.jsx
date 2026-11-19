@@ -2116,8 +2116,8 @@ Include 2-6 objects. Use realistic Z-names. Types can be: Report, Function Modul
       const raw = await callClaude({
         model: analysisModel, system: sys1,
         messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
-        max_tokens: 800,
-      }).catch(_ => callClaude({ model: analysisModel, system: sys1, messages: [{ role: 'user', content: prompt + wizPdfNote }], max_tokens: 800 }));
+        max_tokens: 4000,
+      }).catch(_ => callClaude({ model: analysisModel, system: sys1, messages: [{ role: 'user', content: prompt + wizPdfNote }], max_tokens: 4000 }));
       let parsed;
       try { parsed = JSON.parse(raw.trim()); } catch (_) {
         const m = raw.match(/\[[\s\S]*\]/);
@@ -2150,7 +2150,7 @@ For "type" use: "text" for short answers, "multiline" for long descriptions, "se
 For "select" type include "options": ["Option A","Option B",...].
 Generate 4-7 targeted questions relevant to the ${obj.type} type (e.g. for a Report: selection screen parameters, columns, subtotals, output format; for a Function Module: imports, exports, exceptions, tables; for an Enhancement/BAdI: trigger point, what to change, fallback behavior).`,
       }],
-      max_tokens: 1000,
+      max_tokens: 3000,
     });
     let parsed;
     try { parsed = JSON.parse(raw.trim()); } catch (_) {
@@ -3350,12 +3350,12 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
         try {
           const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
-          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000, mcp_servers: mcpServers });
+          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: mcpServers });
         } catch (e) {
           // If MCP server failed (connection closed / unavailable), retry without MCP
           const isMcpErr = mcpServers.length > 0 && /mcp|connection closed|connection error|listing tools/i.test(e?.message ?? '');
           const fallbackMcp = isMcpErr ? [] : mcpServers;
-          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000, mcp_servers: fallbackMcp });
+          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 40000, mcp_servers: fallbackMcp });
         }
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
@@ -3439,10 +3439,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           const protoStyle = genProfile.prototype_style ?? 'auto';
           const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
           const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specC || firstSuccess, specC || firstSuccess, protoStyle) }];
-          let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 8000 })
+          let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 40000 })
             .catch(e => {
               if (e.message?.includes('did not match the expected pattern')) {
-                return callClaude({ model: 'claude-haiku-5-5', system: protoSys, messages: protoMsgs, max_tokens: 8000 });
+                return callClaude({ model: 'claude-haiku-5-5', system: protoSys, messages: protoMsgs, max_tokens: 40000 });
               }
               throw e;
             });
@@ -3513,9 +3513,9 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         const prompt = sanitizeForJson(rawPrompt);
         try {
           const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
-          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000, mcp_servers: mcpServersD });
+          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: mcpServersD });
         } catch (_) {
-          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000, mcp_servers: mcpServersD });
+          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 40000, mcp_servers: mcpServersD });
         }
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
@@ -3602,9 +3602,9 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
       try {
         const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
-        return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000, mcp_servers: mcpServersR });
+        return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: mcpServersR });
       } catch (_) {
-        return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000, mcp_servers: mcpServersR });
+        return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 40000, mcp_servers: mcpServersR });
       }
     };
     const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
@@ -3688,10 +3688,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         const specA = aiSpecA; const specB = aiSpecB;
         const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
         const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specA || aiSpecC, specB || aiSpecD, profile.prototype_style ?? 'auto') }];
-        let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 8000 })
+        let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 40000 })
           .catch(e => {
             if (e.message?.includes('did not match the expected pattern')) {
-              return callClaude({ model: 'claude-haiku-5-5', system: protoSys, messages: protoMsgs, max_tokens: 8000 });
+              return callClaude({ model: 'claude-haiku-5-5', system: protoSys, messages: protoMsgs, max_tokens: 40000 });
             }
             throw e;
           });
@@ -3780,7 +3780,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
 coverage meanings:
 "full"    = Standard SAP configuration / standard transactions fully satisfy the requirement
 "partial" = Standard SAP covers most of it; some custom development still needed
-"none"    = Custom ABAP development is required — standard SAP cannot satisfy this`;
+"none"    = Custom ABAP development is required — standard SAP cannot satisfy this
+
+Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words.`;
 
       const _sapPdfNote = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name).join(', ');
       const sapPdfNote = _sapPdfNote ? `\n\n[Reference PDFs: ${_sapPdfNote}]` : '';
@@ -3788,8 +3790,8 @@ coverage meanings:
       const raw = await callClaude({
         model: analysisModel, system: sysSap,
         messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
-        max_tokens: 800,
-      }).catch(_ => callClaude({ model: analysisModel, system: sysSap, messages: [{ role: 'user', content: prompt + sapPdfNote }], max_tokens: 800 }));
+        max_tokens: 4000,
+      }).catch(_ => callClaude({ model: analysisModel, system: sysSap, messages: [{ role: 'user', content: prompt + sapPdfNote }], max_tokens: 4000 }));
       let parsed;
       try { parsed = JSON.parse(raw.trim()); } catch (_) {
         const m = raw.match(/\{[\s\S]*\}/);
@@ -3842,8 +3844,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
       const raw = await callClaude({
         model: analysisModel, system: sysProp,
         messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
-        max_tokens: 800,
-      }).catch(_ => callClaude({ model: analysisModel, system: sysProp, messages: [{ role: 'user', content: prompt + propPdfNote }], max_tokens: 800 }));
+        max_tokens: 4000,
+      }).catch(_ => callClaude({ model: analysisModel, system: sysProp, messages: [{ role: 'user', content: prompt + propPdfNote }], max_tokens: 4000 }));
       let parsed;
       try { parsed = JSON.parse(raw.trim()); } catch (_) {
         const m = raw.match(/\{[\s\S]*\}/);
@@ -6192,10 +6194,10 @@ ${result}`;
                       try {
                         const _protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
                         const _protoMsgs = [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }];
-                        let html = await callClaude({ model: resolvedModel, system: _protoSys, messages: _protoMsgs, max_tokens: 8000 })
+                        let html = await callClaude({ model: resolvedModel, system: _protoSys, messages: _protoMsgs, max_tokens: 40000 })
                           .catch(e => {
                             if (e.message?.includes('did not match the expected pattern')) {
-                              return callClaude({ model: 'claude-haiku-5-5', system: _protoSys, messages: _protoMsgs, max_tokens: 8000 });
+                              return callClaude({ model: 'claude-haiku-5-5', system: _protoSys, messages: _protoMsgs, max_tokens: 40000 });
                             }
                             throw e;
                           });
