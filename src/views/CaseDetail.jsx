@@ -2928,72 +2928,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                           );
                         })()}
 
-                        {/* Action button — current card, next stage(s) are all auto */}
-                        {state === "current" && canChange && !curStage?.is_terminal && (() => {
-                          // Find all stages after current in display order
-                          const afterCurrent = displayStages.slice(displayIdx + 1);
-                          // Walk forward while stages are auto-triggered
-                          const firstNonAuto = afterCurrent.find(ds => ds.trigger !== "auto");
-                          const autosBetween = afterCurrent.slice(0, afterCurrent.indexOf(firstNonAuto));
-                          if (!firstNonAuto || autosBetween.length === 0) return null;
-                          // Allow skip if firstNonAuto is directly reachable, OR the auto
-                          // stages in between are covered by allowedNext (user would reach
-                          // firstNonAuto by passing through the allowed auto stage).
-                          const autoKeys = autosBetween.map(ds => ds.key);
-                          const autoAllowed = !allowedNext || autoKeys.some(k => allowedNext.includes(k));
-                          if (!validNextKeys.has(firstNonAuto.key) && !autoAllowed) return null;
-                          const fColor = firstNonAuto.color ?? "#6B7280";
-                          const { blockers: fgb, warnings: fgw } = checkTransitionGates(firstNonAuto.key);
-                          return (
-                            <button
-                              onClick={async e => {
-                                e.stopPropagation();
-                                if (firstNonAuto.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
-                                if (fgb.length > 0 || fgw.length > 0) {
-                                  setGateModal({ caseId: caseData.id, toStatus: firstNonAuto.key, toLabel: firstNonAuto.label, toColor: fColor, blockers: fgb, warnings: fgw });
-                                  return;
-                                }
-                                await onStatusChange(caseData.id, firstNonAuto.key);
-                              }}
-                              style={{ width: "100%", padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 10, color: "white", background: fColor, border: "none", cursor: "pointer", transition: "opacity .15s" }}
-                              onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-                              onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                              {`→ Move to ${firstNonAuto.label}`}
-                            </button>
-                          );
-                        })()}
 
-                        {/* Action button — reachable stages only */}
-                        {state === "reachable" && !curStage?.is_terminal && isActive && (
-                          <button
-                            onClick={async e => {
-                              e.stopPropagation();
-                              if (isCancelled) { initCancelModal(caseData.id); return; }
-                              if (s.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
-                              if (s.key === "approved") { setApprovalBypass(""); setApprovalModal(true); return; }
-                              if (needsConfirm && !isPending) { setPendingStageKey(s.key); return; }
-                              setPendingStageKey(null);
-                              const { blockers: gb, warnings: gw } = checkTransitionGates(s.key);
-                              if (gb.length > 0 || gw.length > 0) {
-                                setGateModal({ caseId: caseData.id, toStatus: s.key, toLabel: s.label, toColor: color, blockers: gb, warnings: gw });
-                                return;
-                              }
-                              await onStatusChange(caseData.id, s.key);
-                              if (s.key === "completed") {
-                                if (auth.isConsultant) {
-                                  if (caseData.client?.id) setClientRatingModal({ caseId: caseData.id, caseTitle: caseData.title, clientId: caseData.client.id, clientName: caseData.client.full_name ?? 'Client' });
-                                } else {
-                                  const ratee = { id: caseData.case_assignments?.[0]?.users?.id, name: caseData.case_assignments?.[0]?.users?.full_name, role: "consultant" };
-                                  if (ratee.id) setRatingModal({ caseId: caseData.id, caseTitle: caseData.title, rateeId: ratee.id, rateeName: ratee.name, rateeRole: ratee.role, raterRole: auth.role });
-                                }
-                              }
-                            }}
-                            style={{ width: "100%", padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 10, color: "white", background: isCancelled ? "#EF4444" : color, border: "none", cursor: "pointer", transition: "opacity .15s" }}
-                            onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-                            onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                            {isPending ? "Confirm?" : isCancelled ? "Cancel case" : `→ Move to ${s.label}`}
-                          </button>
-                        )}
                         {isPending && isActive && (
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 11, color: "var(--ad-amber)" }}>{caseProgress}% done</span>
@@ -3018,53 +2953,75 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
               </div>
             )}
 
-            {/* Next-step shortcuts below the carousel: every stage this user may move the case to
-                (several when the lifecycle allows more than one next step), except the one whose
-                card is in front — that card already has its own button. */}
+            {/* Next-step buttons (the only status buttons): one per stage this user may move the
+                case to. Clicking one brings that stage's card to the front, then moves the case
+                (gate modal when requirements are missing; confirmation for unfinished test stages). */}
             {!curStage?.is_terminal && (() => {
               const curDisplayIdx = displayStages.findIndex(ds => ds.key === caseData.status);
-              if (curDisplayIdx < 0) return null;
               const targets = [];
               displayStages.forEach((ds, i) => {
-                if (ds.is_terminal || ds.key === caseData.status) return;
+                if (ds.key === caseData.status) return;
                 if (stageState(ds, i) === "reachable") targets.push(ds);
               });
               // Next manual stage reached through auto stages (e.g. Estimated → Assigned (auto) → In Progress).
-              const afterCurrent = displayStages.slice(curDisplayIdx + 1);
-              const autoTarget = afterCurrent.find(ds => ds.trigger !== "auto" && !ds.is_terminal);
-              const autosBetween = autoTarget ? afterCurrent.slice(0, afterCurrent.indexOf(autoTarget)) : [];
-              if (autoTarget && autosBetween.length > 0 && !targets.some(t => t.key === autoTarget.key)
-                  && (!allowedNext || autosBetween.some(ds => allowedNext.includes(ds.key)))) {
-                const tRoles = autoTarget.allowed_roles?.length ? autoTarget.allowed_roles : null;
-                const tRelations = autoTarget.allowed_relations?.length ? autoTarget.allowed_relations : null;
-                const tRoleOk = !tRoles || tRoles.includes(auth.role);
-                const tRelationOk = !tRelations || tRelations.includes(caseRelation);
-                const ok = auth.isAdmin || ((tRoles && tRelations) ? (tRoleOk || tRelationOk) : tRoles ? tRoleOk : tRelations ? tRelationOk : (isOwner || tRoleOk));
-                if (ok) targets.push(autoTarget);
+              if (curDisplayIdx >= 0) {
+                const afterCurrent = displayStages.slice(curDisplayIdx + 1);
+                const autoTarget = afterCurrent.find(ds => ds.trigger !== "auto" && !ds.is_terminal);
+                const autosBetween = autoTarget ? afterCurrent.slice(0, afterCurrent.indexOf(autoTarget)) : [];
+                if (autoTarget && autosBetween.length > 0 && !targets.some(t => t.key === autoTarget.key)
+                    && (!allowedNext || autosBetween.some(ds => allowedNext.includes(ds.key)))) {
+                  const tRoles = autoTarget.allowed_roles?.length ? autoTarget.allowed_roles : null;
+                  const tRelations = autoTarget.allowed_relations?.length ? autoTarget.allowed_relations : null;
+                  const tRoleOk = !tRoles || tRoles.includes(auth.role);
+                  const tRelationOk = !tRelations || tRelations.includes(caseRelation);
+                  const ok = auth.isAdmin || ((tRoles && tRelations) ? (tRoleOk || tRelationOk) : tRoles ? tRoleOk : tRelations ? tRelationOk : (isOwner || tRoleOk));
+                  if (ok) targets.push(autoTarget);
+                }
               }
-              const activeKey = displayStages[clampedActive]?.key;
-              const shown = targets.filter(t => t.key !== activeKey);
-              if (!shown.length) return null;
+              if (!targets.length) return null;
+              // Forward stages first (lifecycle order), then the ones that go back, then cancel.
+              const orderOf = (t) => t.key === "cancelled" ? 3000 : (displayStages.findIndex(ds => ds.key === t.key) < curDisplayIdx ? 2000 : 0) + displayStages.findIndex(ds => ds.key === t.key);
+              targets.sort((x, y) => orderOf(x) - orderOf(y));
+
+              async function goTo(target) {
+                const idx = displayStages.findIndex(ds => ds.key === target.key);
+                if (idx >= 0) pipelineScrollTo(idx);
+                const isCancel = target.key === "cancelled";
+                const color = isCancel ? "#EF4444" : (target.color ?? "#6B7280");
+                if (isCancel) { initCancelModal(caseData.id); return; }
+                if (target.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
+                if (target.key === "approved") { setApprovalBypass(""); setApprovalModal(true); return; }
+                const needsConfirm = TEST_STAGES.includes(target.key) && caseProgress < 100 && activities.length > 0;
+                if (needsConfirm && pendingStageKey !== target.key) { setPendingStageKey(target.key); return; }
+                setPendingStageKey(null);
+                const { blockers: gb, warnings: gw } = checkTransitionGates(target.key);
+                if (gb.length > 0 || gw.length > 0) {
+                  setGateModal({ caseId: caseData.id, toStatus: target.key, toLabel: target.label, toColor: color, blockers: gb, warnings: gw });
+                  return;
+                }
+                await onStatusChange(caseData.id, target.key);
+                if (target.key === "completed") {
+                  if (auth.isConsultant) {
+                    if (caseData.client?.id) setClientRatingModal({ caseId: caseData.id, caseTitle: caseData.title, clientId: caseData.client.id, clientName: caseData.client.full_name ?? 'Client' });
+                  } else {
+                    const ratee = { id: caseData.case_assignments?.[0]?.users?.id, name: caseData.case_assignments?.[0]?.users?.full_name, role: "consultant" };
+                    if (ratee.id) setRatingModal({ caseId: caseData.id, caseTitle: caseData.title, rateeId: ratee.id, rateeName: ratee.name, rateeRole: ratee.role, raterRole: auth.role });
+                  }
+                }
+              }
+
               return (
                 <div style={{ marginTop: 14, display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 10 }}>
-                  {shown.map(target => {
-                    const fColor = target.color ?? "#6B7280";
-                    const { blockers: fgb, warnings: fgw } = checkTransitionGates(target.key);
+                  {targets.map(target => {
+                    const isCancel = target.key === "cancelled";
+                    const fColor = isCancel ? "#EF4444" : (target.color ?? "#6B7280");
+                    const pending = pendingStageKey === target.key;
                     return (
-                      <button key={target.key}
-                        onClick={async () => {
-                          if (target.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
-                          if (target.key === "approved") { setApprovalBypass(""); setApprovalModal(true); return; }
-                          if (fgb.length > 0 || fgw.length > 0) {
-                            setGateModal({ caseId: caseData.id, toStatus: target.key, toLabel: target.label, toColor: fColor, blockers: fgb, warnings: fgw });
-                            return;
-                          }
-                          await onStatusChange(caseData.id, target.key);
-                        }}
+                      <button key={target.key} onClick={() => goTo(target)}
                         style={{ padding: "10px 24px", fontSize: 13, fontWeight: 700, borderRadius: 10, color: "white", background: fColor, border: "none", cursor: "pointer", transition: "opacity .15s", boxShadow: `0 2px 12px ${fColor}55` }}
                         onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
                         onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                        {`→ ${target.label}`}
+                        {pending ? `Confirm ${target.label}?` : isCancel ? "Cancel case" : `→ ${target.label}`}
                       </button>
                     );
                   })}
