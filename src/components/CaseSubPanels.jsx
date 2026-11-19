@@ -5517,6 +5517,8 @@ ${docNote}
 
 Based on ALL the information above and the document content provided, produce a structured analysis in ${langName} with the following sections. Use only bullet points — do not use sub-headings (###) inside sections.
 
+${sapLiveSection.enabled !== false ? 'Note: the existence of SAP objects in the live SAP system is checked in a separate step that runs after this analysis and is appended below it. Do not write anything about the SAP connection, system access, or whether objects were verified in the system.' : ''}
+
 ${sectionBlocks}`;
 
                   const system = 'You are an SAP functional consultant. Produce a clear, structured analysis in markdown. No code blocks. No preamble. Never say documents are missing — treat all provided blocks as the complete input.';
