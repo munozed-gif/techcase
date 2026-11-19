@@ -2915,6 +2915,19 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                           </p>
                         )}
 
+                        {/* Valid next stage, but this user's role may not move the case into it */}
+                        {state === "future" && !curStage?.is_terminal && validNextKeys.has(s.key) && (() => {
+                          const roles = (s.allowed_roles ?? []).filter(Boolean);
+                          const ROLE_NAMES = { manager: "Manager", admin: "Admin", client: "Client", key_user: "Key User", consultant: "Consultant", internal_consultant: "Internal Consultant", project_manager: "Project Manager", final_user: "End User" };
+                          return (
+                            <p style={{ fontSize: 11.5, color: "var(--t-text2)", margin: "8px 0 0", lineHeight: 1.45 }}>
+                              🔒 {roles.length
+                                ? `Only ${roles.map(r => ROLE_NAMES[r] ?? r).join(", ")} can move the case to ${s.label}.`
+                                : `Your role can't move the case to ${s.label}.`}
+                            </p>
+                          );
+                        })()}
+
                         {/* Action button — current card, next stage(s) are all auto */}
                         {state === "current" && canChange && !curStage?.is_terminal && (() => {
                           // Find all stages after current in display order
@@ -2945,7 +2958,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                               style={{ width: "100%", padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 10, color: "white", background: fColor, border: "none", cursor: "pointer", transition: "opacity .15s" }}
                               onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
                               onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                              {`Move to ${firstNonAuto.label} →`}
+                              {`→ Move to ${firstNonAuto.label}`}
                             </button>
                           );
                         })()}
@@ -2978,7 +2991,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                             style={{ width: "100%", padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 10, color: "white", background: isCancelled ? "#EF4444" : color, border: "none", cursor: "pointer", transition: "opacity .15s" }}
                             onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
                             onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                            {isPending ? "Confirm?" : isCancelled ? "Cancel case" : `Move to ${s.label} →`}
+                            {isPending ? "Confirm?" : isCancelled ? "Cancel case" : `→ Move to ${s.label}`}
                           </button>
                         )}
                         {isPending && isActive && (
