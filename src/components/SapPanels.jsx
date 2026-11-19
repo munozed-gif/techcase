@@ -428,6 +428,11 @@ async function buildSapMcpConfig(sapConfig, mcpServerUrl) {
 async function sapApiRequest(config, path, opts = {}) {
   // Prefer manual proxyUrl or VPN-linked proxy; otherwise call SAP directly.
   let proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
+  // ABAP ADT environments: the ADT bridge's SAP proxy (it runs the project's VPN and fills in
+  // the saved password) — a browser can't reach a customer's private SAP host directly.
+  if (!proxyUrl && ['abap-adt', 'abap-adt-readonly', 'abap-adt-both'].includes(config.mcp_type) && config.adt_mcp_url?.trim()) {
+    proxyUrl = `${config.adt_mcp_url.trim().replace(/\/mcp\/?$/, '').replace(/\/$/, '')}/sap-proxy`;
+  }
   // If the stored proxy URL points to our own /api/sap-proxy but on a different
   // deployment URL (e.g. a stale Vercel preview link), rewrite it to the current
   // origin so the request stays same-origin and avoids Vercel SSO redirects.

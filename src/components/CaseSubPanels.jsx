@@ -2464,14 +2464,19 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
 
     // Live SAP system check (hard gate — blocks generation if SAP is unreachable)
     // Resolve the active SAP environment first so its liveCheckOnGenerate toggle can override the system setting
-    if (caseData.customer_id ?? caseData.client_id) {
+    if (caseData.project_id || caseData.customer_id || caseData.client_id) {
       const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
         supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
         supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
         supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
       ]);
-      const clientSapData = (sapCfgRow?.value ?? {})[caseData.customer_id ?? caseData.client_id] ?? {};
-      const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
+      // Same chain as the SAP connection panel: the project's own environments first, then the
+      // customer's (or the legacy client account's).
+      const _allSap = sapCfgRow?.value ?? {};
+      const _envsOf = (e) => (e?.environments ?? (e?.host ? [e] : []));
+      const _projEnvs = caseData.project_id ? _envsOf(_allSap[`proj_${caseData.project_id}`]) : [];
+      const clientSapData = _allSap[caseData.customer_id ?? caseData.client_id] ?? _allSap[caseData.client_id] ?? {};
+      const sapEnvs = _projEnvs.length ? _projEnvs : _envsOf(clientSapData);
       const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
         ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
         ?? null;
