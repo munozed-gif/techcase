@@ -943,6 +943,20 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     } catch { return []; }
   }
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
+  // Save some AI-analysis results into the spec notes without losing what is already there
+  // (request summary, SAP coverage, proposal check, generated specs…).
+  async function saveAiNotesPatch(patch) {
+    // A manual / wizard spec is never turned into an AI one by an analysis step.
+    if (spec?.id && spec.mode && spec.mode !== 'ai') return;
+    let cur = {};
+    if (spec?.mode === 'ai' && spec?.notes) { try { cur = JSON.parse(spec.notes) ?? {}; } catch { cur = {}; } }
+    await saveSpec({
+      mode: 'ai', status: spec?.status ?? 'draft',
+      ...(spec?.id ? {} : { content: null, objects: [] }),
+      notes: JSON.stringify({ ...cur, ...patch }),
+      title: spec?.title ?? (caseData.title + t("spec.doc_title_suffix")),
+    });
+  }
 
   // Mode selection
   const [mode, setMode] = useState(null); // null | 'manual' | 'wizard' | 'ai'
@@ -3817,7 +3831,7 @@ Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words
       }
       setSapCheck(parsed);
       setActiveNode(1); // show SAP result
-      try { await saveSpec({ mode: 'ai', status: 'draft', content: null, objects: [], notes: JSON.stringify({ sapCheck: parsed }), title: caseData.title + t("spec.doc_title_suffix") }); } catch (_) {}
+      try { await saveAiNotesPatch({ sapCheck: parsed }); } catch (_) {}
     } catch (e) { setAiError(e.message); }
     setStepLoading(false);
   }
@@ -3870,7 +3884,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         parsed = m ? JSON.parse(m[0]) : { valid: true, score: 7, risk_level: 'medium', strengths: [], concerns: [], recommendation: raw };
       }
       setProposalCheck(parsed);
-      try { await saveSpec({ mode: 'ai', status: 'draft', content: null, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck: parsed }), title: caseData.title + t("spec.doc_title_suffix") }); } catch (_) {}
+      try { await saveAiNotesPatch({ sapCheck, proposalCheck: parsed }); } catch (_) {}
       setAiStep(3);
       setActiveNode(3); // auto-advance to generate step
     } catch (e) { setAiError(e.message); }
@@ -5482,6 +5496,7 @@ ${result}`;
                     } catch { /* best-effort — proceed without SAP verification */ }
                   }
                   setRequestSummary(fullResult);
+                  try { await saveAiNotesPatch({ requestSummary: fullResult }); } catch (_) {}
                 } catch (e) {
                   setRequestSummaryError(e.message);
                 } finally {
