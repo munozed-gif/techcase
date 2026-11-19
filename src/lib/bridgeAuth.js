@@ -9,15 +9,16 @@ import { supabase } from "./supabase.js";
 let _vmOrigins = [];
 let _vmOriginsAt = 0;
 
-async function vmOrigins() {
-  if (Date.now() - _vmOriginsAt < 60_000) return _vmOrigins;
+async function vmOrigins(force = false) {
+  // An empty list (e.g. read before the session was ready) is never kept.
+  if (!force && _vmOrigins.length && Date.now() - _vmOriginsAt < 60_000) return _vmOrigins;
   _vmOriginsAt = Date.now();
   const origins = [];
   const add = (v) => { try { if (typeof v === "string" && v.trim()) origins.push(new URL(v.trim()).origin); } catch { /* ignore */ } };
   try {
     const { data } = await supabase
-      .from("system_settings").select("value").eq("key", "adt_bridge_tunnel_url").maybeSingle();
-    add(data?.value);
+      .from("system_settings").select("value").in("key", ["adt_bridge_tunnel_url", "sap_mcp_server_url"]);
+    (data ?? []).forEach(r => add(r?.value));
   } catch { /* ignore */ }
   try {
     const { data } = await supabase
@@ -46,7 +47,10 @@ export async function bridgeAuthHeaders(targetUrl = null) {
       const known = await vmOrigins();
       let target = null;
       try { target = new URL(targetUrl, window.location.origin).origin; } catch { /* ignore */ }
-      if (!target || !known.includes(target)) return {};
+      let ok = !!target && known.includes(target);
+      // Not in the cached list: re-read once (the bridge address may have just been loaded).
+      if (target && !ok) ok = (await vmOrigins(true)).includes(target);
+      if (!ok) return {};
     }
     const { data } = await supabase.auth.getSession();
     const token = data?.session?.access_token;
