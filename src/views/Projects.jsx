@@ -35,6 +35,7 @@ import {
 import { STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, fmt, cap, fmtDate } from "../lib/uiUtils.jsx";
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 import { usePartnerContext } from "../hooks/usePartnerContext.js";
+import { COMMON_CURRENCIES } from "../lib/costs.js";
 
 const DELIVERABLE_ICON_MAP = {
   "Business Blueprint":       { Icon: BookOpen,      color: "text-blue-600 dark:text-blue-400",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
@@ -172,7 +173,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   // Step 0: Basics
   const [basics, setBasics] = useState({ name: initialData?.name ?? "", description: initialData?.description ?? "", status: initialData?.status ?? "draft", project_type: initialData?.project_type ?? "consulting" });
   // Step 1: Scope
-  const [scopeData, setScopeData] = useState({ total_budget: initialData?.total_budget ?? "", start_date: initialData?.start_date ?? "", end_date: initialData?.end_date ?? "", area_sap: initialData?.area_sap ?? "", industry: initialData?.industry ?? "", client_id: auth.isClient ? auth.user?.id : (initialData?.client_id ?? "") });
+  const [scopeData, setScopeData] = useState({ total_budget: initialData?.total_budget ?? "", start_date: initialData?.start_date ?? "", end_date: initialData?.end_date ?? "", area_sap: initialData?.area_sap ?? "", industry: initialData?.industry ?? "", currency: initialData?.currency ?? "", client_id: auth.isClient ? auth.user?.id : (initialData?.client_id ?? "") });
   const owners = useProjectOwnerOptions(auth);
   const isStaffUser = auth.isAdmin || auth.isManager;
   // "c:<customer id>" or "p:<partner id>" (partner's internal project)
@@ -281,6 +282,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         end_date: scopeData.end_date || null,
         area_sap: scopeData.area_sap || null,
         industry: scopeData.industry || null,
+        currency: scopeData.currency || null,
         objectives: objectives.objectives || null,
         deliverables: objectives.deliverables.length ? objectives.deliverables : null,
         success_criteria: objectives.success_criteria || null,
@@ -659,6 +661,14 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                 Creating your own projects needs an approved <b>Partner</b> account. Open <b>Partner</b> in the menu to request one.
               </div>
             )}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.currency") !== "label.currency" ? t("label.currency") : "Currency"}</label>
+              <select value={scopeData.currency} onChange={e => setScopeData(p => ({ ...p, currency: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">— (customer / platform USD)</option>
+                {COMMON_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
             <Input label={t("proj.budget_label")} type="number" value={scopeData.total_budget}
               onChange={e => setScopeData(p => ({ ...p, total_budget: e.target.value }))}
               placeholder={t("proj.ph_budget_large_eg")} />

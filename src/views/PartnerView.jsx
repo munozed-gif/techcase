@@ -13,6 +13,7 @@ import { usePartnerContext, PARTNER_LIMIT_LABELS, fmtLimit } from "../hooks/useP
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { SapIntegrationPanel } from "../components/SapPanels.jsx";
 import { buildEmailHtml, sendEmail } from "../lib/utils.js";
+import { COMMON_CURRENCIES } from "../lib/costs.js";
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 
 const OPEN_CASE_EXCLUDED = ["completed", "closed", "cancelled", "resolved", "terminated"];
@@ -176,6 +177,7 @@ function CustomerForm({ partnerId, initial, onSaved, onCancel }) {
     name: initial?.name ?? "", industry: initial?.industry ?? "", website: initial?.website ?? "",
     country: initial?.country ?? "", contact_name: initial?.contact_name ?? "",
     contact_email: initial?.contact_email ?? "", contact_phone: initial?.contact_phone ?? "", notes: initial?.notes ?? "",
+    currency: initial?.currency ?? "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -204,6 +206,8 @@ function CustomerForm({ partnerId, initial, onSaved, onCancel }) {
         <Input label="Contact name" value={f.contact_name} onChange={set("contact_name")} />
         <Input label="Contact email" type="email" value={f.contact_email} onChange={set("contact_email")} />
         <Input label="Contact phone" value={f.contact_phone} onChange={set("contact_phone")} />
+        <Select label="Currency" value={f.currency} onChange={set("currency")}
+          options={[{ value: "", label: "Platform currency (USD)" }, ...COMMON_CURRENCIES.filter(c => c !== "USD").map(c => ({ value: c, label: c }))]} />
       </div>
       <Textarea label="Notes" rows={2} value={f.notes} onChange={set("notes")} />
       <div className="flex gap-2 justify-end">

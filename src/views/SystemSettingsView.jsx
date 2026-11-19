@@ -37,6 +37,95 @@ import { ConsultantProfilePanel } from "./ArenaView.jsx";
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 import { PartnersAdminPanel } from "./PartnerView.jsx";
 import { DEFAULT_ESTIMATION_FACTORS, estimationFactors } from "../lib/estimation.js";
+import { DEFAULT_COST_CONFIG, costConfig } from "../lib/costs.js";
+
+// Case cost settings (lib/costs.js): VM, Arena fees, payment fees, contingency, taxes,
+// default consultant rates, exchange rates and AI prices. Platform currency: USD.
+function CostConfigCard({ ssCtx }) {
+  const [f, setF] = useState(() => costConfig(ssCtx.settings));
+  const [fxCode, setFxCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [ok, setOk] = useState(false);
+  const AI_DEFAULT = {
+    'claude-haiku-5-5': { input: 0.10, output: 0.50 },
+    'claude-sonnet-5-5': { input: 2.00, output: 10.0 },
+    'claude-opus-5-5': { input: 4.00, output: 20.0 },
+  };
+  const [ai, setAi] = useState(() => ({ ...AI_DEFAULT, ...(ssCtx.settings?.cost_config?.ai_prices ?? {}) }));
+  useEffect(() => { setF(costConfig(ssCtx.settings)); setAi({ ...AI_DEFAULT, ...(ssCtx.settings?.cost_config?.ai_prices ?? {}) }); }, [ssCtx.settings?.cost_config]); // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (k, v) => { setOk(false); setF(p => ({ ...p, [k]: v })); };
+  const num = (label, k, suffix, hint) => (
+    <div className="flex items-center gap-3" key={k}>
+      <div className="flex-1 min-w-0"><p className="text-sm text-gray-700">{label}</p>{hint && <p className="text-[11px] text-gray-400">{hint}</p>}</div>
+      <input type="number" step="0.01" value={f[k]} onChange={e => set(k, e.target.value)} className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-right" />
+      <span className="text-xs text-gray-400 w-14">{suffix}</span>
+    </div>
+  );
+  async function save() {
+    setBusy(true);
+    const n = (v, d) => (v === '' || isNaN(Number(v)) ? d : Number(v));
+    const out = {};
+    for (const k of Object.keys(DEFAULT_COST_CONFIG)) if (typeof DEFAULT_COST_CONFIG[k] === 'number') out[k] = n(f[k], DEFAULT_COST_CONFIG[k]);
+    out.default_rates = Object.fromEntries(Object.entries(f.default_rates).map(([k, v]) => [k, n(v, DEFAULT_COST_CONFIG.default_rates[k])]));
+    out.fx_rates = Object.fromEntries(Object.entries(f.fx_rates).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k.toUpperCase(), Number(v)]));
+    out.ai_prices = Object.fromEntries(Object.entries(ai).map(([m, p]) => [m, { input: n(p.input, 0), output: n(p.output, 0) }]));
+    try { await ssCtx.setSetting('cost_config', out); setOk(true); } catch (e) { alert(e.message); }
+    setBusy(false);
+  }
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2"><DollarSign size={16} className="text-emerald-600" /> Costs</h3>
+      <p className="text-xs text-gray-400 mb-4">Used by the case <b>Costs</b> tab (administrators and managers). Platform currency: <b>USD</b>.</p>
+      <div className="space-y-2 mb-4">
+        {num('VM (AWS + MCP / bridge)', 'vm_monthly_usd', 'USD/mo', "Split across cases by their share of SAP operations each month")}
+        {num('Arena platform / management', 'arena_fee_pct', '% income')}
+        {num('Arena support', 'support_fee_pct', '% income')}
+        {num('Payment fee', 'payment_fee_pct', '% paid', 'On paid invoices (e.g. card / Stripe)')}
+        {num('Payment fee — fixed', 'payment_fee_fixed_usd', 'USD each')}
+        {num('Contingency', 'contingency_pct', '% plan', 'Reserve on the planned consultant cost')}
+        {num('Taxes / withholding', 'tax_pct', '% income')}
+      </div>
+      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">Default consultant rates (USD/h, when a consultant has no rate)</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+        {['junior', 'mid', 'senior', 'expert'].map(k => (
+          <label key={k} className="text-xs text-gray-600 capitalize">{k}
+            <input type="number" step="1" value={f.default_rates[k]} onChange={e => { setOk(false); setF(p => ({ ...p, default_rates: { ...p.default_rates, [k]: e.target.value } })); }}
+              className="mt-1 w-full border border-gray-200 rounded-lg px-2 py-1 text-sm text-right" />
+          </label>
+        ))}
+      </div>
+      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">Exchange rates (units per 1 USD)</p>
+      <p className="text-[11px] text-gray-400 mb-2">A customer / project / case currency other than USD is shown converted with these rates.</p>
+      <div className="space-y-1 mb-2">
+        {Object.entries(f.fx_rates).map(([c, r]) => (
+          <div key={c} className="flex items-center gap-2">
+            <span className="w-14 text-sm font-mono">{c}</span>
+            <input type="number" step="0.0001" value={r} onChange={e => { setOk(false); setF(p => ({ ...p, fx_rates: { ...p.fx_rates, [c]: e.target.value } })); }} className="w-28 border border-gray-200 rounded-lg px-2 py-1 text-sm text-right" />
+            <button onClick={() => { setOk(false); setF(p => { const x = { ...p.fx_rates }; delete x[c]; return { ...p, fx_rates: x }; }); }} className="text-gray-300 hover:text-red-500"><X size={13} /></button>
+          </div>
+        ))}
+        <div className="flex items-center gap-2">
+          <input value={fxCode} onChange={e => setFxCode(e.target.value.toUpperCase().slice(0, 3))} placeholder="EUR" className="w-14 border border-gray-200 rounded-lg px-2 py-1 text-sm font-mono" />
+          <button onClick={() => { if (/^[A-Z]{3}$/.test(fxCode) && fxCode !== 'USD') { setF(p => ({ ...p, fx_rates: { ...p.fx_rates, [fxCode]: '' } })); setFxCode(''); } }} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"><Plus size={12} /> Add currency</button>
+        </div>
+      </div>
+      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mt-4 mb-2">AI prices (USD per million tokens)</p>
+      <div className="space-y-1 mb-4">
+        {Object.entries(ai).map(([m, p]) => (
+          <div key={m} className="flex items-center gap-2 text-xs">
+            <span className="flex-1 font-mono text-gray-600">{m}</span>
+            in <input type="number" step="0.01" value={p.input} onChange={e => { setOk(false); setAi(x => ({ ...x, [m]: { ...x[m], input: e.target.value } })); }} className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-right" />
+            out <input type="number" step="0.01" value={p.output} onChange={e => { setOk(false); setAi(x => ({ ...x, [m]: { ...x[m], output: e.target.value } })); }} className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-right" />
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-3">
+        <button onClick={save} disabled={busy} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">{busy ? 'Saving…' : 'Save cost settings'}</button>
+        {ok && <span className="text-xs text-green-600 flex items-center gap-1"><Check size={12} /> Saved</span>}
+      </div>
+    </div>
+  );
+}
 
 // Arena estimation factors (lib/estimation.js): Arena hours = standard hours × automation × seniority.
 function EstimationFactorsCard({ ssCtx }) {
@@ -2033,6 +2122,7 @@ function SettingsGenerationTab({ ssCtx }) {
       </div>
 
       <EstimationFactorsCard ssCtx={ssCtx} />
+      <CostConfigCard ssCtx={ssCtx} />
 
       {/* Request Summary Sections */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5">

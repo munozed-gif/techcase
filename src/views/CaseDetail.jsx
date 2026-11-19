@@ -58,6 +58,8 @@ import { resolveGate, caseValidationScope } from "../lib/validationPolicies.js";
 import { applyArenaEstimate, arenaHours, estimateTotals, IMPL_MODE_LABEL, SENIORITY_LABEL, SENIORITY_LEVELS } from "../lib/estimation.js";
 import { caseEstimationContext } from "../lib/estimationContext.js";
 import { setAiContext } from "../lib/utils.js";
+import { CaseCostsTab } from "../components/CaseCostsTab.jsx";
+import { Coins } from "lucide-react";
 import { EffectiveRulesPanel } from "../components/ValidationRulesPanel.jsx";
 
 // ── HTML document builder for AI-generated markdown docs ──────────────────────
@@ -2523,9 +2525,13 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
     ...(perms.can("view_audit_log") ? [{ id: "audit_log", label: t("case.tab_audit_log"), icon: ClipboardList, count: null }] : []),
   ];
   const tabs = (() => {
-    const filtered = (stageRules.visible_tabs
+    const filtered0 = (stageRules.visible_tabs
       ? allTabs.filter(t => stageRules.visible_tabs.includes(t.id))
       : allTabs).filter(t => t.id !== 'documents' || perms.can('view_docs'));
+    // Costs: Arena administrators and managers only, on every stage.
+    const filtered = (auth.isAdmin || auth.isManager)
+      ? [...filtered0, { id: "costs", label: lang === 'es' ? 'Costos' : 'Costs', icon: Coins, count: null }]
+      : filtered0;
     const order = stageRules.tab_order;
     if (!order?.length) return filtered;
     return [...filtered].sort((a, b) => {
@@ -5907,6 +5913,9 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                     {/* Time Log Tab — uses time_logs table via TimeLogPanel */}
                     {tab.id === "time" && (
         <TimeLogPanel caseId={caseData.id} caseTitle={caseData.title} auth={auth} />
+      )}
+                    {tab.id === "costs" && (auth.isAdmin || auth.isManager) && (
+        <CaseCostsTab caseData={caseData} activities={activities} settings={cdSettings} lang={lang} auth={auth} />
       )}
 
                     {/* Lifecycle Tab */}
