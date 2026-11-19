@@ -58,6 +58,8 @@ const GENERATION_CONTEXT_DEFAULTS = {
     { name: 'Suggested Technical Approach', enabled: false },
     { name: 'Estimated Complexity',       enabled: false },
     { name: 'Referenced T-Codes & Transactions', enabled: false },
+    // Not written by the text model: the live SAP check (existence of the objects in the system).
+    { name: 'SAP Objects in the System (live check)', enabled: true, kind: 'sap_live' },
   ],
 };
 

@@ -1979,12 +1979,15 @@ function SettingsGenerationTab({ ssCtx }) {
         <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
           <ListChecks size={16} className="text-purple-600" /> Request Summary Sections
         </h3>
-        <p className="text-xs text-gray-400 mb-4">Toggle which sections the AI generates in the Request Summary. Rename or add custom ones. Only enabled sections are included.</p>
+        <p className="text-xs text-gray-400 mb-4">Toggle which sections the AI generates in the Request Summary. Rename or add custom ones. Only enabled sections are included. <b>LIVE SAP</b> checks each SAP object mentioned in the case's SAP system (through its live SAP connection) and is added at the end.</p>
         <div className="space-y-2 mb-3">
           {(() => {
             const raw = form.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections;
-            // Normalise: legacy string entries become objects
-            const secs = raw.map(s => typeof s === 'string' ? { name: s, enabled: true } : s);
+            // Normalise: legacy string entries become objects. Lists saved before the live SAP
+            // check had its own entry get it added (on, as it behaved before).
+            const secs0 = raw.map(s => typeof s === 'string' ? { name: s, enabled: true } : s);
+            const secs = secs0.some(s => s.kind === 'sap_live') ? secs0
+              : [...secs0, GENERATION_CONTEXT_DEFAULTS.request_summary_sections.find(s => s.kind === 'sap_live') ?? { name: 'SAP Objects in the System (live check)', enabled: true, kind: 'sap_live' }];
             const updateSecs = (next) => setForm(p => ({ ...p, context: { ...p.context, request_summary_sections: next } }));
             return secs.map((sec, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -2003,14 +2006,18 @@ function SettingsGenerationTab({ ssCtx }) {
                   className={`flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-purple-400 transition-colors ${sec.enabled ? 'border-gray-200 text-gray-800' : 'border-gray-100 text-gray-400 bg-gray-50'}`}
                   placeholder="Section name…"
                 />
-                {/* Delete */}
-                <button
+                {sec.kind === 'sap_live' && (
+                  <span title="Checks in the live SAP system (through the case's SAP connection) whether each SAP object mentioned exists"
+                    className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300">LIVE SAP</span>
+                )}
+                {/* Delete (the live SAP check is switched off, not deleted) */}
+                {sec.kind !== 'sap_live' && <button
                   type="button"
                   onClick={() => { const next = [...secs]; next.splice(i, 1); updateSecs(next); }}
                   className="p-1.5 text-gray-300 hover:text-red-400 transition-colors"
                   title="Remove section">
                   <Trash2 size={13} />
-                </button>
+                </button>}
               </div>
             ));
           })()}
@@ -2020,7 +2027,10 @@ function SettingsGenerationTab({ ssCtx }) {
           onClick={() => {
             const raw = form.context.request_summary_sections ?? GENERATION_CONTEXT_DEFAULTS.request_summary_sections;
             const secs = raw.map(s => typeof s === 'string' ? { name: s, enabled: true } : s);
-            setForm(p => ({ ...p, context: { ...p.context, request_summary_sections: [...secs, { name: 'New Section', enabled: true }] } }));
+            // New sections go before the live SAP check (which comes last in the summary).
+            const at = secs.findIndex(s => s.kind === 'sap_live');
+            const next = at >= 0 ? [...secs.slice(0, at), { name: 'New Section', enabled: true }, ...secs.slice(at)] : [...secs, { name: 'New Section', enabled: true }];
+            setForm(p => ({ ...p, context: { ...p.context, request_summary_sections: next } }));
           }}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors">
           <Plus size={12} /> Add Section

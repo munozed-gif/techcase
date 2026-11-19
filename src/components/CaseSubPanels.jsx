@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import DOMPurify from "dompurify";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
@@ -936,8 +936,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   // ABAP ADT environments: the AI's SAP tools go through the ADT bridge's /mcp (it runs the
   // project's VPN and resolves the password from the ticket). Other environments: the SAP MCP
   // server. Only used once the live connection test of this case has passed.
-  async function buildMcpConfig(overrideUrl) {
-    if (!sapConnCfg || !sapConnTest?.ok) return [];
+  const lastConnTestRef = useRef(null);
+  async function buildMcpConfig(overrideUrl, { connOk } = {}) {
+    if (!sapConnCfg || !(connOk ?? sapConnTest?.ok)) return [];
     const isAdtEnv = ['abap-adt', 'abap-adt-readonly', 'abap-adt-both'].includes(sapConnCfg.mcp_type);
     let effectiveMcpUrl = '';
     if (isAdtEnv) {
@@ -2660,7 +2661,8 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
   async function testSapConnection(cfgOverride = null) {
     // Only a settings object counts as an override (never a click event).
     const baseCfg = (cfgOverride && typeof cfgOverride === 'object' && cfgOverride.host) ? cfgOverride : sapConnCfg;
-    if (!baseCfg || sapConnTest === 'testing') return;
+    if (!baseCfg || sapConnTest === 'testing') return null;
+    lastConnTestRef.current = null;
     setSapConnTest('testing');
     const lsKey = `sap_test_${caseData.id}`;
 
@@ -2713,7 +2715,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
             components:   r.components ?? [],
             sid: r.debug?.sid ?? null,
           };
-          setSapConnTest(next);
+          setSapConnTest(next); lastConnTestRef.current = next;
           try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
         } else {
           const status = r?.status;
@@ -2722,7 +2724,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
             : status === 404 ? 'HTTP 404 — ADT service not active (check SICF).'
             : r?.error || `HTTP ${status || 'error'}`;
           const next = { ok: false, message: msg };
-          setSapConnTest(next);
+          setSapConnTest(next); lastConnTestRef.current = next;
           try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
         }
       } else {
@@ -2736,7 +2738,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
             components:   result.components ?? [],
             sid: result.sid ?? null,
           };
-          setSapConnTest(next);
+          setSapConnTest(next); lastConnTestRef.current = next;
           try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
         } else {
           const status = result?.error;
@@ -2747,15 +2749,16 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
             : result?.message ? `Proxy error: ${result.message}`
             : 'Connection failed.';
           const next = { ok: false, message: msg };
-          setSapConnTest(next);
+          setSapConnTest(next); lastConnTestRef.current = next;
           try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
         }
       }
     } catch (e) {
       const next = { ok: false, message: e.message };
-      setSapConnTest(next);
+      setSapConnTest(next); lastConnTestRef.current = next;
       try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
     }
+    return lastConnTestRef.current;
   }
 
   useEffect(() => {
@@ -5447,10 +5450,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   const rawSections = genCtxNow.request_summary_sections?.length
                     ? genCtxNow.request_summary_sections
                     : GENERATION_CONTEXT_DEFAULTS.request_summary_sections;
-                  // Normalise legacy string entries; filter to enabled only
-                  const configuredSections = rawSections
-                    .map(s => typeof s === 'string' ? { name: s, enabled: true } : s)
-                    .filter(s => s.enabled !== false)
+                  // Normalise legacy string entries; filter to enabled only. The live SAP check
+                  // section (kind 'sap_live') is not written by the text model — it comes from the
+                  // SAP step below; when the list has no such entry it is on by default.
+                  const normSections = rawSections.map(s => typeof s === 'string' ? { name: s, enabled: true } : s);
+                  const sapLiveSection = normSections.find(s => s.kind === 'sap_live') ?? { name: '', enabled: true, kind: 'sap_live' };
+                  const configuredSections = normSections
+                    .filter(s => s.enabled !== false && s.kind !== 'sap_live')
                     .map(s => s.name);
 
                   const sectionBlocks = configuredSections.map(sec => `## ${sec}\nList 3–6 bullet points relevant to this section based on the case content above. Be specific — use module names, transaction codes, field names, business process names, and actual terminology from the source material. Keep each bullet to 1–2 lines. Use the section heading exactly as written above — do not translate it.`).join('\n\n');
@@ -5481,7 +5487,22 @@ ${sectionBlocks}`;
                   // and pipeline policy allows MCP at the analyze stage
                   const _analyzeStoredPP  = ssCtx.settings['mcp_adt_pipeline_policy'] ?? {};
                   const _analyzeStage     = { use_mcp: true, include_mcp_rules: false, ...(_analyzeStoredPP.stages?.analyze ?? {}) };
-                  const _mcpForAnalyze    = await buildMcpConfig();
+                  // Live SAP check: make sure the case's SAP connection was tested in this session
+                  // (after a reload it hasn't been), so the step is never skipped silently.
+                  const wantSapLive = sapLiveSection.enabled !== false && _analyzeStage.use_mcp && (effectiveBaseCheck || caseLiveCheck === true) && caseLiveCheck !== false;
+                  const sapHeading = (sapLiveSection.name && !/^SAP Objects in the System/i.test(sapLiveSection.name)) ? sapLiveSection.name : h_sap_objects;
+                  let sapSkipReason = null;
+                  let connOk = sapConnTest?.ok === true;
+                  if (wantSapLive && !connOk) {
+                    if (!sapConnCfg) sapSkipReason = lang === 'es' ? 'no hay un ambiente SAP configurado para este caso o proyecto' : 'no SAP environment is set up for this case or project';
+                    else {
+                      const r = await testSapConnection();
+                      connOk = r?.ok === true;
+                      if (!connOk) sapSkipReason = (lang === 'es' ? 'la conexión SAP falló: ' : 'the SAP connection failed: ') + (r?.message ?? '');
+                    }
+                  }
+                  const _mcpForAnalyze    = wantSapLive && connOk ? await buildMcpConfig(undefined, { connOk }) : [];
+                  if (wantSapLive && connOk && !_mcpForAnalyze.length) sapSkipReason = lang === 'es' ? 'no se pudo preparar el acceso SAP del ambiente' : "the environment's SAP access could not be prepared";
                   const mcpServers        = _analyzeStage.use_mcp ? _mcpForAnalyze : [];
                   const _analyzeRulesNote = _analyzeStage.include_mcp_rules && sapMcpRules ? `\n\n${sapMcpRules}` : '';
                   let fullResult = result;
@@ -5491,7 +5512,7 @@ ${sectionBlocks}`;
 
 For each identified object, use the available SAP tools to check whether it exists in the system. Then produce a section titled:
 
-## ${h_sap_objects}
+## ${sapHeading}
 
 With a table or bullet list showing:
 - Object name
@@ -5512,7 +5533,11 @@ ${result}`;
                         mcp_servers: mcpServers,
                       }).catch(() => null);
                       if (sapObjResult) fullResult = result + '\n\n' + sapObjResult;
-                    } catch { /* best-effort — proceed without SAP verification */ }
+                      else sapSkipReason = lang === 'es' ? 'la consulta a SAP no devolvió resultado' : 'the SAP query returned no result';
+                    } catch (e) { sapSkipReason = e?.message || 'error'; }
+                  }
+                  if (wantSapLive && sapSkipReason && result) {
+                    fullResult = result + `\n\n## ${sapHeading}\n⚠ ${lang === 'es' ? 'Verificación en vivo no realizada' : 'Live check not run'}: ${sapSkipReason}. ${lang === 'es' ? 'Revise "Conexión SAP en Vivo" y vuelva a analizar.' : 'Check "Live SAP Connection" and analyze again.'}`;
                   }
                   setRequestSummary(fullResult);
                   try { await saveAiNotesPatch({ requestSummary: fullResult }); } catch (_) {}
