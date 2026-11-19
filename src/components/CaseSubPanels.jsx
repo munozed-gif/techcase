@@ -427,9 +427,27 @@ function renderMarkdown(md) {
     const parseRow = r => r.replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
     const head = parseRow(dataRows[0]);
     const body = dataRows.slice(1).map(parseRow);
-    const hdr = head.map(h=>`<th style="background:var(--ad-card,#e8f0fb);border:1px solid var(--ad-b,#c0cde0);padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--t-text-accent,#1a3764)">${fmt(h)}</th>`).join('');
-    const rows = body.map((row,ri)=>`<tr>${head.map((_,i)=>`<td style="border:1px solid var(--ad-b,#d1dce8);padding:5px 10px;font-size:12px;color:var(--ad-text,inherit);background:${ri%2===0?'var(--ad-panel,white)':'var(--ad-card,#f4f7fc)'}">${fmt(row[i]||'')}</td>`).join('')}</tr>`).join('');
-    return `<div style="overflow-x:auto;margin:10px 0"><table style="border-collapse:collapse;width:100%"><thead><tr>${hdr}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    // Column roles from the header, so each gets a sensible width (see .md-table in index.css).
+    const roleOf = (h) => {
+      const k = String(h).toLowerCase();
+      if (/estado|status|exist|resultado|result/.test(k)) return 'status';
+      if (/nota|note|comment|observ|detalle|detail|descrip/.test(k)) return 'note';
+      if (/objeto|object|nombre|name/.test(k)) return 'name';
+      if (/tipo|type/.test(k)) return 'type';
+      return '';
+    };
+    const roles = head.map(roleOf);
+    // ✓ / ✗ / ⚠ status cells become coloured badges.
+    const statusCell = (v) => {
+      const t = String(v ?? '');
+      const cls = /✗|✘|not found|no existe|no encontrad|missing|inexistent/i.test(t) ? 'no'
+        : /⚠|warn|parcial|partial|revisar|check/i.test(t) ? 'warn'
+        : /✓|✔|exist|found|encontrad|\byes\b|\bs[ií]\b/i.test(t) ? 'ok' : '';
+      return cls ? `<span class="md-badge md-badge-${cls}">${fmt(t)}</span>` : fmt(t);
+    };
+    const hdr = head.map((h,i)=>`<th class="md-col-${roles[i] || 'x'}">${fmt(h)}</th>`).join('');
+    const rows = body.map(row=>`<tr>${head.map((_,i)=>`<td class="md-col-${roles[i] || 'x'}">${roles[i]==='status' ? statusCell(row[i]||'') : fmt(row[i]||'')}</td>`).join('')}</tr>`).join('');
+    return `<div class="md-table-wrap"><table class="md-table"><thead><tr>${hdr}</tr></thead><tbody>${rows}</tbody></table></div>`;
   }
 
   const lines = md.split('\n');
@@ -5481,7 +5499,8 @@ With a table or bullet list showing:
 - ✓ Exists / ✗ Not found
 - Brief note if relevant (e.g. "enhancement spot already contains 3 implementations")
 
-Only include objects you actually checked. If no technical objects are named in the analysis, write "No named SAP objects found in documents."${_analyzeRulesNote}
+Only include objects you actually checked. If no technical objects are named in the analysis, write "No named SAP objects found in documents."
+Use a markdown table with exactly these columns: Object | Type | Status | Note. Status is "✓ Exists" or "✗ Not found". Keep Type to 1–3 words and each Note under 20 words.${_analyzeRulesNote}
 
 Analysis to process:
 ${result}`;
