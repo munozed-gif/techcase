@@ -11,6 +11,10 @@ export const DEFAULT_COST_CONFIG = {
   tax_pct: 0,                  // taxes / withholding on income
   default_rates: { junior: 25, mid: 40, senior: 60, expert: 80 },   // USD/h when no consultant rate
   fx_rates: {},
+  // Hours reported while the case was in these stages count as rework (cost of quality) …
+  rework_stages: ['returned', 'adjustments', 'reopened'],
+  // … and after go-live (these stages) as hypercare / warranty.
+  hypercare_stages: ['approved', 'terminated', 'completed', 'resolved', 'closed'],
 };
 
 export function costConfig(settings) {
@@ -22,6 +26,8 @@ export function costConfig(settings) {
   }
   out.default_rates = { ...DEFAULT_COST_CONFIG.default_rates, ...(s.default_rates ?? {}) };
   out.fx_rates = { ...(s.fx_rates ?? {}) };
+  out.rework_stages = Array.isArray(s.rework_stages) && s.rework_stages.length ? s.rework_stages : DEFAULT_COST_CONFIG.rework_stages;
+  out.hypercare_stages = Array.isArray(s.hypercare_stages) && s.hypercare_stages.length ? s.hypercare_stages : DEFAULT_COST_CONFIG.hypercare_stages;
   out.ai_prices = s.ai_prices ?? null;
   return out;
 }
@@ -82,3 +88,30 @@ export const EXPENSE_CATEGORIES = {
 };
 
 export const COMMON_CURRENCIES = ['USD', 'EUR', 'MXN', 'COP', 'PEN', 'CLP', 'ARS', 'BRL', 'VES', 'GBP', 'CAD', 'CHF'];
+
+/**
+ * Status of the case on each date, from its status history (audit log case.status_changed /
+ * case.reopened, oldest first). Returns (dateString) => status.
+ */
+export function statusTimeline(events, currentStatus) {
+  const ev = (events ?? []).map(e => ({
+    t: new Date(e.created_at).getTime(),
+    from: e.old_value?.status ?? null,
+    to: e.event_type === 'case.reopened' ? 'reopened' : (e.new_value?.status ?? null),
+  })).filter(e => e.to).sort((a, b) => a.t - b.t);
+  return (date) => {
+    const t = new Date(`${String(date).slice(0, 10)}T12:00:00`).getTime();
+    let st = ev.length ? (ev[0].from ?? 'open') : (currentStatus ?? 'open');
+    for (const e of ev) { if (e.t <= t) st = e.to; else break; }
+    return st;
+  };
+}
+
+/** Months (YYYY-MM) from a start date to an end date (default now). */
+export function monthsBetween(start, end = new Date()) {
+  const out = [];
+  const d = new Date(start); d.setDate(1);
+  const e = new Date(end);
+  while (d <= e && out.length < 120) { out.push(d.toISOString().slice(0, 7)); d.setMonth(d.getMonth() + 1); }
+  return out;
+}

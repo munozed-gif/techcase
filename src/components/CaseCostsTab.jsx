@@ -7,9 +7,9 @@
 // expenses, contingency and taxes. Amounts are in the platform currency (USD); when the
 // customer / project / case uses another currency, it is shown converted too.
 import { useEffect, useMemo, useState } from "react";
-import { BarChart2, Bot, ChevronDown, Cpu, DollarSign, Plus, Receipt, Server, TrendingDown, TrendingUp, Users, Wallet, X } from "lucide-react";
+import { BarChart2, Bot, ChevronDown, Plus, Receipt, RotateCcw, Server, Users, Wallet, X } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { costConfig, caseCurrency, toUsd, fromUsd, fmtMoney, AI_FEATURE_LABEL, EXPENSE_CATEGORIES } from "../lib/costs.js";
+import { costConfig, caseCurrency, toUsd, fromUsd, fmtMoney, AI_FEATURE_LABEL, EXPENSE_CATEGORIES, statusTimeline, monthsBetween } from "../lib/costs.js";
 import { SENIORITY_LEVELS } from "../lib/estimation.js";
 
 const sum = (arr, f) => (arr ?? []).reduce((s, x) => s + (Number(f(x)) || 0), 0);
@@ -53,7 +53,7 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
     let alive = true;
     (async () => {
       const cid = caseData.id;
-      const [te, inv, ai, ex, apps, ops, prj, cust] = await Promise.all([
+      const [te, inv, ai, ex, apps, ops, prj, cust, hist, partner, pcases] = await Promise.all([
         supabase.from('time_entries').select('id, consultant_id, hours, activity_id, is_billable, date').eq('case_id', cid),
         supabase.from('invoices').select('id, amount, status, issue_date, due_date').eq('case_id', cid),
         supabase.from('ai_usage_events').select('feature, cost_usd, input_tokens, output_tokens, mcp, created_at').eq('case_id', cid),
@@ -62,6 +62,10 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
         supabase.rpc('sap_ops_share', { p_case: cid }),
         caseData.project_id ? supabase.from('projects').select('currency').eq('id', caseData.project_id).maybeSingle() : Promise.resolve({ data: null }),
         caseData.customer_id ? supabase.from('customers').select('currency').eq('id', caseData.customer_id).maybeSingle() : Promise.resolve({ data: null }),
+        supabase.from('audit_logs').select('event_type, old_value, new_value, created_at').eq('entity_id', cid)
+          .in('event_type', ['case.status_changed', 'case.reopened']).order('created_at'),
+        caseData.partner_id ? supabase.from('partners').select('id, name, plan').eq('id', caseData.partner_id).maybeSingle() : Promise.resolve({ data: null }),
+        caseData.partner_id ? supabase.from('cases').select('id, created_at, completed_at, status').eq('partner_id', caseData.partner_id) : Promise.resolve({ data: [] }),
       ]);
       const consultantIds = [...new Set([
         ...(te.data ?? []).map(t => t.consultant_id),
@@ -75,7 +79,8 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
       const code = caseCurrency({ customer: cust.data, project: prj.data, caseRow: caseData });
       setCur({ code, rate: code === 'USD' ? 1 : (Number(cfg.fx_rates?.[code]) || null) });
       setData({ te: te.data ?? [], inv: inv.data ?? [], ai: ai.data ?? [], ex: ex.data ?? [], apps: apps.data ?? [],
-        ops: ops.data ?? [], profs: profs ?? [], users: users ?? [] });
+        ops: ops.data ?? [], profs: profs ?? [], users: users ?? [],
+        hist: hist.data ?? [], partner: partner.data ?? null, pcases: pcases.data ?? [] });
     })();
     return () => { alive = false; };
   }, [caseData.id, nonce]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -114,6 +119,29 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
       return m;
     }, {}));
 
+    // Cost of quality: hours reported while the case was in a rework stage, or after go-live.
+    const statusOn = statusTimeline(data.hist, caseData.status);
+    const tagged = data.te.map(t => ({ ...t, st: statusOn(t.date) }));
+    const reworkTe = tagged.filter(t => cfg.rework_stages.includes(t.st));
+    const hyperTe = tagged.filter(t => cfg.hypercare_stages.includes(t.st));
+    const reworkHours = sum(reworkTe, t => t.hours), reworkCost = sum(reworkTe, t => (Number(t.hours) || 0) * rateOf(t.consultant_id));
+    const hyperHours = sum(hyperTe, t => t.hours), hyperCost = sum(hyperTe, t => (Number(t.hours) || 0) * rateOf(t.consultant_id));
+    const reworkByStage = Object.entries(reworkTe.reduce((m, t) => { m[t.st] = (m[t.st] ?? 0) + (Number(t.hours) || 0); return m; }, {}));
+    const hasHistory = data.hist.length > 0;
+
+    // Partner subscription (Pro): monthly price split across the partner's active cases.
+    let partnerShare = 0, partnerMonths = [];
+    if (data.partner?.plan === 'pro') {
+      const price = Number(settings?.plan_prices?.partner_pro?.amount) || 49;
+      const end = caseData.completed_at ? new Date(caseData.completed_at) : new Date();
+      partnerMonths = monthsBetween(caseData.created_at ?? new Date(), end).map(m => {
+        const mStart = new Date(`${m}-01T00:00:00`), mEnd = new Date(mStart); mEnd.setMonth(mEnd.getMonth() + 1);
+        const active = data.pcases.filter(c => new Date(c.created_at) < mEnd && (!c.completed_at || new Date(c.completed_at) >= mStart)).length || 1;
+        return { month: m, active, cost: price / active };
+      });
+      partnerShare = sum(partnerMonths, r => r.cost);
+    }
+
     // Income (budget and invoices are in the case's currency)
     const budgetUsd = caseData.budget ? toUsd(Number(caseData.budget), caseData.currency || 'USD', cfg) : null;
     const invUsd = (st) => sum(data.inv.filter(i => st(i.status)), i => toUsd(Number(i.amount) || 0, caseData.currency || 'USD', cfg));
@@ -144,11 +172,12 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
     const contingency = agreedPrice * cfg.contingency_pct / 100;
     const taxes = incomeBasis * cfg.tax_pct / 100;
 
-    const costsActual = actualCost + aiTotal + vmTotal + arenaFee + supportFee + paymentFees + hhCommission + expenses + taxes;
-    const costsPlanned = agreedPrice + aiTotal + vmTotal + arenaFee + supportFee + hhCommission + expenses + contingency + taxes;
+    const costsActual = actualCost + aiTotal + vmTotal + arenaFee + supportFee + paymentFees + hhCommission + expenses + taxes + partnerShare;
+    const costsPlanned = agreedPrice + aiTotal + vmTotal + arenaFee + supportFee + hhCommission + expenses + contingency + taxes + partnerShare;
     return { planRate, planRateSrc, hArena, hStd, agreedPrice, stdPrice, actualHours, actualCost, byActivity, unassignedHours, byConsultant,
       budgetUsd, invoiced, paid, incomeBasis, aiTotal, aiBy, vmRows, vmTotal, arenaFee, supportFee, paymentFees, paidCount, hhCommission,
       expenses, contingency, taxes, costsActual, costsPlanned,
+      reworkHours, reworkCost, hyperHours, hyperCost, reworkByStage, hasHistory, partnerShare, partnerMonths, partnerName: data.partner?.name,
       marginPlanned: incomeBasis - costsPlanned, marginActual: incomeBasis - costsActual,
       remaining: agreedPrice - actualCost, arenaSaving: stdPrice - agreedPrice };
   }, [data, activities, caseData, settings]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -246,12 +275,24 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
           : calc.vmRows.map(r => <Line key={r.month} label={r.month} sub={`${r.ops} / ${r.total} ${L('operations', 'operaciones')} (${pct(r.ops, r.total)})`} value={fmtMoney(r.cost, 'USD', lang)} />)}
       </Card>
 
+      {/* ── Cost of quality ── */}
+      <Card icon={RotateCcw} title={L('Rework & hypercare', 'Retrabajo e hypercare')} right={M(calc.reworkCost + calc.hyperCost)} open={false}>
+        <p className="text-[11px] text-gray-400 mb-1">{L('Part of the consultant cost above (not added again): hours reported while the case was in a rework stage, or after go-live.', 'Parte del costo de consultores (no se suma de nuevo): horas reportadas con el caso en una etapa de retrabajo, o después de la salida en vivo.')}</p>
+        {!calc.hasHistory && <p className="text-[11px] text-amber-600 mb-1">{L('No status history recorded for this case — all hours count as regular work.', 'No hay historial de estados de este caso — todas las horas cuentan como trabajo normal.')}</p>}
+        <Line label={L('Rework', 'Retrabajo')} sub={`${Math.round(calc.reworkHours * 10) / 10} h · ${cfg.rework_stages.join(', ')}`} value={M(calc.reworkCost)} tone={calc.reworkCost > 0 ? 'neg' : undefined} />
+        {calc.reworkByStage.map(([st, h]) => <div key={st} className="pl-3 text-[11px] text-gray-400">{st}: {Math.round(h * 10) / 10} h</div>)}
+        <Line label={L('Hypercare / warranty (after go-live)', 'Hypercare / garantía (después de salir en vivo)')} sub={`${Math.round(calc.hyperHours * 10) / 10} h · ${cfg.hypercare_stages.join(', ')}`} value={M(calc.hyperCost)} />
+        <Line label={L('Share of consultant cost', 'Porcentaje del costo de consultores')} value={pct(calc.reworkCost + calc.hyperCost, calc.actualCost)} />
+      </Card>
+
       {/* ── Arena & other ── */}
-      <Card icon={Receipt} title={L('Arena, fees and other costs', 'Arena, comisiones y otros costos')} right={M(calc.arenaFee + calc.supportFee + calc.paymentFees + calc.hhCommission + calc.expenses + calc.taxes)}>
+      <Card icon={Receipt} title={L('Arena, fees and other costs', 'Arena, comisiones y otros costos')} right={M(calc.arenaFee + calc.supportFee + calc.paymentFees + calc.hhCommission + calc.expenses + calc.taxes + calc.partnerShare)}>
         <Line label={L('Arena platform / management', 'Plataforma / gestión Arena')} sub={`${cfg.arena_fee_pct}% ${L('of income', 'de los ingresos')}`} value={M(calc.arenaFee)} />
         <Line label={L('Arena support', 'Soporte Arena')} sub={`${cfg.support_fee_pct}% ${L('of income', 'de los ingresos')}`} value={M(calc.supportFee)} />
         <Line label={L('Payment fees', 'Comisiones de pago')} sub={`${cfg.payment_fee_pct}% + ${fmtMoney(cfg.payment_fee_fixed_usd, 'USD', lang)} × ${calc.paidCount}`} value={M(calc.paymentFees)} />
         {calc.hhCommission > 0 && <Line label={L('Headhunter commission', 'Comisión headhunter')} value={M(calc.hhCommission)} />}
+        {calc.partnerShare > 0 && <Line label={L(`Partner Pro subscription (share) — ${calc.partnerName ?? ''}`, `Suscripción Partner Pro (proporción) — ${calc.partnerName ?? ''}`)}
+          sub={calc.partnerMonths.map(m => `${m.month}: 1/${m.active}`).join(' · ')} value={M(calc.partnerShare)} />}
         <Line label={L('Taxes / withholding', 'Impuestos / retenciones')} sub={`${cfg.tax_pct}%`} value={M(calc.taxes)} />
         <Line label={L('Contingency (planned only)', 'Contingencia (solo plan)')} sub={`${cfg.contingency_pct}% ${L('of planned consultant cost', 'del costo planificado de consultores')}`} value={M(calc.contingency)} />
         <ExpensesList caseId={caseData.id} expenses={data.ex} lang={lang} cfg={cfg} total={calc.expenses} onChange={() => setNonce(n => n + 1)} canEdit={auth?.isAdmin || auth?.isManager} M={M} />

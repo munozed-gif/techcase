@@ -2535,6 +2535,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
         if (!sapCfg?.host || !sapCfg?.username) {
           throw new Error('SAP live check is enabled but no SAP environment is configured for this case. Configure credentials in SAP Integration settings or disable SAP live check.');
         }
+        supabase.rpc('log_sap_op', { p_case: caseData.id, p_kind: 'live_check' }).then(() => {}, () => {});
         const liveData = await sapLiveCheck(sapCfg);
         if (liveData?.error !== undefined) {
           const detail = liveData.message ? ` (${liveData.message})` : liveData.error ? ` (HTTP ${liveData.error})` : '';
@@ -2702,6 +2703,8 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     const baseCfg = (cfgOverride && typeof cfgOverride === 'object' && cfgOverride.host) ? cfgOverride : sapConnCfg;
     if (!baseCfg || sapConnTest === 'testing') return null;
     lastConnTestRef.current = null;
+    // Counted for the VM cost share of this case (Costs tab).
+    supabase.rpc('log_sap_op', { p_case: caseData.id, p_kind: 'connection_test' }).then(() => {}, () => {});
     setSapConnTest('testing');
     const lsKey = `sap_test_${caseData.id}`;
 

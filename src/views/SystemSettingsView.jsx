@@ -69,6 +69,9 @@ function CostConfigCard({ ssCtx }) {
     out.default_rates = Object.fromEntries(Object.entries(f.default_rates).map(([k, v]) => [k, n(v, DEFAULT_COST_CONFIG.default_rates[k])]));
     out.fx_rates = Object.fromEntries(Object.entries(f.fx_rates).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k.toUpperCase(), Number(v)]));
     out.ai_prices = Object.fromEntries(Object.entries(ai).map(([m, p]) => [m, { input: n(p.input, 0), output: n(p.output, 0) }]));
+    const list = (v, d) => { const a = String(Array.isArray(v) ? v.join(',') : v ?? '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean); return a.length ? a : d; };
+    out.rework_stages = list(f.rework_stages, DEFAULT_COST_CONFIG.rework_stages);
+    out.hypercare_stages = list(f.hypercare_stages, DEFAULT_COST_CONFIG.hypercare_stages);
     try { await ssCtx.setSetting('cost_config', out); setOk(true); } catch (e) { alert(e.message); }
     setBusy(false);
   }
@@ -108,6 +111,16 @@ function CostConfigCard({ ssCtx }) {
           <input value={fxCode} onChange={e => setFxCode(e.target.value.toUpperCase().slice(0, 3))} placeholder="EUR" className="w-14 border border-gray-200 rounded-lg px-2 py-1 text-sm font-mono" />
           <button onClick={() => { if (/^[A-Z]{3}$/.test(fxCode) && fxCode !== 'USD') { setF(p => ({ ...p, fx_rates: { ...p.fx_rates, [fxCode]: '' } })); setFxCode(''); } }} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"><Plus size={12} /> Add currency</button>
         </div>
+      </div>
+      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mt-4 mb-1">Rework and hypercare stages</p>
+      <p className="text-[11px] text-gray-400 mb-2">Lifecycle stage keys, comma-separated. Hours reported while a case is in these stages are shown as rework or as hypercare / warranty.</p>
+      <div className="space-y-2 mb-2">
+        {[['rework_stages', 'Rework'], ['hypercare_stages', 'Hypercare / after go-live']].map(([k, label]) => (
+          <label key={k} className="block text-xs text-gray-600">{label}
+            <input value={Array.isArray(f[k]) ? f[k].join(', ') : f[k]} onChange={e => set(k, e.target.value)}
+              className="mt-1 w-full border border-gray-200 rounded-lg px-2 py-1 text-sm font-mono" />
+          </label>
+        ))}
       </div>
       <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mt-4 mb-2">AI prices (USD per million tokens)</p>
       <div className="space-y-1 mb-4">

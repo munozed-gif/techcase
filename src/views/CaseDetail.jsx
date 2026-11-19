@@ -1945,6 +1945,7 @@ canvas{display:block;width:100%}
         if (!sapCfg?.host || !sapCfg?.username) {
           throw new Error('SAP live check is enabled but no SAP environment is configured for this case. Configure credentials in SAP Integration settings or disable SAP live check.');
         }
+        supabase.rpc('log_sap_op', { p_case: caseData.id, p_kind: 'live_check' }).then(() => {}, () => {});
         const liveData = await sapLiveCheck(sapCfg);
         if (liveData?.error !== undefined) {
           const detail = liveData.message ? ` (${liveData.message})` : liveData.error ? ` (HTTP ${liveData.error})` : '';
