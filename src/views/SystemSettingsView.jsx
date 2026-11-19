@@ -36,6 +36,64 @@ import { SlaClientView } from "./OperationsViews.jsx";
 import { ConsultantProfilePanel } from "./ArenaView.jsx";
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 import { PartnersAdminPanel } from "./PartnerView.jsx";
+import { DEFAULT_ESTIMATION_FACTORS, estimationFactors } from "../lib/estimation.js";
+
+// Arena estimation factors (lib/estimation.js): Arena hours = standard hours × automation × seniority.
+function EstimationFactorsCard({ ssCtx }) {
+  const saved = estimationFactors(ssCtx.settings);
+  const [f, setF] = useState(saved);
+  const [busy, setBusy] = useState(false);
+  const [ok, setOk] = useState(false);
+  useEffect(() => { setF(estimationFactors(ssCtx.settings)); }, [ssCtx.settings?.estimation_factors]); // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (group, key, v) => { setOk(false); setF(p => ({ ...p, [group]: { ...p[group], [key]: v } })); };
+  async function save() {
+    setBusy(true);
+    const clean = (g) => Object.fromEntries(Object.entries(f[g]).map(([k, v]) => [k, Math.max(0.05, Math.min(3, Number(v) || DEFAULT_ESTIMATION_FACTORS[g][k]))]));
+    try { await ssCtx.setSetting('estimation_factors', { automation: clean('automation'), seniority: clean('seniority') }); setOk(true); }
+    catch (e) { alert(e.message); }
+    setBusy(false);
+  }
+  // A plain function (not a component), so the inputs keep focus while typing.
+  const Row = ({ group, k, label, hint }) => (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-gray-700">{label}</p>
+        {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
+      </div>
+      <input type="number" step="0.05" min="0.05" max="3" value={f[group][k]}
+        onChange={e => set(group, k, e.target.value)}
+        className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-sm text-right" />
+      <span className="text-xs text-gray-400 w-12">{Math.round((1 - Number(f[group][k] || 1)) * -100) > 0 ? '+' : ''}{Math.round((Number(f[group][k] || 1) - 1) * 100)}%</span>
+    </div>
+  );
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+        <Zap size={16} className="text-emerald-600" /> Arena Time Estimation
+      </h3>
+      <p className="text-xs text-gray-400 mb-4">Each planned activity keeps its <b>standard</b> estimate (by hand, mid-level consultant). The <b>Arena</b> estimate = standard × automation factor × seniority factor. Automatic and semi-automatic only apply when the case has an ABAP ADT environment, the live SAP check on and SAP implementation in its plan.</p>
+      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">How the activity is implemented</p>
+      <div className="space-y-2 mb-4">
+        {Row({ group: "automation", k: "auto", label: "Automatic", hint: "Arena generates the ABAP and writes it to SAP; the consultant reviews and tests", })}
+        {Row({ group: "automation", k: "semi", label: "Semi-automatic", hint: "Arena creates the object in SAP; the consultant completes it", })}
+        {Row({ group: "automation", k: "manual", label: "Manual", hint: "Configuration, OData, Smartforms, or no automatic implementation", })}
+        {Row({ group: "automation", k: "design", label: "Design / analysis with live SAP check", hint: "Objects and the system are verified automatically", })}
+      </div>
+      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">Consultant seniority</p>
+      <div className="space-y-2 mb-4">
+        {Row({ group: "seniority", k: "junior", label: "Junior", })}
+        {Row({ group: "seniority", k: "mid", label: "Mid", })}
+        {Row({ group: "seniority", k: "senior", label: "Senior", })}
+        {Row({ group: "seniority", k: "expert", label: "Expert", })}
+      </div>
+      <div className="flex items-center gap-3">
+        <button onClick={save} disabled={busy} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">{busy ? 'Saving…' : 'Save factors'}</button>
+        <button onClick={() => { setF(DEFAULT_ESTIMATION_FACTORS); setOk(false); }} className="text-xs text-gray-500 underline">Reset to defaults</button>
+        {ok && <span className="text-xs text-green-600 flex items-center gap-1"><Check size={12} /> Saved</span>}
+      </div>
+    </div>
+  );
+}
 
 // Nova Logo preview for settings branding section
 if (typeof document !== 'undefined') {
@@ -1973,6 +2031,8 @@ function SettingsGenerationTab({ ssCtx }) {
           <p className="text-xs text-gray-400">{t("gen.default_profile_hint")}</p>
         </div>
       </div>
+
+      <EstimationFactorsCard ssCtx={ssCtx} />
 
       {/* Request Summary Sections */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5">

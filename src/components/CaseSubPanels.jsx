@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { bridgeAuthHeaders, resolveVmUrl } from "../lib/bridgeAuth.js";
+import { caseEstimationContext } from "../lib/estimationContext.js";
+import { SENIORITY_LABEL } from "../lib/estimation.js";
 import { sapMcpAuthToken } from "../lib/sapCreds.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -937,6 +939,31 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   // project's VPN and resolves the password from the ticket). Other environments: the SAP MCP
   // server. Only used once the live connection test of this case has passed.
   const lastConnTestRef = useRef(null);
+
+  // Arena estimate for the specs' Time Estimation tables (see lib/estimation.js).
+  const [specEstCtx, setSpecEstCtx] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    caseEstimationContext(caseData, ssCtx.settings, { isStaff: auth.isAdmin || auth.isManager })
+      .then(c => { if (alive) setSpecEstCtx(c); }).catch(() => {});
+    return () => { alive = false; };
+  }, [caseData.id, caseData.expected_seniority, caseData.case_assignments?.[0]?.consultant_id, ssCtx.settings?.estimation_factors, ssCtx.settings?.case_sap_live_check, ssCtx.settings?.generation_context]); // eslint-disable-line react-hooks/exhaustive-deps
+  const arenaEstNote = (() => {
+    const c = specEstCtx; if (!c) return '';
+    const f = c.factors;
+    const byMode = (mode) => Object.entries(c.policyTypes).filter(([, m]) => ({ auto: 'ai-generate', semi: 'adt-create-only' })[mode] === m).map(([k]) => k.replace(/_/g, ' ')).join(', ');
+    const lines = [
+      '',
+      'TIME ESTIMATION — STANDARD vs ARENA: the hours above are the STANDARD estimate (done by hand by a mid-level SAP consultant); keep them. Add a column "Arena Hours" right after the standard hours column, with the totals, and end the section with one line stating the hours and % saved with Arena. Arena hours = standard hours × implementation factor × seniority factor (round to 0.5 h):',
+      c.arenaAvailable
+        ? `- Development of objects Arena implements automatically (${byMode('auto')}): × ${f.automation.auto}; objects Arena creates for the consultant to complete (${byMode('semi')}): × ${f.automation.semi}; anything else (configuration, OData, Smartforms, testing, UAT, transports): × ${f.automation.manual}.`
+        : `- Arena's automatic SAP implementation is not available for this case: development, testing and UAT stay × ${f.automation.manual}.`,
+      c.liveCheck ? `- Analysis & design / requirements (live SAP check verifies objects and the system): × ${f.automation.design}.` : '- Analysis & design: × 1.0 (no live SAP check).',
+      `- Consultant seniority: ${SENIORITY_LABEL.en[c.seniority]} → × ${f.seniority[c.seniority]}.`,
+      '',
+    ];
+    return lines.join('\n');
+  })();
   async function buildMcpConfig(overrideUrl, { connOk } = {}) {
     if (!sapConnCfg || !(connOk ?? sapConnTest?.ok)) return [];
     const isAdtEnv = ['abap-adt', 'abap-adt-readonly', 'abap-adt-both'].includes(sapConnCfg.mcp_type);
@@ -2302,6 +2329,7 @@ Generate the specification with EXACTLY these sections in order:
 | | | | **Subtotal** | **[total]** |
 
 ## 6. Time Estimation
+${arenaEstNote}
 
 | Phase | Included Objects | Hours |
 |-------|-----------------|-------|
@@ -2825,6 +2853,7 @@ Generate with EXACTLY these sections:
 | | | | **Subtotal** | **[total]** |
 
 ## 6. Time Estimation
+${arenaEstNote}
 
 | Phase | Included Objects | Hours |
 |-------|-----------------|-------|
@@ -2974,6 +3003,7 @@ Generate with EXACTLY these sections:
 | | | | **Subtotal** | **[total]** |
 
 ## 5. Time Estimation
+${arenaEstNote}
 
 | Phase | Included Objects | Hours |
 |-------|-----------------|-------|
@@ -3080,6 +3110,7 @@ Generate with EXACTLY these sections:
 1. [testable acceptance criterion a business user can verify]
 
 ## 8. Time Estimation
+${arenaEstNote}
 
 | Phase | Hours |
 |-------|-------|
@@ -3156,6 +3187,7 @@ Generate with EXACTLY these sections:
 1. [testable acceptance criterion a business user can verify]
 
 ## 8. Time Estimation
+${arenaEstNote}
 
 | Phase | Hours |
 |-------|-------|

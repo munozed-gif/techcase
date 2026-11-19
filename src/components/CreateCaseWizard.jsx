@@ -405,7 +405,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   }, [selectedProjectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const _visCfg = useVisibilitySettings();
-  const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null, application_mode: initialData?.application_mode ?? "both", case_type: initialData?.case_type ?? (auth.isHeadhunter ? "resource_need" : "case") });
+  const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null, expected_seniority: initialData?.expected_seniority ?? null, application_mode: initialData?.application_mode ?? "both", case_type: initialData?.case_type ?? (auth.isHeadhunter ? "resource_need" : "case") });
   const [requiredRoles, setRequiredRoles] = useState(
     (initialData?.required_roles ?? []).map(r => ({
       seniority: "Any", time_pct: 50, ...r,
@@ -716,6 +716,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         is_confidential: basics.is_confidential,
         nda_required: basics.nda_required,
         min_trust_level: basics.min_trust_level ?? null,
+        expected_seniority: basics.expected_seniority ?? null,
         ...rest,
         start_date: rest.start_date || null,
         due_date: rest.due_date || null,
@@ -1189,6 +1190,22 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 </select>
               </div>
             )}
+
+            {/* Expected seniority — used for the Arena time estimate until a consultant is assigned */}
+            <div className="mt-4 border border-gray-100 rounded-xl p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Expected Seniority</label>
+              <p className="text-xs text-gray-400 mb-2">Used for the time estimate (Junior takes longer, Senior/Expert less). Once a consultant is assigned, their own seniority is used.</p>
+              <select
+                value={basics.expected_seniority ?? ''}
+                onChange={e => setBasics(p => ({ ...p, expected_seniority: e.target.value || null }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                <option value="">Not set (Mid)</option>
+                <option value="junior">Junior</option>
+                <option value="mid">Mid</option>
+                <option value="senior">Senior</option>
+                <option value="expert">Expert</option>
+              </select>
+            </div>
           </>
         )}
         {step === 2 && mode === "express" && (

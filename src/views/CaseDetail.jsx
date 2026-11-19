@@ -55,6 +55,8 @@ import {
   DEFAULT_ACTIVITY_PHASES, getLifecycleStages, GATE_CONDITIONS,
 } from "../lib/businessConstants.js";
 import { resolveGate, caseValidationScope } from "../lib/validationPolicies.js";
+import { applyArenaEstimate, arenaHours, estimateTotals, IMPL_MODE_LABEL, SENIORITY_LABEL, SENIORITY_LEVELS } from "../lib/estimation.js";
+import { caseEstimationContext } from "../lib/estimationContext.js";
 import { EffectiveRulesPanel } from "../components/ValidationRulesPanel.jsx";
 
 // ── HTML document builder for AI-generated markdown docs ──────────────────────
@@ -206,6 +208,46 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   const { invoices } = useInvoices(caseData.id);
   const [actRefreshKey, setActRefreshKey] = useState(0);
   const { activities, addActivity, updateActivity, deleteActivity, refetch: refetchActivities } = useCaseActivities(caseData.id, actRefreshKey);
+
+  // ── Arena estimate: recalculate from the standard hours (no AI call) ──
+  // Used when the consultant is assigned (their seniority replaces the case's expected one), when
+  // the case's expected seniority changes, or from the "Recalculate" button.
+  const [recalcingEstimate, setRecalcingEstimate] = useState(false);
+  async function recalcArenaEstimate({ silent = false } = {}) {
+    const withStd = (activities ?? []).filter(a => a.est_hours_manual != null);
+    if (!withStd.length) return 0;
+    setRecalcingEstimate(true);
+    try {
+      const ctx = await caseEstimationContext(caseData, cdSettings, { isStaff: auth.isAdmin || auth.isManager });
+      const next = applyArenaEstimate(withStd, { ...ctx, keepModes: true });
+      let changed = 0;
+      for (const a of next) {
+        const old = withStd.find(x => x.id === a.id);
+        if (!old || (Number(old.est_hours) === Number(a.est_hours) && old.seniority === a.seniority)) continue;
+        const { error } = await supabase.from('case_activities').update({ est_hours: a.est_hours, seniority: a.seniority }).eq('id', a.id);
+        if (!error) changed++;
+      }
+      if (changed) setActRefreshKey(k => k + 1);
+      if (!silent) alert(lang === 'es'
+        ? `Estimación Arena recalculada (${(SENIORITY_LABEL.es)[ctx.seniority]}): ${changed} actividad(es) actualizada(s).`
+        : `Arena estimate recalculated (${(SENIORITY_LABEL.en)[ctx.seniority]}): ${changed} activit${changed === 1 ? 'y' : 'ies'} updated.`);
+      return changed;
+    } finally { setRecalcingEstimate(false); }
+  }
+  // Auto: when the seniority the estimate should use differs from the one stored on the activities.
+  const _assignedId = caseData.case_assignments?.[0]?.consultant_id ?? null;
+  useEffect(() => {
+    if (!(activities ?? []).some(a => a.est_hours_manual != null)) return;
+    let alive = true;
+    (async () => {
+      const ctx = await caseEstimationContext(caseData, cdSettings, { isStaff: auth.isAdmin || auth.isManager }).catch(() => null);
+      if (!alive || !ctx) return;
+      if ((activities ?? []).some(a => a.est_hours_manual != null && a.seniority && a.seniority !== ctx.seniority)) {
+        recalcArenaEstimate({ silent: true });
+      }
+    })();
+    return () => { alive = false; };
+  }, [_assignedId, caseData.expected_seniority, activities?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [caseTransportReqs, setCaseTransportReqs] = useState([]);
   useEffect(() => {
@@ -1390,6 +1432,15 @@ Approver signature, Date.`;
     const totalHrs   = acts.reduce((s, a) => s + (a.est_hours || 0), 0);
     const designHrs  = designActs.reduce((s, a) => s + (a.est_hours || 0), 0);
     const devHrs     = devActs.reduce((s, a) => s + (a.est_hours || 0), 0);
+    // Standard (by hand) vs Arena estimate.
+    const stdOf      = a => Number(a.est_hours_manual ?? a.est_hours) || 0;
+    const stdTotal   = Math.round(acts.reduce((s, a) => s + stdOf(a), 0) * 10) / 10;
+    const stdDesign  = Math.round(designActs.reduce((s, a) => s + stdOf(a), 0) * 10) / 10;
+    const stdDev     = Math.round(devActs.reduce((s, a) => s + stdOf(a), 0) * 10) / 10;
+    const savedPct   = stdTotal > 0 ? Math.round((1 - totalHrs / stdTotal) * 100) : 0;
+    const hasArena   = acts.some(a => a.est_hours_manual != null && Number(a.est_hours_manual) !== Number(a.est_hours));
+    const modeLbl    = (IMPL_MODE_LABEL[lang] ?? IMPL_MODE_LABEL.en);
+    const L2 = (en, es) => (lang === 'es' ? es : en);
 
     const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
@@ -1399,7 +1450,7 @@ Approver signature, Date.`;
         <div class="activity-inner">
           <div class="act-head">
             <h3>${esc(a.title)}</h3>
-            <span class="act-hours">${a.est_hours}h</span>
+            <span class="act-hours">${hasArena ? `<span style="opacity:.6;text-decoration:line-through">${stdOf(a)}h</span> → ` : ''}${a.est_hours}h${hasArena && a.impl_mode ? ` · ${modeLbl[a.impl_mode] ?? a.impl_mode}` : ''}</span>
           </div>
           ${a.description ? `<p class="act-desc">${esc(a.description)}</p>` : ''}
           ${a.acceptance_criteria ? `<div class="act-crit"><span class="crit-icon">✓</span>${esc(a.acceptance_criteria)}</div>` : ''}
@@ -1575,7 +1626,8 @@ canvas{display:block;width:100%}
     </div>
 
     <div class="es-kpis">
-      <div class="es-kpi"><div class="es-num">${totalHrs}<span class="es-unit">h</span></div><div class="es-lbl">${s.kpiTotalEffort}</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.min(100,Math.round(totalHrs/1.2))}%"></div></div></div>
+      <div class="es-kpi"><div class="es-num">${totalHrs}<span class="es-unit">h</span></div><div class="es-lbl">${s.kpiTotalEffort}${hasArena ? ` — ${L2('with Arena', 'con Arena')}` : ''}</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.min(100,Math.round(totalHrs/1.2))}%"></div></div></div>
+      ${hasArena ? `<div class="es-kpi"><div class="es-num">${stdTotal}<span class="es-unit">h</span></div><div class="es-lbl">${L2('Standard estimate (by hand)', 'Estimación estándar (manual)')} · −${savedPct}% ${L2('with Arena', 'con Arena')}</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.min(100,Math.round(stdTotal/1.2))}%"></div></div></div>` : ''}
       <div class="es-kpi"><div class="es-num">${acts.length}</div><div class="es-lbl">${s.kpiPlannedActs}</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.min(100,acts.length*7)}%"></div></div></div>
       <div class="es-kpi"><div class="es-num">${estWeeks}<span class="es-unit">w</span></div><div class="es-lbl">${s.kpiEstDuration}</div><div class="es-bar"><div class="es-bar-f" style="width:${Math.round(estWeeks/12*100)}%"></div></div></div>
       <div class="es-kpi"><div class="es-num">2</div><div class="es-lbl">${s.kpiPhases}</div><div class="es-bar"><div class="es-bar-f" style="width:20%"></div></div></div>
@@ -1599,11 +1651,11 @@ canvas{display:block;width:100%}
     <div class="es-acts-wrap">
       <div class="es-acts-head">${s.actRegister}</div>
       <table class="es-acts-tbl">
-        <thead><tr><th>ID</th><th>${lang === 'es' ? 'Actividad' : 'Activity'}</th><th>${lang === 'es' ? 'Fase' : 'Phase'}</th><th>${lang === 'es' ? 'Hrs. Est.' : 'Est. Hours'}</th><th>${lang === 'es' ? 'Prioridad' : 'Priority'}</th></tr></thead>
+        <thead><tr><th>ID</th><th>${lang === 'es' ? 'Actividad' : 'Activity'}</th><th>${lang === 'es' ? 'Fase' : 'Phase'}</th>${hasArena ? `<th>${L2('Standard', 'Estándar')}</th><th>${L2('Arena', 'Arena')}</th>` : `<th>${lang === 'es' ? 'Hrs. Est.' : 'Est. Hours'}</th>`}<th>${lang === 'es' ? 'Prioridad' : 'Priority'}</th></tr></thead>
         <tbody>
-          ${designActs.length > 0 ? `<tr class="es-ph-row"><td colspan="5" style="background:#E6EEF8;color:#1254A0;font-size:0.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:0.3rem 0.9rem">◆ ${s.phaseBandDesign} — ${designHrs}h · ${designActs.length} ${lang === 'es' ? 'actividades' : 'activities'}</td></tr>${designActs.map((a, i) => `<tr><td class="es-act-id">1.${i+1}</td><td class="es-act-name">${esc(a.title)}</td><td class="es-act-ph es-ph-d">${s.phaseDesign}</td><td class="es-act-h">${a.est_hours}h</td><td>${pBadge(a)}</td></tr>`).join('')}` : ''}
-          ${devActs.length > 0 ? `<tr class="es-ph-row"><td colspan="5" style="background:#E5F0EA;color:#1C6B3A;font-size:0.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:0.3rem 0.9rem">◆ ${s.phaseBandDev} — ${devHrs}h · ${devActs.length} ${lang === 'es' ? 'actividades' : 'activities'}</td></tr>${devActs.map((a, i) => `<tr><td class="es-act-id">2.${i+1}</td><td class="es-act-name">${esc(a.title)}</td><td class="es-act-ph es-ph-v">${s.phaseDev}</td><td class="es-act-h">${a.est_hours}h</td><td>${pBadge(a)}</td></tr>`).join('')}` : ''}
-          <tr class="es-tot-row"><td></td><td colspan="2"><strong>${s.projTotal}</strong></td><td class="es-act-h"><strong>${totalHrs}h</strong></td><td style="font-size:0.68rem;color:rgba(255,255,255,0.4)">${acts.length} ${lang === 'es' ? 'actividades' : 'activities'}</td></tr>
+          ${designActs.length > 0 ? `<tr class="es-ph-row"><td colspan="${hasArena ? 6 : 5}" style="background:#E6EEF8;color:#1254A0;font-size:0.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:0.3rem 0.9rem">◆ ${s.phaseBandDesign} — ${hasArena ? `${stdDesign}h → ` : ''}${designHrs}h · ${designActs.length} ${lang === 'es' ? 'actividades' : 'activities'}</td></tr>${designActs.map((a, i) => `<tr><td class="es-act-id">1.${i+1}</td><td class="es-act-name">${esc(a.title)}</td><td class="es-act-ph es-ph-d">${s.phaseDesign}</td>${hasArena ? `<td class="es-act-h" style="opacity:.6">${stdOf(a)}h</td>` : ''}<td class="es-act-h">${a.est_hours}h${hasArena && a.impl_mode ? ` <span style="font-size:.6rem;opacity:.7">${modeLbl[a.impl_mode] ?? ''}</span>` : ''}</td><td>${pBadge(a)}</td></tr>`).join('')}` : ''}
+          ${devActs.length > 0 ? `<tr class="es-ph-row"><td colspan="${hasArena ? 6 : 5}" style="background:#E5F0EA;color:#1C6B3A;font-size:0.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;padding:0.3rem 0.9rem">◆ ${s.phaseBandDev} — ${hasArena ? `${stdDev}h → ` : ''}${devHrs}h · ${devActs.length} ${lang === 'es' ? 'actividades' : 'activities'}</td></tr>${devActs.map((a, i) => `<tr><td class="es-act-id">2.${i+1}</td><td class="es-act-name">${esc(a.title)}</td><td class="es-act-ph es-ph-v">${s.phaseDev}</td>${hasArena ? `<td class="es-act-h" style="opacity:.6">${stdOf(a)}h</td>` : ''}<td class="es-act-h">${a.est_hours}h${hasArena && a.impl_mode ? ` <span style="font-size:.6rem;opacity:.7">${modeLbl[a.impl_mode] ?? ''}</span>` : ''}</td><td>${pBadge(a)}</td></tr>`).join('')}` : ''}
+          <tr class="es-tot-row"><td></td><td colspan="2"><strong>${s.projTotal}</strong></td>${hasArena ? `<td class="es-act-h"><strong>${stdTotal}h</strong></td>` : ''}<td class="es-act-h"><strong>${totalHrs}h</strong>${hasArena ? ` <span style="font-size:.65rem">(−${savedPct}%)</span>` : ''}</td><td style="font-size:0.68rem;color:rgba(255,255,255,0.4)">${acts.length} ${lang === 'es' ? 'actividades' : 'activities'}</td></tr>
         </tbody>
       </table>
     </div>
@@ -1954,11 +2006,13 @@ ${specContent ? specContent.slice(0, 4000) : '(Spec content not available — us
 
 Generate 3–5 Design phase activities and 4–8 Development phase activities for this SAP case.
 
+est_hours is the STANDARD estimate: the hours a mid-level SAP consultant needs doing the work by hand (no automation). For each development activity that builds one SAP object, set sap_object_type to one of: program, report, include, class, function_module, bapi, badi, enhancement, table, structure, domain, data_element, message_class, odata, smartform, config — or "none" when it is not about one object (testing, transport, documentation…). Prefer one activity per object.
+
 Return ONLY this JSON object (no other text):
 {
   "activities": [
-    { "title": "short title", "description": "what this activity entails", "acceptance_criteria": "done criteria", "est_hours": 4, "phase": "design" },
-    { "title": "short title", "description": "what this activity entails", "acceptance_criteria": "done criteria", "est_hours": 8, "phase": "development" }
+    { "title": "short title", "description": "what this activity entails", "acceptance_criteria": "done criteria", "est_hours": 4, "phase": "design", "sap_object_type": "none" },
+    { "title": "short title", "description": "what this activity entails", "acceptance_criteria": "done criteria", "est_hours": 8, "phase": "development", "sap_object_type": "function_module" }
   ]
 }
 
@@ -1973,6 +2027,7 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
         acceptance_criteria: String(a.acceptance_criteria ?? ''),
         est_hours: Math.max(0.5, Math.min(40, Number(a.est_hours) || 4)),
         phase: ['design', 'development'].includes(a.phase) ? a.phase : 'development',
+        sap_object_type: typeof a.sap_object_type === 'string' ? a.sap_object_type : null,
         _selected: true,
         _type: outputMode === 'subcases' ? 'subcase' : 'activity',
       });
@@ -1988,7 +2043,11 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
       // Attempt parse: direct → strip accidental fences → brute-force object extraction
       const stripped = jsonRaw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
       const objMatch = (jsonRaw.match(/\{[\s\S]*\}/) ?? [])[0] ?? '{}';
-      const parsedActivities = tryParse(jsonRaw) ?? tryParse(stripped) ?? tryParse(objMatch) ?? [];
+      const parsedStandard = tryParse(jsonRaw) ?? tryParse(stripped) ?? tryParse(objMatch) ?? [];
+      // Arena estimate next to the standard one (automation × seniority, see lib/estimation.js).
+      const estCtx = await caseEstimationContext(caseData, cdSettings, { isStaff: auth.isAdmin || auth.isManager });
+      const parsedActivities = applyArenaEstimate(parsedStandard, estCtx);
+      const estTot = estimateTotals(parsedActivities);
 
       console.log('[DevPlan] raw length:', jsonRaw.length, '| parsedActivities:', parsedActivities.length);
       if (!parsedActivities.length) {
@@ -1998,7 +2057,8 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
 
       // ── Call 2: Markdown narrative for PDF ────────────────────────
       const actSummary = parsedActivities.map((a, i) =>
-        `${i + 1}. [${a.phase.toUpperCase()}] ${a.title} (${a.est_hours}h)`).join('\n');
+        `${i + 1}. [${a.phase.toUpperCase()}] ${a.title} — standard ${a.est_hours_manual}h, with Arena ${a.est_hours}h (${a.impl_mode})`).join('\n')
+        + `\nTOTAL: standard ${estTot.manual}h, with Arena ${estTot.arena}h (${estTot.saved}% less). Seniority used: ${estCtx.seniority}. Arena SAP implementation: ${estCtx.arenaAvailable ? 'available (ABAP ADT + live SAP check)' : 'not available — only design gains apply'}.`;
       const markdown = await callClaude({
         model: genModel,
         system: 'You are an SAP project delivery expert. Write clear, concise project documentation.',
@@ -2017,6 +2077,7 @@ For each design activity: objectives and deliverables.
 For each development activity: technical approach and deliverables.
 ## 4. Dependencies & Risks
 ## 5. Estimated Timeline
+Include a table comparing, per phase and in total, the STANDARD estimate (by hand) with the ARENA estimate (Arena platform: automatic SAP implementation, live SAP checks, and the consultant seniority), using exactly the hours given above, and one sentence explaining the difference.
 
 Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${buildGenSuffix(genProfile)}`,
         }],
@@ -2027,7 +2088,7 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
       const planHtml = buildDevPlanHtml(caseData, parsedActivities, markdown, lang);
 
       // Show preview step — user can edit, reorder type, deselect before confirming
-      setDevPlanPreview({ items: parsedActivities, defaultMode: outputMode, markdown, planHtml });
+      setDevPlanPreview({ items: parsedActivities, defaultMode: outputMode, markdown, planHtml, estCtx: { factors: estCtx.factors, seniority: estCtx.seniority, senioritySource: estCtx.senioritySource, liveCheck: estCtx.liveCheck, arenaAvailable: estCtx.arenaAvailable } });
     } catch (e) {
       alert(t("alert.devplan_failed") + e.message);
     } finally {
@@ -2039,8 +2100,10 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
     if (!devPlanPreview) return;
     setConfirmingDevPlan(true);
     try {
-      const { items, markdown, planHtml } = devPlanPreview;
+      const { items, markdown } = devPlanPreview;
       const selected = items.filter(a => a._selected);
+      // Rebuilt from the confirmed items, so edited hours appear in the document too.
+      const planHtml = buildDevPlanHtml(caseData, selected, markdown, lang);
       if (!selected.length) { alert('No items selected.'); return; }
 
       const actItems = selected.filter(a => a._type === 'activity');
@@ -2067,6 +2130,9 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
           description: `${a.description}${a.acceptance_criteria ? '\n\nAcceptance criteria: ' + a.acceptance_criteria : ''}`,
           detail: '',
           est_hours: a.est_hours,
+          est_hours_manual: a.est_hours_manual ?? null,
+          impl_mode: a.impl_mode ?? null,
+          seniority: a.seniority ?? null,
           activity_type: 'task',
           status: 'pending',
           progress_pct: 0,
@@ -2104,6 +2170,9 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
           activity_type: 'sub_case',
           linked_case_id: newSubCase.id,
           est_hours: a.est_hours,
+          est_hours_manual: a.est_hours_manual ?? null,
+          impl_mode: a.impl_mode ?? null,
+          seniority: a.seniority ?? null,
           status: 'pending',
           progress_pct: 0,
           phase: a.phase,
@@ -4488,6 +4557,22 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                         {generatingDevPlan ? <><Spinner size={9} /> {t("case.generating")}</> : <><RotateCcw size={10} /> {t("case.regenerate_plan")}</>}
                       </button>
                     )}
+                    {canManage && (
+                      <select value={caseData.expected_seniority ?? ''}
+                        onChange={async e => { try { await onUpdate(caseData.id, { expected_seniority: e.target.value || null }); } catch (err) { alert(err.message); } }}
+                        title={lang === 'es' ? 'Seniority esperada del consultor (para la estimación Arena hasta asignar un consultor)' : 'Expected consultant seniority (used for the Arena estimate until a consultant is assigned)'}
+                        className="text-[10px] font-semibold border border-gray-200 rounded-md px-1.5 py-0.5 bg-white text-gray-600">
+                        <option value="">{lang === 'es' ? 'Seniority: no definida' : 'Seniority: not set'}</option>
+                        {SENIORITY_LEVELS.map(l => <option key={l} value={l}>{(SENIORITY_LABEL[lang] ?? SENIORITY_LABEL.en)[l]}</option>)}
+                      </select>
+                    )}
+                    {canManage && activities.some(a => a.est_hours_manual != null) && (
+                      <button onClick={() => recalcArenaEstimate()} disabled={recalcingEstimate}
+                        className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 hover:text-emerald-800 disabled:opacity-50"
+                        title={lang === 'es' ? 'Recalcular la estimación Arena con la seniority actual (consultor asignado o la esperada del caso)' : 'Recalculate the Arena estimate with the current seniority (assigned consultant or the case\'s expected one)'}>
+                        {recalcingEstimate ? <Spinner size={9} /> : <RotateCcw size={10} />} {lang === 'es' ? 'Recalcular Arena' : 'Recalculate Arena'}
+                      </button>
+                    )}
                     <span className="text-lg font-bold text-blue-700">{caseProgress}%</span>
                   </div>
                 </div>
@@ -4497,6 +4582,14 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                 <div className="text-xs text-gray-400 mt-1 flex gap-4">
                   <span>{activities.filter(a => actEffectivePct(a) === 100).length} of {activities.length} activities complete</span>
                   {totalEstHours > 0 && <span>{totalActualHoursAll.toFixed(1)}h of {totalEstHours}h</span>}
+                  {(() => {
+                    if (!activities.some(a => a.est_hours_manual != null)) return null;
+                    const tt = estimateTotals(activities);
+                    const sen = activities.find(a => a.seniority)?.seniority;
+                    return <span title={lang === 'es' ? 'Estimación estándar (manual) vs con Arena' : 'Standard estimate (by hand) vs with Arena'}>
+                      {lang === 'es' ? 'Estándar' : 'Standard'} {tt.manual}h → <b className="text-emerald-600">Arena {tt.arena}h</b> (−{tt.saved}%){sen ? ` · ${(SENIORITY_LABEL[lang] ?? SENIORITY_LABEL.en)[sen]}` : ''}
+                    </span>;
+                  })()}
                 </div>
               </div>
 
@@ -4611,15 +4704,26 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                         onChange={e => setDevPlanPreview(p => ({ ...p, items: p.items.map((it, i) => i === idx ? { ...it, title: e.target.value } : it) }))}
                         className="flex-1 min-w-0 text-sm text-gray-800 font-medium bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none py-0.5 transition-colors"
                       />
-                      {/* Editable hours */}
-                      <div className="flex-shrink-0 flex items-center gap-1">
+                      {/* Editable STANDARD hours (by hand) → Arena hours */}
+                      <div className="flex-shrink-0 flex items-center gap-1" title={lang === 'es' ? 'Estimación estándar (manual) → con Arena' : 'Standard estimate (by hand) → with Arena'}>
                         <input
                           type="number" min="0.5" max="40" step="0.5"
-                          value={item.est_hours}
-                          onChange={e => setDevPlanPreview(p => ({ ...p, items: p.items.map((it, i) => i === idx ? { ...it, est_hours: Math.max(0.5, Math.min(40, Number(e.target.value) || 0.5)) } : it) }))}
+                          value={item.est_hours_manual ?? item.est_hours}
+                          onChange={e => setDevPlanPreview(p => ({ ...p, items: p.items.map((it, i) => {
+                            if (i !== idx) return it;
+                            const manual = Math.max(0.5, Math.min(40, Number(e.target.value) || 0.5));
+                            const ec = p.estCtx;
+                            return { ...it, est_hours_manual: manual, est_hours: ec ? arenaHours(manual, it.impl_mode, ec.seniority, ec.factors, { liveCheck: ec.liveCheck }) : manual };
+                          }) }))}
                           className="w-14 text-xs text-gray-600 text-right bg-gray-100 hover:bg-gray-200 focus:bg-white border border-transparent focus:border-blue-400 rounded px-1.5 py-1 focus:outline-none transition-colors"
                         />
-                        <span className="text-[10px] text-gray-400">h</span>
+                        <span className="text-[10px] text-gray-400">h →</span>
+                        <span className="text-xs font-semibold text-emerald-700">{item.est_hours}h</span>
+                        {item.impl_mode && (
+                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${item.impl_mode === 'auto' ? 'bg-emerald-100 text-emerald-700' : item.impl_mode === 'semi' ? 'bg-sky-100 text-sky-700' : item.impl_mode === 'design' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                            {(IMPL_MODE_LABEL[lang] ?? IMPL_MODE_LABEL.en)[item.impl_mode] ?? item.impl_mode}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -4628,7 +4732,15 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                   <div className="text-xs text-gray-500">
                     {devPlanPreview.items.filter(a => a._selected && a._type === 'activity').length} activities ·{' '}
                     {devPlanPreview.items.filter(a => a._selected && a._type === 'subcase').length} sub-cases ·{' '}
-                    {devPlanPreview.items.filter(a => a._selected).reduce((s, a) => s + a.est_hours, 0).toFixed(1)}h total
+                    {(() => {
+                      const sel = devPlanPreview.items.filter(a => a._selected);
+                      const tt = estimateTotals(sel);
+                      const ec = devPlanPreview.estCtx;
+                      return <>
+                        {lang === 'es' ? 'Estándar' : 'Standard'} {tt.manual}h → <b className="text-emerald-700">Arena {tt.arena}h</b> (−{tt.saved}%)
+                        {ec && <span className="ml-1 text-gray-400">· {(SENIORITY_LABEL[lang] ?? SENIORITY_LABEL.en)[ec.seniority]}{ec.senioritySource === 'consultant' ? (lang === 'es' ? ' (consultor asignado)' : ' (assigned consultant)') : ec.senioritySource === 'case' ? (lang === 'es' ? ' (del caso)' : ' (case)') : ''}{!ec.arenaAvailable ? (lang === 'es' ? ' · sin implementación automática SAP' : ' · no automatic SAP implementation') : ''}</span>}
+                      </>;
+                    })()}
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => setDevPlanPreview(null)}
@@ -5450,6 +5562,11 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                             <span className="text-gray-500">{dispPct}%</span>
                             <span className="text-gray-400 font-mono">{actHours.toFixed(1)}h / {act.est_hours ?? 0}h</span>
                           </div>
+                          {act.est_hours_manual != null && Number(act.est_hours_manual) !== Number(act.est_hours) && (
+                            <div className="text-[10px] text-gray-400 mb-1 text-right" title={lang === 'es' ? 'Estimación estándar (manual) → con Arena' : 'Standard estimate (by hand) → with Arena'}>
+                              <span className="line-through">{act.est_hours_manual}h</span> → <span className="text-emerald-600 font-semibold">{act.est_hours}h</span>{act.impl_mode ? ` · ${(IMPL_MODE_LABEL[lang] ?? IMPL_MODE_LABEL.en)[act.impl_mode] ?? act.impl_mode}` : ''}
+                            </div>
+                          )}
                           <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                             <div className={`h-full rounded-full transition-all ${dispPct === 100 ? "bg-emerald-500" : act.status === "blocked" ? "bg-red-400" : "bg-blue-500"}`}
                               style={{ width: `${dispPct}%` }} />
