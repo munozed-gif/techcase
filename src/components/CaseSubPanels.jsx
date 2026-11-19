@@ -1062,10 +1062,16 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     const s = activeStages.find(st => st.type === nodeType);
     return s?.enabled !== false;
   }
+  // Template node labels: a custom label is shown as written; the built-in English default
+  // ("SAP Verification"…) is replaced by the translated label for the user's language.
+  const SG_DEFAULT_LABELS = ['Documents', 'SAP Connection', 'Compiled Context', 'SAP Verification', 'Proposal Validation', 'Generate Specs', 'Approval'];
   function getSgNodeLabel(nodeType, fallback) {
     const s = activeStages.find(st => st.type === nodeType);
-    return s?.label ?? fallback;
+    if (!s?.label || (fallback && SG_DEFAULT_LABELS.includes(s.label))) return fallback ?? s?.label;
+    return s.label;
   }
+  // Spanish / English for the approval panel's texts.
+  const L = (en, es) => (lang === 'es' ? es : en);
 
   // Approval workflow sub-steps (Node 4)
   const [approvalStep, setApprovalStep]     = useState('generated'); // 'generated'|'checking'|'sending'|'approved'
@@ -4623,7 +4629,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className={isSgNodeEnabled("sap_verification") ? "" : "opacity-40"}>
               <NodeBtn id={1} icon={CheckCircle2}
                 title={getSgNodeLabel("sap_verification", t("spec.ai_step1_h"))}
-                sub={!isSgNodeEnabled("sap_verification") ? "Disabled by template" : sapCheck ? sapCheck.coverage : sapStatus==='running' ? t("spec.checking") : sapStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
+                sub={!isSgNodeEnabled("sap_verification") ? L("Disabled by template", "Desactivado por la plantilla") : sapCheck ? ({ full: L("Full coverage", "Cobertura total"), partial: L("Partial coverage", "Cobertura parcial"), none: L("No standard coverage", "Sin cobertura estándar") }[sapCheck.coverage] ?? sapCheck.coverage) : sapStatus==='running' ? t("spec.checking") : sapStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
                 status={!isSgNodeEnabled("sap_verification") ? "skipped" : sapStatus}
                 isActive={activeNode===1}
                 canClick={isSgNodeEnabled("sap_verification")}
@@ -4635,7 +4641,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className={isSgNodeEnabled("proposal_validation") ? "" : "opacity-40"}>
               <NodeBtn id={2} icon={Target}
                 title={getSgNodeLabel("proposal_validation", t("spec.ai_step2_h"))}
-                sub={!isSgNodeEnabled("proposal_validation") ? "Disabled by template" : proposalCheck ? `Score ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? t("spec.locked") : propStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
+                sub={!isSgNodeEnabled("proposal_validation") ? L("Disabled by template", "Desactivado por la plantilla") : proposalCheck ? `${L("Score", "Puntuación")} ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? t("spec.locked") : propStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
                 status={!isSgNodeEnabled("proposal_validation") ? "skipped" : propStatus}
                 isActive={activeNode===2}
                 canClick={isSgNodeEnabled("proposal_validation") && propStatus !== 'locked'}
@@ -4916,10 +4922,10 @@ Respond with ONLY a valid JSON object, no markdown fences:
             {/* ── Node 4: Approval workflow ── */}
             {activeNode === 4 && (() => {
               const STEPS = [
-                { key: 'generated', label: 'Spec Generated',    icon: <Sparkles size={13} /> },
-                { key: 'checking',  label: 'Checking Spec',     icon: <Search size={13} />   },
-                { key: 'sending',   label: 'Send for Approval', icon: <Flag size={13} />     },
-                { key: 'approved',  label: 'Approved',          icon: <Award size={13} />    },
+                { key: 'generated', label: L('Spec Generated', 'Spec generada'),        icon: <Sparkles size={13} /> },
+                { key: 'checking',  label: L('Checking Spec', 'Revisión de la spec'),   icon: <Search size={13} />   },
+                { key: 'sending',   label: L('Send for Approval', 'Enviar a aprobación'), icon: <Flag size={13} />     },
+                { key: 'approved',  label: L('Approved', 'Aprobada'),                    icon: <Award size={13} />    },
               ];
               const stepIdx = { generated: 0, checking: 1, sending: 2, approved: 3 }[approvalStep] ?? 0;
 
@@ -5021,12 +5027,12 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                         <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 flex items-center justify-between">
                           <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                            <FileText className="w-3.5 h-3.5" /> Generation Log
+                            <FileText className="w-3.5 h-3.5" /> {L("Generation Log", "Historial de generación")}
                           </p>
-                          <span className="text-[10px] text-gray-400">{genLog.length} run{genLog.length !== 1 ? 's' : ''}</span>
+                          <span className="text-[10px] text-gray-400">{genLog.length} {L(genLog.length !== 1 ? 'runs' : 'run', genLog.length !== 1 ? 'ejecuciones' : 'ejecución')}</span>
                         </div>
                         {genLog.length === 0 ? (
-                          <div className="px-3 py-4 text-center text-xs text-gray-400">No generation runs recorded yet.</div>
+                          <div className="px-3 py-4 text-center text-xs text-gray-400">{L("No generation runs recorded yet.", "Aún no hay generaciones registradas.")}</div>
                         ) : (
                           <div className="divide-y divide-gray-100 dark:divide-gray-700">
                             {[...genLog].reverse().map((entry, ri) => {
@@ -5037,7 +5043,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                               return (
                                 <div key={ri} className="px-3 py-2.5">
                                   <div className="flex items-center justify-between gap-2 mb-1">
-                                    <span className="text-[11px] font-semibold text-blue-600">Iteration {idx}</span>
+                                    <span className="text-[11px] font-semibold text-blue-600">{L("Iteration", "Iteración")} {idx}</span>
                                     <span className="text-[10px] text-gray-400">{dateStr} · {timeStr}</span>
                                   </div>
                                   {entry.specs?.length > 0 && (
@@ -5064,7 +5070,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       <div className="flex justify-end">
                         <button onClick={() => setApprovalStep('checking')}
                           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5">
-                          Review &amp; Refine →
+                          {L("Review & Refine →", "Revisar y ajustar →")}
                         </button>
                       </div>
                     </div>
@@ -5076,50 +5082,50 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       {spec.status === 'approved' && (
                         <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl px-3 py-2 flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-                          <p className="text-xs text-green-700 dark:text-green-400 font-medium">This spec has been approved — regeneration is locked.</p>
+                          <p className="text-xs text-green-700 dark:text-green-400 font-medium">{L("This spec has been approved — regeneration is locked.", "Esta spec ya fue aprobada — no se puede volver a generar.")}</p>
                         </div>
                       )}
-                      <div className={`rounded-xl border border-blue-800/40 bg-[#0d1b2e] overflow-hidden ${spec.status === 'approved' ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <div className={`rounded-xl border border-blue-200 bg-blue-50/40 dark:border-blue-800/40 dark:bg-[#0d1b2e] overflow-hidden ${spec.status === 'approved' ? 'opacity-50 pointer-events-none' : ''}`}>
                         <div className="flex items-center gap-2 px-3 pt-3 pb-1">
                           <div className="w-2 h-2 rounded-full bg-blue-500 opacity-70" />
-                          <p className="text-[11px] font-semibold text-blue-300">What do you want to change or add to the next generation?</p>
+                          <p className="text-[11px] font-semibold text-blue-700 dark:text-blue-300">{L("What do you want to change or add to the next generation?", "¿Qué quieres cambiar o agregar en la próxima generación?")}</p>
                         </div>
                         <textarea
                           value={specFeedback}
                           onChange={e => setSpecFeedback(e.target.value)}
                           rows={6}
-                          placeholder={"e.g. Add more detail to the authorization concept in Spec A. In Spec B, include the RFC function module names. Remove section 4 from Spec C…"}
-                          className="w-full bg-transparent px-3 py-2 text-xs text-gray-200 placeholder-gray-600 resize-none focus:outline-none font-mono leading-relaxed"
+                          placeholder={L("e.g. Add more detail to the authorization concept in Spec A. In Spec B, include the RFC function module names. Remove section 4 from Spec C…", "p. ej. Más detalle del concepto de autorizaciones en la Spec A. En la Spec B, incluir los módulos de función RFC. Quitar la sección 4 de la Spec C…")}
+                          className="w-full bg-transparent px-3 py-2 text-xs text-gray-800 placeholder-gray-400 dark:text-gray-200 dark:placeholder-gray-600 resize-none focus:outline-none font-mono leading-relaxed"
                         />
                         <div className="px-3 pb-2 flex items-center gap-1.5">
                           <div className="w-1.5 h-1.5 rounded-full bg-green-400 opacity-70" />
-                          <span className="text-[10px] text-gray-500">Feedback accumulates across iterations — Claude sees the full history</span>
+                          <span className="text-[10px] text-gray-500">{L("Feedback accumulates across iterations — Claude sees the full history", "Los comentarios se acumulan entre iteraciones — Claude ve todo el historial")}</span>
                         </div>
                       </div>
                       {genLog.length > 0 && (
                         <div className="text-[10px] text-gray-400 flex items-center gap-1">
-                          <span className="font-semibold text-gray-500">Last run:</span>
-                          Iteration {genLog.length} · {new Date(genLog[genLog.length-1]?.timestamp).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                          <span className="font-semibold text-gray-500">{L("Last run:", "Última ejecución:")}</span>
+                          {L("Iteration", "Iteración")} {genLog.length} · {new Date(genLog[genLog.length-1]?.timestamp).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
                           {genLog[genLog.length-1]?.specs?.length > 0 && ` · Spec ${genLog[genLog.length-1].specs.join(', ')}`}
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-2">
                         <button onClick={() => setApprovalStep('generated')}
                           className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                          ← Back to log
+                          {L("← Back to log", "← Volver al historial")}
                         </button>
                         <button
                           onClick={() => handleGenerateSpecs({ genProfile: activeProfile, fromApprovalReview: true })}
                           disabled={generatingSpecs || spec.status === 'approved'}
-                          title={spec.status === 'approved' ? 'Spec is approved — regeneration is locked' : undefined}
+                          title={spec.status === 'approved' ? L('Spec is approved — regeneration is locked', 'La spec está aprobada — no se puede volver a generar') : undefined}
                           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl flex items-center gap-1.5">
-                          {generatingSpecs ? <><span className="animate-spin inline-block">↻</span> Generating…</> : '↻ Generate Again'}
+                          {generatingSpecs ? <><span className="animate-spin inline-block">↻</span> {L('Generating…', 'Generando…')}</> : L('↻ Generate Again', '↻ Generar de nuevo')}
                         </button>
                       </div>
                       {generatingSpecs && (
                         <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-800/40 rounded-xl px-3 py-2">
                           <span className="animate-spin inline-block">↻</span>
-                          Generating specs with your feedback — this may take a minute…
+                          {L("Generating specs with your feedback — this may take a minute…", "Generando las specs con tus comentarios — puede tardar un minuto…")}
                         </div>
                       )}
                     </div>
@@ -5150,8 +5156,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           </div>
                           {genLog.length > 0 && (
                             <p className="text-[11px] text-gray-500">
-                              {genLog.length} generation run{genLog.length !== 1 ? 's' : ''} completed
-                              {genLog[genLog.length-1]?.feedback ? ' · includes your review feedback' : ''}
+                              {L(`${genLog.length} generation run${genLog.length !== 1 ? 's' : ''} completed`, `${genLog.length} generación(es) completada(s)`)}
+                              {genLog[genLog.length-1]?.feedback ? L(' · includes your review feedback', ' · incluye tus comentarios') : ''}
                             </p>
                           )}
                         </div>
@@ -5191,7 +5197,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       <div className="flex items-center justify-between gap-2 pt-1">
                         <button onClick={() => setApprovalStep('checking')}
                           className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                          ← Back to review
+                          {L("← Back to review", "← Volver a la revisión")}
                         </button>
                         {spec.status !== 'submitted' && spec.status !== 'approved' && (
                           <button
@@ -5225,7 +5231,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                               } catch (_) {}
                             }}
                             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5">
-                            Send for Approval →
+                            {L("Send for Approval →", "Enviar a aprobación →")}
                           </button>
                         )}
                       </div>
@@ -5241,7 +5247,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           <p className="font-semibold text-green-800 text-sm">{t("spec.approved_title")}</p>
                           {spec.approved_at && <p className="text-xs text-green-600 mt-0.5">{t("spec.approved_on").replace("{n}", fmtDate(spec.approved_at))}</p>}
                           {genLog.length > 0 && (
-                            <p className="text-xs text-green-500 mt-1">{genLog.length} generation iteration{genLog.length !== 1 ? 's' : ''} to reach approval</p>
+                            <p className="text-xs text-green-500 mt-1">{L(`${genLog.length} generation iteration${genLog.length !== 1 ? 's' : ''} to reach approval`, `${genLog.length} iteración(es) hasta la aprobación`)}</p>
                           )}
                         </div>
                       </div>
@@ -5249,18 +5255,18 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       {spec.content && (
                         <details className="group">
                           <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                            <span className="group-open:hidden">▶ Show generation log ({genLog.length} runs)</span>
-                            <span className="hidden group-open:inline">▼ Hide generation log</span>
+                            <span className="group-open:hidden">▶ {L(`Show generation log (${genLog.length} runs)`, `Ver historial de generación (${genLog.length})`)}</span>
+                            <span className="hidden group-open:inline">▼ {L("Hide generation log", "Ocultar historial de generación")}</span>
                           </summary>
                           <div className="mt-2 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                             {genLog.length === 0 ? (
-                              <div className="px-3 py-3 text-xs text-gray-400 text-center">No log entries.</div>
+                              <div className="px-3 py-3 text-xs text-gray-400 text-center">{L("No log entries.", "Sin registros.")}</div>
                             ) : (
                               <div className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {genLog.map((entry, i) => (
                                   <div key={i} className="px-3 py-2">
                                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                                      <span className="text-[11px] font-semibold text-blue-600">Iteration {entry.iteration ?? (i + 1)}</span>
+                                      <span className="text-[11px] font-semibold text-blue-600">{L("Iteration", "Iteración")} {entry.iteration ?? (i + 1)}</span>
                                       <span className="text-[10px] text-gray-400">{new Date(entry.timestamp).toLocaleString()}</span>
                                     </div>
                                     {entry.specs?.length > 0 && <div className="flex gap-1 flex-wrap mb-0.5">{entry.specs.map(s => <span key={s} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100">Spec {s}</span>)}</div>}

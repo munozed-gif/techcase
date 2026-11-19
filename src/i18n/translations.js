@@ -4084,7 +4084,7 @@ const TRANSLATIONS = {
     "spec.gen_all_loading":   "Claude está generando las cuatro especificaciones simultáneamente…",
     "spec.tab_a":             "Propuesta",
     "spec.tab_b":             "Estándar",
-    "spec.tab_c":             "Customer",
+    "spec.tab_c":             "Cliente",
     "spec.tab_d":             "Resumen",
     "spec.selected":          "Seleccionada",
     "spec.opt_a_long":        "Propuesta de Plataforma",
