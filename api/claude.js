@@ -141,7 +141,13 @@ export default async function handler(req, res) {
   };
   const resolvedModel = MODEL_ALIASES[model] ?? (model?.startsWith('claude-') ? model : SAFE_MODEL);
 
-  const body = { model: resolvedModel, system, messages, max_tokens };
+  // The current models think by default (adaptive thinking), and thinking counts against
+  // max_tokens. Small limits set by the app (800, 2000…) could be used up by thinking before
+  // any answer text — "the AI response was cut (max_tokens)". max_tokens is only a ceiling,
+  // so give every call room; short answers cost the same.
+  const MIN_MAX_TOKENS = 16000;
+  const effectiveMaxTokens = Math.max(Number(max_tokens) || 2048, MIN_MAX_TOKENS);
+  const body = { model: resolvedModel, system, messages, max_tokens: effectiveMaxTokens };
   if (mcp_servers?.length) body.mcp_servers = mcp_servers;
 
   const anthropicKey = usage.apiKey ?? process.env.ANTHROPIC_API_KEY;
@@ -171,6 +177,14 @@ export default async function handler(req, res) {
       const fallback = await callAnthropicApi({ ...body, model: FALLBACK_MODEL });
       response = fallback.response;
       data = fallback.data;
+    }
+
+    // Still no answer text because thinking used the whole limit: retry once with thinking off
+    // (accepted on Haiku 5.5 at the default effort).
+    const hasText = (d) => Array.isArray(d?.content) && d.content.some(b => b.type === "text" && b.text);
+    if (response.ok && data?.stop_reason === "max_tokens" && !hasText(data)) {
+      const retry = await callAnthropicApi({ ...body, thinking: { type: "disabled" } });
+      if (retry.response.ok) { response = retry.response; data = retry.data; }
     }
 
     if (!response.ok) {
