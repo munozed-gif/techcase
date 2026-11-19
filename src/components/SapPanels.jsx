@@ -2340,7 +2340,7 @@ ${prevPassed}${diagSection}
 
 Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
-      const result = await callClaude({
+      const result = await callClaude({ feature: 'sap_diagnostics', 
         model: diagnosisModel,
         system: 'You are a DevOps assistant for Arena Solution Platform. The stack: Node.js MCP server on AWS EC2 Ubuntu, exposed via Cloudflare Quick Tunnel, FortiClient VPN to SAP. Diagnose and give concrete fix steps.',
         messages: [{ role: 'user', content: prompt }],
@@ -5636,7 +5636,7 @@ Return ONLY a valid JSON array (no markdown, no explanation). Each object must h
 
 Suggest 5-15 objects covering the full scope.`;
 
-      const resp = await callClaude({
+      const resp = await callClaude({ feature: 'blueprint', 
         model: genModel,
         system: 'You are an expert SAP architect. Return only valid JSON arrays, no markdown.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
@@ -5704,7 +5704,7 @@ Return ONLY a valid JSON array (no markdown, no explanation). Each object must h
 
 Suggest 5-15 objects covering the full scope of the described solution.`;
     try {
-      const resp = await callClaude({
+      const resp = await callClaude({ feature: 'blueprint', 
         model: genModel,
         system: 'You are an expert SAP architect. Return only valid JSON arrays, no markdown.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
@@ -5914,7 +5914,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
                   addLog(`${obj.name}: generating ${obj.type === 'domain' ? 'domain' : 'data element'} definition...`, 'generating');
                   notePrompt(obj, { kind: 'definition', model: genModel,
                     system: 'You are an expert SAP ABAP Dictionary developer. Output only JSON.', prompt: _ddicPrompt });
-                  const _resp = await callClaude({ model: genModel,
+                  const _resp = await callClaude({ feature: 'sap_implementation',  model: genModel,
                     system: 'You are an expert SAP ABAP Dictionary developer. Output only JSON.',
                     messages: [{ role: 'user', content: [{ type: 'text', text: _ddicPrompt }] }], max_tokens: 1500 });
                   _ddicProps = parseDdicProps(typeof _resp === 'string' ? _resp : (_resp.content?.[0]?.text ?? ''));
@@ -6027,7 +6027,7 @@ Output ONLY the ABAP source code, no explanations.`;
               freshMcpUrl = (await resolveVmUrl(freshMcpUrl)) || freshMcpUrl;
             } catch { /* ignore */ }
             addLog(`${obj.name}: MCP unreachable — retrying without live SAP context...`, 'generating');
-            resp = await callClaude({ ...callArgs, mcp_servers: undefined });
+            resp = await callClaude({ feature: 'sap_implementation',  ...callArgs, mcp_servers: undefined });
           } else {
             throw mcpErr;
           }
@@ -7345,7 +7345,7 @@ Requirements:
 Return ONLY the ABAP code — no explanation, no markdown fences.`;
         system = 'You are an expert SAP ABAP developer specializing in customizing automation. Return only raw ABAP code.';
       }
-      const resp = await callClaude({
+      const resp = await callClaude({ feature: 'sap_implementation', 
         model: genModel, system,
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
         max_tokens: 8000,
@@ -7469,7 +7469,7 @@ ${isModification ? `\nExisting source to MODIFY:\n\`\`\`abap\n${existingSource.s
 ${standardsBlock}${feedbackBlock}
 
 Output ONLY the ABAP source code, no explanations. Follow the coding standards above exactly.`;
-      const resp = await callClaude({
+      const resp = await callClaude({ feature: 'sap_implementation', 
         model: genModel,
         system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP source code. Follow all coding standards provided in the user message without exception.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
@@ -7672,7 +7672,7 @@ Provide:
 
 Be concise and use numbered steps. Format as plain text, no markdown headers.`;
 
-      const resp = await callClaude({
+      const resp = await callClaude({ feature: 'sap_implementation', 
         model: genModel,
         system: isConfig
           ? 'You are an expert SAP functional consultant. Always provide the exact IMG customizing path and direct t-code when one exists. Be precise about field names and values.'
@@ -7710,7 +7710,7 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
     };
     const prompt = prompts[obj.type] ?? `Generate ABAP source code for ${typeMeta.label ?? obj.type} object ${obj.name}.\nDescription: ${obj.description ?? ''}\nOutput ONLY the ABAP source.`;
     try {
-      const resp = await callClaude({
+      const resp = await callClaude({ feature: 'sap_implementation', 
         model: genModel,
         system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP or CDS DDL source code. No markdown fences, no explanations.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
@@ -7803,7 +7803,7 @@ FALLBACK:
         ? 'You are an expert SAP S/4HANA Cloud consultant. Focus on CBC, Configure Your Solution, and the cloud activation model. Be precise about what is and is not customer-configurable.'
         : 'You are an expert SAP Best Practices consultant. Always provide exact BCset names. If a BCset does not exist for this configuration, say so clearly and explain the manual SPRO alternative.';
 
-      const resp = await callClaude({
+      const resp = await callClaude({ feature: 'sap_implementation', 
         model: genModel,
         system,
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],

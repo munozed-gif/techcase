@@ -57,6 +57,7 @@ import {
 import { resolveGate, caseValidationScope } from "../lib/validationPolicies.js";
 import { applyArenaEstimate, arenaHours, estimateTotals, IMPL_MODE_LABEL, SENIORITY_LABEL, SENIORITY_LEVELS } from "../lib/estimation.js";
 import { caseEstimationContext } from "../lib/estimationContext.js";
+import { setAiContext } from "../lib/utils.js";
 import { EffectiveRulesPanel } from "../components/ValidationRulesPanel.jsx";
 
 // ── HTML document builder for AI-generated markdown docs ──────────────────────
@@ -208,6 +209,12 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   const { invoices } = useInvoices(caseData.id);
   const [actRefreshKey, setActRefreshKey] = useState(0);
   const { activities, addActivity, updateActivity, deleteActivity, refetch: refetchActivities } = useCaseActivities(caseData.id, actRefreshKey);
+
+  // AI calls made from this case are recorded against it (Costs tab).
+  useEffect(() => {
+    setAiContext({ caseId: caseData.id, projectId: caseData.project_id ?? null });
+    return () => setAiContext(null);
+  }, [caseData.id, caseData.project_id]);
 
   // ── Arena estimate: recalculate from the standard hours (no AI call) ──
   // Used when the consultant is assigned (their seniority replaces the case's expected one), when
@@ -946,7 +953,7 @@ Respond ONLY with a valid JSON array, no markdown fences:
 
 Extract every discrete task, activity, deliverable, or work item. If you find none, return [].`;
 
-      const raw = await callClaude({
+      const raw = await callClaude({ feature: 'activities_ai', 
         model: analysisModel,
         system: 'You are a project analyst. Extract structured activity lists from documents. Return only valid JSON arrays.',
         messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }],
@@ -1083,7 +1090,7 @@ Tester signature, Approver signature, Date.`;
     setTestPlanTarget({ fromPhase: trigger?.fromPhase, toPhase: toPhaseKey });
     setTestPlanSaved(false);
     try {
-      const raw = await callClaude({
+      const raw = await callClaude({ feature: 'activities_ai', 
         model: analysisModel,
         system: 'You are an SAP testing specialist. Generate clear, professional test plans. Follow the output format exactly — JSON block first, then the markdown plan.',
         messages: [{ role: 'user', content: prompt }],
@@ -1253,7 +1260,7 @@ Approver signature, Date.`;
     setGeneratingAdjustment(true);
     setAdjustmentTarget({ testPhase: testPhaseKey, adjPhase });
     try {
-      const raw = await callClaude({
+      const raw = await callClaude({ feature: 'activities_ai', 
         model: analysisModel,
         system: 'You are an SAP quality specialist. Generate clear, targeted adjustment plans. Follow the output format exactly — JSON block first, then the markdown plan.',
         messages: [{ role: 'user', content: prompt }],
@@ -1997,7 +2004,7 @@ Approved Functional Specification:
 ${specContent ? specContent.slice(0, 4000) : '(Spec content not available — use the case description to infer scope)'}`;
 
       // ── Call 1: JSON activities only ──────────────────────────────
-      const jsonRaw = await callClaude({
+      const jsonRaw = await callClaude({ feature: 'dev_plan', 
         model: genModel,
         system: 'You are an SAP project delivery expert. Respond with ONLY a valid JSON object. No markdown, no code fences, no explanation — just the JSON object.',
         messages: [{
@@ -2059,7 +2066,7 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
       const actSummary = parsedActivities.map((a, i) =>
         `${i + 1}. [${a.phase.toUpperCase()}] ${a.title} — standard ${a.est_hours_manual}h, with Arena ${a.est_hours}h (${a.impl_mode})`).join('\n')
         + `\nTOTAL: standard ${estTot.manual}h, with Arena ${estTot.arena}h (${estTot.saved}% less). Seniority used: ${estCtx.seniority}. Arena SAP implementation: ${estCtx.arenaAvailable ? 'available (ABAP ADT + live SAP check)' : 'not available — only design gains apply'}.`;
-      const markdown = await callClaude({
+      const markdown = await callClaude({ feature: 'dev_plan', 
         model: genModel,
         system: 'You are an SAP project delivery expert. Write clear, concise project documentation.',
         messages: [{
@@ -2280,7 +2287,7 @@ Write a practical user manual in markdown. Include:
 
 Be practical, concise, and written from the end-user perspective. Avoid technical jargon.`;
 
-      const userManual = await callClaude({
+      const userManual = await callClaude({ feature: 'user_manual', 
         model: analysisModel,
         system: 'You are a technical writer specializing in SAP end-user documentation. Write clear, practical user manuals.',
         messages: [{ role: 'user', content: userManualPrompt }],

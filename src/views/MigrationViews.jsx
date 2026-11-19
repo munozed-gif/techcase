@@ -2789,7 +2789,7 @@ function WricefBlueprintPanel({ obj, onSaved }) {
     setGenerating(true);
     setError(null);
     try {
-      const raw = await callClaude({
+      const raw = await callClaude({ feature: 'migration', 
         system: 'You are an SAP S/4HANA migration expert. Always respond with valid JSON only — no markdown fences, no explanation text.',
         messages: [{
           role: 'user',

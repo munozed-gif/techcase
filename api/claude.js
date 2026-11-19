@@ -83,6 +83,43 @@ async function incrementUsage(userId, usageId, used, month) {
 }
 
 // ── Main handler ─────────────────────────────────────────────
+// ── AI cost per call (case Costs tab) ─────────────────────────
+// USD per million tokens. Overridable in system_settings.cost_config.ai_prices.
+const DEFAULT_AI_PRICES = {
+  'claude-haiku-5-5':  { input: 0.10, output: 0.50, cache_read: 0.01,  cache_write: 0.125 },
+  'claude-sonnet-5-5': { input: 2.00, output: 10.0, cache_read: 0.10,  cache_write: 2.50 },
+  'claude-opus-5-5':   { input: 4.00, output: 20.0, cache_read: 0.20,  cache_write: 5.00 },
+};
+let _pricesCache = { at: 0, prices: DEFAULT_AI_PRICES };
+async function aiPrices() {
+  if (Date.now() - _pricesCache.at < 10 * 60 * 1000) return _pricesCache.prices;
+  let custom = {};
+  try {
+    const { data } = await db().from("system_settings").select("value").eq("key", "cost_config").maybeSingle();
+    custom = data?.value?.ai_prices ?? {};
+  } catch { /* defaults */ }
+  _pricesCache = { at: Date.now(), prices: { ...DEFAULT_AI_PRICES, ...custom } };
+  return _pricesCache.prices;
+}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+async function logAiUsage({ userId, caseId, projectId, feature, model, usage, mcp }) {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !usage) return;
+  try {
+    const p = (await aiPrices())[model] ?? DEFAULT_AI_PRICES['claude-haiku-5-5'];
+    const inp = Number(usage.input_tokens) || 0, out = Number(usage.output_tokens) || 0;
+    const cr = Number(usage.cache_read_input_tokens) || 0, cw = Number(usage.cache_creation_input_tokens) || 0;
+    const cost = (inp * p.input + out * p.output + cr * (p.cache_read ?? p.input * 0.1) + cw * (p.cache_write ?? p.input * 1.25)) / 1e6;
+    await db().from("ai_usage_events").insert({
+      user_id: UUID_RE.test(String(userId ?? '')) ? userId : null,
+      case_id: UUID_RE.test(String(caseId ?? '')) ? caseId : null,
+      project_id: UUID_RE.test(String(projectId ?? '')) ? projectId : null,
+      feature: String(feature ?? 'other').slice(0, 60), model,
+      input_tokens: inp, output_tokens: out, cache_read_tokens: cr, cache_write_tokens: cw,
+      mcp: !!mcp, cost_usd: Math.round(cost * 1e6) / 1e6,
+    });
+  } catch (e) { console.warn("[claude] usage log:", e.message); }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -91,7 +128,7 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: { message: "Method not allowed" } });
 
-  const { model, system, messages, max_tokens = 2048, mcp_servers, user_id } = req.body ?? {};
+  const { model, system, messages, max_tokens = 2048, mcp_servers, user_id, case_id, project_id, feature } = req.body ?? {};
 
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: { message: "messages array is required" } });
@@ -190,6 +227,9 @@ export default async function handler(req, res) {
     if (!response.ok) {
       return res.status(response.status).json({ error: data.error ?? { message: "Anthropic API error" } });
     }
+
+    // ── Cost of this call, by case and step (Costs tab) ─────
+    await logAiUsage({ userId: user_id, caseId: case_id, projectId: project_id, feature, model: data?.model ?? body.model, usage: data?.usage, mcp: !!mcp_servers?.length });
 
     // ── Increment usage on success (free tier only) ────────
     if (user_id && !usage.isPro && !usage.isByok && usage.month) {

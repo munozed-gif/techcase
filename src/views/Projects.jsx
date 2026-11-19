@@ -392,7 +392,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         const text = await planFile.text();
         messages = [{ role: "user", content: `Project plan document:\n\n${text.slice(0, 30000)}\n\nExtract all tasks/cases. Return JSON array only.` }];
       }
-      const raw = await callClaude({ system: systemPrompt, messages, max_tokens: 4096 });
+      const raw = await callClaude({ feature: 'project_ai',  system: systemPrompt, messages, max_tokens: 4096 });
       const jsonMatch = raw.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("No structured data found. Try a text or PDF file with a clear task list.");
       const cases = JSON.parse(jsonMatch[0]);
@@ -1939,7 +1939,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         const text = await importFile.text();
         messages = [{ role: 'user', content: `Project plan document:\n\n${text.slice(0, 30000)}\n\nExtract all tasks/cases. Return JSON array only.` }];
       }
-      const raw = await callClaude({ model: importGenModel, system: systemPrompt, messages, max_tokens: 4096 });
+      const raw = await callClaude({ feature: 'project_ai',  model: importGenModel, system: systemPrompt, messages, max_tokens: 4096 });
       const jsonMatch = raw.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error('No structured data found. Try a text or PDF file with a clear task list.');
       const extracted = JSON.parse(jsonMatch[0]);

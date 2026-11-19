@@ -116,7 +116,7 @@ Instructions:
 - Then the full updated document: same sections as the baseline, rewritten wherever the built objects, change requests or test results differ. Keep what is still correct.
 - Use the exact object names, types, lengths and fields from "OBJECTS BUILT IN SAP". Do not invent objects that were not built.
 - Same language as the baseline. Output Markdown only, no code fences around the whole document.`;
-        const resp = await callClaude({
+        const resp = await callClaude({ feature: 'as_built_spec', 
           model: genModel,
           system: 'You are a senior SAP functional/technical writer. You produce precise as-built documentation.',
           messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],

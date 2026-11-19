@@ -152,7 +152,11 @@ function sanitizeDeep(v) {
   return v;
 }
 
-async function callClaude({ system, messages, max_tokens = 2048, model = 'claude-haiku-4-5', mcp_servers }) {
+// Case / project the AI calls belong to (set by the case screen), for the Costs tab.
+let _aiContext = { caseId: null, projectId: null };
+function setAiContext(ctx) { _aiContext = { caseId: ctx?.caseId ?? null, projectId: ctx?.projectId ?? null }; }
+
+async function callClaude({ system, messages, max_tokens = 2048, model = 'claude-haiku-4-5', mcp_servers, feature, caseId, projectId }) {
   // Attach current user id so the server can track usage / apply the right key
   let userId = null;
   try {
@@ -166,6 +170,9 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
     body: JSON.stringify(sanitizeDeep({
       system, messages, max_tokens, model,
       user_id: userId,
+      case_id: caseId ?? _aiContext.caseId ?? null,
+      project_id: projectId ?? _aiContext.projectId ?? null,
+      feature: feature ?? 'other',
       ...(mcp_servers?.length ? { mcp_servers } : {}),
     })),
   });
@@ -244,4 +251,4 @@ function resolveNavigation(n) {
   return null;
 }
 
-export { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, clearAuditConfigCache, buildEmailHtml, sendEmail, sendEmailToUser, sendEmailToManagers, resolveNavigation };
+export { notify, notifyManagers, notifyCaseParticipants, callClaude, setAiContext, logEvent, clearAuditConfigCache, buildEmailHtml, sendEmail, sendEmailToUser, sendEmailToManagers, resolveNavigation };
