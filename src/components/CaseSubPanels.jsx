@@ -2626,7 +2626,8 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
   }
 
   async function testSapConnection(cfgOverride = null) {
-    const baseCfg = cfgOverride ?? sapConnCfg;
+    // Only a settings object counts as an override (never a click event).
+    const baseCfg = (cfgOverride && typeof cfgOverride === 'object' && cfgOverride.host) ? cfgOverride : sapConnCfg;
     if (!baseCfg || sapConnTest === 'testing') return;
     setSapConnTest('testing');
     const lsKey = `sap_test_${caseData.id}`;
@@ -4797,7 +4798,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     {/* Action row */}
                     <div className="flex items-center justify-between gap-2 pt-1">
                       <button
-                        onClick={testSapConnection}
+                        onClick={() => testSapConnection()}
                         disabled={sapConnTest === 'testing'}
                         className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                           sapConnTest === 'testing'
