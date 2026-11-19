@@ -14,6 +14,9 @@ canvas{display:block}
 <script>
 const W = 1920, H = 1080, cv = document.getElementById('c');
 let ctx = cv.getContext('2d');
+const LANG = new URLSearchParams(location.search).get('lang') === 'es' ? 'es' : 'en';
+const ES = {"Every case is a battle.": "Cada caso es una batalla.", "For two thousand years,": "Durante dos mil años,", "the arena chose its champions.": "la arena eligió a sus campeones.", "Today, the arena is orbital.": "Hoy, la arena es orbital.", "THE ARENA": "LA ARENA", "Consultants compete": "Los consultores compiten", "for every case.": "por cada caso.", "Ranked on skills, ratings, rate and availability.": "Clasificados por skills, calificaciones, tarifa y disponibilidad.", "APPLICANT RANKING": "RANKING DE POSTULANTES", "S/4HANA Migration · Phase 2": "Migración S/4HANA · Fase 2", "S/4HANA Migration": "Migración S/4HANA", "Phase 2 · Gold tier": "Fase 2 · Nivel Gold", "FI Period-End Fix": "Ajuste de cierre FI", "Fiori Approvals App": "App Fiori de aprobaciones", "Development · Teams": "Desarrollo · Equipos", "Auto-assign top pick": "Asignación automática", "✓  ASSIGNED · Lucía R.": "✓  ASIGNADO · Lucía R.", "The best match wins —": "Gana el mejor match —", "picked by a manager or assigned automatically.": "elegido por un manager o asignado automáticamente.", "Where SAP cases meet their champions.": "Donde los casos SAP encuentran a sus campeones."};
+const L = s => (LANG === 'es' && ES[s]) || s;
 const DURATION = 33;
 // ── helpers ───────────────────────────────────────────────────────────────
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -31,7 +34,9 @@ function text(s, x, y, font, color, alpha = 1, align = 'center', ls = '0px') {
   if (alpha <= 0) return; ctx.save(); ctx.globalAlpha = alpha; ctx.font = font; ctx.fillStyle = color;
   ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.letterSpacing = ls; ctx.fillText(s, x, y); ctx.restore();
 }
+const NOCAP = new URLSearchParams(location.search).get('nocap') === '1';
 function caption(t, a, b, lines) { // lines: [{s,font,color,dy,ls}]
+  if (NOCAP) return;
   const k = fadeIO(t, a, b, .7); if (k <= 0) return;
   const rise = (1 - smooth(seg(t, a, a + .9))) * 24;
   for (const L of lines) text(L.s, L.x ?? 960, L.y + rise, L.font, L.color, k * (L.a ?? 1), L.align ?? 'center', L.ls ?? '0px');
@@ -53,9 +58,9 @@ const CONS = [
 ].map((c, i) => ({ ini: c[0], name: c[1], col: ORB_COLORS[i % 8], a0: i / 12 * 6.283 + .2, sp: (i % 2 ? .085 : .07) }));
 const OUTER = 440;
 const CASES = [
-  { title: 'S/4HANA Migration', sub: 'Phase 2 · Gold tier', col: '#F59E0B', a0: -0.98 },
-  { title: 'FI Period-End Fix', sub: 'Ticket · SLA 8h', col: '#10B981', a0: -0.98 + 2.094 },
-  { title: 'Fiori Approvals App', sub: 'Development · Teams', col: '#8B5CF6', a0: -0.98 + 4.189 },
+  { title: L('S/4HANA Migration'), sub: L('Phase 2 · Gold tier'), col: '#F59E0B', a0: -0.98 },
+  { title: L('FI Period-End Fix'), sub: 'Ticket · SLA 8h', col: '#10B981', a0: -0.98 + 2.094 },
+  { title: L('Fiori Approvals App'), sub: L('Development · Teams'), col: '#8B5CF6', a0: -0.98 + 4.189 },
 ];
 const CASE_R = 280, CASE_SP = .035;
 // who applies to which case, and when
@@ -169,7 +174,7 @@ function scene1(t) {
   const sg = ctx.createLinearGradient(0, 0, 0, 380); sg.addColorStop(0, 'rgba(11,15,26,.65)'); sg.addColorStop(1, 'rgba(11,15,26,0)'); ctx.fillStyle = sg; ctx.fillRect(0, 0, W, 380);
   caption(t, .9, 6.4, [
     { s: 'ROMA · AMPHITHEATRUM', y: 150, font: '500 30px Cinzel', color: '#E8B84B', ls: '10px' },
-    { s: 'Every case is a battle.', y: 250, font: '700 96px Cinzel', color: '#F8F1E4' },
+    { s: L('Every case is a battle.'), y: 250, font: '700 96px Cinzel', color: '#F8F1E4' },
   ]);
 }
 
@@ -278,12 +283,12 @@ function sceneArena(t) {
   // captions
   const scr = ctx.createLinearGradient(0, 0, 0, 300); scr.addColorStop(0, 'rgba(11,15,26,.7)'); scr.addColorStop(1, 'rgba(11,15,26,0)'); ctx.fillStyle = scr; ctx.globalAlpha = 1 - m * .6; ctx.fillRect(0, 0, W, 300); ctx.globalAlpha = 1;
   caption(t, 6.8, 11.6, [
-    { s: 'For two thousand years,', y: 120, font: '500 48px Cinzel', color: '#E8DCC8' },
-    { s: 'the arena chose its champions.', y: 190, font: '700 64px Cinzel', color: '#F8F1E4' },
+    { s: L('For two thousand years,'), y: 120, font: '500 48px Cinzel', color: '#E8DCC8' },
+    { s: L('the arena chose its champions.'), y: 190, font: '700 64px Cinzel', color: '#F8F1E4' },
   ]);
   { const a = fadeIO(t, 13.7, 16.4, .7); if (a > 0) { const g = ctx.createLinearGradient(0, 0, 0, 260); g.addColorStop(0, `rgba(11,15,26,${.9 * a})`); g.addColorStop(1, 'rgba(11,15,26,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, 260); } }
   caption(t, 13.9, 16.3, [
-    { s: 'Today, the arena is orbital.', y: 130, font: '800 72px PJS', color: '#F8FAFF', ls: '-1px' },
+    { s: L('Today, the arena is orbital.'), y: 130, font: '800 72px PJS', color: '#F8FAFF', ls: '-1px' },
   ]);
 }
 
@@ -351,8 +356,8 @@ function sceneOrbit(t) {
   if (pin > 0) {
     const px = lerp(1960, 1150, pin), py = 200, pw = 640;
     ctx.save(); ctx.fillStyle = 'rgba(17,24,41,.94)'; rr(px, py, pw, 640, 22); ctx.fill(); ctx.strokeStyle = 'rgba(79,110,247,.55)'; ctx.lineWidth = 2; ctx.stroke();
-    text('APPLICANT RANKING', px + 40, py + 62, '500 22px "JetBrains Mono"', '#E8B84B', 1, 'left', '3px');
-    text('S/4HANA Migration · Phase 2', px + 40, py + 104, '800 32px PJS', '#F8FAFF', 1, 'left');
+    text(L('APPLICANT RANKING'), px + 40, py + 62, '500 22px "JetBrains Mono"', '#E8B84B', 1, 'left', '3px');
+    text(L('S/4HANA Migration · Phase 2'), px + 40, py + 104, '800 32px PJS', '#F8FAFF', 1, 'left');
     APPLY.filter(A => A.c === 0).forEach((A, i) => {
       const y = py + 160 + i * 86, grow = ease(seg(t, 24.6 + i * .18, 25.6 + i * .18)), top = i === 0 && t > 25.9;
       if (top) { ctx.fillStyle = rgba('#E8B84B', .14 + .06 * Math.sin(t * 5)); rr(px + 24, y - 6, pw - 48, 72, 14); ctx.fill(); }
@@ -365,25 +370,25 @@ function sceneOrbit(t) {
     });
     // auto-assign button → assigned badge
     const by = py + 590, b1 = fadeIO(t, 25.2, 26.6, .3), b2 = smooth(seg(t, 26.5, 26.9));
-    if (b1 > 0) { ctx.save(); ctx.globalAlpha = b1; ctx.fillStyle = '#7C3AED'; rr(px + 40, by - 34, 300, 50, 12); ctx.fill(); text('Auto-assign top pick', px + 190, by - 2, '700 22px PJS', '#FFFFFF'); ctx.restore(); }
+    if (b1 > 0) { ctx.save(); ctx.globalAlpha = b1; ctx.fillStyle = '#7C3AED'; rr(px + 40, by - 34, 300, 50, 12); ctx.fill(); text(L('Auto-assign top pick'), px + 190, by - 2, '700 22px PJS', '#FFFFFF'); ctx.restore(); }
     if (b2 > 0) { const s = lerp(1.6, 1, b2); ctx.save(); ctx.globalAlpha = b2; ctx.translate(px + 190, by - 9); ctx.scale(s, s);
-      ctx.fillStyle = '#10B981'; rr(-150, -25, 300, 50, 12); ctx.fill(); text('✓  ASSIGNED · Lucía R.', 0, 8, '800 22px PJS', '#06281C'); ctx.restore(); }
+      ctx.fillStyle = '#10B981'; rr(-150, -25, 300, 50, 12); ctx.fill(); text(L('✓  ASSIGNED · Lucía R.'), 0, 8, '800 22px PJS', '#06281C'); ctx.restore(); }
     ctx.restore();
   }
   // captions (with scrims so orbits never fight the text)
   { const a = fadeIO(t, 16.2, 22.0, .7); if (a > 0) { const g = ctx.createLinearGradient(0, 0, 980, 0); g.addColorStop(0, `rgba(11,15,26,${.92 * a})`); g.addColorStop(1, 'rgba(11,15,26,0)'); ctx.fillStyle = g; ctx.fillRect(0, 60, 980, 360); } }
   { const a = fadeIO(t, 24.2, 28.8, .7); if (a > 0) { const g = ctx.createLinearGradient(0, H, 0, 700); g.addColorStop(0, `rgba(11,15,26,${a})`); g.addColorStop(.55, `rgba(11,15,26,${.9 * a})`); g.addColorStop(1, 'rgba(11,15,26,0)'); ctx.fillStyle = g; ctx.fillRect(0, 700, 1140, 380); } }
   caption(t, 16.4, 21.8, [
-    { s: 'THE ARENA', x: 128, y: 150, font: '500 26px "JetBrains Mono"', color: '#E8B84B', align: 'left', ls: '6px' },
-    { s: 'Consultants compete', x: 128, y: 232, font: '800 72px PJS', color: '#F8FAFF', align: 'left', ls: '-2px' },
-    { s: 'for every case.', x: 128, y: 310, font: '800 72px PJS', color: '#F8FAFF', align: 'left', ls: '-2px' },
+    { s: L('THE ARENA'), x: 128, y: 150, font: '500 26px "JetBrains Mono"', color: '#E8B84B', align: 'left', ls: '6px' },
+    { s: L('Consultants compete'), x: 128, y: 232, font: '800 72px PJS', color: '#F8FAFF', align: 'left', ls: '-2px' },
+    { s: L('for every case.'), x: 128, y: 310, font: '800 72px PJS', color: '#F8FAFF', align: 'left', ls: '-2px' },
   ]);
   caption(t, 18.8, 21.8, [
-    { s: 'Ranked on skills, ratings, rate and availability.', x: 128, y: 372, font: '500 30px Inter', color: '#A9BCD4', align: 'left' },
+    { s: L('Ranked on skills, ratings, rate and availability.'), x: 128, y: 372, font: '500 30px Inter', color: '#A9BCD4', align: 'left' },
   ]);
   caption(t, 24.4, 28.6, [
-    { s: 'The best match wins —', x: 128, y: 900, font: '800 54px PJS', color: '#F8FAFF', align: 'left', ls: '-1px' },
-    { s: 'picked by a manager or assigned automatically.', x: 128, y: 956, font: '500 32px Inter', color: '#A9BCD4', align: 'left' },
+    { s: L('The best match wins —'), x: 128, y: 900, font: '800 54px PJS', color: '#F8FAFF', align: 'left', ls: '-1px' },
+    { s: L('picked by a manager or assigned automatically.'), x: 128, y: 956, font: '500 32px Inter', color: '#A9BCD4', align: 'left' },
   ]);
 }
 
@@ -399,7 +404,7 @@ function sceneEnd(t) {
     { s: 'Arena Solutions Platform', y: 700, font: '800 88px PJS', color: '#F8FAFF', ls: '-3px' },
   ]);
   caption(t, 29.8, 40, [
-    { s: 'Where SAP cases meet their champions.', y: 778, font: '500 38px Inter', color: '#A9BCD4' },
+    { s: L('Where SAP cases meet their champions.'), y: 778, font: '500 38px Inter', color: '#A9BCD4' },
     { s: 'arenasolutionsplatform.com', y: 870, font: '500 30px "JetBrains Mono"', color: '#E8B84B' },
   ]);
 }

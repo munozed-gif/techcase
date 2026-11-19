@@ -7,7 +7,7 @@ fs.mkdirSync(out, { recursive: true });
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
   p.on('pageerror', e => { console.error('PAGE ERROR', e.message); process.exit(1); });
-  await p.goto('file://' + path.join(__dirname, 'promo.html'));
+  await p.goto('file://' + path.join(__dirname, 'promo.html') + '?lang=' + (process.env.PROMO_LANG || 'en') + (process.env.PROMO_NOCAP ? '&nocap=1' : ''));
   await p.evaluate(() => document.fonts.ready);
   await p.evaluate(async () => { for (const f of ['700 20px Cinzel', '500 20px Cinzel', '800 20px PJS', '700 20px PJS', '600 20px PJS']) await document.fonts.load(f); });
   const dur = await p.evaluate(() => window.DURATION);

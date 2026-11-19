@@ -128,6 +128,14 @@ const LANDING_STRINGS = {
     video_tag:"See it in action", video_h2:"Watch the platform in 3 minutes.",
     video_sub:"From ticket creation to resolution — see how Arena guides every stakeholder through a structured, governed process.",
     video_lbl:"Arena Solutions Platform Demo · 3:24",
+    pv_tag:"Watch the Arena · 0:33", pv_play:"Play video", pv_pause:"Pause video", pv_mute:"Mute", pv_unmute:"Turn sound on",
+    pv_replay:"Replay from the start", pv_sound:"Sound on", pv_seek:"Seek in video",
+    pv_aria:"Arena promo video: from the Roman Colosseum to the orbital Arena, where consultants compete for cases",
+    pv_ch1:"Roma", pv_ch2:"The Arena", pv_ch3:"Ranking", pv_ch4:"Assignment",
+    pv_h1t:"Public cases", pv_h1d:"Open to every eligible consultant",
+    pv_h2t:"7-criteria ranking", pv_h2d:"Skills, ratings, rate, availability…",
+    pv_h3t:"Manual or auto-assign", pv_h3d:"Set by each customer",
+    pv_cta_trial:"Start free trial →", pv_cta_join:"Join the Arena as a consultant",
     testi_tag:"Customer Stories", testi_h2:"What teams are saying.",
     pricing_tag:"Pricing", pricing_h2:"Free to start. Grow when you're ready.",
     pricing_sub:"Consultants and clients join free. Upgrade only when you need more cases, more candidates, or more firepower.",
@@ -285,6 +293,14 @@ const LANDING_STRINGS = {
     video_tag:"Míralo en acción", video_h2:"Mira la plataforma en 3 minutos.",
     video_sub:"Desde la creación del ticket hasta la resolución — ve cómo Arena guía a cada parte interesada a través de un proceso estructurado y gobernado.",
     video_lbl:"Demo de Arena Solutions Platform · 3:24",
+    pv_tag:"Mira la Arena · 0:33", pv_play:"Reproducir video", pv_pause:"Pausar video", pv_mute:"Silenciar", pv_unmute:"Activar sonido",
+    pv_replay:"Repetir desde el inicio", pv_sound:"Activar sonido", pv_seek:"Buscar en el video",
+    pv_aria:"Video promocional de Arena: del Coliseo romano a la Arena orbital, donde los consultores compiten por casos",
+    pv_ch1:"Roma", pv_ch2:"La Arena", pv_ch3:"Ranking", pv_ch4:"Asignación",
+    pv_h1t:"Casos públicos", pv_h1d:"Abiertos a todo consultor elegible",
+    pv_h2t:"Ranking de 7 criterios", pv_h2d:"Skills, calificaciones, tarifa, disponibilidad…",
+    pv_h3t:"Asignación manual o automática", pv_h3d:"Definida por cada cliente",
+    pv_cta_trial:"Iniciar prueba gratuita →", pv_cta_join:"Únete a la Arena como consultor",
     testi_tag:"Historias de Clientes", testi_h2:"Lo que dicen los equipos.",
     pricing_tag:"Precios", pricing_h2:"Gratis para empezar. Crece cuando estés listo.",
     pricing_sub:"Consultores y clientes se unen gratis. Mejora de plan solo cuando necesites más casos, más candidatos o más potencia.",
@@ -621,7 +637,32 @@ const CSS = `
 #arena-landing .arena-dot{position:absolute;top:50%;left:50%;width:0;height:0;}
 #arena-landing .arena-dot-inner{position:absolute;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.5rem;font-weight:700;color:#fff;}
 #arena-landing .arena-label{position:absolute;font-size:.58rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;}
-@media(max-width:900px){#arena-landing .arena-inner{grid-template-columns:1fr;}#arena-landing .arena-visual{display:none;}}
+@media(max-width:900px){#arena-landing .arena-inner{grid-template-columns:1fr;}#arena-landing .arena-visual{display:none;}#arena-landing .arena-visual.has-video{display:flex;}}
+#arena-landing .pv-wrap{width:100%;display:flex;flex-direction:column;gap:14px;}
+#arena-landing .pv-tag{font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#E8B84B;}
+#arena-landing .pv-frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#0B0F1A;border:1px solid rgba(79,110,247,.35);box-shadow:0 24px 60px rgba(0,0,0,.45),0 0 0 6px rgba(79,110,247,.06);}
+#arena-landing .pv-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
+#arena-landing .pv-bigplay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:76px;height:76px;border-radius:50%;border:none;cursor:pointer;background:rgba(79,110,247,.92);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 10px rgba(79,110,247,.2),0 10px 30px rgba(0,0,0,.4);transition:transform .2s;}
+#arena-landing .pv-bigplay:hover{transform:translate(-50%,-50%) scale(1.06);}
+#arena-landing .pv-sound{position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;color:#fff;background:rgba(11,15,26,.75);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 12px;cursor:pointer;}
+#arena-landing .pv-controls{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:10px;padding:22px 12px 10px;background:linear-gradient(transparent,rgba(5,8,15,.85));}
+#arena-landing .pv-btn{width:32px;height:32px;border-radius:8px;border:none;background:rgba(255,255,255,.08);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+#arena-landing .pv-btn:hover{background:rgba(255,255,255,.18);}
+#arena-landing .pv-bar{position:relative;flex:1;height:6px;border-radius:999px;background:rgba(255,255,255,.18);cursor:pointer;}
+#arena-landing .pv-bar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg,#4F6EF7,#E8B84B);}
+#arena-landing .pv-bar-mark{position:absolute;top:-3px;width:2px;height:12px;background:rgba(255,255,255,.55);border-radius:2px;}
+#arena-landing .pv-time{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:rgba(255,255,255,.75);white-space:nowrap;}
+#arena-landing .pv-chapters{display:flex;gap:8px;flex-wrap:wrap;}
+#arena-landing .pv-chapter{display:flex;align-items:center;gap:6px;font-size:.74rem;font-weight:600;color:rgba(255,255,255,.7);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:5px 12px;cursor:pointer;}
+#arena-landing .pv-chapter span{font-family:'JetBrains Mono',monospace;font-size:.66rem;color:rgba(255,255,255,.45);}
+#arena-landing .pv-chapter.on{color:#fff;border-color:#E8B84B;background:rgba(232,184,75,.12);}
+#arena-landing .pv-chapter.on span{color:#E8B84B;}
+#arena-landing .pv-highlights{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+#arena-landing .pv-hl{padding:12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);}
+#arena-landing .pv-hl strong{display:block;font-size:.8rem;color:#fff;margin-bottom:3px;}
+#arena-landing .pv-hl span{font-size:.72rem;color:rgba(255,255,255,.5);line-height:1.45;}
+#arena-landing .pv-ctas{display:flex;gap:10px;flex-wrap:wrap;}
+@media(max-width:560px){#arena-landing .pv-highlights{grid-template-columns:1fr;}#arena-landing .pv-time{display:none;}#arena-landing .pv-sound{display:none;}}
 
 #arena-landing .mig-showcase{background:#04091a;padding:96px 24px;position:relative;overflow:hidden;}
 #arena-landing .mig-showcase::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 30% 50%,rgba(16,185,129,.1) 0%,transparent 65%),linear-gradient(rgba(16,185,129,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,.03) 1px,transparent 1px);background-size:100% 100%,48px 48px,48px 48px;}
@@ -1213,6 +1254,129 @@ const LC_STAGES = [
   },
 ];
 
+// ─── Arena promo video (Arena showcase section) ─────────────────────────────
+// Files live in /public/media: arena-promo-{en|es}.{webm,mp4} + arena-promo-poster.jpg.
+const PV_CHAPTERS = [{ k: "pv_ch1", t: 0 }, { k: "pv_ch2", t: 11.5 }, { k: "pv_ch3", t: 23.8 }, { k: "pv_ch4", t: 26.2 }];
+const pvFmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const PvIcon = ({ d, size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={d} /></svg>
+);
+const PV_ICONS = {
+  play: "M8 5v14l11-7z",
+  pause: "M6 5h4v14H6zM14 5h4v14h-4z",
+  replay: "M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z",
+  muted: "M16.5 12l2.5 2.5-1.5 1.5-2.5-2.5-2.5 2.5L11 14.5 13.5 12 11 9.5 12.5 8l2.5 2.5L17.5 8 19 9.5zM3 9v6h4l5 5V4L7 9z",
+  sound: "M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z",
+};
+
+function ArenaVideoPlayer({ tl, lang, onSignIn }) {
+  const videoRef = useRef(null);
+  const wrapRef = useRef(null);
+  const userPaused = useRef(false);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [time, setTime] = useState(0);
+  const [dur, setDur] = useState(33);
+
+  // Start muted when the player is mostly on screen; pause when it scrolls away.
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap || typeof IntersectionObserver === "undefined") return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const io = new IntersectionObserver(([e]) => {
+      const v = videoRef.current; if (!v) return;
+      if (e.isIntersecting) { if (!reduceMotion && !userPaused.current) v.play().catch(() => {}); }
+      else if (!v.paused) v.pause();
+    }, { threshold: 0.5 });
+    io.observe(wrap);
+    return () => io.disconnect();
+  }, []);
+
+  // The <video> is keyed by language, so a language switch loads the other file.
+  useEffect(() => { setTime(0); setPlaying(false); }, [lang]);
+
+  const v = () => videoRef.current;
+  function togglePlay() {
+    const el = v(); if (!el) return;
+    if (el.paused) { userPaused.current = false; el.play().catch(() => {}); }
+    else { userPaused.current = true; el.pause(); }
+  }
+  function toggleMute() {
+    const el = v(); if (!el) return;
+    el.muted = !el.muted; setMuted(el.muted);
+    if (!el.muted && el.paused) { userPaused.current = false; el.play().catch(() => {}); }
+  }
+  function seek(t) {
+    const el = v(); if (!el) return;
+    el.currentTime = t; setTime(t); userPaused.current = false; el.play().catch(() => {});
+  }
+  function onBarClick(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    seek(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * dur);
+  }
+  const active = PV_CHAPTERS.reduce((a, c, i) => (time >= c.t ? i : a), 0);
+
+  return (
+    <div className="pv-wrap" ref={wrapRef}>
+      <div className="pv-tag">▶ {tl("pv_tag")}</div>
+      <div className="pv-frame">
+        <video key={lang} ref={videoRef} className="pv-video" poster="/media/arena-promo-poster.jpg"
+          muted playsInline loop preload="none" aria-label={tl("pv_aria")}
+          onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+          onTimeUpdate={e => setTime(e.currentTarget.currentTime)}
+          onLoadedMetadata={e => { if (isFinite(e.currentTarget.duration)) setDur(e.currentTarget.duration); }}
+          onVolumeChange={e => setMuted(e.currentTarget.muted)}>
+          <source src={`/media/arena-promo-${lang}.webm`} type="video/webm" />
+          <source src={`/media/arena-promo-${lang}.mp4`} type="video/mp4" />
+        </video>
+        {!playing && (
+          <button type="button" className="pv-bigplay" onClick={togglePlay} aria-label={tl("pv_play")}>
+            <PvIcon d={PV_ICONS.play} size={34} />
+          </button>
+        )}
+        {playing && muted && (
+          <button type="button" className="pv-sound" onClick={toggleMute}>
+            <PvIcon d={PV_ICONS.sound} size={14} /> {tl("pv_sound")}
+          </button>
+        )}
+        <div className="pv-controls">
+          <button type="button" className="pv-btn" onClick={togglePlay} aria-label={tl(playing ? "pv_pause" : "pv_play")}>
+            <PvIcon d={playing ? PV_ICONS.pause : PV_ICONS.play} />
+          </button>
+          <div className="pv-bar" onClick={onBarClick} role="slider" aria-label={tl("pv_seek")}
+            aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(time)}>
+            <div className="pv-bar-fill" style={{ width: `${Math.min(100, (time / dur) * 100)}%` }} />
+            {PV_CHAPTERS.slice(1).map(c => <div key={c.k} className="pv-bar-mark" style={{ left: `${(c.t / dur) * 100}%` }} />)}
+          </div>
+          <span className="pv-time">{pvFmt(time)} / {pvFmt(dur)}</span>
+          <button type="button" className="pv-btn" onClick={toggleMute} aria-label={tl(muted ? "pv_unmute" : "pv_mute")}>
+            <PvIcon d={muted ? PV_ICONS.muted : PV_ICONS.sound} />
+          </button>
+          <button type="button" className="pv-btn" onClick={() => seek(0)} aria-label={tl("pv_replay")}>
+            <PvIcon d={PV_ICONS.replay} />
+          </button>
+        </div>
+      </div>
+      <div className="pv-chapters">
+        {PV_CHAPTERS.map((c, i) => (
+          <button type="button" key={c.k} className={`pv-chapter${playing || time > 0 ? (i === active ? " on" : "") : ""}`} onClick={() => seek(c.t)}>
+            <span>{pvFmt(c.t)}</span>{tl(c.k)}
+          </button>
+        ))}
+      </div>
+      <div className="pv-highlights">
+        {[["pv_h1t", "pv_h1d"], ["pv_h2t", "pv_h2d"], ["pv_h3t", "pv_h3d"]].map(([t, d]) => (
+          <div key={t} className="pv-hl"><strong>{tl(t)}</strong><span>{tl(d)}</span></div>
+        ))}
+      </div>
+      <div className="pv-ctas">
+        <button type="button" className="btn-hero btn-hero-primary" onClick={onSignIn}>{tl("pv_cta_trial")}</button>
+        <button type="button" className="btn-hero btn-hero-outline" onClick={onSignIn}>{tl("pv_cta_join")}</button>
+      </div>
+    </div>
+  );
+}
+
 function DemoCarousel({ tl }) {
   const TOTAL = 4;
   const DURATION = 5200;
@@ -1452,6 +1616,7 @@ export function LandingView({ onSignIn }) {
   const showTrustedBy    = landingSettings["show_trusted_by"]       ?? true;
   const showStats        = landingSettings["show_stats_section"]    ?? true;
   const showTestimonials = landingSettings["show_testimonials"]     ?? true;
+  const showPromoVideo   = landingSettings["show_promo_video"]      ?? true;
   function tl(k) { return LANDING_STRINGS[lang]?.[k] ?? LANDING_STRINGS.en[k] ?? k; }
   function toggleLang() {
     const next = lang === "en" ? "es" : "en";
@@ -1855,6 +2020,11 @@ export function LandingView({ onSignIn }) {
               ))}
             </div>
           </div>
+          {showPromoVideo ? (
+          <div className="arena-visual has-video">
+            <ArenaVideoPlayer tl={tl} lang={lang} onSignIn={onSignIn} />
+          </div>
+          ) : (
           <div className="arena-visual">
             {/* Large animated Arena orbital system */}
             <div className="arena-system">
@@ -1888,6 +2058,7 @@ export function LandingView({ onSignIn }) {
               <div className="arena-label" style={{top:"50%",right:"2%",transform:"translateY(-50%)",color:"rgba(245,158,11,.6)"}}>Cases</div>
             </div>
           </div>
+          )}
         </div>
       </section>
 

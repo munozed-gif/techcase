@@ -870,6 +870,7 @@ function SettingsPlatformTab({ ssCtx }) {
     show_trusted_by:            true,
     show_stats_section:         true,
     show_testimonials:          true,
+    show_promo_video:           true,
   };
 
   const [form, setForm]     = useState(null);
@@ -893,6 +894,7 @@ function SettingsPlatformTab({ ssCtx }) {
         show_trusted_by:            ssCtx.settings["show_trusted_by"]            ?? DEFAULTS.show_trusted_by,
         show_stats_section:         ssCtx.settings["show_stats_section"]         ?? DEFAULTS.show_stats_section,
         show_testimonials:          ssCtx.settings["show_testimonials"]          ?? DEFAULTS.show_testimonials,
+        show_promo_video:           ssCtx.settings["show_promo_video"]           ?? DEFAULTS.show_promo_video,
       });
     }
   }, [ssCtx.loading, ssCtx.settings]);
@@ -914,6 +916,7 @@ function SettingsPlatformTab({ ssCtx }) {
         ssCtx.setSetting("show_trusted_by",           form.show_trusted_by),
         ssCtx.setSetting("show_stats_section",        form.show_stats_section),
         ssCtx.setSetting("show_testimonials",         form.show_testimonials),
+        ssCtx.setSetting("show_promo_video",          form.show_promo_video),
       ]);
       setToast(t("sys.settings_saved"));
       setTimeout(() => setToast(null), 3000);
@@ -1070,6 +1073,7 @@ function SettingsPlatformTab({ ssCtx }) {
             { key: "show_trusted_by",      label: "Show Trusted By",        desc: "Display the \"Trusted by\" company logo strip below the hero." },
             { key: "show_stats_section",   label: "Show Stats Section",     desc: "Display the cases managed / companies onboarded / SLA compliance numbers." },
             { key: "show_testimonials",    label: "Show Customer Stories",  desc: "Display the customer testimonials section." },
+            { key: "show_promo_video",     label: "Show Arena Promo Video", desc: "Play the Arena promo video in the Arena section (English or Spanish to match the visitor). Off shows the orbit animation instead." },
           ].map(({ key, label, desc }) => (
             <label key={key} className="flex items-center justify-between gap-4 cursor-pointer select-none">
               <div>
@@ -1105,6 +1109,7 @@ function SettingsPlatformTab({ ssCtx }) {
             show_trusted_by:           DEFAULTS.show_trusted_by,
             show_stats_section:        DEFAULTS.show_stats_section,
             show_testimonials:         DEFAULTS.show_testimonials,
+            show_promo_video:          DEFAULTS.show_promo_video,
           })}
           className="px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50 flex items-center gap-1.5">
           <RotateCcw size={13} /> {t("sys.reset_defaults")}
