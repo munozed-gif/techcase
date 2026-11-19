@@ -69,13 +69,30 @@ function useCases(filters = {}) {
   }, [fetchCases]);
 
   async function createCase(data, { autoAssignCreator = false } = {}) {
-    // If no lifecycle is set on the case, apply the system default
+    // No lifecycle on the case: inherit it — parent case → project → customer (client profile)
+    // → system default — the same chain the case screen uses.
     let payload = data;
     if (!data.case_lifecycle) {
       try {
-        const { data: s } = await supabase.from("system_settings").select("value").eq("key", "default_lifecycle_config").maybeSingle();
-        const def = s?.value?.case;
-        if (def?.preset) payload = { ...data, case_lifecycle: { preset: def.preset, reopen_to: def.reopen_to ?? "open" } };
+        let inherited = null;
+        if (data.parent_case_id) {
+          const { data: pc } = await supabase.from("cases").select("case_lifecycle").eq("id", data.parent_case_id).maybeSingle();
+          inherited = pc?.case_lifecycle?.preset ? pc.case_lifecycle : null;
+        }
+        if (!inherited && data.project_id) {
+          const { data: pr } = await supabase.from("projects").select("case_lifecycle, client_id").eq("id", data.project_id).maybeSingle();
+          inherited = pr?.case_lifecycle?.preset ? pr.case_lifecycle : null;
+          const clientId = data.client_id ?? pr?.client_id ?? null;
+          if (!inherited && clientId) {
+            const { data: cp } = await supabase.from("client_profiles").select("case_lifecycle").eq("id", clientId).maybeSingle();
+            inherited = cp?.case_lifecycle?.preset ? cp.case_lifecycle : null;
+          }
+        }
+        if (!inherited) {
+          const { data: s } = await supabase.from("system_settings").select("value").eq("key", "default_lifecycle_config").maybeSingle();
+          inherited = s?.value?.case?.preset ? s.value.case : null;
+        }
+        if (inherited?.preset) payload = { ...data, case_lifecycle: { preset: inherited.preset, reopen_to: inherited.reopen_to ?? "open" } };
       } catch (_) {}
     }
     const { data: row, error } = await supabase.from("cases").insert(payload).select().single();
