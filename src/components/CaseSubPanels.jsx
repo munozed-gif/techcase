@@ -5508,20 +5508,18 @@ ${sectionBlocks}`;
                   let fullResult = result;
                   if (mcpServers.length > 0 && result) {
                     try {
-                      const sapObjPrompt = `Based on the following analysis of a customer SAP development request, identify every SAP technical object mentioned: custom programs (Z*/Y*), function modules, BAPIs, tables (Z* or standard), classes, enhancement spots, BADIs, transaction codes, and any other named SAP artefacts.
+                      const sapObjPrompt = `Based on the following analysis of a customer SAP development request, identify the SAP technical objects that matter for THIS requirement and check them in the live system:
+- objects named in the customer's request or documents (programs, function modules, BAPIs, tables, structures, classes, CDS views, enhancement spots / BAdIs, transactions, Fiori apps, OData services);
+- custom objects (Z*, Y* or a /NAMESPACE/ prefix) mentioned anywhere in the analysis;
+- the specific standard objects the solution would read from or extend (e.g. the BAPI, table or business transaction it builds on).
+Do NOT check generic development or administration tools that every SAP system has (SE11, SE16, SE24, SE37, SE38, SE80, SE09, SE10, SE93, SCI, ATC, SU01, SU21, SU24, PFCG, STMS, SM30, SM37, SICF, SEGW, /IWFND/*) unless the customer's request is specifically about them.
 
-For each identified object, use the available SAP tools to check whether it exists in the system. Then produce a section titled:
+For each object, use the available SAP tools to check whether it exists in the system. Then produce a section titled:
 
 ## ${sapHeading}
 
-With a table or bullet list showing:
-- Object name
-- Type (program, table, FM, BAPI, class, etc.)
-- ✓ Exists / ✗ Not found
-- Brief note if relevant (e.g. "enhancement spot already contains 3 implementations")
-
-Only include objects you actually checked. If no technical objects are named in the analysis, write "No named SAP objects found in documents."
-Use a markdown table with exactly these columns: Object | Type | Status | Note. Status is "✓ Exists" or "✗ Not found". Keep Type to 1–3 words and each Note under 20 words.${_analyzeRulesNote}
+Use a markdown table with exactly these columns: Object | Type | Status | Note. Status is "✓ Exists" or "✗ Not found". Keep Type to 1–3 words. Write each Note in ${langName}, under 15 words (e.g. what it is, or what was searched).
+Only include objects you actually checked. If no relevant objects are named, write one line saying so.${_analyzeRulesNote}
 
 Analysis to process:
 ${result}`;
