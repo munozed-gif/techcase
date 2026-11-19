@@ -15,6 +15,27 @@ import { NovaLandingMark } from "./LandingView.jsx";
 
 // resumeUser: a signed-in account whose sign-up was never finished (no role chosen in the
 // profile step) — the screen opens on Sign up with that email, and skips the email code.
+// Likely typos of common email domains → suggestion ("gmail.om" → "gmail.com").
+const COMMON_EMAIL_DOMAINS = ["gmail.com", "hotmail.com", "outlook.com", "yahoo.com", "icloud.com", "live.com", "msn.com", "aol.com", "proton.me", "protonmail.com", "me.com"];
+function editDistance(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function emailDomainSuggestion(email) {
+  const m = String(email ?? "").trim().toLowerCase().match(/^([^@\s]+)@([^@\s]+)$/);
+  if (!m) return null;
+  const [, local, domain] = m;
+  if (COMMON_EMAIL_DOMAINS.includes(domain)) return null;
+  const best = COMMON_EMAIL_DOMAINS.map(d => [d, editDistance(domain, d)]).sort((x, y) => x[1] - y[1])[0];
+  return best && best[1] > 0 && best[1] <= 2 ? `${local}@${best[0]}` : null;
+}
+
+// resumeUser: a signed-in account whose sign-up was never finished (no role chosen in the
+// profile step) — the screen opens on Sign up with that email, and skips the email code.
 function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
   const { t } = useT();
   const branding = usePlatformBranding();
@@ -175,6 +196,11 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
   // ── Step 0: role chosen → decide OTP or skip ─────────────────
   async function handleRoleSelect(r, { partner = false } = {}) {
     if (!email.trim()) { setError(t("auth.error_email_first")); return; }
+    const suggestion = emailDomainSuggestion(email);
+    if (suggestion && !resumeUser) {
+      setError(`Check your email: did you mean ${suggestion}? Fix it above (or tap the suggestion) before continuing.`);
+      return;
+    }
     setAsPartner(partner);
     setError(""); setRole(r); setLoad(true);
     try {
@@ -576,6 +602,12 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
                   onChange={e => { setEmail(e.target.value); setKeyUserCompany(null); setFinalUserClient(null); setInternalConsultantClient(null); setProjectManagerClient(null); }}
                   onBlur={e => { if (e.target.value.trim()) checkEmailPreReg(e.target.value); }}
                   placeholder={t("auth.ph_email")} />
+                {!resumeUser && emailDomainSuggestion(email) && (
+                  <button type="button" onClick={() => setEmail(emailDomainSuggestion(email))}
+                    className="-mt-2 mb-3 text-xs text-amber-600 hover:underline">
+                    Did you mean <b>{emailDomainSuggestion(email)}</b>? Tap to fix.
+                  </button>
+                )}
                 <p className="text-xs font-medium text-gray-700 mb-3 mt-1">{t("auth.choose_type")}</p>
                 {authSettings === null ? (
                   <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
