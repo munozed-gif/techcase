@@ -1266,23 +1266,28 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       const name = typeof tmpl === 'string' ? url.split('/').pop().split('?')[0] : (tmpl.name ?? tmpl.file_name ?? 'ABAP Standards');
       if (!url) continue;
       try {
+        const hasExt = /\.[a-z0-9]{2,5}$/i.test(name);
         const r = await fetch('/api/extract-text', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, fileName: name.endsWith('.pdf') ? name : name + '.pdf' }),
+          body: JSON.stringify({ url, fileName: hasExt ? name : name + '.pdf', maxChars: 40000 }),
         });
         const { text } = r.ok ? await r.json() : {};
         if (text) blocks.push({ type: 'text', text: `[ABAP Standards Document: ${name}]\n${text}` });
-      } catch (_) {}
+        else console.warn('[abap-standards] could not extract text from', name, r.status);
+      } catch (e) { console.warn('[abap-standards] extract failed for', name, e?.message); }
     }
 
     const clientStd  = (ssCtx.settings['abap_standards_client']  ?? {})[clientId]  ?? {};
     const projectStd = (ssCtx.settings['abap_standards_project'] ?? {})[projId]    ?? {};
     const caseStd    = (ssCtx.settings['abap_standards_case']    ?? {})[caseId]    ?? {};
+    const explicitPrefix = caseStd.globalPrefix || projectStd.globalPrefix || clientStd.globalPrefix;
     const std = { globalPrefix:'Z', namespacePrefix:'', objectTypePrefixes:{}, ...clientStd, ...projectStd, ...caseStd };
+    const hasDocs = blocks.length > 0;
 
     const lines = [];
-    if (std.globalPrefix)     lines.push(`Global object prefix: ${std.globalPrefix}`);
+    // With standards documents attached, the built-in 'Z' default must not compete with them.
+    if (std.globalPrefix && (!hasDocs || explicitPrefix)) lines.push(`Global object prefix: ${std.globalPrefix}`);
     if (std.namespacePrefix)  lines.push(`Namespace prefix: ${std.namespacePrefix}`);
     const pfx = std.objectTypePrefixes ?? {};
     const pfxParts = Object.entries(pfx).filter(([,v])=>v).map(([k,v])=>`${k}: ${v}`);
@@ -1291,9 +1296,17 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     if (std.changeLogTemplate) lines.push(`Change-log template: ${std.changeLogTemplate}`);
     if (std.authorId)         lines.push(`Default author ID: ${std.authorId}`);
 
-    const contextText = lines.length
-      ? `\n\n## Project ABAP Naming & Coding Standards\nApply these conventions to ALL technical objects proposed:\n${lines.join('\n')}`
-      : '';
+    const docNames = blocks.map(b => (b.text.match(/^\[ABAP Standards Document: ([^\]]+)\]/) ?? [])[1]).filter(Boolean);
+    let contextText = '';
+    if (hasDocs) {
+      contextText = `\n\n## Project ABAP Naming & Coding Standards (MANDATORY)\n`
+        + `The attached ABAP Standards Document(s) (${docNames.join(', ')}) are the AUTHORITATIVE conventions for this project. `
+        + `Build EVERY technical object name (tables, structures, data elements, domains, programs, classes, interfaces, CDS views, RAP objects, function groups/modules, transactions, message classes, enhancements, etc.) and every transport request description strictly from the grammars, patterns, component codes and catalogs defined in those documents. `
+        + `Do not invent prefixes or use generic names such as Z<MODULE>_… when the documents define a pattern. If a required code (e.g. solution/domain or module code) cannot be derived from the case, use the documents' rules and flag the assumed value.`
+        + (lines.length ? `\nAdditional settings — apply only where the documents are silent:\n${lines.join('\n')}` : '');
+    } else if (lines.length) {
+      contextText = `\n\n## Project ABAP Naming & Coding Standards\nApply these conventions to ALL technical objects proposed:\n${lines.join('\n')}`;
+    }
 
     return { blocks, contextText };
   }
