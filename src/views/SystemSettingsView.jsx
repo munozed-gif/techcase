@@ -4501,7 +4501,15 @@ function SettingsPlansTab({ ssCtx, auth }) {
   }, []);
 
   useEffect(() => {
-    if (tab === 'config') setEditConfig(JSON.parse(JSON.stringify(planCfg.config)));
+    if (tab === 'config') {
+      // Start from the defaults so plan types / limits added later (e.g. partner "proposals") show up.
+      const cfg = JSON.parse(JSON.stringify(planCfg.config ?? {}));
+      for (const [rt, plans] of Object.entries(DEFAULT_PLAN_CONFIG)) {
+        cfg[rt] = cfg[rt] ?? {};
+        for (const [pk, def] of Object.entries(plans)) cfg[rt][pk] = { ...def, ...(cfg[rt][pk] ?? {}) };
+      }
+      setEditConfig(cfg);
+    }
   }, [tab]);
 
   async function changePlan(userId, plan, role) {
@@ -4518,8 +4526,10 @@ function SettingsPlansTab({ ssCtx, auth }) {
   }
 
   const PLAN_TYPES = ['client', 'consultant', 'headhunter'];
-  const PLAN_KEYS  = { client: ['free','growth','enterprise'], consultant: ['free','pro'], headhunter: ['free','pro','agency'] };
-  const LIMIT_LABELS = { maxCases: 'Max active cases', maxTeam: 'Max team members', maxApps: 'Max applications/mo', maxCandidates: 'Max candidates', ai: 'AI features', analytics: 'Analytics', priority: 'Priority listing', helpDesk: 'Help Desk projects' };
+  const PLAN_KEYS  = { client: ['free','growth','enterprise'], consultant: ['free','pro'], headhunter: ['free','pro','agency'], partner: ['free','pro'] };
+  const LIMIT_LABELS = { maxCases: 'Max active cases', maxTeam: 'Max team members', maxApps: 'Max applications/mo', maxCandidates: 'Max candidates', ai: 'AI features', analytics: 'Analytics', priority: 'Priority listing', helpDesk: 'Help Desk projects',
+    maxCustomers: 'Max customers', maxProjects: 'Max active projects', maxOpenCases: 'Max open cases', maxMembers: 'Max team members', maxSapEnvs: 'Max SAP environments',
+    projectVpn: 'Per-project VPN', sapImplementation: 'SAP implementation (write to SAP)', validations: 'Custom validation rules', proposals: 'Proposals to customers' };
 
   const CLIENT_TEAM_ROLES_ADMIN = ['key_user', 'final_user', 'internal_consultant', 'project_manager'];
   const billingUsers  = users.filter(u => ROLE_TO_PLAN_TYPE[u.role] && !CLIENT_TEAM_ROLES_ADMIN.includes(u.role));
@@ -4607,7 +4617,7 @@ function SettingsPlansTab({ ssCtx, auth }) {
 
       {tab === 'config' && editConfig && (
         <div className="space-y-6">
-          {PLAN_TYPES.map(rt => (
+          {[...PLAN_TYPES, 'partner'].map(rt => (
             <div key={rt} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
                 <h3 className="font-semibold text-gray-800 capitalize">{rt} Plans</h3>

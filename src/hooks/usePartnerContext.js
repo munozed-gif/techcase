@@ -74,6 +74,7 @@ export const PARTNER_LIMIT_LABELS = [
   { key: "projectVpn",        label: "Per-project VPN",         kind: "flag" },
   { key: "sapImplementation", label: "SAP implementation (write to SAP)", kind: "flag" },
   { key: "validations",       label: "Custom validation rules", kind: "flag" },
+  { key: "proposals",         label: "Proposals to customers",  kind: "flag" },
 ];
 
 export function fmtLimit(v, kind) {

@@ -154,7 +154,7 @@ const INVOICE_STATUS_COLORS = {
 
 function fmt(val) { return val?.replace(/_/g, " ") ?? "—"; }
 function cap(val) { return val ? val.charAt(0).toUpperCase() + val.slice(1) : ""; }
-const STATUS_LABEL_KEYS = { open:"status.open", estimated:"status.estimated", assigned:"status.assigned", in_progress:"status.in_progress", on_hold:"status.on_hold", completed:"status.completed", cancelled:"status.cancelled", draft:"status.draft", active:"status.active", pending:"status.pending", under_review:"status.under_review", accepted:"status.accepted", rejected:"status.rejected", withdrawn:"status.withdrawn" };
+const STATUS_LABEL_KEYS = { open:"status.open", estimated:"status.estimated", proposal_pending:"status.proposal_pending", assigned:"status.assigned", in_progress:"status.in_progress", on_hold:"status.on_hold", completed:"status.completed", cancelled:"status.cancelled", draft:"status.draft", active:"status.active", pending:"status.pending", under_review:"status.under_review", accepted:"status.accepted", rejected:"status.rejected", withdrawn:"status.withdrawn" };
 const AVAIL_LABEL_KEYS  = { full_time:"avail.full_time", part_time:"avail.part_time", contract:"avail.contract", project_based:"avail.project" };
 const PRIORITY_LABEL_KEYS = { low:"priority.low", medium:"priority.medium", high:"priority.high", critical:"priority.critical" };
 const INV_STATUS_LABEL_KEYS  = { draft:"status.draft", sent:"inv.status_sent", paid:"invoices.paid", overdue:"invoices.overdue" };

@@ -9,7 +9,7 @@ import { filterCasesByVisibility, useSystemSettings, useVisibilitySettings } fro
 import { logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { PRIORITY_LABEL_KEYS, STATUS_LABEL_KEYS, cap, fmtDate } from "../lib/uiUtils.jsx";
-import { CASE_CARD_COLORS, LIFECYCLE_PRESETS, PRIORITY_COLORS, STATUS_COLORS } from "../lib/businessConstants.js";
+import { CASE_CARD_COLORS, LIFECYCLE_PRESETS, PROPOSAL_PENDING_STAGE, PRIORITY_COLORS, STATUS_COLORS } from "../lib/businessConstants.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { CaseDetail } from "./CaseDetail.jsx";
 import { PersonAvatar, ProjectAvatar } from "./Projects.jsx";
@@ -156,6 +156,7 @@ function KanbanView({ auth }) {
   lcTemplates.forEach(tpl =>
     (tpl.stages ?? []).forEach(s => { stageCatalog[s.key] = s; })
   );
+  stageCatalog[PROPOSAL_PENDING_STAGE.key] = PROPOSAL_PENDING_STAGE; // only shows while a case is in a proposal
 
   // Derive columns from statuses actually present in visible (project-filtered) cases
   const usedKeys = [...new Set(boardCases.map(c => c.status).filter(Boolean))];

@@ -52,7 +52,7 @@ import {
   STATUS_COLORS, CASE_CARD_COLORS, PRIORITY_COLORS, STATUS_CARD_ICONS,
   ROLE_COLORS, APP_STATUS_COLORS, PROJECT_TYPES,
   SAP_AREAS, INDUSTRY_AREAS, LIFECYCLE_PRESETS,
-  DEFAULT_ACTIVITY_PHASES, getLifecycleStages, GATE_CONDITIONS,
+  DEFAULT_ACTIVITY_PHASES, getLifecycleStages, GATE_CONDITIONS, withProposalStage,
 } from "../lib/businessConstants.js";
 import { resolveGate, caseValidationScope } from "../lib/validationPolicies.js";
 import { applyArenaEstimate, arenaHours, estimateTotals, IMPL_MODE_LABEL, SENIORITY_LABEL, SENIORITY_LEVELS } from "../lib/estimation.js";
@@ -521,7 +521,8 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   }, [parentCaseLifecycle, projectLifecycle, clientLifecycle, ssCtxCD.settings, ssCtxCD.loading]);
 
   const effectiveLifecycle = caseData.case_lifecycle ?? parentCaseLifecycle ?? projectLifecycle ?? clientLifecycle;
-  const lifecycleStages = getLifecycleStages(effectiveLifecycle, caseLcTemplates);
+  // "Proposal pending" only appears while the case is in a customer proposal.
+  const lifecycleStages = withProposalStage(getLifecycleStages(effectiveLifecycle, caseLcTemplates), caseData.status);
   const subCaseInitialStatus = (lifecycleStages.find(s => s.is_initial) ?? lifecycleStages.find(s => !s.is_terminal))?.key ?? "open";
 
   // Scroll pipeline carousel to current status whenever status or stages change
@@ -562,6 +563,12 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   // Gates: global (Settings → Workflow) with customer and project overrides applied.
   const validationScope = caseValidationScope(caseData);
   function checkTransitionGates(toStatus) {
+    // Built-in gate: a case waiting for its proposal leaves Proposal pending only through
+    // the proposal (approval, rejection or withdrawal). Arena admins may override.
+    if (caseData.status === "proposal_pending" && toStatus !== "proposal_pending" && !auth.isAdmin) {
+      const def = GATE_CONDITIONS.find(d => d.key === "proposal_approved");
+      return { blockers: [{ key: def.key, label: def.label, fixHint: def.fixHint }], warnings: [] };
+    }
     const gate = resolveGate(cdSettings, lifecycleKey, toStatus, validationScope);
     if (!gate?.enabled) return { blockers: [], warnings: [] };
 

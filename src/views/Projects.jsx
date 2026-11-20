@@ -8,7 +8,7 @@ import {
   UserCheck, Users, X, XCircle, Zap,
   ArrowRightLeft, BarChart, BookOpen, Briefcase, Bug, ClipboardList,
   Cpu, FlaskConical, GitBranch, Globe, GraduationCap, KeyRound,
-  MonitorCheck, Network, Settings, ShieldCheck, Wrench,
+  MonitorCheck, Network, Settings, ShieldCheck, Wrench, FileSignature,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -36,6 +36,7 @@ import { STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, fmt, cap,
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 import { usePartnerContext } from "../hooks/usePartnerContext.js";
 import { COMMON_CURRENCIES } from "../lib/costs.js";
+import { ProjectProposalsTab } from "../components/ProjectProposalsTab.jsx";
 
 const DELIVERABLE_ICON_MAP = {
   "Business Blueprint":       { Icon: BookOpen,      color: "text-blue-600 dark:text-blue-400",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
@@ -1703,6 +1704,13 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const projPartnerCtx = usePartnerContext(auth.user?.id);
   const projPartner = project?.partner_id ? projPartnerCtx.partnerById(project.partner_id) : null;
   const projPartnerManage = !!projPartner && projPartner.status === "approved" && ["owner", "admin"].includes(projPartner.role);
+  // Proposals: Arena admins/managers and partner owners/admins when the partner plan includes them.
+  const [canProposals, setCanProposals] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    supabase.rpc("can_manage_proposals", { p_project: project.id }).then(({ data }) => { if (alive) setCanProposals(data === true); });
+    return () => { alive = false; };
+  }, [project.id, auth.user?.id]);
   const { createCase, updateCase, deleteCase } = useCases({});
   const { settings: _importSS, setSetting: ssSetSetting, loading: ssLoading } = useSystemSettings();
   const [projCases, setProjCases] = useState([]);
@@ -2128,6 +2136,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "requirements", label: t("project.tab_requirements"),  icon: SlidersHorizontal, count: null },
     { id: "cases",        label: t("project.tab_cases"),         icon: FolderOpen,        count: projCases.length },
     { id: "documents",    label: t("project.tab_documents"),     icon: FileText,          count: null },
+    ...(canProposals ? [{ id: "proposals", label: t("project.tab_proposals"), icon: FileSignature, count: null }] : []),
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     ...(canEdit ? [{ id: "spec_gen",  label: "Spec Gen",                 icon: Sparkles,   count: null }] : []),
@@ -3225,6 +3234,11 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         {/* Documents */}
         {tab.id === "documents" && (
           <ProjectDocsTab projectId={project.id} auth={auth} createdBy={project.created_by} />
+        )}
+
+        {/* Proposals */}
+        {tab.id === "proposals" && canProposals && (
+          <ProjectProposalsTab project={project} auth={auth} />
         )}
 
         {/* Connections */}

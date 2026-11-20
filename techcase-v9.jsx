@@ -141,6 +141,7 @@ import { LandingView, NovaLandingMark } from "./src/views/LandingView.jsx";
 import ProjectShareView from "./src/views/ProjectShareView.jsx";
 import ApprovalView from "./src/views/ApprovalView.jsx";
 import CustomerSpecReviewView from "./src/views/CustomerSpecReviewView.jsx";
+import ProposalReviewView from "./src/views/ProposalReviewView.jsx";
 import MyReviewsView from "./src/views/MyReviewsView.jsx";
 
 
@@ -702,6 +703,8 @@ const _shareMatch = typeof window !== 'undefined' && window.location.pathname.ma
 const _approveMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/approve\/([^/?#]+)/);
 // Intercept /review/:token — customer-facing spec review link, no auth required
 const _reviewMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/review\/([^/?#]+)/);
+// Intercept /proposal/:token — customer proposal review link, no auth required
+const _proposalMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/proposal\/([^/?#]+)/);
 
 // Renders children only when the role permission matrix allows `cap` (inside the settings provider).
 function PermGate({ auth, cap, fallback = null, children }) {
@@ -831,6 +834,11 @@ export default function App() {
   // /review/:token — customer-facing spec review link, no login needed
   if (_reviewMatch) {
     return <CustomerSpecReviewView token={_reviewMatch[1]} />;
+  }
+
+  // /proposal/:token — customer proposal (accept / ask for changes / reject), no login needed
+  if (_proposalMatch) {
+    return <ProposalReviewView token={_proposalMatch[1]} />;
   }
 
   // /join/:token — show branded join screen before any auth check

@@ -2320,6 +2320,7 @@ const TRANSLATIONS = {
     "catalog.languages":            "Languages",
     "catalog.doc_types":            "Document Types",
     "project.tab_documents":        "Documents",
+    "project.tab_proposals":        "Proposals",
     // Expertise level options
     "exp.any":                      "Any Level",
     "exp.junior":                   "Junior",
@@ -2658,6 +2659,7 @@ const TRANSLATIONS = {
     // Case / project status labels
     "status.open":         "Open",
     "status.estimated":    "Estimated",
+    "status.proposal_pending": "Proposal pending",
     "status.assigned":     "Assigned",
     "status.in_progress":  "In Progress",
     "status.on_hold":      "On Hold",
@@ -5665,6 +5667,7 @@ const TRANSLATIONS = {
     "catalog.languages":            "Idiomas",
     "catalog.doc_types":            "Tipos de Documento",
     "project.tab_documents":        "Documentos",
+    "project.tab_proposals":        "Propuestas",
     // Expertise level options
     "exp.any":                      "Cualquier Nivel",
     "exp.junior":                   "Junior",
@@ -6004,6 +6007,7 @@ const TRANSLATIONS = {
     // Case / project status labels
     "status.open":         "Abierto",
     "status.estimated":    "Estimado",
+    "status.proposal_pending": "Propuesta pendiente",
     "status.assigned":     "Asignado",
     "status.in_progress":  "En Progreso",
     "status.on_hold":      "En Espera",

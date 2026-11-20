@@ -584,8 +584,8 @@ function PlanTab({ partner, auth, canManage }) {
   }
 
   const plans = ["free", "pro"].map(k => ({ key: k, limits: { ...(k === "pro"
-    ? { maxCustomers: -1, maxProjects: -1, maxOpenCases: -1, maxMembers: 5, maxSapEnvs: -1, projectVpn: true, sapImplementation: true, validations: true }
-    : { maxCustomers: 1, maxProjects: 1, maxOpenCases: 3, maxMembers: 1, maxSapEnvs: 1, projectVpn: false, sapImplementation: false, validations: false }),
+    ? { maxCustomers: -1, maxProjects: -1, maxOpenCases: -1, maxMembers: 5, maxSapEnvs: -1, projectVpn: true, sapImplementation: true, validations: true, proposals: true }
+    : { maxCustomers: 1, maxProjects: 1, maxOpenCases: 3, maxMembers: 1, maxSapEnvs: 1, projectVpn: false, sapImplementation: false, validations: false, proposals: true }),
     ...(partnerPlans[k] ?? {}) } }));
 
   return (

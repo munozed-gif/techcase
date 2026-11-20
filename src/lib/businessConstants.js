@@ -21,8 +21,8 @@ const DEFAULT_PLAN_CONFIG = {
   // Partner accounts (consultants / firms running their own customers). -1 = unlimited.
   // The database (partner_limits) enforces these; plan_config.partner overrides them.
   partner: {
-    free: { label: 'Free', maxCustomers: 1,  maxProjects: 1,  maxOpenCases: 3,  maxMembers: 1, maxSapEnvs: 1,  projectVpn: false, sapImplementation: false, validations: false },
-    pro:  { label: 'Pro',  maxCustomers: -1, maxProjects: -1, maxOpenCases: -1, maxMembers: 5, maxSapEnvs: -1, projectVpn: true,  sapImplementation: true,  validations: true },
+    free: { label: 'Free', maxCustomers: 1,  maxProjects: 1,  maxOpenCases: 3,  maxMembers: 1, maxSapEnvs: 1,  projectVpn: false, sapImplementation: false, validations: false, proposals: true },
+    pro:  { label: 'Pro',  maxCustomers: -1, maxProjects: -1, maxOpenCases: -1, maxMembers: 5, maxSapEnvs: -1, projectVpn: true,  sapImplementation: true,  validations: true,  proposals: true },
   },
   client: {
     free:       { label: 'Free',       maxCases: 3,  maxTeam: 2,  ai: false, analytics: false, helpDesk: false },
@@ -81,6 +81,7 @@ const INDUSTRY_AREAS = [
 ];
 
 const STATUS_COLORS = {
+  proposal_pending: "bg-amber-100 text-amber-800",
   open:        "bg-emerald-100 text-emerald-800",
   estimated:   "bg-teal-100 text-teal-800",
   assigned:    "bg-violet-100 text-violet-800",
@@ -91,6 +92,7 @@ const STATUS_COLORS = {
 };
 
 const CASE_CARD_COLORS = {
+  proposal_pending:{ bar: "#C9922A", border: "rgba(201,146,42,0.45)",   bg: "rgba(201,146,42,0.09)"  },
   open:            { bar: "#34d399", border: "rgba(52,211,153,0.42)",   bg: "rgba(16,185,129,0.09)"  },
   estimated:       { bar: "#2dd4bf", border: "rgba(45,212,191,0.42)",   bg: "rgba(20,184,166,0.09)"  },
   assigned:        { bar: "#a78bfa", border: "rgba(167,139,250,0.42)",  bg: "rgba(139,92,246,0.09)"  },
@@ -203,6 +205,24 @@ const LIFECYCLE_PRESETS = {
   },
 };
 
+// ── "Proposal pending" system stage ───────────────────────────────────────────
+// Not part of any lifecycle template: a case is in it only while it is included in a
+// customer proposal (Project → Proposals). It shows up in the case's stage list only
+// then, placed right after the Arena (estimation) stage, and only proposal actions move
+// the case in or out of it (approval → Estimated with the budget set; rejection /
+// withdrawal → the status the case had before).
+const PROPOSAL_PENDING_STAGE = {
+  key: "proposal_pending", label: "Proposal pending", color: "#C9922A",
+  is_terminal: false, system: true, allowed_next: [],
+};
+function withProposalStage(stages, status) {
+  if (status !== "proposal_pending" || (stages ?? []).some(s => s.key === "proposal_pending")) return stages;
+  const list = stages ?? [];
+  const arenaIdx = list.findIndex(s => s.is_arena);
+  const at = arenaIdx >= 0 ? arenaIdx + 1 : Math.min(1, list.length);
+  return [...list.slice(0, at), PROPOSAL_PENDING_STAGE, ...list.slice(at)];
+}
+
 function getLifecycleStages(lifecycle, templates, fallbackPreset = "standard") {
   function resolvePreset(preset) {
     if (templates?.length) {
@@ -218,6 +238,13 @@ function getLifecycleStages(lifecycle, templates, fallbackPreset = "standard") {
 
 // ── Transition gate condition definitions ──────────────────────
 const GATE_CONDITIONS = [
+  {
+    key: "proposal_approved",
+    label: "Proposal approved",
+    description: "The case is not waiting for a customer proposal (always enforced while it is in Proposal pending)",
+    check: (c) => c.status !== "proposal_pending",
+    fixHint: "Wait for the customer to approve the proposal (Project → Proposals), or withdraw it",
+  },
   {
     key: "consultant_assigned",
     label: "Consultant assigned",
@@ -514,4 +541,6 @@ export {
   DEFAULT_PLAN_PRICES,
   GATE_CONDITIONS,
   DEFAULT_MIGRATION_CONFIG,
+  PROPOSAL_PENDING_STAGE,
+  withProposalStage,
 };
