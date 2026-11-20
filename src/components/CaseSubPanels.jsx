@@ -1024,6 +1024,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [aiError, setAiError]           = useState(null);
   const [aiStep, setAiStep]             = useState(1);   // 1 | 2 | 3
   const [activeNode, setActiveNode]     = useState(0);   // 0=docs 1=sap 2=proposal 3=generate
+  const nodeRestoredForRef = useRef(null);
+  // Spec loaded as empty → a spec created later in this session must not reset the node.
+  useEffect(() => { if (!specLoading && !spec && nodeRestoredForRef.current === null) nodeRestoredForRef.current = 'none'; }, [specLoading, spec]);
   const [nodesCollapsed, setNodesCollapsed] = useState(false);
   const [sapCheck, setSapCheck]         = useState(null);
   const [proposalCheck, setProposalCheck] = useState(null);
@@ -2174,7 +2177,13 @@ ${mdToHtml(markdownContent)}
       setAiStep(restoredStep);
       const restoredNode = (spec.status === 'approved' || spec.status === 'submitted') ? 4
         : restoredStep === 3 ? 3 : restoredStep === 2 ? 2 : 0;
-      setActiveNode(restoredNode);
+      // Only pick the starting node when the spec is first opened; later saves (e.g. the
+      // context analysis storing its result) must not throw the user back to Documents.
+      if (nodeRestoredForRef.current === 'none') nodeRestoredForRef.current = spec.id;
+      if (nodeRestoredForRef.current !== spec.id) {
+        nodeRestoredForRef.current = spec.id;
+        setActiveNode(restoredNode);
+      }
       // Fallback: detect prototype from documents list (legacy storage saves)
       const protoDoc = (documents ?? []).find(d => (d.description ?? '').startsWith('[Prototype]') || (d.file_name ?? '').startsWith('Prototype_'));
       if (protoDoc) { setProtoSaved(true); setActiveProfile(p => p ?? { prototype_enabled: true }); }
