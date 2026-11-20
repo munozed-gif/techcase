@@ -635,8 +635,8 @@ const CSS = `
 #arena-landing .pv-ctas{display:flex;gap:10px;flex-wrap:wrap;}
 #arena-landing .arena-head{max-width:1200px;margin:0 auto 36px;position:relative;z-index:1;}
 #arena-landing .arena-head h2{color:#fff;margin:0;}
-#arena-landing .pv-band{position:relative;z-index:1;margin:0 -24px 8px;background:#03060C;border-top:1px solid rgba(79,110,247,.25);border-bottom:1px solid rgba(79,110,247,.25);box-shadow:0 30px 80px rgba(0,0,0,.55);display:flex;justify-content:center;animation:pv-fade .6s ease-out both;}
-#arena-landing .pv-band-frame{position:relative;width:min(100%,calc(78vh * 16 / 9));aspect-ratio:16/9;}
+#arena-landing .pv-band{position:relative;z-index:1;margin:0 -24px 8px;padding:24px 0;background:#03060C;border-top:1px solid rgba(79,110,247,.25);border-bottom:1px solid rgba(79,110,247,.25);box-shadow:0 30px 80px rgba(0,0,0,.55);display:flex;justify-content:center;animation:pv-fade .6s ease-out both;}
+#arena-landing .pv-band-frame{position:relative;width:min(100%,940px,calc(58.5vh * 16 / 9));aspect-ratio:16/9;}
 #arena-landing .pv-band-frame .pv-video{object-fit:contain;}
 #arena-landing .pv-skip{position:absolute;top:14px;right:14px;font-size:.76rem;font-weight:600;color:rgba(255,255,255,.75);background:rgba(11,15,26,.6);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;cursor:pointer;}
 #arena-landing .pv-skip:hover{color:#fff;background:rgba(255,255,255,.14);}
