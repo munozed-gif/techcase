@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 
 // ─── Nova Logo Mark ─────────────────────────────────────────────────────────
@@ -634,16 +633,21 @@ const CSS = `
 #arena-landing .pv-frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#0B0F1A;border:1px solid rgba(79,110,247,.35);box-shadow:0 24px 60px rgba(0,0,0,.45),0 0 0 6px rgba(79,110,247,.06);}
 #arena-landing .pv-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
 #arena-landing .pv-ctas{display:flex;gap:10px;flex-wrap:wrap;}
-#arena-landing .pv-again{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:.9rem;font-weight:700;color:#fff;background:rgba(11,15,26,.72);border:1px solid rgba(232,184,75,.55);border-radius:999px;padding:8px 18px 8px 8px;cursor:pointer;backdrop-filter:blur(6px);transition:background .2s,transform .2s;}
-#arena-landing .pv-again:hover{background:rgba(79,110,247,.35);transform:translateX(-50%) translateY(-1px);}
-#arena-landing .pv-again-icon{width:34px;height:34px;border-radius:50%;background:#4F6EF7;display:flex;align-items:center;justify-content:center;}
-#arena-landing .pv-overlay{position:fixed;inset:0;z-index:10000;background:#05070D;display:flex;align-items:center;justify-content:center;animation:pv-in .5s ease-out both;}
-#arena-landing .pv-overlay.closing{animation:pv-out .6s ease-in both;}
-#arena-landing .pv-overlay-video{width:100%;height:100%;object-fit:contain;background:#05070D;}
-#arena-landing .pv-skip{position:absolute;top:18px;right:18px;font-size:.78rem;font-weight:600;color:rgba(255,255,255,.7);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;cursor:pointer;}
-#arena-landing .pv-skip:hover{color:#fff;background:rgba(255,255,255,.16);}
-@keyframes pv-in{from{opacity:0}to{opacity:1}}
-@keyframes pv-out{from{opacity:1}to{opacity:0}}
+#arena-landing .arena-head{max-width:1200px;margin:0 auto 36px;position:relative;z-index:1;}
+#arena-landing .arena-head h2{color:#fff;margin:0;}
+#arena-landing .pv-band{position:relative;z-index:1;margin:0 -24px 8px;background:#03060C;border-top:1px solid rgba(79,110,247,.25);border-bottom:1px solid rgba(79,110,247,.25);box-shadow:0 30px 80px rgba(0,0,0,.55);display:flex;justify-content:center;animation:pv-fade .6s ease-out both;}
+#arena-landing .pv-band-frame{position:relative;width:min(100%,calc(78vh * 16 / 9));aspect-ratio:16/9;}
+#arena-landing .pv-band-frame .pv-video{object-fit:contain;}
+#arena-landing .pv-skip{position:absolute;top:14px;right:14px;font-size:.76rem;font-weight:600;color:rgba(255,255,255,.75);background:rgba(11,15,26,.6);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;cursor:pointer;}
+#arena-landing .pv-skip:hover{color:#fff;background:rgba(255,255,255,.14);}
+#arena-landing .pv-after{display:flex;flex-direction:column;gap:14px;}
+#arena-landing .pv-again{align-self:flex-start;display:inline-flex;align-items:center;gap:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:.86rem;font-weight:700;color:#fff;background:rgba(255,255,255,.04);border:1px solid rgba(232,184,75,.55);border-radius:999px;padding:6px 16px 6px 6px;cursor:pointer;transition:background .2s;}
+#arena-landing .pv-again:hover{background:rgba(79,110,247,.25);}
+#arena-landing .pv-again-icon{width:30px;height:30px;border-radius:50%;background:#4F6EF7;display:flex;align-items:center;justify-content:center;}
+#arena-landing .pv-reveal{animation:pv-rise .7s .45s ease-out both;}
+@keyframes pv-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes pv-fade{from{opacity:0}to{opacity:1}}
+@media(max-width:560px){#arena-landing .pv-skip{top:auto;bottom:8px;right:8px;padding:4px 10px;font-size:.68rem;}}
 
 #arena-landing .mig-showcase{background:#04091a;padding:96px 24px;position:relative;overflow:hidden;}
 #arena-landing .mig-showcase::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 30% 50%,rgba(16,185,129,.1) 0%,transparent 65%),linear-gradient(rgba(16,185,129,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,.03) 1px,transparent 1px);background-size:100% 100%,48px 48px,48px 48px;}
@@ -1237,83 +1241,121 @@ const LC_STAGES = [
 
 // ─── Arena promo video (Arena showcase section) ─────────────────────────────
 // Files live in /public/media: arena-promo-{en|es}.{webm,mp4}, arena-promo-end-{en|es}.jpg (last frame).
-// The first time a visitor reaches the Arena section the video plays full screen with no
-// controls; when it ends the page shows again and the section keeps the last frame with
-// a "Watch again" button.
-function ArenaVideoPlayer({ tl, lang, onSignIn }) {
-  const wrapRef = useRef(null);
+// The section opens with the heading and a full-width cinematic band that plays the promo
+// (muted, no controls) when it scrolls into view. When it ends, the band shrinks into the
+// small frame on the right and the description, bullets and buttons appear. "Watch again"
+// (under the frame) brings the band back and replays it with sound.
+const PV_END_AT = 31.6; // the video fades to black after this; stop on the end card instead
+
+function ArenaPromoSection({ tl, lang, onSignIn, bullets }) {
+  const reduceMotion = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const [phase, setPhase] = useState(reduceMotion ? "done" : "band"); // band | done
+  const [animate, setAnimate] = useState(false); // run the reveal animations (not on first render when reduced motion)
+  const bandRef = useRef(null);
+  const frameRef = useRef(null);
   const videoRef = useRef(null);
-  const autoShown = useRef(false);
-  const [open, setOpen] = useState(false);     // full-screen overlay mounted
-  const [closing, setClosing] = useState(false);
+  const smallRef = useRef(null);
+  const fromRect = useRef(null);
   const withSound = useRef(false);
+  const ending = useRef(false);
 
-  // Auto-open once per page view when the Arena section comes into view.
+  // Play while the band is on screen (muted autoplay; with sound after "Watch again").
   useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap || typeof IntersectionObserver === "undefined") return;
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) return;
-    const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting && !autoShown.current) { autoShown.current = true; withSound.current = false; setOpen(true); }
-    }, { threshold: 0.35 });
-    io.observe(wrap);
-    return () => io.disconnect();
-  }, []);
-
-  // While open: start the video (with sound when a click opened it; browsers only allow
-  // muted autoplay otherwise), lock page scrolling, and let Esc skip.
-  useEffect(() => {
-    if (!open) return;
-    const root = document.getElementById("arena-landing");
-    const prevOverflow = root ? root.style.overflow : "";
-    if (root) root.style.overflow = "hidden";
-    const v = videoRef.current;
-    if (v) {
-      v.currentTime = 0; v.muted = !withSound.current;
-      v.play().catch(() => { v.muted = true; v.play().catch(() => finish()); });
+    if (phase !== "band") return;
+    const v = videoRef.current, el = bandRef.current;
+    if (!v || !el) return;
+    ending.current = false;
+    const start = () => { v.muted = !withSound.current; v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }); };
+    if (withSound.current) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      v.currentTime = 0; start();
     }
-    const onKey = e => { if (e.key === "Escape") finish(); };
-    window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener("keydown", onKey); if (root) root.style.overflow = prevOverflow; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { if (v.paused && !ending.current) start(); }
+      else if (!v.paused) v.pause();
+    }, { threshold: 0.5 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [phase]);
 
   function finish() {
-    setClosing(true);
-    setTimeout(() => { setOpen(false); setClosing(false); }, 600);
+    if (ending.current) return;
+    ending.current = true;
+    videoRef.current?.pause();
+    fromRect.current = frameRef.current?.getBoundingClientRect() ?? null;
+    setAnimate(true);
+    setPhase("done");
   }
-  function watchAgain() { withSound.current = true; setOpen(true); }
+  function watchAgain() { withSound.current = true; setPhase("band"); }
 
+  // Shrink: start the small frame where the band was, then let it glide into place.
+  useLayoutEffect(() => {
+    if (phase !== "done" || !fromRect.current || !smallRef.current) return;
+    const r1 = fromRect.current; fromRect.current = null;
+    const el = smallRef.current, r2 = el.getBoundingClientRect();
+    if (!r2.width) return;
+    el.style.transition = "none";
+    el.style.transformOrigin = "top left";
+    el.style.transform = `translate(${r1.left - r2.left}px, ${r1.top - r2.top}px) scale(${r1.width / r2.width})`;
+    el.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      el.style.transition = "transform .9s cubic-bezier(.2,.8,.2,1)";
+      el.style.transform = "none";
+    });
+  }, [phase]);
+
+  const reveal = animate ? " pv-reveal" : "";
   return (
-    <div className="pv-wrap" ref={wrapRef}>
-      {open && createPortal(
-        <div className={`pv-overlay${closing ? " closing" : ""}`} role="dialog" aria-label={tl("pv_aria")}>
-          <video key={lang} ref={videoRef} className="pv-overlay-video" playsInline preload="auto"
-            poster="/media/arena-promo-poster.jpg" onEnded={finish}>
-            <source src={`/media/arena-promo-${lang}.webm`} type="video/webm" />
-            <source src={`/media/arena-promo-${lang}.mp4`} type="video/mp4" />
-          </video>
-          <button type="button" className="pv-skip" onClick={finish}>{tl("pv_skip")} ✕</button>
-        </div>,
-        // Rendered at the landing root so it sits above the sticky nav (styles are scoped to #arena-landing).
-        document.getElementById("arena-landing") ?? document.body
+    <section className="arena-showcase" id="arena">
+      <div className="arena-head">
+        <div className="arena-tag">{tl("arena_tag")}</div>
+        <h2>{tl("arena_h2")}</h2>
+      </div>
+
+      {phase === "band" && (
+        <div className="pv-band" ref={bandRef}>
+          <div className="pv-band-frame" ref={frameRef}>
+            <video key={lang} ref={videoRef} className="pv-video" playsInline muted preload="metadata"
+              poster="/media/arena-promo-poster.jpg" aria-label={tl("pv_aria")}
+              onTimeUpdate={e => { if (e.currentTarget.currentTime >= PV_END_AT) finish(); }}
+              onEnded={finish}>
+              <source src={`/media/arena-promo-${lang}.webm`} type="video/webm" />
+              <source src={`/media/arena-promo-${lang}.mp4`} type="video/mp4" />
+            </video>
+            <button type="button" className="pv-skip" onClick={finish}>{tl("pv_skip")} ✕</button>
+          </div>
+        </div>
       )}
-      <div className="pv-tag">▶ {tl("pv_tag")}</div>
-      <div className="pv-frame">
-        <img className="pv-video" src={`/media/arena-promo-end-${lang}.jpg`} alt={tl("pv_aria")} loading="lazy" />
-        <button type="button" className="pv-again" onClick={watchAgain}>
-          <span className="pv-again-icon" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-          </span>
-          {tl("pv_again")}
-        </button>
-      </div>
-      <div className="pv-ctas">
-        <button type="button" className="btn-hero btn-hero-primary" onClick={onSignIn}>{tl("pv_cta_trial")}</button>
-        <button type="button" className="btn-hero btn-hero-outline" onClick={onSignIn}>{tl("pv_cta_join")}</button>
-      </div>
-    </div>
+
+      {phase === "done" && (
+        <div className="arena-inner">
+          <div className={reveal.trim()}>
+            <p className="section-sub" style={{ color: "rgba(255,255,255,.5)", marginBottom: 32 }}>{tl("arena_sub")}</p>
+            {bullets}
+          </div>
+          <div className="arena-visual has-video">
+            <div className="pv-wrap">
+              <div className={`pv-tag${reveal}`}>▶ {tl("pv_tag")}</div>
+              <div className="pv-frame" ref={smallRef}>
+                <img className="pv-video" src={`/media/arena-promo-end-${lang}.jpg`} alt={tl("pv_aria")} />
+              </div>
+              <div className={`pv-after${reveal}`}>
+                <button type="button" className="pv-again" onClick={watchAgain}>
+                  <span className="pv-again-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                  </span>
+                  {tl("pv_again")}
+                </button>
+                <div className="pv-ctas">
+                  <button type="button" className="btn-hero btn-hero-primary" onClick={onSignIn}>{tl("pv_cta_trial")}</button>
+                  <button type="button" className="btn-hero btn-hero-outline" onClick={onSignIn}>{tl("pv_cta_join")}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1940,6 +1982,23 @@ export function LandingView({ onSignIn }) {
       </section>
 
       {/* ARENA SHOWCASE */}
+      {showPromoVideo ? (
+        <ArenaPromoSection tl={tl} lang={lang} onSignIn={onSignIn} bullets={
+            <div className="arena-bullets">
+              {[
+                {icon:"🌌",bg:"rgba(37,99,235,.15)",tk:"ab1t",dk:"ab1d"},
+                {icon:"🤝",bg:"rgba(16,185,129,.12)",tk:"ab2t",dk:"ab2d"},
+                {icon:"🎯",bg:"rgba(245,158,11,.12)",tk:"ab3t",dk:"ab3d"},
+                {icon:"📡",bg:"rgba(139,92,246,.12)",tk:"ab4t",dk:"ab4d"},
+              ].map(b => (
+                <div key={b.tk} className="arena-bullet">
+                  <div className="arena-bullet-icon" style={{background:b.bg}}>{b.icon}</div>
+                  <div className="arena-bullet-text"><strong>{tl(b.tk)}</strong><span>{tl(b.dk)}</span></div>
+                </div>
+              ))}
+            </div>
+        } />
+      ) : (
       <section className="arena-showcase" id="arena">
         <div className="arena-inner">
           <div>
@@ -1960,11 +2019,6 @@ export function LandingView({ onSignIn }) {
               ))}
             </div>
           </div>
-          {showPromoVideo ? (
-          <div className="arena-visual has-video">
-            <ArenaVideoPlayer tl={tl} lang={lang} onSignIn={onSignIn} />
-          </div>
-          ) : (
           <div className="arena-visual">
             {/* Large animated Arena orbital system */}
             <div className="arena-system">
@@ -1998,9 +2052,9 @@ export function LandingView({ onSignIn }) {
               <div className="arena-label" style={{top:"50%",right:"2%",transform:"translateY(-50%)",color:"rgba(245,158,11,.6)"}}>Cases</div>
             </div>
           </div>
-          )}
         </div>
       </section>
+      )}
 
       {/* MIGRATION HUB */}
       <section className="mig-showcase">

@@ -1073,7 +1073,7 @@ function SettingsPlatformTab({ ssCtx }) {
             { key: "show_trusted_by",      label: "Show Trusted By",        desc: "Display the \"Trusted by\" company logo strip below the hero." },
             { key: "show_stats_section",   label: "Show Stats Section",     desc: "Display the cases managed / companies onboarded / SLA compliance numbers." },
             { key: "show_testimonials",    label: "Show Customer Stories",  desc: "Display the customer testimonials section." },
-            { key: "show_promo_video",     label: "Show Arena Promo Video", desc: "When a visitor reaches the Arena section, play the promo video full screen once (English or Spanish to match the visitor), then show its last frame with a Watch again button. Off shows the orbit animation instead." },
+            { key: "show_promo_video",     label: "Show Arena Promo Video", desc: "Open the Arena section with a full-width cinematic band that plays the promo video (English or Spanish to match the visitor); when it ends it shrinks to a small frame with a Watch again button and the rest of the section appears. Off shows the orbit animation instead." },
           ].map(({ key, label, desc }) => (
             <label key={key} className="flex items-center justify-between gap-4 cursor-pointer select-none">
               <div>
