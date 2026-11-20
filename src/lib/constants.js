@@ -6,6 +6,8 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   approve_specs:              { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   regen_specs:                { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   upload_docs:                { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:true,  project_manager:true  },
+  delete_docs:                { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  delete_own_docs:            { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   view_docs:                  { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:true,  internal_consultant:true,  project_manager:true  },
   add_activities:             { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:true,  project_manager:true  },
   log_time:                   { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:true,  project_manager:false },

@@ -2064,7 +2064,7 @@ ${mdToHtml(markdownContent)}
         const oldDocs = documents.filter(d =>
           d.file_name && SPEC_PREFIXES.some(p => d.file_name.startsWith(p))
         );
-        await Promise.all(oldDocs.map(d => deleteDocument(d.id, d.file_url)));
+        await Promise.all(oldDocs.map(d => deleteDocument(d.id, d.file_url).catch(() => {})));
       }
 
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
@@ -3644,7 +3644,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         ];
         if (deleteDocument && documents?.length) {
           const old = documents.filter(d => (d.file_name ?? '').startsWith('SpecD_EspecCliente'));
-          await Promise.all(old.map(d => deleteDocument(d.id, d.file_url)));
+          await Promise.all(old.map(d => deleteDocument(d.id, d.file_url).catch(() => {})));
         }
         const htmlString = buildCaseDocHtml('Client Spec', 'SAP Consulting · ' + t("spec.html_title"), baseMeta, specD);
         const fileName = `SpecD_EspecCliente_${safeName}_${dateStr}.html`;
@@ -6336,7 +6336,7 @@ ${result}`;
                         try {
                           if (deleteDocument && documents?.length) {
                             const old = documents.filter(d => (d.description ?? '').startsWith('[Prototype]') || (d.file_name ?? '').startsWith('Prototype_'));
-                            await Promise.all(old.map(d => deleteDocument(d.id, d.file_url)));
+                            await Promise.all(old.map(d => deleteDocument(d.id, d.file_url).catch(() => {})));
                           }
                           const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
                           const dateStr = new Date().toISOString().slice(0, 10);

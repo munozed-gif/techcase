@@ -609,12 +609,18 @@ function useCaseDocuments(caseId) {
   }
 
   async function deleteDocument(id, fileUrl) {
+    // Storage first: its delete policy checks the document row, which must still exist.
     if (fileUrl) {
       const pathPart = fileUrl.split("/case-documents/")[1];
-      if (pathPart) await supabase.storage.from("case-documents").remove([pathPart]);
+      if (pathPart) {
+        const { error: se } = await supabase.storage.from("case-documents").remove([pathPart]);
+        if (se) throw se;
+      }
     }
-    await supabase.from("case_documents").delete().eq("id", id);
+    const { data: gone, error } = await supabase.from("case_documents").delete().eq("id", id).select("id");
+    if (error) throw error;
     await fetchDocs();
+    if (!gone?.length) throw new Error("You don't have permission to delete this document.");
   }
 
   return { documents, loading, addDocument, deleteDocument, refetch: fetchDocs };

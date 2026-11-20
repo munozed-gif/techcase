@@ -1147,6 +1147,8 @@ const CAP_ICONS = {
   regen_specs:                RefreshCw,
   upload_docs:                FileText,
   view_docs:                  FolderOpen,
+  delete_docs:                Trash2,
+  delete_own_docs:            Trash2,
   add_activities:             ListChecks,
   log_time:                   Calendar,
   approve_time:               CheckCircle2,
@@ -1287,7 +1289,7 @@ function SettingsRolesTab({ ssCtx }) {
 
   const PERM_GROUPS = [
     { label: "Cases",               icon: FolderOpen,  caps: ["create_cases","view_all_cases","apply_to_cases","arena_see_all_cases","reopen_cases"] },
-    { label: "Documents & Specs",   icon: FileText,    caps: ["upload_docs","view_docs","approve_specs","regen_specs","submit_specs","generate_dev_plan","export_pdf_docs","approve_asbuilt_spec"] },
+    { label: "Documents & Specs",   icon: FileText,    caps: ["upload_docs","view_docs","delete_docs","delete_own_docs","approve_specs","regen_specs","submit_specs","generate_dev_plan","export_pdf_docs","approve_asbuilt_spec"] },
     { label: "SAP Implementation", icon: Zap,         caps: ["run_sap_implementation","edit_sap_setup","release_transports","confirm_transport_imports"] },
     { label: "Activities & Time",   icon: ListChecks,  caps: ["add_activities","log_time","edit_activity_phase","edit_activity_predecessors","bulk_delete_activities","bulk_delete_subcases"] },
     { label: "Lifecycle",           icon: Zap,         caps: ["view_lifecycle","edit_lifecycle"] },

@@ -142,7 +142,7 @@ function DocSectionHeader({ Icon, iconClass, label, count, accent, children }) {
     </div>
   );
 }
-function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t, onDownloadPdf, canDownloadPdf }) {
+function DocRow({ doc, auth, deleteDocument, canDeleteDoc, openDocInNewTab, t, onDownloadPdf, canDownloadPdf }) {
   const isHtml = doc.file_name?.toLowerCase().endsWith('.html') || (doc.file_type ?? '').includes('html');
   const icon = doc.file_type?.includes("pdf")
     ? <FileText className="w-4 h-4 text-red-600 dark:text-red-400" />
@@ -171,8 +171,8 @@ function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t, onDownloadPdf, 
           PDF
         </button>
       )}
-      {(auth.isAdmin || auth.isManager) && (
-        <button onClick={() => deleteDocument(doc.id, doc.file_url)}
+      {(canDeleteDoc ? canDeleteDoc(doc) : (auth.isAdmin || auth.isManager)) && (
+        <button onClick={() => { if (window.confirm(t("cd.confirm_delete_doc").replace("{name}", doc.file_name ?? ""))) deleteDocument(doc.id, doc.file_url).catch(e => alert(e.message)); }}
           className="text-xs text-red-600 dark:text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
           {t("action.remove")}
         </button>
@@ -640,6 +640,7 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
     can_log_time:       _stageRulesRaw.can_log_time       && perms.can('log_time'),
   };
   const canEditPhase        = perms.can('edit_activity_phase');
+  const canDeleteDoc = doc => perms.can('delete_docs') || (perms.can('delete_own_docs') && !!doc?.uploaded_by && doc.uploaded_by === auth.user?.id);
   const canEditPredecessors = perms.can('edit_activity_predecessors');
   const canBulkDeleteActs   = perms.can('bulk_delete_activities');
   const canBulkDeleteSubs   = perms.can('bulk_delete_subcases');
@@ -4294,8 +4295,8 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 flex-shrink-0">
                         <ExternalLink className="w-3 h-3" /> Open Prototype
                       </button>
-                      {(auth.isAdmin || auth.isManager) && (
-                        <button onClick={() => deleteDocument(doc.id, doc.file_url)}
+                      {canDeleteDoc(doc) && (
+                        <button onClick={() => { if (window.confirm(t("cd.confirm_delete_doc").replace("{name}", doc.file_name ?? ""))) deleteDocument(doc.id, doc.file_url).catch(e => alert(e.message)); }}
                           className="text-xs text-red-600 dark:text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
                           {t("action.remove")}
                         </button>
@@ -4316,7 +4317,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                         key={doc.id}
                         doc={doc}
                         auth={auth}
-                        deleteDocument={deleteDocument}
+                        deleteDocument={deleteDocument} canDeleteDoc={canDeleteDoc}
                         openDocInNewTab={openDocInNewTab}
                         t={t}
                         canDownloadPdf={perms.can('export_pdf_docs')}
@@ -4332,7 +4333,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
               <DocSectionHeader Icon={CheckCircle2} iconClass="text-emerald-600 dark:text-emerald-400" label="As-built documentation" count={asBuiltDocs.length} accent="border-emerald-100">
                 <div className="space-y-2">
                   {asBuiltDocs.map(doc => (
-                    <DocRow key={doc.id} doc={doc} auth={auth} deleteDocument={deleteDocument}
+                    <DocRow key={doc.id} doc={doc} auth={auth} deleteDocument={deleteDocument} canDeleteDoc={canDeleteDoc}
                       openDocInNewTab={openDocInNewTab} t={t}
                       canDownloadPdf={perms.can('export_pdf_docs')} onDownloadPdf={downloadDocAsPdf} />
                   ))}
@@ -4404,7 +4405,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                       return (
                         <div key={cat}>
                           <div className="text-xs text-gray-400 font-medium mb-1 pl-1">{label}</div>
-                          <div className="space-y-1.5">{catDocs.map(doc => <DocRow key={doc.id} doc={doc} auth={auth} deleteDocument={deleteDocument} openDocInNewTab={openDocInNewTab} t={t} />)}</div>
+                          <div className="space-y-1.5">{catDocs.map(doc => <DocRow key={doc.id} doc={doc} auth={auth} deleteDocument={deleteDocument} canDeleteDoc={canDeleteDoc} openDocInNewTab={openDocInNewTab} t={t} />)}</div>
                         </div>
                       );
                     })}
