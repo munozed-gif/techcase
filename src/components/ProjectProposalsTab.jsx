@@ -446,11 +446,19 @@ ${blocks.join("\n\n---\n\n")}`;
                   <p className="text-sm font-semibold text-gray-900 mb-2">{c.title}</p>
                   <div className="flex flex-wrap gap-2">
                     {opts.map(([k, label, avail]) => (
-                      <label key={k} className={`text-xs flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${avail ? "border-gray-200 cursor-pointer" : "border-gray-100 text-gray-300"}`}>
+                      <label key={k} title={avail ? "" : L("Not created yet in this case", "Aún no creado en este caso")}
+                        className={`text-xs flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${avail ? "border-gray-200 cursor-pointer" : "border-dashed border-gray-200 text-gray-400 cursor-not-allowed"}`}>
                         <input type="checkbox" disabled={!avail} checked={!!s[k] && avail} onChange={() => setS({ [k]: !s[k] })} />{label}
+                        {!avail && <span className="text-[10px] italic">· {L("not created yet", "aún no creado")}</span>}
                       </label>
                     ))}
                   </div>
+                  {opts.slice(1).every(o => !o[2]) && (
+                    <p className="mt-2 text-[11px] text-amber-600">
+                      {L("This case has no specification or activity plan yet, so the AI will only use the request. Create them from the case (Specification / Plan tabs) for a richer proposal and real hour estimates.",
+                         "Este caso aún no tiene especificación ni plan de actividades, así que la IA solo usará la solicitud. Créalos desde el caso (pestañas Especificación / Plan) para una propuesta más completa y estimación real de horas.")}
+                    </p>
+                  )}
                   {(docs[c.id]?.length ?? 0) > 0 && (
                     <div className="mt-3">
                       <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">{L("Case documents", "Documentos del caso")}</p>
