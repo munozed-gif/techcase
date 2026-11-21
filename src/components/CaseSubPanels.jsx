@@ -3262,9 +3262,19 @@ ${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang
     return out;
   }
 
-  function buildPrototypePrompt(specA, specB, style) {
-    const safeA     = sanitizeForJson(specA);
-    const safeB     = sanitizeForJson(specB);
+  // Prototype source: the customer proposal (Spec C) is the primary document — it is what the
+  // customer reviews — with the platform proposal (Spec A) as technical reference. Falls back to
+  // Spec A when no Spec C exists. All generation paths (first run, retry, Regenerate) use this.
+  function prototypeSources(c = aiSpecC, a = aiSpecA, d = aiSpecD) {
+    if (c) return { primary: c, reference: a || '', primaryLabel: 'Customer proposal (Spec C)', refLabel: 'Platform proposal (Spec A)' };
+    if (a) return { primary: a, reference: '', primaryLabel: 'Platform proposal (Spec A)', refLabel: '' };
+    return { primary: d || '', reference: '', primaryLabel: 'Client spec (Spec D)', refLabel: '' };
+  }
+
+  function buildPrototypePrompt(src, style) {
+    const { primary, reference, primaryLabel, refLabel } = src;
+    const safeA     = sanitizeForJson(primary ?? '');
+    const safeB     = sanitizeForJson(reference ?? '');
     const safeTitle = sanitizeForJson(caseData.title);
     const safeSap   = sanitizeForJson(caseData.area_sap);
     const safeInd   = sanitizeForJson(caseData.area_industry);
@@ -3277,11 +3287,16 @@ SAP Module: ${safeSap}
 Industry: ${safeInd}
 Description: ${safeDesc}
 
-Spec A (Custom ABAP approach):
-${safeA.slice(0, 6000)}
+PRIMARY SPEC — ${primaryLabel} (the prototype must reproduce THIS document's screens):
+${safeA.slice(0, 9000)}
+${safeB ? `
+REFERENCE SPEC — ${refLabel} (technical background only — where it differs from the primary spec, the PRIMARY spec wins):
+${safeB.slice(0, 3000)}` : ''}
 
-Spec B (Standard SAP approach):
-${safeB.slice(0, 4000)}
+FIDELITY RULES (mandatory):
+- Recreate the screen prototypes defined in the PRIMARY spec (section "Prototipo de Pantalla" / "Screen Prototype" and its sub-sections) as the prototype's screens: same transaction / app code and title, same fields with the same labels, order, required markers and sample values, same buttons and tabs.
+- Use exactly the object, transaction and app names that appear in the PRIMARY spec. Never invent different names.
+- You may add interactivity, navigation between those screens, messages and realistic sample data, but do not add screens or fields that the PRIMARY spec does not describe.
 
 STEP 1 — CHOOSE THE STYLE using these rules (apply the FIRST rule that matches):
 
@@ -3330,11 +3345,16 @@ SAP Module: ${safeSap}
 Industry: ${safeInd}
 Description: ${safeDesc}
 
-Spec A (Custom ABAP approach):
-${safeA.slice(0, 6000)}
+PRIMARY SPEC — ${primaryLabel} (the prototype must reproduce THIS document's screens):
+${safeA.slice(0, 9000)}
+${safeB ? `
+REFERENCE SPEC — ${refLabel} (technical background only — where it differs from the primary spec, the PRIMARY spec wins):
+${safeB.slice(0, 3000)}` : ''}
 
-Spec B (Standard SAP approach):
-${safeB.slice(0, 4000)}
+FIDELITY RULES (mandatory):
+- Recreate the screen prototypes defined in the PRIMARY spec (section "Prototipo de Pantalla" / "Screen Prototype" and its sub-sections) as the prototype's screens: same transaction / app code and title, same fields with the same labels, order, required markers and sample values, same buttons and tabs.
+- Use exactly the object, transaction and app names that appear in the PRIMARY spec. Never invent different names.
+- You may add interactivity, navigation between those screens, messages and realistic sample data, but do not add screens or fields that the PRIMARY spec does not describe.
 
 VISUAL STYLE — SAP GUI (classic):
 - Background: #f3f2f1 (SAP off-white)
@@ -3391,11 +3411,16 @@ SAP Module: ${safeSap}
 Industry: ${safeInd}
 Description: ${safeDesc}
 
-Spec A (Custom ABAP approach):
-${safeA.slice(0, 6000)}
+PRIMARY SPEC — ${primaryLabel} (the prototype must reproduce THIS document's screens):
+${safeA.slice(0, 9000)}
+${safeB ? `
+REFERENCE SPEC — ${refLabel} (technical background only — where it differs from the primary spec, the PRIMARY spec wins):
+${safeB.slice(0, 3000)}` : ''}
 
-Spec B (Standard SAP approach):
-${safeB.slice(0, 4000)}
+FIDELITY RULES (mandatory):
+- Recreate the screen prototypes defined in the PRIMARY spec (section "Prototipo de Pantalla" / "Screen Prototype" and its sub-sections) as the prototype's screens: same transaction / app code and title, same fields with the same labels, order, required markers and sample values, same buttons and tabs.
+- Use exactly the object, transaction and app names that appear in the PRIMARY spec. Never invent different names.
+- You may add interactivity, navigation between those screens, messages and realistic sample data, but do not add screens or fields that the PRIMARY spec does not describe.
 
 REQUIREMENTS:
 1. Generate 4 screens: Overview, Main Process Screen, Detail/Form Screen, Confirmation/Result Screen
@@ -3579,7 +3604,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         try {
           const protoStyle = genProfile.prototype_style ?? 'auto';
           const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
-          const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specC || firstSuccess, specC || firstSuccess, protoStyle) }];
+          const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(prototypeSources(specC, specA, specD), protoStyle) }];
           let protoHtml = await callClaude({ feature: 'prototype',  model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 40000 })
             .catch(e => {
               if (e.message?.includes('did not match the expected pattern')) {
@@ -3828,7 +3853,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       try {
         const specA = aiSpecA; const specB = aiSpecB;
         const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
-        const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specA || aiSpecC, specB || aiSpecD, profile.prototype_style ?? 'auto') }];
+        const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(prototypeSources(newSpecs?.c || aiSpecC, newSpecs?.a || aiSpecA, newSpecs?.d || aiSpecD), profile.prototype_style ?? 'auto') }];
         let protoHtml = await callClaude({ feature: 'prototype',  model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 40000 })
           .catch(e => {
             if (e.message?.includes('did not match the expected pattern')) {
@@ -6347,7 +6372,7 @@ ${result}`;
                     isRegeneratingProto={protoGenerating}
                     documents={documents}
                     onBack={() => setViewingProto(false)}
-                    onRegenerate={activeProfile?.prototype_enabled && (aiSpecA || aiSpecB) ? async () => {
+                    onRegenerate={activeProfile?.prototype_enabled && (aiSpecC || aiSpecA || aiSpecD) ? async () => {
                       setProtoHtmlState(null);
                       setProtoSaved(false);
                       setProtoError(false);
@@ -6358,7 +6383,7 @@ ${result}`;
                       console.log('[Prototype] using model:', resolvedModel);
                       try {
                         const _protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
-                        const _protoMsgs = [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }];
+                        const _protoMsgs = [{ role: 'user', content: buildPrototypePrompt(prototypeSources(), protoStyle) }];
                         let html = await callClaude({ feature: 'prototype',  model: resolvedModel, system: _protoSys, messages: _protoMsgs, max_tokens: 40000 })
                           .catch(e => {
                             if (e.message?.includes('did not match the expected pattern')) {
