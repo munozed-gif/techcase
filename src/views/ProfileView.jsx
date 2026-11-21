@@ -68,6 +68,27 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   const [expandedTeam, setExpandedTeam] = useState(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState("");
+  const [inviteOk, setInviteOk] = useState("");
+  async function submitInvite(team) {
+    const email = inviteEmail.trim();
+    if (!email || inviting) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setInviteError("Enter a valid email address."); return; }
+    setInviting(true); setInviteError(""); setInviteOk("");
+    try {
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("The server did not answer — check your connection and try again.")), 20000));
+      const res = await Promise.race([inviteMember(team.id, team.name, email), timeout]);
+      setInviteEmail("");
+      setInviteLookup({ loading: false, name: null, exists: false });
+      setInviteOk(res?.existingUser
+        ? `Invitation sent to ${res.existingUser.full_name ?? email} (in-app notification + email).`
+        : `Invitation email sent to ${email}. They'll join the team when they sign up.`);
+    } catch (e) {
+      console.error("[team invite]", e);
+      setInviteError(e?.message || "Could not send the invitation.");
+    } finally {
+      setInviting(false);
+    }
+  }
   const [inviting, setInviting] = useState(false);
   const [inviteLookup, setInviteLookup] = useState({ loading: false, name: null, exists: false });
   const inviteLookupTimer = useRef(null);
@@ -1266,10 +1287,12 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                                     type="email"
                                     placeholder="colleague@email.com"
                                     value={inviteEmail}
+                                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); submitInvite(team); } }}
                                     onChange={e => {
                                       const val = e.target.value;
                                       setInviteEmail(val);
                                       setInviteError("");
+                                      setInviteOk("");
                                       clearTimeout(inviteLookupTimer.current);
                                       const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                                       if (!emailRe.test(val.trim())) {
@@ -1285,19 +1308,10 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                                     }}
                                     className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
                                   />
-                                  <button disabled={!inviteEmail.trim() || inviting}
-                                    onClick={async () => {
-                                      setInviting(true);
-                                      setInviteError("");
-                                      try {
-                                        await inviteMember(team.id, team.name, inviteEmail);
-                                        setInviteEmail("");
-                                        setInviteLookup({ loading: false, name: null, exists: false });
-                                      } catch (e) { setInviteError(e.message); }
-                                      setInviting(false);
-                                    }}
+                                  <button type="button" disabled={!inviteEmail.trim() || inviting}
+                                    onClick={() => submitInvite(team)}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
-                                    <Mail size={11} /> {inviting ? "…" : "Invite"}
+                                    <Mail size={11} /> {inviting ? "Sending…" : "Invite"}
                                   </button>
                                 </div>
                                 {inviteLookup.loading && (
@@ -1310,6 +1324,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                                   </p>
                                 )}
                                 {inviteError && <p className="text-xs text-red-500 mt-1">{inviteError}</p>}
+                                {inviteOk && <p className="text-xs text-emerald-600 mt-1">✓ {inviteOk}</p>}
                                 {!inviteLookup.loading && !inviteLookup.exists && !inviteError && (
                                   <p className="text-[10px] text-gray-400 mt-1">
                                     {inviteLookup.name === null && inviteEmail.trim()

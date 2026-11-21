@@ -3444,6 +3444,10 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
             <CaseInviteCard caseData={caseData} auth={auth} />
           )}
 
+          {showInviteDrawer && (
+            <InviteConsultantDrawer caseData={caseData} auth={auth} onClose={() => setShowInviteDrawer(false)} />
+          )}
+
           {/* Skills */}
           {caseData.skills_required?.length > 0 && (
             <div>

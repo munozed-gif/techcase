@@ -3,7 +3,7 @@ import { Check, Search, X } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { notify } from "../lib/utils.js";
+import { notify, sendEmailToUser, buildEmailHtml } from "../lib/utils.js";
 import { Badge } from "../components/ProfileComponents.jsx";
 import { Input } from "../components/ui.jsx";
 import { useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
@@ -33,16 +33,41 @@ function InviteConsultantDrawer({ caseData, auth, onClose }) {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const [feedback, setFeedback] = useState(null); // { ok, msg }
+
   async function invite(consultant, type) {
     setSaving(consultant.id + type);
-    await visCfg.addCaseInvitation(caseData.id, consultant.id, type, consultant.full_name);
-    if (type === 'direct') {
-      await supabase.from('case_assignments').upsert(
-        { case_id: caseData.id, consultant_id: consultant.id },
-        { onConflict: 'case_id,consultant_id' }
-      );
+    setFeedback(null);
+    try {
+      await visCfg.addCaseInvitation(caseData.id, consultant.id, type, consultant.full_name);
+      if (type === 'direct') {
+        const { error } = await supabase.from('case_assignments').upsert(
+          { case_id: caseData.id, consultant_id: consultant.id },
+          { onConflict: 'case_id,consultant_id' }
+        );
+        if (error) throw error;
+      }
+      const caseRef = `#${(caseData.id ?? '').slice(0, 8)} "${caseData.title ?? ''}"`;
+      const title = type === 'direct' ? 'You have been assigned to a case' : 'You are invited to apply to a case';
+      const body  = type === 'direct'
+        ? `You were assigned directly to case ${caseRef}. Open it from your Cases list.`
+        : `You were invited to apply to the private case ${caseRef}. Open the Arena to see it and apply.`;
+      await notify(consultant.id, title, body, 'case_invitation');
+      await sendEmailToUser(consultant.id, title, buildEmailHtml({
+        title,
+        preheader: body,
+        bodyHtml: `<p style="margin:0 0 12px;color:#cbd5e1">Hi ${consultant.full_name ?? 'there'},</p>
+<p style="margin:0 0 12px;color:#94a3b8">${body}</p>`,
+        ctaText: type === 'direct' ? 'Open the case' : 'Open the Arena',
+        ctaUrl: window.location.origin,
+        footerNote: "If you didn't expect this invitation, you can safely ignore this email.",
+      }), 'case_invitation');
+      setFeedback({ ok: true, msg: `${consultant.full_name} was invited and notified by email.` });
+    } catch (e) {
+      setFeedback({ ok: false, msg: e?.message ?? 'Could not send the invitation.' });
+    } finally {
+      setSaving(null);
     }
-    setSaving(null);
   }
 
   return (
@@ -66,6 +91,9 @@ function InviteConsultantDrawer({ caseData, auth, onClose }) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {feedback && (
+            <div className={`text-xs rounded-lg px-3 py-2 ${feedback.ok ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>{feedback.msg}</div>
+          )}
           {invitations.length > 0 && (
             <div className="mb-3">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Already Invited</p>

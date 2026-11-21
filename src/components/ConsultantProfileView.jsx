@@ -877,15 +877,20 @@ function ConsultantProfileView({ userId, onBack }) {
                                   <button disabled={!inviteEmail.trim() || inviting}
                                     onClick={async () => {
                                       setInviting(true); setInviteError("");
-                                      try { await inviteMember(team.id, team.name, inviteEmail); setInviteEmail(""); }
-                                      catch (e) { setInviteError(e.message); }
-                                      setInviting(false);
+                                      try {
+                                        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("The server did not answer — check your connection and try again.")), 20000));
+                                        const res = await Promise.race([inviteMember(team.id, team.name, inviteEmail.trim()), timeout]);
+                                        setInviteEmail("");
+                                        setInviteError(`✓ Invitation sent${res?.existingUser ? ` to ${res.existingUser.full_name ?? "the user"}` : ` to ${inviteEmail.trim()}`}.`);
+                                      }
+                                      catch (e) { console.error("[team invite]", e); setInviteError(e?.message || "Could not send the invitation."); }
+                                      finally { setInviting(false); }
                                     }}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
                                     <Mail size={11} /> {inviting ? "…" : "Invite"}
                                   </button>
                                 </div>
-                                {inviteError && <p className="text-xs text-red-500 mt-1">{inviteError}</p>}
+                                {inviteError && <p className={`text-xs mt-1 ${inviteError.startsWith("✓") ? "text-emerald-600" : "text-red-500"}`}>{inviteError}</p>}
                                 <p className="text-[10px] text-gray-400 mt-1">If they're not on the platform yet, they'll see the invitation when they sign up.</p>
                               </div>
                             )}
