@@ -576,6 +576,15 @@ function buildGenSuffix(genProfile, lang) {
   return parts.length ? `\n\n${parts.join('\n\n')}` : '';
 }
 
+// Language line for analysis prompts that return JSON: text in the user's language,
+// keys and enum values unchanged so the app can still read them.
+function jsonLangNote(lang) {
+  const langName = lang && lang !== 'en' ? LANG_NAMES[lang] ?? null : null;
+  return langName
+    ? `\n\nOUTPUT LANGUAGE: Write every human-readable text value (summaries, descriptions, transactions' descriptions, gaps, strengths, concerns, recommendations, purposes) in ${langName}. Keep JSON keys, SAP codes/object names and enum values (e.g. "full", "partial", "none", "low", "medium", "high", true/false) exactly as specified, in English.`
+    : '';
+}
+
 async function htmlStringToPdfBlob(htmlString) {
   if (!window.html2pdf) {
     await new Promise((resolve, reject) => {
@@ -2002,7 +2011,7 @@ ${mdToHtml(markdownContent)}
     }
     if (safeProposal) {
       lines.push(`### ${t('spec.doc_proposal_validation')}`);
-      lines.push(`**${t('spec.doc_result_lbl')}:** ${safeProposal.valid ? t('spec.doc_valid') : t('spec.doc_has_concerns')}  |  **${t('spec.risk_lbl').replace(/:$/, '')}:** ${safeProposal.risk_level}  |  **${t('spec.score_lbl').replace(/:$/, '')}:** ${safeProposal.score}/10`);
+      lines.push(`**${t('spec.doc_result_lbl')}:** ${safeProposal.valid ? t('spec.doc_valid') : t('spec.doc_has_concerns')}  |  **${t('spec.risk_lbl').replace(/:$/, '')}:** ${({ low: L("low", "bajo"), medium: L("medium", "medio"), high: L("high", "alto") }[safeProposal.risk_level] ?? safeProposal.risk_level)}  |  **${t('spec.score_lbl').replace(/:$/, '')}:** ${safeProposal.score}/10`);
       if ((safeProposal.strengths ?? []).length > 0) lines.push(`**${t('spec.strengths').replace(/:$/, '')}:**\n` + safeProposal.strengths.map(s => `- ${s}`).join('\n'));
       if ((safeProposal.concerns ?? []).length > 0) lines.push(`**${t('spec.concerns').replace(/:$/, '')}:**\n` + safeProposal.concerns.map(c => `- ${c}`).join('\n'));
       const propRec = safeStr(safeProposal.recommendation);
@@ -2227,7 +2236,7 @@ Industry: ${caseData.area_industry ?? 'unknown'}
 Respond with ONLY a JSON array like:
 [{"type":"Report","name":"ZMM_RPT_EXAMPLE","purpose":"One-line purpose"},...]
 
-Include 2-6 objects. Use realistic Z-names. Types can be: Report, Function Module, Enhancement, BAdI, User Exit, Form, Smartform, Program, Class, Interface, Workflow, Table, View, Transaction — whatever fits.`;
+Include 2-6 objects. Use realistic Z-names. Types can be: Report, Function Module, Enhancement, BAdI, User Exit, Form, Smartform, Program, Class, Interface, Workflow, Table, View, Transaction — whatever fits.${jsonLangNote(lang)}`;
       const sys1 = 'You are an SAP functional consultant. Respond with ONLY a JSON array, no markdown code blocks, no explanation.';
       const raw = await callClaude({ feature: 'spec_wizard', 
         model: analysisModel, system: sys1,
@@ -2402,7 +2411,7 @@ TOTAL:||Total general|[amount]|
 ## 9. Next Steps
 1. [action item]
 
-Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA1, MARA, etc.) for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM and COL lines with actual field names and columns relevant to this case — do NOT leave placeholder bracket text.`;
+Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA1, MARA, etc.) for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM and COL lines with actual field names and columns relevant to this case — do NOT leave placeholder bracket text.${buildGenSuffix(null, lang)}`;
 
       const _wiz2PdfNote = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name).join(', ');
       const wiz2PdfNote = _wiz2PdfNote ? `\n\n[Reference PDFs: ${_wiz2PdfNote}]` : '';
@@ -3914,7 +3923,7 @@ coverage meanings:
 "partial" = Standard SAP covers most of it; some custom development still needed
 "none"    = Custom ABAP development is required — standard SAP cannot satisfy this
 
-Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words.`;
+Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words.${jsonLangNote(lang)}`;
 
       const _sapPdfNote = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name).join(', ');
       const sapPdfNote = _sapPdfNote ? `\n\n[Reference PDFs: ${_sapPdfNote}]` : '';
@@ -3968,7 +3977,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
   "strengths": ["strength 1", "strength 2"],
   "concerns": ["concern 1", "concern 2"],
   "recommendation": "2-3 sentences on whether and how to proceed"
-}`;
+}${jsonLangNote(lang)}`;
 
       const _propPdfNote = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name).join(', ');
       const propPdfNote = _propPdfNote ? `\n\n[Reference PDFs: ${_propPdfNote}]` : '';
@@ -5904,7 +5913,7 @@ ${result}`;
                          sapCheck.coverage === 'partial' ? <><AlertTriangle size={11} className="inline mr-1 text-amber-500" />{t("spec.sap_partial")}</> :
                          <><X size={11} className="inline mr-1 text-red-500" />{t("spec.sap_none")}</>}
                       </span>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cc[1]} ${cc[2]} uppercase`}>{sapCheck.coverage}</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cc[1]} ${cc[2]} uppercase`}>{({ full: L("Full", "Total"), partial: L("Partial", "Parcial"), none: L("None", "Ninguna") }[sapCheck.coverage] ?? sapCheck.coverage)}</span>
                     </div>
                     <p className={`text-sm ${cc[2]}`}>{sapCheck.summary}</p>
                     {(sapCheck.standard_transactions ?? []).length > 0 && (
@@ -5946,7 +5955,7 @@ ${result}`;
                 {sapCheck && (
                   <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${cc[0]} ${cc[1]} ${cc[2]}`}>
                     <span className="font-semibold">{t("spec.step1_badge")}</span>
-                    <span>{t("spec.coverage_lbl")} <span className="font-bold uppercase">{sapCheck.coverage}</span></span>
+                    <span>{t("spec.coverage_lbl")} <span className="font-bold uppercase">{({ full: L("Full", "Total"), partial: L("Partial", "Parcial"), none: L("None", "Ninguna") }[sapCheck.coverage] ?? sapCheck.coverage)}</span></span>
                     <span className="ml-auto opacity-70">{sapCheck.recommendation}</span>
                   </div>
                 )}
@@ -6066,7 +6075,7 @@ ${result}`;
                               <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${proposalCheck.valid ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
                                 {proposalCheck.valid ? t("spec.prop_valid") : t("spec.prop_concerns")}
                               </span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${riskColor[proposalCheck.risk_level]??riskColor.medium}`}>{t("spec.risk_lbl")} {proposalCheck.risk_level}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${riskColor[proposalCheck.risk_level]??riskColor.medium}`}>{t("spec.risk_lbl")} {({ low: L("low", "bajo"), medium: L("medium", "medio"), high: L("high", "alto") }[proposalCheck.risk_level] ?? proposalCheck.risk_level)}</span>
                               <span className="text-xs px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700 font-bold">{t("spec.score_lbl")} {proposalCheck.score}/10</span>
                             </div>
                             {(proposalCheck.strengths??[]).length > 0 && (

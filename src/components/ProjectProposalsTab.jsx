@@ -275,6 +275,7 @@ ${blocks.join("\n\n---\n\n")}`;
       const resp = await callClaude({
         system, messages: [{ role: "user", content: user }], max_tokens: 8000,
         model: settings?.ai_model ?? "claude-haiku-5-5", feature: "proposal", projectId: project.id,
+        outputLang: p.language, // the proposal's own language, not the consultant's UI language
       });
       const text = (resp?.content ?? []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
       if (!text) throw new Error(L("The AI returned no text. Try again.", "La IA no devolvió texto. Inténtalo de nuevo."));

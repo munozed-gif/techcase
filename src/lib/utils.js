@@ -156,7 +156,23 @@ function sanitizeDeep(v) {
 let _aiContext = { caseId: null, projectId: null };
 function setAiContext(ctx) { _aiContext = { caseId: ctx?.caseId ?? null, projectId: ctx?.projectId ?? null }; }
 
-async function callClaude({ system, messages, max_tokens = 2048, model = 'claude-haiku-4-5', mcp_servers, feature, caseId, projectId }) {
+// The AI answers in the user's profile language (kept in localStorage 'tc_lang' by the i18n
+// provider). Callers that need a specific document language (e.g. a proposal written for a
+// customer) pass outputLang; outputLang: false disables the instruction.
+const AI_LANG_NAMES = { es: 'Spanish', fr: 'French', pt: 'Portuguese', de: 'German', it: 'Italian', nl: 'Dutch', pl: 'Polish', ar: 'Arabic', zh: 'Chinese', ja: 'Japanese' };
+function aiLanguageNote(outputLang) {
+  if (outputLang === false) return '';
+  let code = outputLang;
+  if (!code) { try { code = localStorage.getItem('tc_lang'); } catch { code = null; } }
+  const name = code && code !== 'en' ? AI_LANG_NAMES[code] : null;
+  if (!name) return '';
+  return `\n\nLANGUAGE: Write all human-readable output (prose, headings, summaries, descriptions, lists, recommendations, questions) in ${name}. `
+    + `Keep code, SAP object/transaction names, technical identifiers, JSON keys and enum values exactly as requested (enum values stay in English).`;
+}
+
+async function callClaude({ system, messages, max_tokens = 2048, model = 'claude-haiku-4-5', mcp_servers, feature, caseId, projectId, outputLang }) {
+  const langNote = aiLanguageNote(outputLang);
+  if (langNote) system = (system ?? '') + langNote;
   // Attach current user id so the server can track usage / apply the right key
   let userId = null;
   try {
