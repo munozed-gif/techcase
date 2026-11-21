@@ -395,8 +395,8 @@ ${blocks.join("\n\n---\n\n")}`;
       {/* 1 · Cases */}
       {isDraft && step === "cases" && (
         <Card title={L("Which cases go into this proposal?", "¿Qué casos van en esta propuesta?")}
-          hint={L("Selected cases move to “Proposal pending” and leave the Arena until the customer answers.",
-            "Los casos seleccionados pasan a “Propuesta pendiente” y salen de la Arena hasta que el cliente responda.")}>
+          hint={L("Estimated cases you select move to “Proposal pending” and leave the Arena until the customer answers. Cases in any other status keep their status — for them the proposal is a draft offer.",
+            "Los casos en estado Estimado que selecciones pasan a “Propuesta pendiente” y salen de la Arena hasta que el cliente responda. Los casos en cualquier otro estado conservan su estado: para ellos la propuesta es una oferta en borrador.")}>
           <div className="divide-y divide-gray-100">
             {cases.map(c => {
               const h = caseHours(acts[c.id], specHoursOf(c.id));
@@ -417,6 +417,11 @@ ${blocks.join("\n\n---\n\n")}`;
                     <div className="text-blue-600">Arena <b>{h.arena} h</b></div>
                   </div>
                   {reason && <span className="text-[11px] text-gray-500 w-36 text-right">{reason}</span>}
+                  {!reason && (c.status === "estimated" || c.status === "proposal_pending") && on && (
+                    <span className="text-[11px] text-amber-600 w-36 text-right leading-tight">
+                      {L("→ Proposal pending (leaves the Arena)", "→ Propuesta pendiente (sale de la Arena)")}
+                    </span>
+                  )}
                   {!reason && !h.activities && c.status !== "estimated" && (
                     <span className="text-[11px] text-amber-600 w-36 text-right leading-tight">
                       {statusLabel(c.status)} — {h.source === "specC" ? L("hours from Spec C (no plan)", "horas de la Spec C (sin plan)")
