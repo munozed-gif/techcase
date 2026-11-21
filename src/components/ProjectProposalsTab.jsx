@@ -15,8 +15,9 @@ import { callClaude, buildEmailHtml, sendEmail, logEvent } from "../lib/utils.js
 import { costConfig, caseCurrency, fmtMoney, COMMON_CURRENCIES } from "../lib/costs.js";
 import {
   PROPOSAL_STATUS_META, OPEN_PROPOSAL_STATUSES, DEFAULT_COMMERCIALS, computeTotals, investmentMarkdown,
-  mergeInvestment, buildProposalHtml, htmlToText, caseHours,
+  mergeInvestment, buildProposalHtml, htmlToText, caseHours, specHoursFromNotes,
 } from "../lib/proposals.js";
+import { STATUS_LABEL_KEYS } from "../lib/uiUtils.jsx";
 
 const TERMINAL = ["completed", "cancelled", "closed", "terminated", "resolved", "approved"];
 const STEPS = ["cases", "sources", "terms", "document", "send"];
@@ -173,6 +174,10 @@ function ProposalEditor({ proposal, ctx, onBack, onChange, onOpen }) {
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(new Set(proposal.case_ids));
+  const { t } = useT();
+  const statusLabel = st => { const k = STATUS_LABEL_KEYS[st]; const v = k ? t(k) : null; return v && v !== k ? v : String(st ?? "").replace(/_/g, " "); };
+  // Hours: activity plan first; without a plan, the time estimate written in Spec C (or Spec A).
+  const specHoursOf = id => specHoursFromNotes(specs[id]?.notes);
   const [events, setEvents] = useState([]);
   const isDraft = p.status === "draft";
   const lang = p.language || "en";
@@ -192,7 +197,7 @@ function ProposalEditor({ proposal, ctx, onBack, onChange, onOpen }) {
 
   const propCases = cases.filter(c => p.case_ids.includes(c.id));
   const commercials = { ...DEFAULT_COMMERCIALS, ...(p.commercials ?? {}) };
-  const totals = useMemo(() => computeTotals(propCases.map(c => ({ ...c, activities: acts[c.id] ?? [] })), commercials, cfg, p.currency),
+  const totals = useMemo(() => computeTotals(propCases.map(c => ({ ...c, activities: acts[c.id] ?? [], specHours: specHoursOf(c.id) })), commercials, cfg, p.currency),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [p.case_ids, p.commercials, p.currency, cfg, acts]);
 
@@ -394,7 +399,7 @@ ${blocks.join("\n\n---\n\n")}`;
             "Los casos seleccionados pasan a “Propuesta pendiente” y salen de la Arena hasta que el cliente responda.")}>
           <div className="divide-y divide-gray-100">
             {cases.map(c => {
-              const h = caseHours(acts[c.id]);
+              const h = caseHours(acts[c.id], specHoursOf(c.id));
               const reason = TERMINAL.includes(c.status) ? L("Finished", "Terminado")
                 : assigned.has(c.id) ? L("Consultant already assigned", "Ya tiene consultor asignado")
                 : heldElsewhere.has(c.id) ? L("In another open proposal", "En otra propuesta abierta") : null;
@@ -405,14 +410,20 @@ ${blocks.join("\n\n---\n\n")}`;
                     onChange={() => setSelected(s => { const n = new Set(s); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; })} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
-                    <p className="text-xs text-gray-500">{c.status.replace(/_/g, " ")} · {c.area_sap ?? "—"} · {L("spec", "spec")} {specs[c.id]?.content ? "✓" : "—"} · {L("plan", "plan")} {h.activities ? `${h.activities} ${L("activities", "actividades")}` : "—"}</p>
+                    <p className="text-xs text-gray-500">{statusLabel(c.status)} · {c.area_sap ?? "—"} · {L("spec", "spec")} {specs[c.id]?.content ? "✓" : "—"} · {L("plan", "plan")} {h.activities ? `${h.activities} ${L("activities", "actividades")}` : "—"}</p>
                   </div>
                   <div className="text-right text-xs whitespace-nowrap">
                     <div className="text-gray-500">{L("Standard", "Estándar")} <b className="text-gray-900">{h.standard} h</b></div>
                     <div className="text-blue-600">Arena <b>{h.arena} h</b></div>
                   </div>
                   {reason && <span className="text-[11px] text-gray-500 w-36 text-right">{reason}</span>}
-                  {!reason && !h.activities && on && <span className="text-[11px] text-amber-600 w-36 text-right">{L("No plan: 0 hours", "Sin plan: 0 horas")}</span>}
+                  {!reason && !h.activities && c.status !== "estimated" && (
+                    <span className="text-[11px] text-amber-600 w-36 text-right leading-tight">
+                      {statusLabel(c.status)} — {h.source === "specC" ? L("hours from Spec C (no plan)", "horas de la Spec C (sin plan)")
+                        : h.source === "specA" ? L("hours from Spec A (no plan)", "horas de la Spec A (sin plan)")
+                        : L("no plan or spec estimate: 0 h", "sin plan ni estimación en la spec: 0 h")}
+                    </span>
+                  )}
                 </label>
               );
             })}
@@ -656,7 +667,7 @@ function TermsStep({ p, setP, totals, propCases, cfg, L, lang, busy, onBack, onN
           <tbody>
             {totals.lines.map(l => (
               <tr key={l.id} className="border-b border-gray-50">
-                <td className="py-2 pr-3 text-gray-900">{l.title}<span className="text-xs text-gray-400 ml-1">· {l.seniority}</span></td>
+                <td className="py-2 pr-3 text-gray-900">{l.title}<span className="text-xs text-gray-400 ml-1">· {l.seniority}</span>{(l.hoursSource === "specC" || l.hoursSource === "specA") && <span className="text-[10px] text-amber-600 ml-1">· {l.hoursSource === "specC" ? "Spec C" : "Spec A"}</span>}</td>
                 <td className="py-2 pr-3 text-right">{l.hoursStandard}</td>
                 <td className="py-2 pr-3 text-right text-blue-600 font-medium">{l.hoursArena}</td>
                 <td className="py-2 pr-3 text-right">

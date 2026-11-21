@@ -33,11 +33,39 @@ const round2 = n => Math.round((Number(n) || 0) * 100) / 100;
 const round1 = n => Math.round((Number(n) || 0) * 10) / 10;
 
 /** Hours of a case from its activity plan: standard (by hand) and Arena estimate. */
-export function caseHours(activities) {
+/**
+ * Hours from the time-estimation table of a generated spec ("| **Total** | | **88** | **66.5** |").
+ * Reads Spec C (customer proposal) first, then Spec A. Returns {standard, arena, source} or null.
+ */
+export function specHoursFromNotes(notes) {
+  let n = notes;
+  if (typeof n === "string") { try { n = JSON.parse(n); } catch { n = null; } }
+  if (!n || typeof n !== "object") return null;
+  for (const [key, source] of [["specC", "specC"], ["specA", "specA"]]) {
+    const md = n[key];
+    if (typeof md !== "string" || !md) continue;
+    const rows = md.split("\n").filter(l => /^\s*\|\s*\**\s*total\b/i.test(l));
+    const row = rows[rows.length - 1];
+    if (!row) continue;
+    const nums = row.split("|").map(c => c.replace(/[*\sh]/gi, "").replace(",", "."))
+      .filter(c => /^\d+(\.\d+)?$/.test(c)).map(Number);
+    if (!nums.length) continue;
+    const standard = nums.length >= 2 ? nums[nums.length - 2] : nums[0];
+    const arena = nums[nums.length - 1];
+    if (standard > 0) return { standard: round1(standard), arena: round1(arena), source };
+  }
+  return null;
+}
+
+/** Case hours from its activity plan; without a plan, from the spec's estimate (specFallback). */
+export function caseHours(activities, specFallback = null) {
   const acts = activities ?? [];
+  if (!acts.length && specFallback) {
+    return { standard: specFallback.standard, arena: specFallback.arena, activities: 0, source: specFallback.source };
+  }
   const standard = acts.reduce((s, a) => s + (Number(a.est_hours_manual ?? a.est_hours) || 0), 0);
   const arena = acts.reduce((s, a) => s + (Number(a.est_hours) || 0), 0);
-  return { standard: round1(standard), arena: round1(arena), activities: acts.length };
+  return { standard: round1(standard), arena: round1(arena), activities: acts.length, source: acts.length ? "plan" : null };
 }
 
 /** Default hourly rate of a case in the proposal currency (Settings → Costs default rates, USD). */
@@ -59,13 +87,13 @@ export function computeTotals(cases, commercials, cfg, currency) {
   const out = { cases: {}, lines: [], basis: c.basis, currency };
   let stdSub = 0, arenaSub = 0, hStd = 0, hArena = 0;
   for (const cs of cases ?? []) {
-    const h = caseHours(cs.activities);
+    const h = caseHours(cs.activities, cs.specHours ?? null);
     const rate = c.rateMode === "custom" && c.rates?.[cs.id] != null && c.rates[cs.id] !== ""
       ? round2(c.rates[cs.id]) : defaultRate(cs, cfg, currency);
     const stdAmount = round2(h.standard * rate);
     const arenaAmount = round2(h.arena * rate);
     const line = { id: cs.id, title: cs.title, seniority: cs.expected_seniority || "mid", rate,
-      hoursStandard: h.standard, hoursArena: h.arena, activities: h.activities, stdAmount, arenaAmount,
+      hoursStandard: h.standard, hoursArena: h.arena, activities: h.activities, hoursSource: h.source, stdAmount, arenaAmount,
       amount: c.basis === "standard" ? stdAmount : arenaAmount };
     out.lines.push(line);
     stdSub += stdAmount; arenaSub += arenaAmount; hStd += h.standard; hArena += h.arena;
