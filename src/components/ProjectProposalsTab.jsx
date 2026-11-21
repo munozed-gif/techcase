@@ -282,7 +282,10 @@ ${blocks.join("\n\n---\n\n")}`;
         model: settings?.ai_model ?? "claude-haiku-5-5", feature: "proposal", projectId: project.id,
         outputLang: p.language, // the proposal's own language, not the consultant's UI language
       });
-      const text = (resp?.content ?? []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+      // callClaude returns the text itself (string); keep the object form as a fallback.
+      const text = (typeof resp === "string" ? resp
+        : (resp?.content ?? []).filter(b => b.type === "text").map(b => b.text).join("\n")).trim()
+        .replace(/^```(?:markdown|md)?\s*\n/i, "").replace(/\n```\s*$/, "").trim();
       if (!text) throw new Error(L("The AI returned no text. Try again.", "La IA no devolvió texto. Inténtalo de nuevo."));
       await saveDocument(text);
       logEvent("proposal.generated", { entityType: "project", entityId: project.id, entityName: p.title });
