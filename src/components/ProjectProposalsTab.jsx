@@ -395,8 +395,8 @@ ${blocks.join("\n\n---\n\n")}`;
       {/* 1 · Cases */}
       {isDraft && step === "cases" && (
         <Card title={L("Which cases go into this proposal?", "¿Qué casos van en esta propuesta?")}
-          hint={L("Estimated cases you select move to “Proposal pending” and leave the Arena until the customer answers. Cases in any other status keep their status — for them the proposal is a draft offer.",
-            "Los casos en estado Estimado que selecciones pasan a “Propuesta pendiente” y salen de la Arena hasta que el cliente responda. Los casos en cualquier otro estado conservan su estado: para ellos la propuesta es una oferta en borrador.")}>
+          hint={L("Estimated cases you select move to “Proposal pending” and leave the Arena until the customer answers. Cases in any other status keep their status — for them the proposal is a draft offer; when the customer accepts, their specification is approved (the development plan can then be generated in each case) and they get the agreed budget.",
+            "Los casos en estado Estimado que selecciones pasan a “Propuesta pendiente” y salen de la Arena hasta que el cliente responda. Los casos en cualquier otro estado conservan su estado: para ellos la propuesta es una oferta en borrador; cuando el cliente acepta, su especificación queda aprobada (ya se puede generar el plan en cada caso) y reciben el presupuesto acordado.")}>
           <div className="divide-y divide-gray-100">
             {cases.map(c => {
               const h = caseHours(acts[c.id], specHoursOf(c.id));
