@@ -4916,9 +4916,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
                             ? <><CheckCircle2 className="w-3.5 h-3.5" />{t("spec.sap_conn_test_btn")}</>
                             : <><Zap className="w-3.5 h-3.5" />{t("spec.sap_conn_test_btn")}</>}
                       </button>
-                      <button onClick={() => setActiveNode(1)}
+                      <button onClick={() => setActiveNode(6)}
                         className="px-4 py-2 bg-[#1A4B8C] text-white text-xs font-semibold rounded-xl hover:bg-blue-900">
-                        {t("spec.sap_conn_continue")}
+                        {t("spec.continue_ctx")}
                       </button>
                     </div>
                   </div>
@@ -4926,9 +4926,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
                 {(effectiveBaseCheck || caseLiveCheck === true) && !sapConnLoading && sapConnInfo && (sapConnInfo.notFound || sapConnInfo.error) && (
                   <div className="flex justify-end pt-1">
-                    <button onClick={() => setActiveNode(1)}
+                    <button onClick={() => setActiveNode(6)}
                       className="px-4 py-2 bg-[#1A4B8C] text-white text-xs font-semibold rounded-xl hover:bg-blue-900">
-                      {t("spec.sap_conn_continue")}
+                      {t("spec.continue_ctx")}
                     </button>
                   </div>
                 )}
@@ -5452,9 +5452,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
                   {!specApproved && !sapCheck && (
                     <div className="flex justify-end">
-                      <button onClick={() => setActiveNode(1)}
+                      <button onClick={() => setActiveNode((effectiveBaseCheck || caseLiveCheck === true) ? 5 : 6)}
                         className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                        {t("spec.ai_check_btn")} →
+                        {(effectiveBaseCheck || caseLiveCheck === true) ? t("spec.continue_sap_conn") : t("spec.continue_ctx")}
                       </button>
                     </div>
                   )}
