@@ -1023,8 +1023,18 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [aiEditing, setAiEditing]       = useState(false);
   const [aiError, setAiError]           = useState(null);
   const [aiStep, setAiStep]             = useState(1);   // 1 | 2 | 3
-  const [activeNode, setActiveNode]     = useState(0);   // 0=docs 1=sap 2=proposal 3=generate
-  const nodeRestoredForRef = useRef(null);
+  // Selected node survives remounts of this panel (e.g. parent re-render after an analysis save).
+  const nodeStoreKey = `specgen_node_${caseData.id}`;
+  const readStoredNode = () => { try { const v = sessionStorage.getItem(nodeStoreKey); return v === null ? null : Number(v); } catch { return null; } };
+  const [activeNode, setActiveNodeRaw]  = useState(() => readStoredNode() ?? 0);   // 0=docs 1=sap 2=proposal 3=generate 4=approval 5=sap live 6=context
+  const setActiveNode = n => {
+    setActiveNodeRaw(prev => {
+      const next = typeof n === 'function' ? n(prev) : n;
+      try { sessionStorage.setItem(nodeStoreKey, String(next)); } catch {}
+      return next;
+    });
+  };
+  const nodeRestoredForRef = useRef(readStoredNode() !== null ? 'stored' : null);
   // Spec loaded as empty → a spec created later in this session must not reset the node.
   useEffect(() => { if (!specLoading && !spec && nodeRestoredForRef.current === null) nodeRestoredForRef.current = 'none'; }, [specLoading, spec]);
   const [nodesCollapsed, setNodesCollapsed] = useState(false);
@@ -2179,7 +2189,8 @@ ${mdToHtml(markdownContent)}
         : restoredStep === 3 ? 3 : restoredStep === 2 ? 2 : 0;
       // Only pick the starting node when the spec is first opened; later saves (e.g. the
       // context analysis storing its result) must not throw the user back to Documents.
-      if (nodeRestoredForRef.current === 'none') nodeRestoredForRef.current = spec.id;
+      // 'none' = spec created during this session; 'stored' = user already picked a node in this tab session
+      if (nodeRestoredForRef.current === 'none' || nodeRestoredForRef.current === 'stored') nodeRestoredForRef.current = spec.id;
       if (nodeRestoredForRef.current !== spec.id) {
         nodeRestoredForRef.current = spec.id;
         setActiveNode(restoredNode);
