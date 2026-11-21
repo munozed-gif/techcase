@@ -645,7 +645,7 @@ function TermsStep({ p, setP, totals, propCases, cfg, L, lang, profileRate, busy
           <span className="text-xs font-medium text-gray-600">{L("Rates", "Tarifas")}</span>
           <select value={c.rateMode} onChange={e => setC({ rateMode: e.target.value })} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white">
             <option value="single">{L("One rate for all cases", "Una tarifa para todos los casos")}</option>
-            <option value="seniority">{L("By seniority (Settings → Costs)", "Por seniority (Configuración → Costos)")}</option>
+            <option value="seniority">{L("By seniority (Settings → AI & Generation → Costs)", "Por seniority (Configuración → IA y Generación → Costos)")}</option>
             <option value="custom">{L("Custom per case", "Personalizada por caso")}</option>
           </select>
         </label>

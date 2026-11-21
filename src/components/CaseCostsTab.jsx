@@ -205,7 +205,7 @@ export function CaseCostsTab({ caseData, activities, settings, lang = 'en', auth
     <div className="space-y-3">
       {cur.code !== 'USD' && !cur.rate && (
         <div className="text-xs rounded-xl border border-amber-200 bg-amber-50 text-amber-800 px-3 py-2">
-          {L(`This case uses ${cur.code}. Set the ${cur.code} exchange rate in Settings → Costs to see converted amounts.`, `Este caso usa ${cur.code}. Defina el tipo de cambio de ${cur.code} en Configuración → Costos para ver los montos convertidos.`)}
+          {L(`This case uses ${cur.code}. Set the ${cur.code} exchange rate in Settings → AI & Generation → Costs to see converted amounts.`, `Este caso usa ${cur.code}. Defina el tipo de cambio de ${cur.code} en Configuración → IA y Generación → Costos para ver los montos convertidos.`)}
         </div>
       )}
 
