@@ -2383,6 +2383,13 @@ ${arenaEstNote}
 
 ## 7. SAP Screen Prototype
 
+UI TECHNOLOGY: follow what the customer's documents ask for. If the customer requested a Fiori / web / mobile / handheld app (not a classic report), replace 7.1 and 7.2 with the app's screen(s) in this format and skip the selection/output screens:
+\`\`\`
+SCREEN:FIORI
+TITLE:[App ID or Z name] - [App title]
+FIELD:[Field label]|[TECH_NAME]|[value or NEW]|[R=required/O=optional/D=display]
+\`\`\`
+
 ### 7.1 Selection Screen
 
 \`\`\`
@@ -2910,6 +2917,13 @@ ${arenaEstNote}
 
 ## 7. SAP Screen Prototype
 
+UI TECHNOLOGY: follow what the customer's documents ask for. If the customer requested a Fiori / web / mobile / handheld app (not a classic report), replace 7.1 and 7.2 with the app's screen(s) in this format and skip the selection/output screens:
+\`\`\`
+SCREEN:FIORI
+TITLE:[App ID or Z name] - [App title]
+FIELD:[Field label]|[TECH_NAME]|[value or NEW]|[R=required/O=optional/D=display]
+\`\`\`
+
 ### 7.1 Selection Screen
 
 \`\`\`
@@ -3067,6 +3081,14 @@ IF the proposal involves modifying or enhancing an EXISTING transaction screen (
 SCREEN:TRANSACTION
 TITLE:[Existing TCode] - [Brief description of change]
 FIELD:[Field label]|[TECH_NAME]|[current value or NEW]|[R=required/O=optional/D=display]
+FIELD:[Field label]|[TECH_NAME]||D
+\`\`\`
+
+IF the customer asks for a NEW Fiori / web / mobile / handheld app (scanner, tablet, phone, launchpad tile):
+\`\`\`
+SCREEN:FIORI
+TITLE:[App ID or Z name] - [App title]
+FIELD:[Field label]|[TECH_NAME]|[value or NEW]|[R=required/O=optional/D=display]
 FIELD:[Field label]|[TECH_NAME]||D
 \`\`\`
 
@@ -3279,12 +3301,29 @@ ${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang
     return blocks;
   }
 
-  function buildPrototypePrompt(src, style) {
+  // The customer's documents decide the UI technology. The template's prototype style is only a
+  // default: a spec that defines a Fiori screen, or customer requirements asking for a Fiori /
+  // mobile / handheld app, switch a forced SAP GUI style to Fiori (and vice versa for GUI).
+  const FIORI_SIGNAL = /\b(fiori|sapui5|ui5|handheld|hand-held|m[oó]vil|mobile|tablet|smartphone|celular|esc[aá]ner|scanner|launchpad|aplicaci[oó]n web|web app|responsive)\b/i;
+  function resolvePrototypeStyle(style, primary, customerText) {
+    const specScreens = extractSpecScreens(primary).join('\n');
+    const wantsFiori = /SCREEN:\s*FIORI/i.test(specScreens) || FIORI_SIGNAL.test(customerText ?? '') || FIORI_SIGNAL.test(specScreens);
+    if (style === 'sapgui' && wantsFiori) return 'fiori';
+    return style;
+  }
+
+  function buildPrototypePrompt(src, styleIn) {
     const { primary, reference, primaryLabel, refLabel } = src;
-    const screens = extractSpecScreens(primary);
-    const screensNote = screens.length
-      ? `\n\nSCREENS TO REPRODUCE — authoritative definition from the PRIMARY spec (${screens.length} screen${screens.length > 1 ? 's' : ''}). Format: TITLE = window title; FIELD:label|technical name|value|R(required)/O(optional)/D(display only); a value of NEW means a new custom field (render it empty, mark it as new). PARAM = selection parameter, COL/ROW = output list.\n${screens.map((b, i) => `--- Screen ${i + 1} ---\n${b}`).join('\n')}\n\nThe prototype's main view MUST be exactly these screen(s), with these fields in this order and this title. Do NOT add list/ALV tables, tabs, side panels, extra screens or extra fields that are not defined here or explicitly described in the PRIMARY spec's text. If the spec describes a Fiori / handheld app, build a Fiori-style, mobile-width screen.`
+    const customerText = [requestSummary, analysisCustomerContent].filter(Boolean).join('\n\n');
+    const style = resolvePrototypeStyle(styleIn, primary, customerText);
+    if (style !== styleIn) console.info('[Prototype] style', styleIn, '→', style, '(customer documents / spec ask for a Fiori app)');
+    const customerNote = customerText
+      ? `\n\nCUSTOMER REQUIREMENTS (summarised from the customer's own documents — their requested UI technology, device and layout take priority over any default style):\n${sanitizeForJson(customerText).slice(0, 4000)}`
       : '';
+    const screens = extractSpecScreens(primary);
+    const screensNote = customerNote + (screens.length
+      ? `\n\nSCREENS TO REPRODUCE — authoritative definition from the PRIMARY spec (${screens.length} screen${screens.length > 1 ? 's' : ''}). Format: TITLE = window title; FIELD:label|technical name|value|R(required)/O(optional)/D(display only); a value of NEW means a new custom field (render it empty, mark it as new). PARAM = selection parameter, COL/ROW = output list.\n${screens.map((b, i) => `--- Screen ${i + 1} ---\n${b}`).join('\n')}\n\nThe prototype's main view MUST be exactly these screen(s), with these fields in this order and this title. Do NOT add list/ALV tables, tabs, side panels, extra screens or extra fields that are not defined here or explicitly described in the PRIMARY spec's text. If the spec describes a Fiori / handheld app, build a Fiori-style, mobile-width screen.`
+      : '');
     const safeA     = sanitizeForJson(primary ?? '');
     const safeB     = sanitizeForJson(reference ?? '');
     const safeTitle = sanitizeForJson(caseData.title);
