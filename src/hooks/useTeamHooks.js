@@ -101,14 +101,9 @@ function useConsultantTeams(userId) {
       .select()
       .single();
     if (error) throw error;
-    await supabase.from("consultant_team_members").insert({
-      team_id: team.id,
-      user_id: userId,
-      email: ownerEmail ?? "",
-      role: "owner",
-      status: "accepted",
-    });
-    await fetchAll(true);
+    // The owner membership is added by the database (trigger consultant_team_add_owner)
+    // in the same transaction, so a dropped connection can't leave an ownerless team.
+    await fetchAll(true).catch(() => {});
     return team;
   }
 
