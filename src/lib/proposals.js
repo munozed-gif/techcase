@@ -18,7 +18,9 @@ export const OPEN_PROPOSAL_STATUSES = ["draft", "sent", "viewed", "changes_reque
 
 export const DEFAULT_COMMERCIALS = {
   basis: "arena",          // which estimate is the price: 'arena' | 'standard'
-  rateMode: "seniority",   // 'seniority' (Settings → Costs default rates) | 'custom' (per case)
+  rateMode: "single",      // 'single' (one rate for all cases, default = author's profile rate)
+                           // | 'seniority' (Settings → Costs default rates) | 'custom' (per case)
+  baseRate: null,          // rate per hour in the proposal currency when 'single' (and default for 'custom')
   rates: {},               // {caseId: rate in the proposal currency} when custom
   contingencyPct: 0,
   discountPct: 0,
@@ -88,8 +90,11 @@ export function computeTotals(cases, commercials, cfg, currency) {
   let stdSub = 0, arenaSub = 0, hStd = 0, hArena = 0;
   for (const cs of cases ?? []) {
     const h = caseHours(cs.activities, cs.specHours ?? null);
+    const base = Number(c.baseRate) > 0 ? round2(c.baseRate) : null;
     const rate = c.rateMode === "custom" && c.rates?.[cs.id] != null && c.rates[cs.id] !== ""
-      ? round2(c.rates[cs.id]) : defaultRate(cs, cfg, currency);
+      ? round2(c.rates[cs.id])
+      : (c.rateMode === "single" || c.rateMode === "custom") && base != null ? base
+      : defaultRate(cs, cfg, currency);
     const stdAmount = round2(h.standard * rate);
     const arenaAmount = round2(h.arena * rate);
     const line = { id: cs.id, title: cs.title, seniority: cs.expected_seniority || "mid", rate,

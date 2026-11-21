@@ -12,7 +12,7 @@ import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { callClaude, buildEmailHtml, sendEmail, logEvent } from "../lib/utils.js";
-import { costConfig, caseCurrency, fmtMoney, COMMON_CURRENCIES } from "../lib/costs.js";
+import { costConfig, caseCurrency, fmtMoney, COMMON_CURRENCIES, fromUsd } from "../lib/costs.js";
 import {
   PROPOSAL_STATUS_META, OPEN_PROPOSAL_STATUSES, DEFAULT_COMMERCIALS, computeTotals, investmentMarkdown,
   mergeInvestment, buildProposalHtml, htmlToText, caseHours, specHoursFromNotes,
@@ -46,6 +46,12 @@ export function ProjectProposalsTab({ project, auth }) {
   const [assigned, setAssigned] = useState(new Set());
   const [customer, setCustomer] = useState(null);
   const [partner, setPartner] = useState(null);
+  const [profileRate, setProfileRate] = useState(null); // author's consultant-profile hourly rate (USD)
+  useEffect(() => {
+    if (!auth.user?.id) return;
+    supabase.from("consultant_profiles").select("hourly_rate").eq("id", auth.user.id).maybeSingle()
+      .then(({ data }) => setProfileRate(Number(data?.hourly_rate) > 0 ? Number(data.hourly_rate) : null));
+  }, [auth.user?.id]);
   const [openId, setOpenId] = useState(null);
 
   const load = useCallback(async () => {
@@ -88,7 +94,8 @@ export function ProjectProposalsTab({ project, auth }) {
     const { data, error: e } = await supabase.from("project_proposals").insert({
       project_id: project.id, partner_id: project.partner_id ?? null, customer_id: project.customer_id ?? null,
       title: `${L("Proposal", "Propuesta")} ${project.name}${n > 1 ? ` #${n}` : ""}`,
-      language: es ? "es" : "en", currency, commercials: DEFAULT_COMMERCIALS,
+      language: es ? "es" : "en", currency,
+      commercials: { ...DEFAULT_COMMERCIALS, baseRate: profileRate ? Math.round(fromUsd(profileRate, currency, cfg) * 100) / 100 : null },
       recipients: customer?.contact_email ? [{ name: customer.contact_name ?? "", email: customer.contact_email }]
         : project.stakeholder_email ? [{ name: project.stakeholder_name ?? "", email: project.stakeholder_email }] : [],
     }).select().single();
@@ -99,7 +106,7 @@ export function ProjectProposalsTab({ project, auth }) {
   }
 
   const open = proposals.find(p => p.id === openId);
-  const ctx = { project, auth, cfg, cases, acts, specs, docs, assigned, customer, partner, proposals, L, es, lang, settings: ss.settings };
+  const ctx = { project, auth, cfg, cases, acts, specs, docs, assigned, customer, partner, proposals, L, es, lang, settings: ss.settings, profileRate };
 
   if (loading) return <div className="py-10 flex justify-center"><Loader2 className="animate-spin text-gray-400" /></div>;
 
@@ -506,7 +513,7 @@ ${blocks.join("\n\n---\n\n")}`;
 
       {/* 3 · Commercial terms */}
       {isDraft && step === "terms" && (
-        <TermsStep p={p} setP={setP} totals={totals} propCases={propCases} cfg={cfg} L={L} lang={lang}
+        <TermsStep p={p} setP={setP} totals={totals} propCases={propCases} cfg={cfg} L={L} lang={lang} profileRate={ctx.profileRate}
           busy={busy === "terms"}
           onBack={() => setStep("sources")}
           onNext={async () => { setBusy("terms"); try { await save({ commercials: p.commercials, currency: p.currency, language: p.language, totals }); setStep("document"); } catch (e) { setError(e.message); } setBusy(null); }} />
@@ -606,9 +613,15 @@ function Num({ label, value, onChange, suffix, step = "1" }) {
   );
 }
 
-function TermsStep({ p, setP, totals, propCases, cfg, L, lang, busy, onBack, onNext }) {
+function TermsStep({ p, setP, totals, propCases, cfg, L, lang, profileRate, busy, onBack, onNext }) {
   const c = { ...DEFAULT_COMMERCIALS, ...(p.commercials ?? {}) };
   const setC = patch => setP(prev => ({ ...prev, commercials: { ...c, ...patch } }));
+  const profileRateConv = profileRate ? Math.round(fromUsd(profileRate, p.currency, cfg) * 100) / 100 : null;
+  // Prefill the proposal rate with the author's profile rate the first time (still editable).
+  useEffect(() => {
+    if ((c.rateMode === "single" || c.rateMode === "custom") && (c.baseRate == null || c.baseRate === "") && profileRateConv) setC({ baseRate: profileRateConv });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileRateConv, c.rateMode]);
   const m = v => fmtMoney(v, p.currency, lang);
   return (
     <Card title={L("Commercial terms", "Condiciones comerciales")}
@@ -631,10 +644,29 @@ function TermsStep({ p, setP, totals, propCases, cfg, L, lang, busy, onBack, onN
         <label className="block">
           <span className="text-xs font-medium text-gray-600">{L("Rates", "Tarifas")}</span>
           <select value={c.rateMode} onChange={e => setC({ rateMode: e.target.value })} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white">
+            <option value="single">{L("One rate for all cases", "Una tarifa para todos los casos")}</option>
             <option value="seniority">{L("By seniority (Settings → Costs)", "Por seniority (Configuración → Costos)")}</option>
             <option value="custom">{L("Custom per case", "Personalizada por caso")}</option>
           </select>
         </label>
+        {(c.rateMode === "single" || c.rateMode === "custom") && (
+          <label className="block">
+            <span className="text-xs font-medium text-gray-600">
+              {c.rateMode === "single" ? L("Rate per hour", "Tarifa por hora") : L("Default rate per hour", "Tarifa por hora por defecto")} ({p.currency})
+            </span>
+            <input type="number" min="0" step="0.5" value={c.baseRate ?? ""}
+              onChange={e => setC({ baseRate: e.target.value === "" ? null : Number(e.target.value) })}
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+            <span className="block text-[11px] text-gray-400 mt-1">
+              {profileRate
+                ? L(`From your consultant profile (US$ ${profileRate}/h) — change it for this proposal only.`, `De tu perfil de consultor (US$ ${profileRate}/h) — cámbiala solo para esta propuesta.`)
+                : L("No rate in your consultant profile — enter the rate for this proposal.", "Tu perfil de consultor no tiene tarifa: indica la de esta propuesta.")}
+              {profileRateConv && c.baseRate !== profileRateConv && (
+                <button type="button" onClick={() => setC({ baseRate: profileRateConv })} className="ml-1 text-blue-600 underline">{L("Use profile rate", "Usar la de mi perfil")}</button>
+              )}
+            </span>
+          </label>
+        )}
         <label className="block">
           <span className="text-xs font-medium text-gray-600">{L("Document language", "Idioma del documento")}</span>
           <select value={p.language} onChange={e => setP({ ...p, language: e.target.value })} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white">
