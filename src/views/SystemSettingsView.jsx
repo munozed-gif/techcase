@@ -2403,6 +2403,11 @@ function SettingsGenerationTab({ ssCtx }) {
                     );
                   })}
                 </div>
+                <p className="text-[11px] text-gray-500 mt-2 leading-relaxed">
+                  This is the default style. The customer's documents take priority: when the spec or the customer's
+                  requirements ask for a Fiori / mobile / handheld app, the prototype is built in Fiori style even if
+                  SAP GUI is selected here. <strong>Auto</strong> is recommended — the AI picks the style from each case.
+                </p>
               </div>
             )}
           </div>
