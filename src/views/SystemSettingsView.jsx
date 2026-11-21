@@ -1147,6 +1147,8 @@ const CAP_ICONS = {
   regen_specs:                RefreshCw,
   upload_docs:                FileText,
   view_docs:                  FolderOpen,
+  manage_proposals:           FileText,
+  manage_own_project_proposals: FileText,
   delete_docs:                Trash2,
   delete_own_docs:            Trash2,
   add_activities:             ListChecks,
@@ -1293,7 +1295,7 @@ function SettingsRolesTab({ ssCtx }) {
     { label: "SAP Implementation", icon: Zap,         caps: ["run_sap_implementation","edit_sap_setup","release_transports","confirm_transport_imports"] },
     { label: "Activities & Time",   icon: ListChecks,  caps: ["add_activities","log_time","edit_activity_phase","edit_activity_predecessors","bulk_delete_activities","bulk_delete_subcases"] },
     { label: "Lifecycle",           icon: Zap,         caps: ["view_lifecycle","edit_lifecycle"] },
-    { label: "Projects",            icon: Briefcase,   caps: ["create_projects","upload_project_docs"] },
+    { label: "Projects",            icon: Briefcase,   caps: ["create_projects","upload_project_docs","manage_proposals","manage_own_project_proposals"] },
     { label: "Invoices & Reports",  icon: Receipt,     caps: ["manage_invoices","view_reports"] },
     { label: "Team & Audit",        icon: Users,       caps: ["require_team_signup","view_audit_log"] },
   ];

@@ -8,7 +8,7 @@ import {
   UserCheck, Users, X, XCircle, Zap,
   ArrowRightLeft, BarChart, BookOpen, Briefcase, Bug, ClipboardList,
   Cpu, FlaskConical, GitBranch, Globe, GraduationCap, KeyRound,
-  MonitorCheck, Network, Settings, ShieldCheck, Wrench, FileSignature,
+  MonitorCheck, Network, Settings, ShieldCheck, Wrench, FileSignature, User,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -1699,18 +1699,27 @@ function ProjectConnectionsTab({ projectId, clientId, auth, createdBy }) {
 }
 
 function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [], importedCasesCount = 0 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const wizardMode = useWizardMode(auth);
   const projPartnerCtx = usePartnerContext(auth.user?.id);
   const projPartner = project?.partner_id ? projPartnerCtx.partnerById(project.partner_id) : null;
   const projPartnerManage = !!projPartner && projPartner.status === "approved" && ["owner", "admin"].includes(projPartner.role);
-  // Proposals: Arena admins/managers and partner owners/admins when the partner plan includes them.
+  // Proposals tab: Settings → Roles (manage_proposals / manage_own_project_proposals) or partner owners/admins.
   const [canProposals, setCanProposals] = useState(false);
   useEffect(() => {
     let alive = true;
     supabase.rpc("can_manage_proposals", { p_project: project.id }).then(({ data }) => { if (alive) setCanProposals(data === true); });
     return () => { alive = false; };
   }, [project.id, auth.user?.id]);
+  // Project owner (who created it) for the Overview card
+  const [projectOwner, setProjectOwner] = useState(null);
+  useEffect(() => {
+    if (!project.created_by) { setProjectOwner(null); return; }
+    let alive = true;
+    supabase.from("users").select("id, full_name, email, role").eq("id", project.created_by).maybeSingle()
+      .then(({ data }) => { if (alive) setProjectOwner(data ?? { id: project.created_by }); });
+    return () => { alive = false; };
+  }, [project.created_by]);
   const { createCase, updateCase, deleteCase } = useCases({});
   const { settings: _importSS, setSetting: ssSetSetting, loading: ssLoading } = useSystemSettings();
   const [projCases, setProjCases] = useState([]);
@@ -2453,6 +2462,29 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           );
           return (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+              {/* 0 — Project owner (creator) */}
+              <div className={`${oc} sm:col-span-2`}>
+                <CardHdr icon={<User size={13} />} label={lang === "es" ? "Propietario del proyecto" : "Project owner"} color="#0ea5e9" />
+                {project.created_by ? (
+                  <div className="flex items-center gap-3">
+                    <UserAvatar name={projectOwner?.full_name ?? projectOwner?.email ?? "?"} size={34} />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">
+                        {projectOwner?.full_name ?? projectOwner?.email ?? (lang === "es" ? "Usuario" : "User")}
+                        {project.created_by === auth.user?.id && <span className="ml-2 text-[10px] font-semibold text-sky-600 bg-sky-50 dark:bg-sky-900/30 rounded px-1.5 py-0.5">{lang === "es" ? "Tú" : "You"}</span>}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {[projectOwner?.role ? projectOwner.role.replace(/_/g, " ") : null,
+                          project.created_at ? `${lang === "es" ? "Creó el proyecto el" : "Created the project on"} ${fmtDate(project.created_at)}` : null]
+                          .filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">{lang === "es" ? "Creador no registrado" : "Creator not recorded"}</p>
+                )}
+              </div>
 
               {/* 1 — Timeline */}
               {(project.start_date || project.end_date) && (
