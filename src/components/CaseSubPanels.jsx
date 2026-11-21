@@ -338,7 +338,7 @@ function renderMarkdown(md) {
       if (/^SCREEN:/i.test(l)) return;
       if (/^TITLE:/i.test(l)) { title=l.replace(/^TITLE:\s*/i,''); return; }
       if (/^PARAM:/i.test(l)) { const p=l.replace(/^PARAM:\s*/i,'').split('|'); params.push({label:(p[0]||'').trim(),value:(p[2]||'').trim(),req:(p[3]||'').trim().toUpperCase()==='R'}); return; }
-      if (/^FIELD:/i.test(l)) { const p=l.replace(/^FIELD:\s*/i,'').split('|'); fields.push({label:(p[0]||'').trim(),tech:(p[1]||'').trim(),value:(p[2]||'').trim(),req:(p[3]||'O').trim().toUpperCase()==='R',disp:(p[3]||'O').trim().toUpperCase()==='D'}); return; }
+      if (/^FIELD:/i.test(l)) { const p=l.replace(/^FIELD:\s*/i,'').split('|'); { const _v=(p[2]||'').trim(); const _new=/^new$/i.test(_v); fields.push({label:(p[0]||'').trim(),tech:(p[1]||'').trim(),value:_new?'':_v,isNew:_new,req:(p[3]||'O').trim().toUpperCase()==='R',disp:(p[3]||'O').trim().toUpperCase()==='D'}); } return; }
       if (/^STEP:/i.test(l))  { steps.push(l.replace(/^STEP:\s*/i,'').trim()); return; }
       if (/^COL:/i.test(l))   { const p=l.replace(/^COL:\s*/i,'').split('|'); cols.push({label:(p[0]||'').trim(),width:parseInt(p[1])||15,align:((p[2]||'L').trim().toUpperCase())}); return; }
       if (/^ROW:/i.test(l))   { rows.push(l.replace(/^ROW:\s*/i,'').split('|').map(v=>v.trim())); return; }
@@ -350,7 +350,7 @@ function renderMarkdown(md) {
     if (isFiori || isTxn) {
       const flds = fields.length ? fields : params.map(p=>({...p,tech:'',disp:false}));
       const typeLabel = isFiori ? 'Fiori App' : 'SAP Transaction';
-      const rows2 = flds.map(f=>`<div style="display:flex;align-items:center;gap:0;margin-bottom:10px"><div style="width:38%;padding-right:12px;text-align:right"><label style="font-size:11.5px;color:#32363a;font-weight:${f.req?'600':'400'}">${esc(f.label)}${f.req?'<span style="color:#bb0000"> *</span>':''}</label></div><div style="width:62%">${f.disp?`<span style="font-size:11.5px;color:#32363a;padding:6px 8px;display:inline-block;border-bottom:1px solid #89919a">${esc(f.value||'—')}</span>`:`<input readonly value="${esc(f.value)}" style="width:90%;max-width:260px;height:30px;border:1px solid #89919a;border-bottom:2px solid #0a6ed1;padding:0 8px;font-size:11.5px;color:#32363a;background:white;border-radius:4px 4px 0 0"/>`}</div></div>`).join('');
+      const rows2 = flds.map(f=>`<div style="display:flex;align-items:center;gap:0;margin-bottom:10px"><div style="width:38%;padding-right:12px;text-align:right"><label style="font-size:11.5px;color:#32363a;font-weight:${f.req?'600':'400'}">${esc(f.label)}${f.req?'<span style="color:#bb0000"> *</span>':''}${f.isNew?' <span style="font-size:9px;font-weight:600;color:#0f7b3f;background:#e3f6ea;border:1px solid #b5e2c4;border-radius:8px;padding:0 5px;margin-left:4px;vertical-align:middle">nuevo</span>':''}</label></div><div style="width:62%">${f.disp?`<span style="font-size:11.5px;color:#32363a;padding:6px 8px;display:inline-block;border-bottom:1px solid #89919a">${esc(f.value||'—')}</span>`:`<input readonly value="${esc(f.value)}" style="width:90%;max-width:260px;height:30px;border:1px solid #89919a;border-bottom:2px solid #0a6ed1;padding:0 8px;font-size:11.5px;color:#32363a;background:white;border-radius:4px 4px 0 0"/>`}</div></div>`).join('');
       return `<div style="border:1px solid #c8d4e8;border-radius:6px;overflow:hidden;font-family:'72','Noto Sans',Arial,sans-serif;margin:14px 0;box-shadow:0 1px 6px rgba(0,0,0,0.1)"><div style="background:#0a6ed1;color:white;padding:8px 14px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:600">${esc(title)}</span><span style="font-size:10px;background:rgba(255,255,255,0.2);border-radius:10px;padding:2px 8px">${typeLabel}</span></div><div style="background:white;padding:16px 20px"><div style="font-size:10.5px;color:#6a6d70;letter-spacing:0.05em;text-transform:uppercase;font-weight:600;margin-bottom:12px;border-bottom:1px solid #d9d9d9;padding-bottom:6px">Datos</div>${rows2}</div><div style="background:#f5f5f5;border-top:1px solid #d9d9d9;padding:8px 14px;display:flex;gap:8px"><button style="background:#0a6ed1;color:white;border:none;padding:6px 16px;border-radius:4px;font-size:11.5px;font-weight:600;cursor:pointer">Grabar</button><button style="background:white;color:#0a6ed1;border:1px solid #0a6ed1;padding:6px 16px;border-radius:4px;font-size:11.5px;cursor:pointer">Cancelar</button></div></div>`;
     }
 
@@ -1361,7 +1361,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
           if(/^SCREEN:/i.test(l)) return;
           if(/^TITLE:/i.test(l))  { title=l.replace(/^TITLE:\s*/i,''); return; }
           if(/^PARAM:/i.test(l))  { const p=l.replace(/^PARAM:\s*/i,'').split('|'); params.push({label:(p[0]||'').trim(),value:(p[2]||'').trim(),req:(p[3]||'O').trim().toUpperCase()==='R'}); return; }
-          if(/^FIELD:/i.test(l))  { const p=l.replace(/^FIELD:\s*/i,'').split('|'); fields.push({label:(p[0]||'').trim(),tech:(p[1]||'').trim(),value:(p[2]||'').trim(),req:(p[3]||'O').trim().toUpperCase()==='R',disp:(p[3]||'O').trim().toUpperCase()==='D'}); return; }
+          if(/^FIELD:/i.test(l))  { const p=l.replace(/^FIELD:\s*/i,'').split('|'); { const _v=(p[2]||'').trim(); const _new=/^new$/i.test(_v); fields.push({label:(p[0]||'').trim(),tech:(p[1]||'').trim(),value:_new?'':_v,isNew:_new,req:(p[3]||'O').trim().toUpperCase()==='R',disp:(p[3]||'O').trim().toUpperCase()==='D'}); } return; }
           if(/^STEP:/i.test(l))   { steps.push(l.replace(/^STEP:\s*/i,'').trim()); return; }
           if(/^COL:/i.test(l))    { const p=l.replace(/^COL:\s*/i,'').split('|'); cols.push({label:(p[0]||'').trim()}); return; }
           if(/^ROW:/i.test(l))    { rows.push(l.replace(/^ROW:\s*/i,'').split('|').map(v=>v.trim())); return; }
@@ -1373,7 +1373,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
         }
         if (isFiori || isTxn) {
           const flds = (fields.length ? fields : params.length ? params.map(p=>({...p,tech:'',disp:false})) : [{label:'Campo nuevo',value:'',req:true,tech:'ZFIELD',disp:false}]);
-          const rows2 = flds.map(f=>`<div style="display:flex;align-items:center;gap:0;margin-bottom:10px"><div style="width:38%;padding-right:12px;text-align:right"><label style="font-size:11.5px;color:#32363a;font-weight:${f.req?'600':'400'}">${esc(f.label)}${f.req?'<span style="color:#bb0000"> *</span>':''}</label></div><div style="width:62%">${f.disp?`<span style="font-size:11.5px;color:#32363a;padding:6px 8px;display:inline-block;border-bottom:1px solid #89919a">${esc(f.value||'—')}</span>`:`<input readonly value="${esc(f.value)}" style="width:90%;max-width:260px;height:30px;border:1px solid #89919a;border-bottom:2px solid #0a6ed1;padding:0 8px;font-size:11.5px;color:#32363a;background:white;border-radius:4px 4px 0 0"/>`}</div></div>`).join('');
+          const rows2 = flds.map(f=>`<div style="display:flex;align-items:center;gap:0;margin-bottom:10px"><div style="width:38%;padding-right:12px;text-align:right"><label style="font-size:11.5px;color:#32363a;font-weight:${f.req?'600':'400'}">${esc(f.label)}${f.req?'<span style="color:#bb0000"> *</span>':''}${f.isNew?' <span style="font-size:9px;font-weight:600;color:#0f7b3f;background:#e3f6ea;border:1px solid #b5e2c4;border-radius:8px;padding:0 5px;margin-left:4px;vertical-align:middle">nuevo</span>':''}</label></div><div style="width:62%">${f.disp?`<span style="font-size:11.5px;color:#32363a;padding:6px 8px;display:inline-block;border-bottom:1px solid #89919a">${esc(f.value||'—')}</span>`:`<input readonly value="${esc(f.value)}" style="width:90%;max-width:260px;height:30px;border:1px solid #89919a;border-bottom:2px solid #0a6ed1;padding:0 8px;font-size:11.5px;color:#32363a;background:white;border-radius:4px 4px 0 0"/>`}</div></div>`).join('');
           const typeLabel = isFiori ? 'Fiori App' : 'SAP Transaction';
           return `<div style="border:1px solid #c8d4e8;border-radius:6px;overflow:hidden;font-family:'72','Noto Sans',Arial,sans-serif;margin:14px 0;box-shadow:0 1px 6px rgba(0,0,0,0.1)"><div style="background:#0a6ed1;color:white;padding:8px 14px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:600">${esc(title||typeLabel)}</span><span style="font-size:10px;background:rgba(255,255,255,0.2);border-radius:10px;padding:2px 8px">${typeLabel}</span></div><div style="background:white;padding:16px 20px"><div style="font-size:10.5px;color:#6a6d70;letter-spacing:0.05em;text-transform:uppercase;font-weight:600;margin-bottom:12px;border-bottom:1px solid #d9d9d9;padding-bottom:6px">Datos</div>${rows2}</div><div style="background:#f5f5f5;border-top:1px solid #d9d9d9;padding:8px 14px;display:flex;gap:8px"><button style="background:#0a6ed1;color:white;border:none;padding:6px 16px;border-radius:4px;font-size:11.5px;font-weight:600;cursor:pointer">Grabar</button><button style="background:white;color:#0a6ed1;border:1px solid #0a6ed1;padding:6px 16px;border-radius:4px;font-size:11.5px;cursor:pointer">Cancelar</button></div></div>`;
         }
@@ -3271,8 +3271,20 @@ ${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang
     return { primary: d || '', reference: '', primaryLabel: 'Client spec (Spec D)', refLabel: '' };
   }
 
+  function extractSpecScreens(md) {
+    const blocks = [];
+    const re = /```[a-z]*\n([\s\S]*?)```/gi;
+    let m;
+    while ((m = re.exec(md ?? '')) !== null) { if (/^\s*SCREEN:/im.test(m[1])) blocks.push(m[1].trim()); }
+    return blocks;
+  }
+
   function buildPrototypePrompt(src, style) {
     const { primary, reference, primaryLabel, refLabel } = src;
+    const screens = extractSpecScreens(primary);
+    const screensNote = screens.length
+      ? `\n\nSCREENS TO REPRODUCE — authoritative definition from the PRIMARY spec (${screens.length} screen${screens.length > 1 ? 's' : ''}). Format: TITLE = window title; FIELD:label|technical name|value|R(required)/O(optional)/D(display only); a value of NEW means a new custom field (render it empty, mark it as new). PARAM = selection parameter, COL/ROW = output list.\n${screens.map((b, i) => `--- Screen ${i + 1} ---\n${b}`).join('\n')}\n\nThe prototype's main view MUST be exactly these screen(s), with these fields in this order and this title. Do NOT add list/ALV tables, tabs, side panels, extra screens or extra fields that are not defined here or explicitly described in the PRIMARY spec's text. If the spec describes a Fiori / handheld app, build a Fiori-style, mobile-width screen.`
+      : '';
     const safeA     = sanitizeForJson(primary ?? '');
     const safeB     = sanitizeForJson(reference ?? '');
     const safeTitle = sanitizeForJson(caseData.title);
@@ -3296,7 +3308,7 @@ ${safeB.slice(0, 3000)}` : ''}
 FIDELITY RULES (mandatory):
 - Recreate the screen prototypes defined in the PRIMARY spec (section "Prototipo de Pantalla" / "Screen Prototype" and its sub-sections) as the prototype's screens: same transaction / app code and title, same fields with the same labels, order, required markers and sample values, same buttons and tabs.
 - Use exactly the object, transaction and app names that appear in the PRIMARY spec. Never invent different names.
-- You may add interactivity, navigation between those screens, messages and realistic sample data, but do not add screens or fields that the PRIMARY spec does not describe.
+- You may add interactivity, navigation between those screens, messages and realistic sample data, but do not add screens or fields that the PRIMARY spec does not describe.${screensNote}
 
 STEP 1 — CHOOSE THE STYLE using these rules (apply the FIRST rule that matches):
 
@@ -3354,7 +3366,7 @@ ${safeB.slice(0, 3000)}` : ''}
 FIDELITY RULES (mandatory):
 - Recreate the screen prototypes defined in the PRIMARY spec (section "Prototipo de Pantalla" / "Screen Prototype" and its sub-sections) as the prototype's screens: same transaction / app code and title, same fields with the same labels, order, required markers and sample values, same buttons and tabs.
 - Use exactly the object, transaction and app names that appear in the PRIMARY spec. Never invent different names.
-- You may add interactivity, navigation between those screens, messages and realistic sample data, but do not add screens or fields that the PRIMARY spec does not describe.
+- You may add interactivity, navigation between those screens, messages and realistic sample data, but do not add screens or fields that the PRIMARY spec does not describe.${screensNote}
 
 VISUAL STYLE — SAP GUI (classic):
 - Background: #f3f2f1 (SAP off-white)
@@ -3420,7 +3432,7 @@ ${safeB.slice(0, 3000)}` : ''}
 FIDELITY RULES (mandatory):
 - Recreate the screen prototypes defined in the PRIMARY spec (section "Prototipo de Pantalla" / "Screen Prototype" and its sub-sections) as the prototype's screens: same transaction / app code and title, same fields with the same labels, order, required markers and sample values, same buttons and tabs.
 - Use exactly the object, transaction and app names that appear in the PRIMARY spec. Never invent different names.
-- You may add interactivity, navigation between those screens, messages and realistic sample data, but do not add screens or fields that the PRIMARY spec does not describe.
+- You may add interactivity, navigation between those screens, messages and realistic sample data, but do not add screens or fields that the PRIMARY spec does not describe.${screensNote}
 
 REQUIREMENTS:
 1. Generate 4 screens: Overview, Main Process Screen, Detail/Form Screen, Confirmation/Result Screen
