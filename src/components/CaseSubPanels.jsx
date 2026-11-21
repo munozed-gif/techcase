@@ -2156,6 +2156,10 @@ ${mdToHtml(markdownContent)}
   const userPlan   = planCfg.getUserPlan(auth.user?.id ?? '');
   const canDownloadPdf = auth.isAdmin || auth.isManager || userPlan !== 'free';
   const specApproved = spec?.status === 'approved';
+  // After the first spec has been generated/saved, leaving the current mode (back to the mode
+  // chooser, which can discard the generated specs) is reserved for admins.
+  const specGenerated = !!(spec?.content || aiSpecA || aiSpecB || aiSpecC || aiSpecD);
+  const canLeaveSpecMode = !specApproved && (auth.isAdmin || !specGenerated);
 
   // Load latest spec review token for this case
   useEffect(() => {
@@ -4345,7 +4349,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          {!specApproved && <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>}
+          {canLeaveSpecMode && <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>}
           <span className="text-sm font-semibold text-gray-700">{t("spec.manual_title")}</span>
         </div>
 
@@ -4404,7 +4408,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
       return (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            {!specApproved && <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>}
+            {canLeaveSpecMode && <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>}
             <span className="text-sm font-semibold text-gray-700">{t("spec.wiz_step1")}</span>
           </div>
 
@@ -4706,7 +4710,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           genModel={genModel} buildCaseDocHtml={buildCaseDocHtml} />
         {/* Header + back */}
         <div className="flex items-center gap-2">
-          {!specApproved && (
+          {canLeaveSpecMode && (
             <button onClick={() => {
               const dest = prevMode ?? null;
               setMode(dest);
