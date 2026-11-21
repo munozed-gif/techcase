@@ -528,7 +528,7 @@ function buildContextString(caseData, genCtx = {}, extra = {}) {
     extra.projectDocs.forEach(doc => {
       lines.push(`\n[Document: ${doc.name}${doc.type ? ` — ${doc.type}` : ''}]`);
       if (doc.text) lines.push(doc.text);
-      else lines.push(`(binary file — content not extractable as text)`);
+      else lines.push(`(file could not be read as text — content not available)`);
     });
     lines.push(`[End of Project Documents]`);
   }
@@ -2528,7 +2528,8 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
                 return { name: doc.name, type: doc.type, text: "" };
               }
             }));
-            extra.projectDocs = extracted.filter(d => d.text);
+            // Keep unreadable files too, so the panel says which ones the AI could not read
+            extra.projectDocs = extracted;
           })
       );
     }
@@ -5866,7 +5867,7 @@ ${result}`;
                                 <div className="bg-gray-50 rounded-lg border border-gray-100 p-3">
                                   <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Project Documents</p>
                                   {docs.length === 0 ? (
-                                    <p className="text-xs text-gray-400 italic">No project documents found.</p>
+                                    <p className="text-xs text-gray-400 italic">{L('This project has no reference documents. Add them in the project (Documents tab) to give the AI project-wide context.', 'Este proyecto no tiene documentos de referencia. Agrégalos en el proyecto (pestaña Documentos) para dar contexto general a la IA.')}</p>
                                   ) : (
                                     <ul className="space-y-3">
                                       {docs.map((d, i) => {
@@ -5874,10 +5875,12 @@ ${result}`;
                                         return (
                                           <li key={i} className="flex flex-col gap-1">
                                             <div className="flex items-center gap-2">
-                                              <Check size={11} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                                              {d.text
+                                                ? <Check size={11} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                                                : <AlertTriangle size={11} className="text-amber-500 flex-shrink-0 mt-0.5" />}
                                               <span className="text-xs font-semibold text-gray-700">{d.name}</span>
                                               {d.type && <span className="text-[10px] text-gray-400 bg-gray-100 rounded px-1">{d.type}</span>}
-                                              <span className="ml-auto text-[10px] text-gray-400 flex-shrink-0">{d.text ? `${Math.round(d.text.length / 1000)}k chars` : 'binary'}</span>
+                                              <span className="ml-auto text-[10px] text-gray-400 flex-shrink-0">{d.text ? `${Math.round(d.text.length / 1000)}k chars` : L('could not be read — not sent to the AI', 'no se pudo leer — no se envía a la IA')}</span>
                                             </div>
                                             <div className="ml-4 text-[11px] text-gray-500 leading-snug">
                                               {summary
