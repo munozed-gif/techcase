@@ -257,10 +257,11 @@ function useApplications(caseId = null) {
           ctaText: "View My Case",
           ctaUrl: window.location.origin,
         }), 'case_assignment');
-        const hhId = app.consultant?.headhunter_id;
-        if (hhId) {
-          const consultantName = app.consultant?.full_name ?? "A candidate";
-          const caseTitle = app.case?.title ?? "a case";
+        // Notify every headhunter who represents this consultant (a consultant can have several).
+        const { data: hhIds } = await supabase.rpc("hh_headhunters_of", { p_consultant: app.consultant_id ?? app.consultant?.id });
+        const consultantName = app.consultant?.full_name ?? "A candidate";
+        const caseTitle = app.case?.title ?? "a case";
+        for (const hhId of (Array.isArray(hhIds) ? hhIds : [])) {
           notify(hhId, "Candidate placed", `${consultantName} was accepted on "${caseTitle}". A commission may be due.`, 'headhunter');
           sendEmailToUser(hhId, `Candidate Placed — ${caseTitle}`, `${consultantName} was accepted on "${caseTitle}". A commission may be due.`, 'headhunter');
         }

@@ -94,9 +94,15 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
   const { ratings, avgRating } = useRatings(consultantId);
   const { settings: _panelSettings } = useSystemSettings();
   const _panelVisMatrix = _panelSettings["arena_profile_visibility"] ?? {};
+  const [isMyCandidate, setIsMyCandidate] = useState(false);
+  useEffect(() => {
+    if (!auth?.isHeadhunter || !consultantId) { setIsMyCandidate(false); return; }
+    supabase.rpc("hh_is_my_candidate", { p_consultant: consultantId }).then(({ data }) => setIsMyCandidate(data === true));
+  }, [auth?.isHeadhunter, consultantId]);
   function canSeeField(field) {
     if (consultantId && consultantId === auth.user?.id) return true;
     if (auth.isAdmin || auth.isManager) return true;
+    if (isMyCandidate) return true; // headhunter ↔ their accepted candidate
     const merged = { ...(ARENA_VISIBILITY_DEFAULTS[field] ?? {}), ...(_panelVisMatrix[field] ?? {}) };
     return merged[auth.profile?.role ?? ''] === true;
   }
@@ -880,6 +886,8 @@ function ArenaView({ auth, onNavigate }) {
   function canSeeField(field, targetUserId) {
     if (targetUserId && targetUserId === auth.user?.id) return true;
     if (auth.isAdmin || auth.isManager) return true;
+    // A headhunter sees the contact details of the consultants who accepted to be their candidates.
+    if (auth.isHeadhunter && targetUserId && hhCandidates.some(c => c.id === targetUserId)) return true;
     const merged = { ...(ARENA_VISIBILITY_DEFAULTS[field] ?? {}), ...(arenaVisMatrix[field] ?? {}) };
     return merged[auth.profile?.role ?? ''] === true;
   }
@@ -932,10 +940,7 @@ function ArenaView({ auth, onNavigate }) {
   const [myProposals, setMyProposals] = useState({}); // { [case_id]: proposal_id }
   useEffect(() => {
     if (!auth.isHeadhunter || !auth.user?.id) return;
-    supabase.from("users")
-      .select("id, full_name, avatar_url, consultant_profiles(skills, hourly_rate, years_experience, availability_status)")
-      .eq("headhunter_id", auth.user.id)
-      .then(({ data }) => setHhCandidates(data ?? []));
+    supabase.rpc("hh_my_candidates").then(({ data }) => setHhCandidates(Array.isArray(data) ? data : []));
     supabase.from("hh_proposals")
       .select("id, case_id, status")
       .eq("headhunter_id", auth.user.id)

@@ -13,6 +13,7 @@ import { Spinner } from "../components/ProfileComponents.jsx";
 import { APP_STATUS_COLORS, PLAN_BADGE, ROLE_TO_PLAN_TYPE } from "../lib/businessConstants.js";
 import { fmtDate, cap } from "../lib/uiUtils.jsx";
 import { usePlanConfig } from "../hooks/useSystemSettings.jsx";
+import { InviteCandidateModal, HHInvitationsList, ReferralLinkCard } from "../components/HHInvites.jsx";
 
 // ─── Shared data hook ────────────────────────────────────────────────────────
 function useHeadhunterData(userId) {
@@ -26,12 +27,10 @@ function useHeadhunterData(userId) {
     if (!userId) return;
     setLoading(true);
     try {
-      // 1. Managed candidates
-      const { data: cands } = await supabase
-        .from("users")
-        .select(`id, full_name, email, avatar_url,
-          consultant_profiles(headline, skills, hourly_rate, years_experience, availability_status, work_mode)`)
-        .eq("headhunter_id", userId);
+      // 1. Candidates who accepted to be represented (several headhunters per consultant are allowed).
+      //    Via RPC: user records are private, but a headhunter sees their own candidates' details.
+      const { data: candsRpc } = await supabase.rpc("hh_my_candidates");
+      const cands = Array.isArray(candsRpc) ? candsRpc : [];
 
       const candidateIds = (cands ?? []).map(c => c.id);
       setCandidates(cands ?? []);
@@ -46,7 +45,9 @@ function useHeadhunterData(userId) {
           .in("consultant_id", candidateIds)
           .order("submitted_at", { ascending: false });
         if (appsErr) console.error("HH applications query error:", appsErr.message, appsErr.details);
-        setApplications(apps ?? []);
+        // consultant names come from the candidates list (user records are private)
+        const byId = Object.fromEntries(cands.map(c => [c.id, c]));
+        setApplications((apps ?? []).map(a => ({ ...a, consultant: a.consultant ?? (byId[a.consultant_id] ? { id: a.consultant_id, full_name: byId[a.consultant_id].full_name, avatar_url: byId[a.consultant_id].avatar_url } : null) })));
       } else {
         setApplications([]);
       }
@@ -314,8 +315,12 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
 // 2.  MY CANDIDATES (Talent Roster)
 // ═══════════════════════════════════════════════════════════════════════════════
 export function HeadhunterCandidates({ auth }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const es = lang === "es";
   const { candidates, applications, loading, refetch } = useHeadhunterData(auth.user?.id);
+  const [inviting, setInviting]   = useState(false);
+  const [inviteMsg, setInviteMsg] = useState(null);
+  const [invNonce, setInvNonce]   = useState(0);
   const [search, setSearch]       = useState("");
   const [profileView, setProfile] = useState(null);
   const [removing, setRemoving]   = useState(null);
@@ -339,7 +344,8 @@ export function HeadhunterCandidates({ auth }) {
 
   async function removeCandidate(candId) {
     setRemoving(candId);
-    await supabase.from("users").update({ headhunter_id: null }).eq("id", candId);
+    const { error } = await supabase.rpc("hh_end_representation", { p_headhunter: auth.user.id, p_consultant: candId });
+    if (error) alert(error.message);
     await refetch();
     setRemoving(null);
   }
@@ -364,12 +370,24 @@ export function HeadhunterCandidates({ auth }) {
           <h1 className="text-2xl font-black text-gray-900">{t("hh.talent_roster_title")}</h1>
           <p className="text-gray-500 text-sm mt-0.5">{candidates.length} {t("hh.managed_candidates")}</p>
         </div>
-        <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t("consultant.search_ph")}
-            className="pl-8 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 w-56" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder={t("consultant.search_ph")}
+              className="pl-8 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 w-56" />
+          </div>
+          <button onClick={() => setInviting(true)}
+            className="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl px-4 py-2">
+            <UserPlus size={15} />{es ? "Invitar candidato" : "Invite candidate"}
+          </button>
         </div>
+      </div>
+      {inviteMsg && <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">✓ {inviteMsg}</div>}
+      {inviting && <InviteCandidateModal lang={lang} onClose={() => setInviting(false)} onSent={m => { setInviteMsg(m); setInvNonce(n => n + 1); }} />}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <ReferralLinkCard lang={lang} />
+        <HHInvitationsList userId={auth.user?.id} lang={lang} nonce={invNonce} />
       </div>
 
       {loading ? (
@@ -401,6 +419,7 @@ export function HeadhunterCandidates({ auth }) {
                       {prof?.headline && (
                         <div className="text-xs text-gray-500 truncate mt-0.5">{prof.headline}</div>
                       )}
+                      {c.email && <a href={`mailto:${c.email}`} className="block text-[11px] text-violet-600 hover:underline truncate mt-0.5">{c.email}</a>}
                       <div className="flex items-center gap-1.5 mt-1">
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${avail === "available" ? "bg-green-400" : avail === "busy" ? "bg-amber-400" : "bg-gray-300"}`} />
                         <span className="text-[10px] text-gray-500 font-medium">{cap(avail)}</span>

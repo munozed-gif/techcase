@@ -22,6 +22,7 @@ import { fmtDate, fmt, cap, AVAIL_LABEL_KEYS, EXPERTISE_LABEL_KEYS, WORK_MODE_LA
 import { ROLE_COLORS, SAP_AREAS, INDUSTRY_AREAS } from "../lib/businessConstants.js";
 import { useRatings } from "../hooks/useCaseHooks.js";
 import { useConsultantTeams } from "../hooks/useTeamHooks.js";
+import { MyHeadhuntersCard } from "../components/HHInvites.jsx";
 
 const DEFAULT_SKILLS_TECHNICAL = ["ABAP Development", "SAP Basis Administration", "HANA DB Administration", "SAP Security / Roles", "SAP Fiori / UI5", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP BTP", "LSMW / BODS", "RFC / BAPI", "Workflow / BRF+", "ABAP OO"];
 const DEFAULT_SKILLS_FUNCTIONAL = ["SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP BW / Analytics", "SAP PM / QM", "SAP PS (Project Systems)", "SAP SuccessFactors", "SAP S/4HANA Finance", "SAP Treasury", "SAP GRC / Access Control", "SAP Ariba"];
@@ -1142,6 +1143,9 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
           {/* ── Teams ── */}
           {tab.id === "teams" && (
             <div className="space-y-5">
+
+              {/* Headhunters who represent me + their pending invitations (consultants) */}
+              {auth.role === "consultant" && <MyHeadhuntersCard auth={auth} lang={lang} />}
 
               {/* Pending invitations */}
               {pendingInvites.length > 0 && (

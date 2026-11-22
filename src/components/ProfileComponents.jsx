@@ -1293,9 +1293,9 @@ function PlanUsageCard({ auth }) {
           .eq('consultant_id', ownId);
         setUsage({ monthlyApps: monthlyApps ?? 0, totalApps: totalApps ?? 0 });
       } else if (roleType === 'headhunter') {
-        const { count: candidates } = await supabase.from('users')
+        const { count: candidates } = await supabase.from('headhunter_candidates')
           .select('id', { count: 'exact', head: true })
-          .eq('headhunter_id', ownId);
+          .eq('headhunter_id', ownId).eq('status', 'active');
         setUsage({ candidates: candidates ?? 0 });
       }
       setLoading(false);

@@ -141,6 +141,7 @@ import { LandingView, NovaLandingMark } from "./src/views/LandingView.jsx";
 import ProjectShareView from "./src/views/ProjectShareView.jsx";
 import ApprovalView from "./src/views/ApprovalView.jsx";
 import CustomerSpecReviewView from "./src/views/CustomerSpecReviewView.jsx";
+import HHInviteView from "./src/views/HHInviteView.jsx";
 import ProposalReviewView from "./src/views/ProposalReviewView.jsx";
 import MyReviewsView from "./src/views/MyReviewsView.jsx";
 
@@ -705,6 +706,9 @@ const _approveMatch = typeof window !== 'undefined' && window.location.pathname.
 const _reviewMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/review\/([^/?#]+)/);
 // Intercept /proposal/:token — customer proposal review link, no auth required
 const _proposalMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/proposal\/([^/?#]+)/);
+// Intercept /hh-invite/:token and /hh/:code — headhunter candidate invitation / personal link
+const _hhInviteMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/hh-invite\/([^/?#]+)/);
+const _hhRefMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/hh\/([^/?#]+)/);
 
 // Renders children only when the role permission matrix allows `cap` (inside the settings provider).
 function PermGate({ auth, cap, fallback = null, children }) {
@@ -840,6 +844,10 @@ export default function App() {
   if (_proposalMatch) {
     return <ProposalReviewView token={_proposalMatch[1]} />;
   }
+
+  // /hh-invite/:token, /hh/:code — consultant accepts a headhunter's representation
+  if (_hhInviteMatch) return <HHInviteView token={_hhInviteMatch[1]} />;
+  if (_hhRefMatch) return <HHInviteView code={_hhRefMatch[1]} />;
 
   // /join/:token — show branded join screen before any auth check
   if (_joinMatch) {
