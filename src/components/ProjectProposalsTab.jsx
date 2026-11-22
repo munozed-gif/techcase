@@ -18,6 +18,7 @@ import {
   mergeInvestment, buildProposalHtml, htmlToText, caseHours, specHoursFromNotes,
 } from "../lib/proposals.js";
 import { STATUS_LABEL_KEYS } from "../lib/uiUtils.jsx";
+import { resolveCatalog, computeServiceTotals, servicePlanMarkdown, slaMarkdown, premisesMarkdown, mergeServiceSections, termName } from "../lib/servicePlans.js";
 
 const TERMINAL = ["completed", "cancelled", "closed", "terminated", "resolved", "approved"];
 const STEPS = ["cases", "sources", "terms", "document", "send"];
@@ -70,7 +71,7 @@ export function ProjectProposalsTab({ project, auth }) {
         ids.length ? supabase.from("case_documents").select("id, case_id, file_name, file_url, file_type, notes, created_at").in("case_id", ids).order("created_at", { ascending: false }) : { data: [] },
         ids.length ? supabase.from("case_assignments").select("case_id, is_active").in("case_id", ids) : { data: [] },
         project.customer_id ? supabase.from("customers").select("id, name, contact_name, contact_email, currency").eq("id", project.customer_id).maybeSingle() : { data: null },
-        project.partner_id ? supabase.from("partners").select("id, name").eq("id", project.partner_id).maybeSingle() : { data: null },
+        project.partner_id ? supabase.from("partners").select("id, name, service_plans").eq("id", project.partner_id).maybeSingle() : { data: null },
       ]);
       const group = (rows) => (rows ?? []).reduce((m, r) => { (m[r.case_id] ??= []).push(r); return m; }, {});
       setProposals(props ?? []);
@@ -106,7 +107,8 @@ export function ProjectProposalsTab({ project, auth }) {
   }
 
   const open = proposals.find(p => p.id === openId);
-  const ctx = { project, auth, cfg, cases, acts, specs, docs, assigned, customer, partner, proposals, L, es, lang, settings: ss.settings, profileRate };
+  const catalog = useMemo(() => resolveCatalog(partner?.service_plans ?? null, ss.settings?.service_plans_default ?? null), [partner, ss.settings]);
+  const ctx = { project, auth, cfg, cases, acts, specs, docs, assigned, customer, partner, proposals, L, es, lang, settings: ss.settings, profileRate, catalog };
 
   if (loading) return <div className="py-10 flex justify-center"><Loader2 className="animate-spin text-gray-400" /></div>;
 
@@ -157,7 +159,11 @@ export function ProjectProposalsTab({ project, auth }) {
                     {p.decided_at ? ` · ${p.decided_by_name ?? ""} ${new Date(p.decided_at).toLocaleDateString(es ? "es" : "en-US")}` : ""}
                   </p>
                 </div>
-                {p.totals?.total != null && <span className="text-sm font-bold text-gray-900 whitespace-nowrap">{fmtMoney(p.totals.total, p.currency, lang)}</span>}
+                {p.totals?.type === "plan"
+                  ? <span className="text-xs font-semibold text-blue-700 bg-blue-50 rounded-full px-2 py-0.5 whitespace-nowrap">{L("Service plan", "Plan de servicio")} · {p.totals.hoursMonth} h/{L("mo", "mes")}</span>
+                  : p.totals?.type === "on_demand"
+                    ? <span className="text-xs font-semibold text-blue-700 bg-blue-50 rounded-full px-2 py-0.5 whitespace-nowrap">{L("On demand", "Bajo demanda")}</span>
+                    : p.totals?.total != null && <span className="text-sm font-bold text-gray-900 whitespace-nowrap">{fmtMoney(p.totals.total, p.currency, lang)}</span>}
                 <ChevronRight size={16} className="text-gray-300" />
               </button>
             );
@@ -175,7 +181,7 @@ function Banner({ children, tone = "red" }) {
 
 // ─── Editor ────────────────────────────────────────────────────────────────
 function ProposalEditor({ proposal, ctx, onBack, onChange, onOpen }) {
-  const { project, auth, cfg, cases, acts, specs, docs, assigned, customer, partner, proposals, L, es, settings } = ctx;
+  const { project, auth, cfg, cases, acts, specs, docs, assigned, customer, partner, proposals, L, es, settings, catalog } = ctx;
   const [p, setP] = useState(proposal);
   const [step, setStep] = useState(proposal.status === "draft" ? (proposal.html ? "send" : proposal.case_ids.length ? "sources" : "cases") : "view");
   const [busy, setBusy] = useState(null);
@@ -204,9 +210,19 @@ function ProposalEditor({ proposal, ctx, onBack, onChange, onOpen }) {
 
   const propCases = cases.filter(c => p.case_ids.includes(c.id));
   const commercials = { ...DEFAULT_COMMERCIALS, ...(p.commercials ?? {}) };
-  const totals = useMemo(() => computeTotals(propCases.map(c => ({ ...c, activities: acts[c.id] ?? [], specHours: specHoursOf(c.id) })), commercials, cfg, p.currency),
+  const proposalType = commercials.proposalType || "cases";   // 'cases' (hourly) | 'plan' (UE) | 'on_demand'
+  const isService = proposalType !== "cases";
+  const caseTotals = useMemo(() => computeTotals(propCases.map(c => ({ ...c, activities: acts[c.id] ?? [], specHours: specHoursOf(c.id) })), commercials, cfg, p.currency),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [p.case_ids, p.commercials, p.currency, cfg, acts]);
+  const totals = useMemo(() => {
+    if (!isService) return caseTotals;
+    // Selected cases are the starting backlog: their estimated hours are consumed from the plan.
+    const backlog = commercials.basis === "standard" ? caseTotals.hoursStandard : caseTotals.hoursArena;
+    return { ...computeServiceTotals(commercials, catalog, p.currency, cfg, backlog || 0), sla: catalog.sla,
+             caseCount: propCases.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isService, caseTotals, p.commercials, p.currency, catalog, cfg]);
 
   // Cases held by other open proposals
   const heldElsewhere = new Set(proposals.filter(o => o.id !== p.id && OPEN_PROPOSAL_STATUSES.includes(o.status)).flatMap(o => o.case_ids));
@@ -226,7 +242,7 @@ function ProposalEditor({ proposal, ctx, onBack, onChange, onOpen }) {
       }
       for (const k of Object.keys(src)) if (!ids.includes(k)) delete src[k];
       await save({ sources: src });
-      setStep("sources");
+      setStep(ids.length ? "sources" : "terms"); // without cases (e.g. a help-desk plan) skip the sources step
     } catch (e) { setError(e.message); }
     setBusy(null);
   }
@@ -243,6 +259,7 @@ function ProposalEditor({ proposal, ctx, onBack, onChange, onOpen }) {
   }
 
   async function generate() {
+    if (isService) return generateService();
     setBusy("generate"); setError(null);
     try {
       const blocks = [];
@@ -300,23 +317,100 @@ ${blocks.join("\n\n---\n\n")}`;
     setBusy(null);
   }
 
+  // Service-plan / on-demand proposal: the AI writes the narrative; SLA, premises and plan prices
+  // are inserted by the platform from the partner's catalog ([[SLA]] [[PREMISES]] [[INVESTMENT]]).
+  async function generateService() {
+    setBusy("generate"); setError(null);
+    try {
+      if (proposalType === "cases" || (proposalType === "plan" && !totals.options?.length)) throw new Error(L("Complete the commercial terms first.", "Completa primero las condiciones comerciales."));
+      const langName = pes ? "Spanish" : "English";
+      const H = pes
+        ? ["Resumen ejecutivo", "Objetivos del servicio", "Alcance y estructura de soporte", "Tipos de solicitud y prioridades", "Roles", "Proceso de atención", "Próximos pasos"]
+        : ["Executive summary", "Service objectives", "Scope and support structure", "Request types and priorities", "Roles", "Service process", "Next steps"];
+      const system = `You are a senior SAP consulting partner writing a SERVICE proposal (application management / help desk) for a customer. Write in ${langName}, in a confident, clear and concise business tone.
+Output GitHub-flavoured markdown only (no code fences around the whole answer). Use exactly this structure, in this order:
+## ${H[0]}
+## ${H[1]}   (bulleted: operational support, senior consulting, SAP and industry best practices, response times, cost, completeness)
+## ${H[2]}   (customer side: coordinator, key users, users; support centre: coordinator, dispatcher, architect, area leads per SAP module, functional and technical consultants)
+## ${H[3]}   (request types: Error, General information, Improvement; priorities: Critical, High, Normal, Low with their criteria)
+[[SLA]]
+## ${H[4]}
+## ${H[5]}   (request created by a user → confirmed by the key user/coordinator → dispatcher assigns an area lead → lead assigns a consultant → solution → user tests and approves → closure)
+[[PREMISES]]
+[[INVESTMENT]]
+## ${H[6]}
+Put each [[...]] marker alone on its own line — the platform inserts the SLA table, the service premises and the plans/prices there.
+Rules: never write prices, rates, hours, SLA times or payment conditions yourself. Do not invent facts beyond the provided material; when something is unknown, state it as an assumption. Keep the whole document under about 1,000 words.`;
+      const backlog = propCases.map(c => `- ${c.title}${c.area_sap ? ` (${c.area_sap})` : ""}${c.description ? `: ${clip(c.description, 300)}` : ""}`).join("\n");
+      const user = `PROPOSAL: ${p.title}
+Customer: ${customer?.name ?? project.client?.full_name ?? project.stakeholder_name ?? "—"}
+Project: ${project.name}${project.description ? ` — ${clip(project.description, 800)}` : ""}${project.area_sap ? `\nSAP areas: ${project.area_sap}` : ""}
+Prepared by: ${partner?.name ?? "Arena Solutions"}
+Service type: ${proposalType === "plan" ? `prepaid monthly plan — ${totals.ue} UE (${totals.hoursMonth} hours per month), terms offered: ${(totals.options ?? []).map(o => o.months).join(", ")} months; the customer chooses the term` : "on-demand service billed on consumption with a monthly minimum"}
+Proposed start date: ${commercials.startDate || "to be agreed"}
+${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.notes, 1500)}\n` : ""}${backlog ? `\nINITIAL BACKLOG (cases already identified, consumed from the contracted hours):\n${backlog}` : "\nNo cases are defined yet: they will be registered on the platform once the service starts."}`;
+      const resp = await callClaude({
+        system, messages: [{ role: "user", content: user }], max_tokens: 6000,
+        model: settings?.ai_model ?? "claude-haiku-5-5", feature: "proposal", projectId: project.id,
+        outputLang: p.language,
+      });
+      const text = (typeof resp === "string" ? resp
+        : (resp?.content ?? []).filter(b => b.type === "text").map(b => b.text).join("\n")).trim()
+        .replace(/^```(?:markdown|md)?\s*\n/i, "").replace(/\n```\s*$/, "").trim();
+      if (!text) throw new Error(L("The AI returned no text. Try again.", "La IA no devolvió texto. Inténtalo de nuevo."));
+      await saveDocument(text);
+      logEvent("proposal.generated", { entityType: "project", entityId: project.id, entityName: p.title, metadata: { type: proposalType } });
+    } catch (e) { setError(e.message); }
+    setBusy(null);
+  }
+
+  // Turn the platform-built sections back into markers, so they are rebuilt with current numbers.
+  function toMarkers(md) {
+    return (md ?? "")
+      .replace(/## (Effort & investment|Esfuerzo e inversión)[\s\S]*?(?=\n## |$)/, "[[INVESTMENT]]\n")
+      .replace(/## (Acuerdo de nivel de servicio \(SLA\)|Service level agreement \(SLA\))[\s\S]*?(?=\n## |$)/, "[[SLA]]\n")
+      .replace(/## (Premisas del servicio|Service premises)[\s\S]*?(?=\n## |$)/, "[[PREMISES]]\n")
+      .replace(/## (Planes y propuesta económica|Plans and economic proposal)[\s\S]*?(?=\n## |$)/, "[[INVESTMENT]]\n");
+  }
+
+  // Short price line for emails and the document header.
+  function priceSummary() {
+    if (proposalType === "plan") {
+      const opts = totals.options ?? [];
+      const lowest = opts.reduce((a, o) => (a == null || o.monthly < a ? o.monthly : a), null);
+      return pes ? `${opts.length} ${opts.length === 1 ? "opción" : "opciones"} de plan · desde ${fmtMoney(lowest ?? 0, p.currency, lang)}/mes`
+                 : `${opts.length} plan ${opts.length === 1 ? "option" : "options"} · from ${fmtMoney(lowest ?? 0, p.currency, lang)}/month`;
+    }
+    if (proposalType === "on_demand") {
+      return pes ? `${fmtMoney(totals.rate, p.currency, lang)}/hora · mínimo ${fmtMoney(totals.minMonthly, p.currency, lang)}/mes`
+                 : `${fmtMoney(totals.rate, p.currency, lang)}/hour · minimum ${fmtMoney(totals.minMonthly, p.currency, lang)}/month`;
+    }
+    return fmtMoney(totals.total, p.currency, lang);
+  }
+
   function attachmentsList() {
     return propCases.flatMap(c => (docs[c.id] ?? []).filter(d => (p.sources?.[c.id]?.attach ?? []).includes(d.id))
       .map(d => ({ doc_id: d.id, case_id: c.id, case_title: c.title, file_name: d.file_name, file_url: d.file_url, file_type: d.file_type })));
   }
 
   async function saveDocument(narrative) {
-    const md = mergeInvestment(narrative, investmentMarkdown(totals, commercials, lang));
+    const md = isService
+      ? mergeServiceSections(narrative, {
+          investment: servicePlanMarkdown(totals, catalog, lang), sla: slaMarkdown(catalog, lang), premises: premisesMarkdown(catalog, lang),
+        })
+      : mergeInvestment(narrative, investmentMarkdown(totals, commercials, lang));
     const attachments = attachmentsList();
     const validUntil = p.valid_until || new Date(Date.now() + (Number(commercials.validDays) || 30) * 86400000).toISOString().slice(0, 10);
     const dfmt = d => new Date(d + (d.length === 10 ? "T12:00:00" : "")).toLocaleDateString(pes ? "es-MX" : "en-US", { year: "numeric", month: "long", day: "numeric" });
     const html = buildProposalHtml({
-      lang, title: pes ? "Propuesta comercial" : "Commercial proposal", subtitle: project.name,
+      lang, title: isService ? (pes ? "Propuesta de servicio" : "Service proposal") : (pes ? "Propuesta comercial" : "Commercial proposal"), subtitle: project.name,
       eyebrow: `${partner?.name ?? "Arena"} · ${pes ? "Propuesta" : "Proposal"} v${p.version}`,
       meta: [
         { label: pes ? "Cliente" : "Customer", value: customer?.name ?? project.stakeholder_name ?? "—" },
-        { label: pes ? "Casos" : "Cases", value: String(propCases.length) },
-        { label: pes ? "Total" : "Total", value: fmtMoney(totals.total, p.currency, lang) },
+        isService
+          ? { label: pes ? "Servicio" : "Service", value: proposalType === "plan" ? `${totals.bandName} · ${totals.hoursMonth} h/${pes ? "mes" : "month"}` : (pes ? "Bajo demanda" : "On demand") }
+          : { label: pes ? "Casos" : "Cases", value: String(propCases.length) },
+        { label: isService ? (pes ? "Precio" : "Price") : "Total", value: isService ? priceSummary() : fmtMoney(totals.total, p.currency, lang) },
         { label: pes ? "Fecha" : "Date", value: dfmt(new Date().toISOString().slice(0, 10)) },
         { label: pes ? "Válida hasta" : "Valid until", value: dfmt(validUntil) },
       ],
@@ -338,10 +432,10 @@ ${blocks.join("\n\n---\n\n")}`;
       for (const r of rec) {
         const html = buildEmailHtml({
           title: pes ? "Tienes una propuesta para revisar" : "You have a proposal to review",
-          preheader: `${p.title} — ${fmtMoney(totals.total, p.currency, lang)}`,
+          preheader: `${p.title} — ${priceSummary()}`,
           bodyHtml: pes
-            ? `<p>Hola ${r.name || ""},</p><p><strong>${from}</strong> te envió la propuesta <strong>${p.title}</strong> para el proyecto <strong>${project.name}</strong>.</p><p>Total: <strong>${fmtMoney(totals.total, p.currency, lang)}</strong> · Válida hasta ${row.valid_until ?? "—"}</p><p>Puedes revisarla, descargar los anexos y aceptarla, pedir cambios o rechazarla desde el enlace.</p>`
-            : `<p>Hello ${r.name || ""},</p><p><strong>${from}</strong> has sent you the proposal <strong>${p.title}</strong> for the project <strong>${project.name}</strong>.</p><p>Total: <strong>${fmtMoney(totals.total, p.currency, lang)}</strong> · Valid until ${row.valid_until ?? "—"}</p><p>From the link you can review it, download the attachments, and accept it, ask for changes or reject it.</p>`,
+            ? `<p>Hola ${r.name || ""},</p><p><strong>${from}</strong> te envió la propuesta <strong>${p.title}</strong> para el proyecto <strong>${project.name}</strong>.</p><p>${isService ? "Precio" : "Total"}: <strong>${priceSummary()}</strong>${proposalType === "plan" ? " — elige el período al aceptar" : ""} · Válida hasta ${row.valid_until ?? "—"}</p><p>Puedes revisarla, descargar los anexos y aceptarla, pedir cambios o rechazarla desde el enlace.</p>`
+            : `<p>Hello ${r.name || ""},</p><p><strong>${from}</strong> has sent you the proposal <strong>${p.title}</strong> for the project <strong>${project.name}</strong>.</p><p>${isService ? "Price" : "Total"}: <strong>${priceSummary()}</strong>${proposalType === "plan" ? " — choose the term when accepting" : ""} · Valid until ${row.valid_until ?? "—"}</p><p>From the link you can review it, download the attachments, and accept it, ask for changes or reject it.</p>`,
           ctaText: pes ? "Revisar propuesta" : "Review proposal", ctaUrl: link,
         });
         await sendEmail(r.email, `${p.title} — ${from}`, html);
@@ -391,7 +485,7 @@ ${blocks.join("\n\n---\n\n")}`;
       {isDraft && (
         <div className="flex gap-1.5 flex-wrap">
           {STEPS.map((s, i) => {
-            const reachable = i === 0 || p.case_ids.length > 0;
+            const reachable = i === 0 || p.case_ids.length > 0 || s !== "sources";
             return (
               <button key={s} disabled={!reachable} onClick={() => setStep(s)}
                 className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${step === s ? "bg-blue-600 text-white border-blue-600" : i < stepIdx ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-white text-gray-500 border-gray-200"} disabled:opacity-40`}>
@@ -405,8 +499,8 @@ ${blocks.join("\n\n---\n\n")}`;
       {/* 1 · Cases */}
       {isDraft && step === "cases" && (
         <Card title={L("Which cases go into this proposal?", "¿Qué casos van en esta propuesta?")}
-          hint={L("Estimated cases you select move to “Proposal pending” and leave the Arena until the customer answers. Cases in any other status keep their status — for them the proposal is a draft offer; when the customer accepts, their specification is approved (the development plan can then be generated in each case) and they get the agreed budget.",
-            "Los casos en estado Estimado que selecciones pasan a “Propuesta pendiente” y salen de la Arena hasta que el cliente responda. Los casos en cualquier otro estado conservan su estado: para ellos la propuesta es una oferta en borrador; cuando el cliente acepta, su especificación queda aprobada (ya se puede generar el plan en cada caso) y reciben el presupuesto acordado.")}>
+          hint={L("Optional for a service plan (UE) or on-demand proposal: the cases you pick become the starting backlog and their hours are consumed from the plan; you can also continue without cases. Estimated cases you select move to “Proposal pending” and leave the Arena until the customer answers. Cases in any other status keep their status — for them the proposal is a draft offer; when the customer accepts, their specification is approved (the development plan can then be generated in each case) and they get the agreed budget.",
+            "Opcional en una propuesta de plan de servicio (UE) o bajo demanda: los casos que elijas son el backlog inicial y sus horas se consumen del plan; también puedes continuar sin casos. Los casos en estado Estimado que selecciones pasan a “Propuesta pendiente” y salen de la Arena hasta que el cliente responda. Los casos en cualquier otro estado conservan su estado: para ellos la propuesta es una oferta en borrador; cuando el cliente acepta, su especificación queda aprobada (ya se puede generar el plan en cada caso) y reciben el presupuesto acordado.")}>
           <div className="divide-y divide-gray-100">
             {cases.map(c => {
               const h = caseHours(acts[c.id], specHoursOf(c.id));
@@ -446,7 +540,9 @@ ${blocks.join("\n\n---\n\n")}`;
           </div>
           <Footer>
             <span className="text-xs text-gray-500">{selected.size} {L("selected", "seleccionados")}</span>
-            <PrimaryBtn busy={busy === "cases"} disabled={selected.size === 0} onClick={applyCases}>{L("Save cases & continue", "Guardar casos y continuar")}</PrimaryBtn>
+            <PrimaryBtn busy={busy === "cases"} onClick={applyCases}>{selected.size === 0
+              ? L("Continue without cases", "Continuar sin casos")
+              : L("Save cases & continue", "Guardar casos y continuar")}</PrimaryBtn>
           </Footer>
         </Card>
       )}
@@ -514,8 +610,8 @@ ${blocks.join("\n\n---\n\n")}`;
       {/* 3 · Commercial terms */}
       {isDraft && step === "terms" && (
         <TermsStep p={p} setP={setP} totals={totals} propCases={propCases} cfg={cfg} L={L} lang={lang} profileRate={ctx.profileRate}
-          busy={busy === "terms"}
-          onBack={() => setStep("sources")}
+          catalog={catalog} busy={busy === "terms"}
+          onBack={() => setStep(propCases.length ? "sources" : "cases")}
           onNext={async () => { setBusy("terms"); try { await save({ commercials: p.commercials, currency: p.currency, language: p.language, totals }); setStep("document"); } catch (e) { setError(e.message); } setBusy(null); }} />
       )}
 
@@ -525,7 +621,7 @@ ${blocks.join("\n\n---\n\n")}`;
           hint={L("The AI writes the text from the chosen material; hours and amounts come from step 3 and are never written by the AI.",
             "La IA redacta el texto con el material elegido; horas e importes vienen del paso 3 y nunca los escribe la IA.")}>
           <div className="flex gap-2 flex-wrap mb-3">
-            <PrimaryBtn busy={busy === "generate"} onClick={generate}><Sparkles size={14} />{p.content_md ? L("Regenerate with AI", "Regenerar con IA") : L("Generate with AI", "Generar con IA")}</PrimaryBtn>
+            <PrimaryBtn busy={busy === "generate"} disabled={!isService && propCases.length === 0} onClick={generate}><Sparkles size={14} />{p.content_md ? L("Regenerate with AI", "Regenerar con IA") : L("Generate with AI", "Generar con IA")}</PrimaryBtn>
             {p.html && <button onClick={() => openHtml(p.html)} className="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><Eye size={14} />{L("Open full page", "Abrir página completa")}</button>}
           </div>
           {busy === "generate" && <p className="text-sm text-gray-500 flex items-center gap-2"><Loader2 size={14} className="animate-spin" />{L("Reading the case material and writing the proposal… this can take a minute.", "Leyendo el material de los casos y redactando la propuesta… puede tardar un minuto.")}</p>}
@@ -535,7 +631,7 @@ ${blocks.join("\n\n---\n\n")}`;
                 <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">{L("Edit text (markdown)", "Editar texto (markdown)")}</p>
                 <textarea value={p.content_md} onChange={e => setP({ ...p, content_md: e.target.value })}
                   className="w-full h-[520px] font-mono text-xs border border-gray-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <button onClick={async () => { setBusy("savedoc"); try { await saveDocument(p.content_md.replace(/## (Effort & investment|Esfuerzo e inversión)[\s\S]*?(?=\n## |$)/, "[[INVESTMENT]]\n")); } catch (e) { setError(e.message); } setBusy(null); }}
+                <button onClick={async () => { setBusy("savedoc"); try { await saveDocument(toMarkers(p.content_md)); } catch (e) { setError(e.message); } setBusy(null); }}
                   className="mt-2 text-sm font-semibold text-blue-600 inline-flex items-center gap-1.5">
                   {busy === "savedoc" ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}{L("Apply edits to the document", "Aplicar cambios al documento")}</button>
               </div>
@@ -556,7 +652,7 @@ ${blocks.join("\n\n---\n\n")}`;
       {isDraft && step === "send" && (
         <SendStep p={p} setP={setP} save={save} L={L} lang={lang} busy={busy} setError={setError}
           attachments={attachmentsList()} totals={totals}
-          onRebuild={async () => { setBusy("rebuild"); try { await saveDocument(p.content_md.replace(/## (Effort & investment|Esfuerzo e inversión)[\s\S]*?(?=\n## |$)/, "[[INVESTMENT]]\n")); } catch (e) { setError(e.message); } setBusy(null); }}
+          onRebuild={async () => { setBusy("rebuild"); try { await saveDocument(toMarkers(p.content_md)); } catch (e) { setError(e.message); } setBusy(null); }}
           onBack={() => setStep("document")} onSend={send} onWithdraw={withdraw} />
       )}
 
@@ -613,7 +709,180 @@ function Num({ label, value, onChange, suffix, step = "1" }) {
   );
 }
 
-function TermsStep({ p, setP, totals, propCases, cfg, L, lang, profileRate, busy, onBack, onNext }) {
+const SERVICE_PAYMENT_TERMS = {
+  plan: { es: "Plan prepagado: el monto total se paga antes de iniciar el servicio. Horas adicionales: los primeros 5 días del mes siguiente.", en: "Prepaid plan: the full amount is paid before the service starts. Additional hours: within the first 5 days of the following month." },
+  on_demand: { es: "Pago mínimo mensual por adelantado; las horas consumidas se pagan los primeros 5 días del mes siguiente.", en: "Monthly minimum paid in advance; the hours consumed are paid within the first 5 days of the following month." },
+};
+
+function TermsStep(props) {
+  const { p, setP, L, catalog, lang } = props;
+  const c = { ...DEFAULT_COMMERCIALS, ...(p.commercials ?? {}) };
+  const type = c.proposalType || "cases";
+  const choose = t => {
+    const patch = { proposalType: t };
+    if (t === "plan") { if (!(Number(c.ue) > 0)) patch.ue = 1; if (!c.terms?.length) patch.terms = catalog.terms; }
+    const svcTexts = [SERVICE_PAYMENT_TERMS.plan.es, SERVICE_PAYMENT_TERMS.plan.en, SERVICE_PAYMENT_TERMS.on_demand.es, SERVICE_PAYMENT_TERMS.on_demand.en];
+    if (t !== "cases" && (!c.paymentTerms || c.paymentTerms === DEFAULT_COMMERCIALS.paymentTerms || svcTexts.includes(c.paymentTerms))) patch.paymentTerms = SERVICE_PAYMENT_TERMS[t][lang === "es" ? "es" : "en"];
+    if (t === "cases" && svcTexts.includes(c.paymentTerms)) patch.paymentTerms = DEFAULT_COMMERCIALS.paymentTerms;
+    setP(prev => ({ ...prev, commercials: { ...c, ...patch } }));
+  };
+  const opts = [
+    ["cases", L("By cases — hourly rate", "Por casos — tarifa por hora"), L("Price from each case's hours × rate.", "Precio según horas de cada caso × tarifa.")],
+    ["plan", L("Service plan (UE)", "Plan de servicio (UE)"), L("Monthly prepaid plans in equivalent units; the customer chooses the term.", "Planes mensuales prepagados en unidades equivalentes; el cliente elige el período.")],
+    ["on_demand", L("On demand", "Bajo demanda"), L("Hourly rate with a monthly minimum, billed on consumption.", "Tarifa por hora con mínimo mensual, facturada por consumo.")],
+  ];
+  const typeSelector = (
+    <div className="mb-5">
+      <p className="text-xs font-medium text-gray-600 mb-2">{L("Proposal type", "Tipo de propuesta")}</p>
+      <div className="grid sm:grid-cols-3 gap-2">
+        {opts.map(([k, label, desc]) => (
+          <button key={k} type="button" onClick={() => choose(k)}
+            className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${type === k ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500" : "border-gray-200 hover:border-blue-300"}`}>
+            <span className={`block text-sm font-semibold ${type === k ? "text-blue-700" : "text-gray-900"}`}>{label}</span>
+            <span className="block text-[11px] text-gray-500 mt-0.5">{desc}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+  return type === "cases"
+    ? <CaseTermsStep {...props} typeSelector={typeSelector} />
+    : <ServiceTermsStep {...props} type={type} typeSelector={typeSelector} />;
+}
+
+function ServiceTermsStep({ p, setP, totals, propCases, catalog, L, lang, busy, onBack, onNext, type, typeSelector }) {
+  const c = { ...DEFAULT_COMMERCIALS, ...(p.commercials ?? {}) };
+  const setC = patch => setP(prev => ({ ...prev, commercials: { ...c, ...patch } }));
+  const m = v => fmtMoney(v, p.currency, lang);
+  const es = lang === "es";
+  const terms = c.terms?.length ? c.terms.map(Number) : catalog.terms;
+  const toggleTerm = t => setC({ terms: terms.includes(t) ? terms.filter(x => x !== t) : [...terms, t].sort((a, b) => a - b) });
+  const noTerms = type === "plan" && (!terms.length || !totals.options?.length || !(Number(c.ue) > 0));
+  return (
+    <Card title={L("Commercial terms", "Condiciones comerciales")}
+      hint={type === "plan"
+        ? L(`Plans from your catalog (1 UE = ${catalog.ueHours} h/month). Offer one or more terms; the customer chooses one when accepting. Rates are edited in the Partner area → Service plans.`,
+            `Planes de tu catálogo (1 UE = ${catalog.ueHours} h/mes). Ofrece uno o varios períodos; el cliente elige uno al aceptar. Las tarifas se editan en el área de Partner → Planes de servicio.`)
+        : L("On-demand service from your catalog: hourly rate with a monthly minimum.", "Servicio bajo demanda de tu catálogo: tarifa por hora con un pago mínimo mensual.")}>
+      {typeSelector}
+      <div className="grid md:grid-cols-4 gap-3">
+        {type === "plan" && (
+          <>
+            <label className="block">
+              <span className="text-xs font-medium text-gray-600">{L("Equivalent units (UE)", "Unidades equivalentes (UE)")}</span>
+              <input type="number" min="0.25" step="0.25" value={c.ue ?? ""} onChange={e => setC({ ue: e.target.value === "" ? "" : Number(e.target.value) })}
+                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-gray-600">{L("or hours per month", "o horas por mes")}</span>
+              <input type="number" min="1" step="1" value={c.ue ? Math.round(c.ue * catalog.ueHours * 10) / 10 : ""}
+                onChange={e => setC({ ue: e.target.value === "" ? "" : Math.round((Number(e.target.value) / catalog.ueHours) * 10000) / 10000 })}
+                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+            </label>
+            <div className="md:col-span-2">
+              <span className="text-xs font-medium text-gray-600">{L("Terms offered to the customer", "Períodos ofrecidos al cliente")}</span>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {catalog.terms.map(t => (
+                  <label key={t} className={`text-xs px-3 py-2 rounded-xl border cursor-pointer ${terms.includes(t) ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600"}`}>
+                    <input type="checkbox" className="mr-1.5" checked={terms.includes(t)} onChange={() => toggleTerm(t)} />{termName(t, es)} ({t} {L(t === 1 ? "month" : "months", t === 1 ? "mes" : "meses")})
+                  </label>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+        {type === "on_demand" && (
+          <label className="block">
+            <span className="text-xs font-medium text-gray-600">{L("Estimated hours / month (optional)", "Horas estimadas / mes (opcional)")}</span>
+            <input type="number" min="0" value={c.onDemandHours ?? ""} onChange={e => setC({ onDemandHours: e.target.value === "" ? "" : Number(e.target.value) })}
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+          </label>
+        )}
+        <label className="block">
+          <span className="text-xs font-medium text-gray-600">{L("Currency", "Moneda")}</span>
+          <select value={p.currency} onChange={e => setP({ ...p, currency: e.target.value })} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white">
+            {[...new Set([p.currency, ...COMMON_CURRENCIES])].map(x => <option key={x}>{x}</option>)}
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium text-gray-600">{L("Document language", "Idioma del documento")}</span>
+          <select value={p.language} onChange={e => setP({ ...p, language: e.target.value })} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white">
+            <option value="en">English</option><option value="es">Español</option>
+          </select>
+        </label>
+        <Num label={L("Taxes", "Impuestos")} suffix="%" value={c.taxPct} onChange={v => setC({ taxPct: v })} />
+        <Num label={L("Valid for", "Vigencia")} suffix={L("days", "días")} value={c.validDays} onChange={v => setC({ validDays: v })} />
+        <label className="block">
+          <span className="text-xs font-medium text-gray-600">{L("Service start", "Inicio del servicio")}</span>
+          <input type="date" value={c.startDate} onChange={e => setC({ startDate: e.target.value })} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+        </label>
+        <label className="block md:col-span-3">
+          <span className="text-xs font-medium text-gray-600">{L("Payment terms", "Condiciones de pago")}</span>
+          <input value={c.paymentTerms} onChange={e => setC({ paymentTerms: e.target.value })} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+        </label>
+        <label className="block md:col-span-4">
+          <span className="text-xs font-medium text-gray-600">{L("Notes for the AI (optional)", "Notas para la IA (opcional)")}</span>
+          <textarea rows={2} value={c.notes} onChange={e => setC({ notes: e.target.value })} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+            placeholder={L("e.g. SAP modules covered, help-desk tool, coordinator on the customer side…", "p. ej. módulos SAP cubiertos, herramienta de mesa de ayuda, coordinador del cliente…")} />
+        </label>
+      </div>
+
+      <div className="mt-5 overflow-x-auto">
+        {type === "plan" ? (
+          <>
+            <p className="text-sm text-gray-700 mb-2"><b>{totals.bandName}</b> · {totals.ue} UE = <b>{totals.hoursMonth} h</b> {L("per month", "por mes")}</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                  <th className="py-2 pr-3">{L("Term", "Período")}</th>
+                  <th className="py-2 pr-3 text-right">{L("Total hours", "Horas totales")}</th>
+                  <th className="py-2 pr-3 text-right">{L("Rate / h", "Tarifa / h")}</th>
+                  <th className="py-2 pr-3 text-right">{L("Daily rate", "Tarifa diaria")}</th>
+                  <th className="py-2 pr-3 text-right">{L("Monthly equivalent", "Equivalente mensual")}</th>
+                  <th className="py-2 text-right">{L("Period total", "Total del período")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(totals.options ?? []).map(o => (
+                  <tr key={o.months} className="border-b border-gray-50">
+                    <td className="py-2 pr-3 text-gray-900">{termName(o.months, es)} · {o.months} {L(o.months === 1 ? "month" : "months", o.months === 1 ? "mes" : "meses")}</td>
+                    <td className="py-2 pr-3 text-right">{o.totalHours}</td>
+                    <td className="py-2 pr-3 text-right">{m(o.rate)}</td>
+                    <td className="py-2 pr-3 text-right text-gray-500">{m(o.dailyRate)}</td>
+                    <td className="py-2 pr-3 text-right">{m(o.monthly)}</td>
+                    <td className="py-2 text-right font-semibold text-gray-900">{m(o.total)}{totals.taxPct ? <span className="block text-[10px] font-normal text-gray-400">+{totals.taxPct}% = {m(o.totalWithTax)}</span> : null}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-xs text-gray-500 mt-2">{L("Additional hour", "Hora adicional")}: <b>{m(totals.extraHourRate)}</b> · {L("Specialist", "Especialista")} ×{totals.factors?.specialist} · {L("On site", "En sitio")} ×{totals.factors?.onsite}</p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-gray-700 mb-2">{L("Rate", "Tarifa")} <b>{m(totals.rate)}</b>/h ({m(totals.dailyRate)}/{L("day", "día")}) · {L("monthly minimum", "mínimo mensual")} <b>{m(totals.minMonthly)}</b></p>
+            <table className="w-full text-sm max-w-md">
+              <thead><tr className="text-left text-xs text-gray-500 border-b border-gray-100"><th className="py-2 pr-3">{L("Hours / month", "Horas / mes")}</th><th className="py-2 pr-3 text-right">UE</th><th className="py-2 text-right">{L("Monthly amount", "Monto del mes")}</th></tr></thead>
+              <tbody>{(totals.examples ?? []).map(e => <tr key={e.hours} className="border-b border-gray-50"><td className="py-2 pr-3">{e.hours}</td><td className="py-2 pr-3 text-right">{e.ue}</td><td className="py-2 text-right">{m(e.amount)}</td></tr>)}</tbody>
+            </table>
+          </>
+        )}
+        {propCases.length > 0 && (
+          <p className="text-xs text-gray-600 mt-3">
+            {L(`${propCases.length} case(s) included as starting backlog: about ${totals.backlogHours} estimated hours`, `${propCases.length} caso(s) incluidos como backlog inicial: unas ${totals.backlogHours} horas estimadas`)}
+            {type === "plan" && totals.backlogPctOfFirst != null ? L(` (${totals.backlogPctOfFirst}% of the shortest term).`, ` (${totals.backlogPctOfFirst}% del período más corto).`) : "."}
+          </p>
+        )}
+      </div>
+      {noTerms && <div className="mt-3"><Banner tone="amber">{L("Choose a number of UE and at least one term that has a rate in your catalog.", "Indica las UE y al menos un período con tarifa en tu catálogo.")}</Banner></div>}
+      <Footer>
+        <button onClick={onBack} className="text-sm text-gray-500">{L("Back", "Atrás")}</button>
+        <PrimaryBtn busy={busy} disabled={noTerms} onClick={onNext}>{L("Continue", "Continuar")}</PrimaryBtn>
+      </Footer>
+    </Card>
+  );
+}
+
+function CaseTermsStep({ p, setP, totals, propCases, cfg, L, lang, profileRate, busy, onBack, onNext, typeSelector }) {
   const c = { ...DEFAULT_COMMERCIALS, ...(p.commercials ?? {}) };
   const setC = patch => setP(prev => ({ ...prev, commercials: { ...c, ...patch } }));
   const profileRateConv = profileRate ? Math.round(fromUsd(profileRate, p.currency, cfg) * 100) / 100 : null;
@@ -627,6 +896,8 @@ function TermsStep({ p, setP, totals, propCases, cfg, L, lang, profileRate, busy
     <Card title={L("Commercial terms", "Condiciones comerciales")}
       hint={L("Both estimates are shown to the customer; the price basis decides which one is charged and becomes each case's budget on approval.",
         "Al cliente se le muestran ambas estimaciones; la base de precio decide cuál se cobra y se convierte en el presupuesto de cada caso al aprobar.")}>
+      {typeSelector}
+      {propCases.length === 0 && <div className="mb-4"><Banner tone="amber">{L("A proposal by cases needs at least one case. Go back to step 1, or choose a service plan / on demand.", "Una propuesta por casos necesita al menos un caso. Vuelve al paso 1 o elige plan de servicio / bajo demanda.")}</Banner></div>}
       <div className="grid md:grid-cols-4 gap-3">
         <label className="block">
           <span className="text-xs font-medium text-gray-600">{L("Currency", "Moneda")}</span>
@@ -736,7 +1007,7 @@ function TermsStep({ p, setP, totals, propCases, cfg, L, lang, profileRate, busy
       )}
       <Footer>
         <button onClick={onBack} className="text-sm text-gray-500">{L("Back", "Atrás")}</button>
-        <PrimaryBtn busy={busy} onClick={onNext}>{L("Continue", "Continuar")}</PrimaryBtn>
+        <PrimaryBtn busy={busy} disabled={propCases.length === 0} onClick={onNext}>{L("Continue", "Continuar")}</PrimaryBtn>
       </Footer>
     </Card>
   );
@@ -810,7 +1081,12 @@ function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVer
           : <p className="p-6 text-sm text-gray-400">{L("No document.", "Sin documento.")}</p>}
       </div>
       <div className="space-y-4">
-        {p.status === "accepted" && <Banner tone="blue">{L("Accepted: each case got its budget and is back in Estimated, ready to be assigned.", "Aceptada: cada caso recibió su presupuesto y volvió a Estimado, listo para asignar.")}</Banner>}
+        {p.status === "accepted" && (p.totals?.type === "plan" || p.totals?.type === "on_demand"
+          ? <Banner tone="blue">{p.totals.type === "plan"
+              ? L(`Accepted — ${p.accepted_option?.months ?? "?"}-month plan (${p.accepted_option?.totalHours ?? "?"} h, ${fmtMoney(p.accepted_option?.total ?? 0, p.currency, lang)}). The service contract is in the project's Service tab.`,
+                  `Aceptada — plan de ${p.accepted_option?.months ?? "?"} meses (${p.accepted_option?.totalHours ?? "?"} h, ${fmtMoney(p.accepted_option?.total ?? 0, p.currency, lang)}). El contrato de servicio está en la pestaña Servicio del proyecto.`)
+              : L("Accepted — on-demand service. The service contract is in the project's Service tab.", "Aceptada — servicio bajo demanda. El contrato de servicio está en la pestaña Servicio del proyecto.")}</Banner>
+          : <Banner tone="blue">{L("Accepted: each case got its budget and is back in Estimated, ready to be assigned.", "Aceptada: cada caso recibió su presupuesto y volvió a Estimado, listo para asignar.")}</Banner>)}
         {p.status === "rejected" && <Banner tone="amber">{L("Rejected: the cases went back to their previous status.", "Rechazada: los casos volvieron a su estado anterior.")}</Banner>}
         {p.decision_note && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm">
@@ -820,7 +1096,11 @@ function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVer
         )}
         {p.totals?.total != null && (
           <div className="bg-white border border-gray-200 rounded-xl p-3 text-sm">
-            <Row k={L("Total", "Total")} v={<b>{fmtMoney(p.totals.total, p.currency, lang)}</b>} />
+            {p.totals.type === "plan"
+              ? (p.totals.options ?? []).map(o => <Row key={o.months} k={`${termName(o.months, es)} · ${o.totalHours} h`} v={<b>{fmtMoney(o.total, p.currency, lang)}</b>} />)
+              : p.totals.type === "on_demand"
+                ? <Row k={L("Rate · monthly minimum", "Tarifa · mínimo mensual")} v={<b>{fmtMoney(p.totals.rate, p.currency, lang)}/h · {fmtMoney(p.totals.minMonthly, p.currency, lang)}</b>} />
+                : <Row k={L("Total", "Total")} v={<b>{fmtMoney(p.totals.total, p.currency, lang)}</b>} />}
             <Row k={L("Valid until", "Válida hasta")} v={p.valid_until ?? "—"} />
           </div>
         )}

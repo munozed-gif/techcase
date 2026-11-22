@@ -34,6 +34,27 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
 
   useEffect(() => { if (caseId) fetchLogs(); }, [caseId]);
 
+  // Active service contract of the case's project: hours can count ×specialist / ×on-site against the pool.
+  const [contract, setContract] = useState(null);
+  useEffect(() => {
+    if (!caseId) return;
+    let alive = true;
+    (async () => {
+      const { data: cs } = await supabase.from('cases').select('project_id').eq('id', caseId).maybeSingle();
+      if (!cs?.project_id) return;
+      const { data: k } = await supabase.from('service_contracts').select('id, kind, factors, status')
+        .eq('project_id', cs.project_id).eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (alive) setContract(k ?? null);
+    })();
+    return () => { alive = false; };
+  }, [caseId]);
+  const es = lang === 'es';
+  const factorOptions = contract ? [
+    { v: 1, label: es ? 'Normal (×1)' : 'Normal (×1)' },
+    { v: Number(contract.factors?.specialist ?? 1.5), label: `${es ? 'Consultor especialista' : 'Specialist consultant'} (×${contract.factors?.specialist ?? 1.5})` },
+    { v: Number(contract.factors?.onsite ?? 2), label: `${es ? 'En sitio' : 'On site'} (×${contract.factors?.onsite ?? 2})` },
+  ] : [];
+
   async function handleAdd() {
     const hrs = parseFloat(form.hours);
     if (!hrs || hrs <= 0) return;
@@ -47,6 +68,7 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
         log_date:    form.log_date,
         start_time:  form.start_time || null,
         end_time:    form.end_time || null,
+        ...(contract ? { service_factor: Number(form.service_factor) || 1 } : {}),
       });
       if (error) throw error;
       logEvent('time.logged', { entityType: 'case', entityId: caseId, metadata: { hours: hrs, description: form.description } });
@@ -99,6 +121,16 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
+          {contract && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{es ? 'Tipo de hora (plan de servicio)' : 'Hour type (service plan)'}</label>
+              <select value={form.service_factor ?? 1} onChange={e => setForm(p => ({ ...p, service_factor: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white">
+                {factorOptions.map(o => <option key={o.label} value={o.v}>{o.label}</option>)}
+              </select>
+              <p className="text-[11px] text-gray-400 mt-1">{es ? 'Las horas se descuentan del plan multiplicadas por este factor.' : 'Hours are consumed from the plan multiplied by this factor.'}</p>
+            </div>
+          )}
           <TimeRangeFields lang={lang} start={form.start_time} end={form.end_time}
             onChange={r => setForm(p => ({ ...p, start_time: r.start_time, end_time: r.end_time, ...(r.hours ? { hours: r.hours } : {}) }))} />
           <div>
@@ -135,7 +167,7 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
             {logs.map(log => (
               <tr key={log.id} className="hover:bg-gray-50">
                 <td className="py-2 pr-4 text-gray-600 font-variant-numeric tabular-nums">{log.log_date}{log.start_time && <span className="block text-[11px] text-gray-400">{fmtTimeRange(log.start_time, log.end_time)}</span>}</td>
-                <td className="py-2 pr-4 font-semibold text-blue-700 font-variant-numeric tabular-nums">{parseFloat(log.hours).toFixed(1)}h</td>
+                <td className="py-2 pr-4 font-semibold text-blue-700 font-variant-numeric tabular-nums">{parseFloat(log.hours).toFixed(1)}h{Number(log.service_factor ?? 1) !== 1 && <span className="ml-1 text-[10px] font-semibold text-amber-600">×{Number(log.service_factor)}</span>}</td>
                 <td className="py-2 pr-4 text-gray-500 max-w-xs truncate">{log.description || "—"}</td>
                 <td className="py-2 pr-4 text-gray-700">{log.users?.full_name ?? "—"}</td>
                 <td className="py-2">

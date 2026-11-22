@@ -8,7 +8,7 @@ import {
   UserCheck, Users, X, XCircle, Zap,
   ArrowRightLeft, BarChart, BookOpen, Briefcase, Bug, ClipboardList,
   Cpu, FlaskConical, GitBranch, Globe, GraduationCap, KeyRound,
-  MonitorCheck, Network, Settings, ShieldCheck, Wrench, FileSignature, User,
+  MonitorCheck, Network, Settings, ShieldCheck, Wrench, FileSignature, User, Gauge,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -36,6 +36,7 @@ import { STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, fmt, cap,
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 import { usePartnerContext } from "../hooks/usePartnerContext.js";
 import { COMMON_CURRENCIES } from "../lib/costs.js";
+import { ProjectServiceTab } from "../components/ProjectServiceTab.jsx";
 import { ProjectProposalsTab } from "../components/ProjectProposalsTab.jsx";
 
 const DELIVERABLE_ICON_MAP = {
@@ -1711,6 +1712,14 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
     supabase.rpc("can_manage_proposals", { p_project: project.id }).then(({ data }) => { if (alive) setCanProposals(data === true); });
     return () => { alive = false; };
   }, [project.id, auth.user?.id]);
+  // Service contracts (from accepted plan / on-demand proposals) → Service tab
+  const [contractCount, setContractCount] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    supabase.from("service_contracts").select("id", { count: "exact", head: true }).eq("project_id", project.id)
+      .then(({ count }) => { if (alive) setContractCount(count ?? 0); });
+    return () => { alive = false; };
+  }, [project.id]);
   // Project owner (who created it) for the Overview card
   const [projectOwner, setProjectOwner] = useState(null);
   useEffect(() => {
@@ -2146,6 +2155,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "cases",        label: t("project.tab_cases"),         icon: FolderOpen,        count: projCases.length },
     { id: "documents",    label: t("project.tab_documents"),     icon: FileText,          count: null },
     ...(canProposals ? [{ id: "proposals", label: t("project.tab_proposals"), icon: FileSignature, count: null }] : []),
+    ...((canProposals || contractCount > 0) ? [{ id: "service", label: lang === "es" ? "Servicio" : "Service", icon: Gauge, count: contractCount || null }] : []),
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     ...(canEdit ? [{ id: "spec_gen",  label: "Spec Gen",                 icon: Sparkles,   count: null }] : []),
@@ -3269,6 +3279,9 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         )}
 
         {/* Proposals */}
+        {tab.id === "service" && (canProposals || contractCount > 0) && (
+          <ProjectServiceTab project={project} canManage={canProposals} />
+        )}
         {tab.id === "proposals" && canProposals && (
           <ProjectProposalsTab project={project} auth={auth} />
         )}

@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle2, Clock, Loader2, MessageSquare, Paperclip, Th
 import { supabase } from "../lib/supabase.js";
 import { NovaLandingMark } from "./LandingView.jsx";
 import { fmtMoney } from "../lib/costs.js";
+import { termName } from "../lib/servicePlans.js";
 
 const T = {
   en: {
@@ -20,6 +21,8 @@ const T = {
     expired: "This proposal has expired. Please contact the team for an updated one.",
     confirmAccept: "Accept this proposal? The team will be notified and the work can be planned.",
     by: "by",
+    choosePlan: "Choose your plan", chooseReq: "Choose one of the plan options to accept.", hours: "hours", perMonth: "/month", periodTotal: "period total",
+    onDemand: "On-demand service", perHour: "/hour", minimum: "Monthly minimum", chosen: "Chosen plan", months: "months", month: "month",
   },
   es: {
     proposal: "Propuesta", from: "de", total: "Total", validUntil: "Válida hasta", attachments: "Anexos",
@@ -33,6 +36,8 @@ const T = {
     expired: "Esta propuesta venció. Contacta al equipo para recibir una actualizada.",
     confirmAccept: "¿Aceptar esta propuesta? El equipo será notificado y se podrá planificar el trabajo.",
     by: "por",
+    choosePlan: "Elige tu plan", chooseReq: "Elige una de las opciones de plan para aceptar.", hours: "horas", perMonth: "/mes", periodTotal: "total del período",
+    onDemand: "Servicio bajo demanda", perHour: "/hora", minimum: "Mínimo mensual", chosen: "Plan elegido", months: "meses", month: "mes",
   },
 };
 
@@ -49,6 +54,7 @@ export default function ProposalReviewView({ token }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
+  const [option, setOption] = useState(null); // months of the chosen plan option
 
   useEffect(() => {
     supabase.rpc("proposal_by_token", { p_token: token })
@@ -62,11 +68,15 @@ export default function ProposalReviewView({ token }) {
     setError(null);
     if (!name.trim()) { setError(L.name); return; }
     if (decision !== "accepted" && !note.trim()) { setError(L.commentReq); return; }
+    const opts = data?.totals?.type === "plan" ? (data.totals.options ?? []) : [];
+    const chosen = opts.length === 1 ? opts[0].months : option;
+    if (decision === "accepted" && opts.length > 1 && !chosen) { setError(L.chooseReq); return; }
     if (decision === "accepted" && !window.confirm(L.confirmAccept)) return;
     setBusy(decision);
-    const { error: e } = await supabase.rpc("proposal_decide", { p_token: token, p_decision: decision, p_name: name.trim(), p_note: note.trim() || null });
+    const { error: e } = await supabase.rpc("proposal_decide_v2", { p_token: token, p_decision: decision, p_name: name.trim(), p_note: note.trim() || null, p_option: decision === "accepted" ? (chosen ?? null) : null });
     if (e) { setError(e.message); setBusy(null); return; }
-    setData(d => ({ ...d, status: decision, decided_by_name: name.trim(), decision_note: note.trim() || null, decided_at: new Date().toISOString() }));
+    const acceptedOption = decision === "accepted" ? opts.find(o => o.months === chosen) ?? null : null;
+    setData(d => ({ ...d, status: decision, decided_by_name: name.trim(), decision_note: note.trim() || null, decided_at: new Date().toISOString(), accepted_option: acceptedOption }));
     setBusy(null);
   }
 
@@ -121,8 +131,40 @@ export default function ProposalReviewView({ token }) {
         <aside className="space-y-4">
           <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)" }}>
             {data.customer_name && <p className="text-gray-400 text-xs mb-1">{data.customer_name} · {data.project_name}</p>}
-            <p className="text-gray-400 text-xs">{L.total}</p>
-            <p className="text-white text-2xl font-bold">{fmtMoney(data.totals?.total ?? 0, data.currency, lang)}</p>
+            {data.totals?.type === "plan" ? (
+              <>
+                <p className="text-gray-300 text-xs font-semibold uppercase tracking-wide mb-2">{data.status === "accepted" ? L.chosen : L.choosePlan}</p>
+                <p className="text-gray-400 text-xs mb-2">{data.totals.bandName} · {data.totals.hoursMonth} {L.hours}{L.perMonth}</p>
+                <div className="space-y-2">
+                  {(data.totals.options ?? []).map(o => {
+                    const isChosen = data.status === "accepted" ? data.accepted_option?.months === o.months : (option ?? (data.totals.options.length === 1 ? o.months : null)) === o.months;
+                    const selectable = !["accepted", "changes_requested", "rejected"].includes(data.status);
+                    return (
+                      <button key={o.months} type="button" disabled={!selectable} onClick={() => setOption(o.months)}
+                        className="w-full text-left rounded-xl px-3 py-2 transition-colors"
+                        style={{ background: isChosen ? "rgba(79,110,247,.18)" : "rgba(255,255,255,.04)", border: `1px solid ${isChosen ? "#4F6EF7" : "rgba(255,255,255,.1)"}` }}>
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-white text-sm font-semibold">{termName(o.months, lang === "es")} · {o.months} {o.months === 1 ? L.month : L.months}</span>
+                          <span className="text-white text-sm font-bold">{fmtMoney(o.total, data.currency, lang)}</span>
+                        </span>
+                        <span className="block text-gray-400 text-[11px] mt-0.5">{o.totalHours} {L.hours} · {fmtMoney(o.monthly, data.currency, lang)}{L.perMonth} · {fmtMoney(o.rate, data.currency, lang)}{L.perHour}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : data.totals?.type === "on_demand" ? (
+              <>
+                <p className="text-gray-400 text-xs">{L.onDemand}</p>
+                <p className="text-white text-2xl font-bold">{fmtMoney(data.totals.rate ?? 0, data.currency, lang)}<span className="text-sm font-normal text-gray-400">{L.perHour}</span></p>
+                <p className="text-gray-400 text-xs mt-1">{L.minimum}: {fmtMoney(data.totals.minMonthly ?? 0, data.currency, lang)}</p>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-400 text-xs">{L.total}</p>
+                <p className="text-white text-2xl font-bold">{fmtMoney(data.totals?.total ?? 0, data.currency, lang)}</p>
+              </>
+            )}
             {data.valid_until && <p className={`text-xs mt-1 ${expired ? "text-red-400" : "text-gray-400"}`}>{L.validUntil} {new Date(data.valid_until + "T12:00:00").toLocaleDateString(lang === "es" ? "es" : "en-US", { year: "numeric", month: "long", day: "numeric" })}</p>}
           </div>
 

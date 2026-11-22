@@ -38,6 +38,7 @@ import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 import { PartnersAdminPanel } from "./PartnerView.jsx";
 import { DEFAULT_ESTIMATION_FACTORS, estimationFactors } from "../lib/estimation.js";
 import { DEFAULT_COST_CONFIG, costConfig } from "../lib/costs.js";
+import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
 
 // Case cost settings (lib/costs.js): VM, Arena fees, payment fees, contingency, taxes,
 // default consultant rates, exchange rates and AI prices. Platform currency: USD.
@@ -2145,6 +2146,10 @@ function SettingsGenerationTab({ ssCtx }) {
 
       <EstimationFactorsCard ssCtx={ssCtx} />
       <CostConfigCard ssCtx={ssCtx} />
+      <ServicePlansEditor value={ssCtx.settings["service_plans_default"] ?? null} fallback={null}
+        title="Service plans — platform default"
+        hint="Default UE plans for service proposals (1 UE = one full-time consultant month). Each partner can keep its own catalog in its Partner area; projects without a partner use these values."
+        onSave={catalog => ssCtx.setSetting("service_plans_default", catalog)} />
 
       {/* Request Summary Sections */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5">

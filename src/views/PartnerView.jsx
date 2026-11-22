@@ -15,6 +15,8 @@ import { SapIntegrationPanel } from "../components/SapPanels.jsx";
 import { buildEmailHtml, sendEmail } from "../lib/utils.js";
 import { COMMON_CURRENCIES } from "../lib/costs.js";
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
+import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
+import { useT } from "../i18n/index.jsx";
 
 const OPEN_CASE_EXCLUDED = ["completed", "closed", "cancelled", "resolved", "terminated"];
 const CLOSED_PROJECT = ["cancelled", "completed", "closed", "archived"];
@@ -625,6 +627,40 @@ function PlanTab({ partner, auth, canManage }) {
 }
 
 // ─── Partner area ───────────────────────────────────────────────────────────
+// Each partner's own service-plan catalog (UE plans) used in its service proposals.
+function PartnerServicePlansTab({ partner, canManage }) {
+  const { lang } = useT();
+  const [state, setState] = useState({ loading: true, value: null, fallback: null });
+  useEffect(() => {
+    let alive = true;
+    Promise.all([
+      supabase.from("partners").select("service_plans").eq("id", partner.id).maybeSingle(),
+      supabase.from("system_settings").select("value").eq("key", "service_plans_default").maybeSingle(),
+    ]).then(([{ data: pr }, { data: st }]) => { if (alive) setState({ loading: false, value: pr?.service_plans ?? null, fallback: st?.value ?? null }); });
+    return () => { alive = false; };
+  }, [partner.id]);
+  if (state.loading) return <Spinner />;
+  return (
+    <div className="space-y-3">
+      {!state.value && (
+        <p className="text-xs text-gray-500">{lang === "es"
+          ? "Aún usas los planes por defecto de la plataforma. Ajusta tus tarifas y guarda para tener tu propio catálogo."
+          : "You are using the platform's default plans. Adjust your rates and save to have your own catalog."}</p>
+      )}
+      <ServicePlansEditor value={state.value} fallback={state.fallback} lang={lang}
+        hint={lang === "es"
+          ? "Tus planes mensuales en UE (1 UE = un consultor a tiempo completo por mes) para las propuestas de servicio de tus proyectos. El cliente elige el período al aceptar."
+          : "Your monthly UE plans (1 UE = one full-time consultant month) for the service proposals of your projects. The customer chooses the term when accepting."}
+        onSave={async catalog => {
+          if (!canManage) throw new Error(lang === "es" ? "Solo el propietario o un administrador del partner puede cambiar los planes." : "Only the partner owner or an admin can change the plans.");
+          const { error } = await supabase.from("partners").update({ service_plans: catalog }).eq("id", partner.id);
+          if (error) throw error;
+          setState(s => ({ ...s, value: catalog }));
+        }} />
+    </div>
+  );
+}
+
 function PartnerView({ auth, onNavigate }) {
   const ctx = usePartnerContext(auth.user?.id);
   const [selectedId, setSelectedId] = useState(null);
@@ -655,6 +691,7 @@ function PartnerView({ auth, onNavigate }) {
     { id: "members",   label: "Team",      Icon: Users },
     { id: "validations", label: "Validations", Icon: Shield },
     { id: "plan",      label: "Plan",      Icon: CreditCard },
+    { id: "service_plans", label: "Service plans", Icon: Layers },
   ];
 
   return (
@@ -696,6 +733,7 @@ function PartnerView({ auth, onNavigate }) {
           {tab === "projects"  && <ProjectsTab partner={partner} onNavigate={onNavigate} />}
           {tab === "members"   && <MembersTab partner={partner} canManage={canManage} isOwner={partner.role === "owner"} myId={auth.user?.id} onChanged={changed} />}
           {tab === "plan"      && <PlanTab partner={partner} auth={auth} canManage={canManage} />}
+          {tab === "service_plans" && <PartnerServicePlansTab partner={partner} canManage={canManage} />}
         </>
       )}
     </div>
