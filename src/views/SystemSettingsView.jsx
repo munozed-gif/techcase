@@ -40,6 +40,7 @@ import { DEFAULT_ESTIMATION_FACTORS, estimationFactors } from "../lib/estimation
 import { DEFAULT_COST_CONFIG, costConfig } from "../lib/costs.js";
 import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
 import { HHCommissionsTable } from "../components/HHCommissions.jsx";
+import { SettingsSalesTab } from "../components/SalesAdmin.jsx";
 
 // Case cost settings (lib/costs.js): VM, Arena fees, payment fees, contingency, taxes,
 // default consultant rates, exchange rates and AI prices. Platform currency: USD.
@@ -6304,6 +6305,7 @@ function SystemSettingsView({ auth, onNavigate }) {
     { id: "sap_vm",      label: "SAP VM & Bridge",  Icon: Monitor },
     { id: "area_leaders", label: "Area Leaders",     Icon: UserCog },
     { id: "headhunter",  label: "Headhunter",       Icon: Crosshair },
+    { id: "sales",       label: "Sales",            Icon: TrendingUp },
     { id: "platform",    label: "Platform",         Icon: Sparkles },
     { id: "audit",       label: "Audit Events",     Icon: ClipboardList },
   ];
@@ -6341,6 +6343,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       {activeTab === "sap_vm"      && <div className="p-6"><SettingsSapVmTab ssCtx={ssCtx} /></div>}
       {activeTab === "area_leaders" && <SettingsAreaLeadersTab ssCtx={ssCtx} />}
       {activeTab === "headhunter"  && <SettingsHeadhunterTab ssCtx={ssCtx} />}
+      {activeTab === "sales"       && <SettingsSalesTab ssCtx={ssCtx} auth={auth} />}
       {activeTab === "platform"    && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}
       {activeTab === "audit"       && <SettingsAuditTab ssCtx={ssCtx} />}
     </div>

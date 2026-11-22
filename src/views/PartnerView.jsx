@@ -17,6 +17,9 @@ import { COMMON_CURRENCIES } from "../lib/costs.js";
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
 import { useT } from "../i18n/index.jsx";
+import { SolutionsEditor } from "../components/SolutionsEditor.jsx";
+import { DeliveryRequestsPanel, OpenTendersPanel } from "../components/SalesDelivery.jsx";
+import { errText as salesErr } from "../lib/sales.js";
 
 const OPEN_CASE_EXCLUDED = ["completed", "closed", "cancelled", "resolved", "terminated"];
 const CLOSED_PROJECT = ["cancelled", "completed", "closed", "archived"];
@@ -497,6 +500,16 @@ function MembersTab({ partner, canManage, isOwner, myId, onChanged }) {
   const [role, setRole] = useState("member");
   const [msg, setMsg] = useState(null);
   const [nonce, setNonce] = useState(0);
+  const [sellers, setSellers] = useState({});
+
+  useEffect(() => {
+    supabase.from("sellers").select("user_id, status, partner_id").eq("partner_id", partner.id)
+      .then(({ data }) => setSellers(Object.fromEntries((data ?? []).map(s => [s.user_id, s.status]))));
+  }, [partner.id, nonce]);
+  async function toggleSeller(uid, on) {
+    const { error } = await supabase.rpc("partner_set_seller", { p_partner: partner.id, p_user: uid, p_on: on });
+    if (error) setMsg({ kind: "error", text: salesErr(error) }); else setNonce(n => n + 1);
+  }
 
   useEffect(() => {
     (async () => {
@@ -529,6 +542,11 @@ function MembersTab({ partner, canManage, isOwner, myId, onChanged }) {
               <div className="font-medium text-gray-900 truncate">{users[r.user_id]?.full_name || users[r.user_id]?.email || "Unknown user"}{r.user_id === myId ? " (you)" : ""}</div>
               <div className="text-xs text-gray-500 truncate">{users[r.user_id]?.email}</div>
             </div>
+            {canManage
+              ? <label className="text-xs text-gray-600 flex items-center gap-1 mr-2" title="Sellers register opportunities and sell for this partner (Sales)">
+                  <input type="checkbox" checked={sellers[r.user_id] === "approved"} onChange={e => toggleSeller(r.user_id, e.target.checked)} />Seller
+                </label>
+              : sellers[r.user_id] === "approved" && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 mr-2">Seller</span>}
             {canManage && r.role !== "owner" && r.user_id !== myId
               ? <select value={r.role} onChange={e => changeRole(r.user_id, e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white">
                   <option value="admin">Admin</option><option value="member">Member</option>
@@ -661,6 +679,24 @@ function PartnerServicePlansTab({ partner, canManage }) {
   );
 }
 
+// ─── Packaged solutions sellers can offer ───────────────────────────────────
+function PartnerSolutionsTab({ partner, canManage, auth }) {
+  const { lang } = useT();
+  return <SolutionsEditor lang={lang} partnerId={partner.id} canManage={canManage} userId={auth.user?.id} />;
+}
+
+// ─── Deliveries: requests from sellers + open projects to bid on ───────────
+function PartnerDeliveriesTab({ auth, canManage, onNavigate }) {
+  const { lang } = useT();
+  if (!canManage) return <div className="text-sm text-gray-500">Only the partner's owner and admins answer delivery requests and bid on projects.</div>;
+  return (
+    <div className="space-y-8 max-w-5xl">
+      <DeliveryRequestsPanel lang={lang} onNavigate={onNavigate} />
+      <OpenTendersPanel lang={lang} userId={auth.user?.id} />
+    </div>
+  );
+}
+
 function PartnerView({ auth, onNavigate }) {
   const ctx = usePartnerContext(auth.user?.id);
   const [selectedId, setSelectedId] = useState(null);
@@ -692,6 +728,8 @@ function PartnerView({ auth, onNavigate }) {
     { id: "validations", label: "Validations", Icon: Shield },
     { id: "plan",      label: "Plan",      Icon: CreditCard },
     { id: "service_plans", label: "Service plans", Icon: Layers },
+    { id: "solutions", label: "Solutions", Icon: Rocket },
+    { id: "deliveries", label: "Deliveries", Icon: Send },
   ];
 
   return (
@@ -734,6 +772,8 @@ function PartnerView({ auth, onNavigate }) {
           {tab === "members"   && <MembersTab partner={partner} canManage={canManage} isOwner={partner.role === "owner"} myId={auth.user?.id} onChanged={changed} />}
           {tab === "plan"      && <PlanTab partner={partner} auth={auth} canManage={canManage} />}
           {tab === "service_plans" && <PartnerServicePlansTab partner={partner} canManage={canManage} />}
+          {tab === "solutions" && <PartnerSolutionsTab partner={partner} canManage={canManage} auth={auth} />}
+          {tab === "deliveries" && <PartnerDeliveriesTab auth={auth} canManage={canManage} onNavigate={onNavigate} />}
         </>
       )}
     </div>

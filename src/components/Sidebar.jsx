@@ -3,13 +3,14 @@ import {
   ArrowRightLeft, BarChart2, Bell, ClipboardCheck, ClipboardList, Clock, Database, FlaskConical,
   FolderOpen, GitCompare, Handshake,
   Inbox, Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Milestone, Receipt, Search,
-  ShieldCheck, SlidersHorizontal, Target, User, UserCheck, UsersRound,
+  ShieldCheck, SlidersHorizontal, Target, TrendingUp, User, UserCheck, UsersRound,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
 import { usePlatformBranding, useVisibilitySettings, useSystemSettings, usePlanConfig } from "../hooks/useSystemSettings.jsx";
 import { ROLE_TO_PLAN_TYPE } from "../lib/businessConstants.js";
 import { NotificationBell } from "./NotificationBell.jsx";
 import { usePartnerContext } from "../hooks/usePartnerContext.js";
+import { useMySeller } from "../lib/sales.js";
 import { PersonAvatar } from "../views/Projects.jsx";
 
 const NOVA_KEYFRAMES = `@keyframes nova-orbit {
@@ -69,6 +70,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
   const ssCtx = useSystemSettings();
   const planCfg = usePlanConfig();
   const partnerCtx = usePartnerContext(auth?.user?.id);
+  const { seller } = useMySeller(auth?.user?.id);
 
   const NAV_CONCEPT = { 'my-cases': 'cases', 'leader-cases': 'cases' };
   const conceptOf = id => NAV_CONCEPT[id] ?? id;
@@ -196,6 +198,14 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       && (['consultant', 'internal_consultant', 'project_manager'].includes(role) || partnerCtx.partners.some(p => p.status !== 'rejected'))) {
     const at = items.findIndex(i => i.id === "projects");
     items = at >= 0 ? [...items.slice(0, at + 1), PARTNER_NAV, ...items.slice(at + 1)] : [...items, PARTNER_NAV];
+  }
+  // Sales: approved / pending sellers and staff.
+  if ((seller && ['approved', 'pending'].includes(seller.status)) || ['admin', 'manager'].includes(role)) {
+    if (!items.some(i => i.id === "sales")) {
+      const at = items.findIndex(i => i.id === "partner" || i.id === "projects");
+      const SALES_NAV = { id: "sales", Icon: TrendingUp, labelKey: "nav.sales" };
+      items = at >= 0 ? [...items.slice(0, at + 1), SALES_NAV, ...items.slice(at + 1)] : [...items, SALES_NAV];
+    }
   }
   // Hide consultants nav for clients in Internal mode — they don't participate in marketplace
   if (role === 'client' && auth?.user?.id) {

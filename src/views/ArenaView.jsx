@@ -28,6 +28,7 @@ import { HHProposalWizard } from "../components/HHProposalWizard.jsx";
 import { SubmitCandidateModal } from "../components/HHSubmissions.jsx";
 import { PersonAvatar, ProjectAvatar, UserAvatar } from "./Projects.jsx";
 import { GalaxyExplorer } from "../components/GalaxyExplorer.jsx";
+import { OpenTendersPanel } from "../components/SalesDelivery.jsx";
 
 // Inject arena orbit keyframe once at module load — inside JSX re-creates the style on every render and resets animations
 if (typeof document !== 'undefined' && !document.getElementById('arena-orbit-kf')) {
@@ -2008,6 +2009,9 @@ function ArenaView({ auth, onNavigate }) {
         </div>
         {renderCases()}
       </div>
+
+      {/* Projects won by sellers, open for delivery bids (partner owners/admins, team owners) */}
+      <div style={{ marginTop:28 }}><OpenTendersPanel lang={lang} userId={auth.user?.id} compact /></div>
 
       {/* Section 3 — Leaderboard / Cards / Compare carousel */}
       {(arenaSettings["leaderboard_carousel_by_role"]?.[auth.role] !== false) && <div style={{ marginTop:28 }}>

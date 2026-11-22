@@ -196,6 +196,7 @@ import {
 // ============================================================
 import { CasesView } from "./src/views/CasesView.jsx";
 import { PartnerView } from "./src/views/PartnerView.jsx";
+import { SalesView } from "./src/views/SalesView.jsx";
 
 
 import {
@@ -1000,6 +1001,7 @@ export default function App() {
       case "hh-pipeline":    return auth.isHeadhunter ? <HeadhunterPipeline auth={auth} /> : <Dashboard auth={auth} />;
       case "hh-placements":  return auth.isHeadhunter ? <HeadhunterPlacements auth={auth} /> : <Dashboard auth={auth} />;
       case "projects":       return <ProjectsView auth={auth} initialProjectId={pendingProjectId} onNavigate={(view) => setActiveView(view)} />;
+      case "sales":          return <SalesView auth={auth} onNavigate={(view, opts) => { if (view === "projects") setPendingProjectId(opts?.projectId ?? null); setActiveView(view); }} />;
       case "partner":        return <PartnerView auth={auth} onNavigate={(view, opts) => { if (view === "projects") setPendingProjectId(opts?.projectId ?? null); setActiveView(view); }} />;
       case "cases":          return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
       case "my-cases":       return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
