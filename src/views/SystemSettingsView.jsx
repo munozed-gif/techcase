@@ -39,6 +39,7 @@ import { PartnersAdminPanel } from "./PartnerView.jsx";
 import { DEFAULT_ESTIMATION_FACTORS, estimationFactors } from "../lib/estimation.js";
 import { DEFAULT_COST_CONFIG, costConfig } from "../lib/costs.js";
 import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
+import { HHCommissionsTable } from "../components/HHCommissions.jsx";
 
 // Case cost settings (lib/costs.js): VM, Arena fees, payment fees, contingency, taxes,
 // default consultant rates, exchange rates and AI prices. Platform currency: USD.
@@ -6065,7 +6066,9 @@ function SettingsHeadhunterTab({ ssCtx }) {
     see_resource_needs:     raw.see_resource_needs     ?? true,
     apply_to_unassigned:    raw.apply_to_unassigned    ?? true,
     default_commission_pct: raw.default_commission_pct ?? 15,
+    placement_default_hours: raw.placement_default_hours ?? 160,
   };
+  const { lang } = useT();
 
   function toggle(key) {
     ssCtx.setSetting("headhunter_settings", { ...cfg, [key]: !cfg[key] });
@@ -6111,6 +6114,26 @@ function SettingsHeadhunterTab({ ssCtx }) {
           onChange={e => setNum("default_commission_pct", e.target.value)}
           className="w-32 px-3 py-2 border border-gray-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-violet-400"
         />
+      </div>
+
+      <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+        <label className="text-sm font-semibold text-gray-800 block mb-1">Placement fee — default hours</label>
+        <p className="text-xs text-gray-500 mb-3">
+          When the customer accepts a candidate proposed by a headhunter, the fee is commission % × rate × the case's activity-plan hours.
+          If the case has no activity plan, these hours are used. The customer is invoiced (due in 30 days).
+        </p>
+        <input
+          type="number" min="1" max="2000" step="1"
+          value={cfg.placement_default_hours}
+          onChange={e => setNum("placement_default_hours", e.target.value)}
+          className="w-32 px-3 py-2 border border-gray-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-violet-400"
+        />
+      </div>
+
+      <div>
+        <h2 className="text-base font-bold text-gray-900 mb-1">Headhunter placement fees</h2>
+        <p className="text-sm text-gray-500 mb-3">Fees earned by headhunters. Record each payout once you pay it outside the platform; you can adjust or cancel a fee while it is pending.</p>
+        <HHCommissionsTable lang={lang} staff />
       </div>
     </div>
   );

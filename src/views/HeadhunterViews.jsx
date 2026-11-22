@@ -15,6 +15,7 @@ import { fmtDate, cap } from "../lib/uiUtils.jsx";
 import { usePlanConfig } from "../hooks/useSystemSettings.jsx";
 import { InviteCandidateModal, HHInvitationsList, ReferralLinkCard } from "../components/HHInvites.jsx";
 import { SubmitCandidateModal, MySubmissionsList, DefaultCommissionField } from "../components/HHSubmissions.jsx";
+import { HHCommissionsTable, useHhCommissions, commissionTotals } from "../components/HHCommissions.jsx";
 
 // ─── Shared data hook ────────────────────────────────────────────────────────
 function useHeadhunterData(userId) {
@@ -638,70 +639,21 @@ export function HeadhunterPipeline({ auth }) {
 // 4.  MY PLACEMENTS + COMMISSION TRACKING
 // ═══════════════════════════════════════════════════════════════════════════════
 export function HeadhunterPlacements({ auth }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { applications, sourcedCases, loading } = useHeadhunterData(auth.user?.id);
+  const commData = useHhCommissions();
   const [tab, setTab] = useState("placed");
 
-  // Commission rate & hours — persisted in localStorage (per-device preference)
-  const lsKey = `hh_comm_${auth.user?.id}`;
-  const [commRate, setCommRate] = useState(() => {
-    try { return parseFloat(localStorage.getItem(`${lsKey}_rate`) ?? "15"); } catch { return 15; }
-  });
-  const [commHours, setCommHours] = useState(() => {
-    try { return parseInt(localStorage.getItem(`${lsKey}_hours`) ?? "160", 10); } catch { return 160; }
-  });
-
   const placed = applications.filter(a => a.status === "accepted");
-  const [commPaidOverrides, setCommPaidOverrides] = useState({});
-
-  function calcComm(rate) {
-    if (!rate) return null;
-    return Math.round(rate * commHours * (commRate / 100));
-  }
-
-  function isCommPaid(app) {
-    return commPaidOverrides[app.id] !== undefined ? commPaidOverrides[app.id] : !!app.headhunter_commission_paid;
-  }
-
-  function getCommStatus(app) {
-    return isCommPaid(app) ? "paid" : "pending";
-  }
-
-  async function toggleCommStatus(app, amount) {
-    const nowPaid = !isCommPaid(app);
-    setCommPaidOverrides(prev => ({ ...prev, [app.id]: nowPaid }));
-    await supabase.from("applications").update({
-      headhunter_commission_paid: nowPaid,
-      headhunter_commission_paid_at: nowPaid ? new Date().toISOString() : null,
-      headhunter_commission_amount: nowPaid ? amount : null,
-    }).eq("id", app.id);
-    try {
-      const cached = JSON.parse(localStorage.getItem(`${lsKey}_statuses`) ?? "{}");
-      cached[app.id] = { status: nowPaid ? "paid" : "pending", amount, paidAt: nowPaid ? new Date().toISOString() : null };
-      localStorage.setItem(`${lsKey}_statuses`, JSON.stringify(cached));
-    } catch {}
-  }
-
-  function saveCommRate(v) {
-    const n = Math.max(1, Math.min(50, parseFloat(v) || 15));
-    setCommRate(n);
-    try { localStorage.setItem(`${lsKey}_rate`, String(n)); } catch {}
-  }
-
-  function saveCommHours(v) {
-    const n = Math.max(1, Math.min(720, parseInt(v, 10) || 160));
-    setCommHours(n);
-    try { localStorage.setItem(`${lsKey}_hours`, String(n)); } catch {}
-  }
-
-  const totalComm   = placed.reduce((s, a) => s + (calcComm(a.proposed_rate) ?? 0), 0);
-  const paidComm    = placed.filter(a => isCommPaid(a)).reduce((s, a) => s + (calcComm(a.proposed_rate) ?? 0), 0);
-  const pendingComm = totalComm - paidComm;
-  const paidCount   = placed.filter(a => isCommPaid(a)).length;
+  // Placement fees are computed by the platform when the customer accepts the candidate.
+  const feeByApp = {};
+  for (const r of commData.rows) feeByApp[`${r.case?.id}:${r.consultant?.id}`] = r;
+  const feeOf = app => feeByApp[`${app.case_id ?? app.case?.id}:${app.consultant_id ?? app.consultant?.id}`];
+  const tot = commissionTotals(commData.rows);
 
   const tabs = [
     { id: "placed",      label: t("hh.tab_placed"),      count: placed.length },
-    { id: "commissions", label: t("hh.tab_commissions"), count: null },
+    { id: "commissions", label: t("hh.tab_commissions"), count: commData.rows.length },
     { id: "attributed",  label: t("hh.tab_attributed"),  count: sourcedCases.length },
   ];
 
@@ -716,9 +668,9 @@ export function HeadhunterPlacements({ auth }) {
 
       {/* Commission KPI tiles — always visible */}
       <div className="grid grid-cols-3 gap-4">
-        <KpiTile label={t("hh.kpi_total_comm")} value={`$${totalComm.toLocaleString()}`} sub={`${t("hh.comm_at")} ${commRate}% · ${commHours}h`} icon={DollarSign} color="purple" />
-        <KpiTile label={t("hh.kpi_paid_out")} value={`$${paidComm.toLocaleString()}`} sub={`${paidCount} ${t(paidCount !== 1 ? "hh.placements_plural" : "hh.placement_singular")}`} icon={CheckCircle2} color="green" />
-        <KpiTile label={t("hh.kpi_pending")} value={`$${pendingComm.toLocaleString()}`} sub={`${placed.length - paidCount} ${t(placed.length - paidCount !== 1 ? "hh.placements_plural" : "hh.placement_singular")}`} icon={Clock} color="amber" />
+        <KpiTile label={t("hh.kpi_total_comm")} value={`$${tot.total.toLocaleString()}`} sub={`${commData.rows.length} ${t(commData.rows.length !== 1 ? "hh.placements_plural" : "hh.placement_singular")}`} icon={DollarSign} color="purple" />
+        <KpiTile label={t("hh.kpi_paid_out")} value={`$${tot.paid.toLocaleString()}`} sub={`${tot.paidCount} ${t(tot.paidCount !== 1 ? "hh.placements_plural" : "hh.placement_singular")}`} icon={CheckCircle2} color="green" />
+        <KpiTile label={t("hh.kpi_pending")} value={`$${tot.pending.toLocaleString()}`} sub={`${tot.pendingCount} ${t(tot.pendingCount !== 1 ? "hh.placements_plural" : "hh.placement_singular")}`} icon={Clock} color="amber" />
       </div>
 
       {/* Tabs */}
@@ -736,7 +688,7 @@ export function HeadhunterPlacements({ auth }) {
         ))}
       </div>
 
-      {/* Placed candidates — enhanced with commission columns */}
+      {/* Placed candidates with their placement fee */}
       {tab === "placed" && (
         placed.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
@@ -755,14 +707,13 @@ export function HeadhunterPlacements({ auth }) {
                   <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_rate")}</th>
                   <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_commission")}</th>
                   <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_comm_status")}</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {placed.map(app => {
                   const company = app.case?.client?.client_profiles?.[0]?.company_name ?? app.case?.client?.client_profiles?.company_name;
-                  const comm    = calcComm(app.proposed_rate);
-                  const isPaid  = getCommStatus(app);
+                  const fee = feeOf(app);
+                  const st = fee?.payout_status;
                   return (
                     <tr key={app.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-3">
@@ -777,26 +728,16 @@ export function HeadhunterPlacements({ auth }) {
                         {app.proposed_rate ? `$${app.proposed_rate}/h` : "—"}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        {comm != null
-                          ? <span className={`font-bold ${isPaid ? "text-green-600" : "text-purple-600"}`}>${comm.toLocaleString()}</span>
+                        {fee
+                          ? <span className={`font-bold ${st === "paid" ? "text-green-600" : st === "cancelled" ? "text-gray-400 line-through" : "text-purple-600"}`}>${Number(fee.amount).toLocaleString()}</span>
                           : <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isPaid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
-                          {isPaid ? t("hh.status_paid") : t("hh.status_pending_badge")}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {comm != null && (
-                          <button onClick={() => toggleCommStatus(app, comm)}
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap transition-all ${
-                              isPaid
-                                ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                            }`}>
-                            {isPaid ? t("hh.mark_pending") : t("hh.mark_paid")}
-                          </button>
-                        )}
+                        {fee ? (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${st === "paid" ? "bg-green-100 text-green-700" : st === "cancelled" ? "bg-gray-100 text-gray-500" : "bg-amber-100 text-amber-700"}`}>
+                            {st === "paid" ? t("hh.status_paid") : st === "cancelled" ? (lang === "es" ? "Cancelada" : "Cancelled") : t("hh.status_pending_badge")}
+                          </span>
+                        ) : <span className="text-[10px] text-gray-400">{lang === "es" ? "Sin comisión" : "No fee"}</span>}
                       </td>
                     </tr>
                   );
@@ -807,123 +748,15 @@ export function HeadhunterPlacements({ auth }) {
         )
       )}
 
-      {/* Commissions tab */}
+      {/* Commissions tab — real placement fees; payouts are recorded by platform admins */}
       {tab === "commissions" && (
-        <div className="space-y-6">
-          {/* Commission settings */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center flex-shrink-0">
-                <Settings2 size={16} className="text-purple-500" />
-              </div>
-              <div>
-                <div className="font-bold text-gray-900">{t("hh.comm_settings")}</div>
-                <div className="text-xs text-gray-400">{t("hh.comm_settings_sub")}</div>
-              </div>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-8">
-              <div>
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">{t("hh.comm_rate_label")}</label>
-                <div className="flex items-center gap-4">
-                  <input type="range" min="1" max="50" step="0.5" value={commRate}
-                    onChange={e => saveCommRate(e.target.value)}
-                    className="flex-1 accent-purple-600" />
-                  <span className="text-xl font-black text-purple-600 w-14 text-right">{commRate}%</span>
-                </div>
-                <p className="text-xs text-gray-400 mt-1">{t("hh.comm_rate_hint")}</p>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">{t("hh.billable_hours_label")}</label>
-                <div className="flex items-center gap-4">
-                  <input type="range" min="40" max="720" step="40" value={commHours}
-                    onChange={e => saveCommHours(e.target.value)}
-                    className="flex-1 accent-purple-600" />
-                  <span className="text-xl font-black text-purple-600 w-16 text-right">{commHours}h</span>
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  {commHours === 40 ? t("hh.one_week") : commHours === 160 ? t("hh.one_month") : `≈ ${(commHours / 160).toFixed(1)} ${t("hh.months_suffix")}`}
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 p-3 bg-purple-50 rounded-xl border border-purple-100 text-xs text-purple-700">
-              <strong>{t("hh.formula_label")}</strong> {t("hh.proposed_rate")} × {commHours}h × {commRate}% &nbsp;·&nbsp;
-              {t("hh.example_label")} $80/h → <strong>${Math.round(80 * commHours * commRate / 100).toLocaleString()}</strong> {t("hh.commission_word")}
-            </div>
+        <div className="space-y-4">
+          <div className="p-3 bg-purple-50 rounded-xl border border-purple-100 text-xs text-purple-700">
+            {lang === "es"
+              ? "La comisión se genera cuando el cliente acepta a tu candidato: % de comisión × tarifa × horas del plan de actividades (o las horas por defecto de la plataforma). El cliente recibe la factura y un administrador registra tu pago."
+              : "A fee is created when the customer accepts your candidate: commission % × rate × activity-plan hours (or the platform default hours). The customer is invoiced and an administrator records your payout."}
           </div>
-
-          {/* Earnings breakdown table */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
-              <div className="font-bold text-gray-900 flex items-center gap-2">
-                <DollarSign size={16} className="text-purple-500" /> {t("hh.earnings_breakdown")}
-              </div>
-              <span className="text-xs text-gray-400">{t("hh.col_rate")} × {commHours}h × {commRate}%</span>
-            </div>
-            {placed.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 text-sm">
-                <DollarSign size={28} className="mx-auto mb-2 opacity-20" />
-                {t("hh.no_comm_placements")}
-              </div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="text-left px-5 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_candidate")}</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_case")}</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_rate")}</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_commission")}</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_status")}</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_paid_date")}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {placed.map(app => {
-                    const comm   = calcComm(app.proposed_rate);
-                    const isPaid = getCommStatus(app);
-                    const paidAt = app.headhunter_commission_paid_at;
-                    return (
-                      <tr key={app.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-5 py-3">
-                          <div className="flex items-center gap-2">
-                            <PersonAvatar name={app.consultant?.full_name ?? "?"} avatarUrl={app.consultant?.avatar_url} size={24} />
-                            <span className="font-medium text-gray-800 text-xs whitespace-nowrap">{app.consultant?.full_name ?? "—"}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-gray-500 text-xs max-w-[140px] truncate">{app.case?.title ?? "—"}</td>
-                        <td className="px-4 py-3 text-gray-600 font-medium text-right text-xs whitespace-nowrap">
-                          {app.proposed_rate ? `$${app.proposed_rate}/h` : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {comm != null
-                            ? <span className={`text-sm font-black ${isPaid ? "text-green-600" : "text-purple-600"}`}>${comm.toLocaleString()}</span>
-                            : <span className="text-gray-400 text-xs">—</span>}
-                        </td>
-                        <td className="px-4 py-3">
-                          <button onClick={() => toggleCommStatus(app, comm)}
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all cursor-pointer ${isPaid ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-amber-100 text-amber-700 hover:bg-amber-200"}`}>
-                            {isPaid ? t("hh.status_paid") : t("hh.status_pending_badge")}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-400">
-                          {isPaid && paidAt ? fmtDate(paidAt) : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-purple-50 border-t border-purple-100">
-                    <td colSpan={3} className="px-5 py-3 text-sm font-bold text-purple-700">{t("hh.total_label")}</td>
-                    <td className="px-4 py-3 text-right text-sm font-black text-purple-700">${totalComm.toLocaleString()}</td>
-                    <td className="px-4 py-3">
-                      <span className="text-[10px] font-bold text-green-700">${paidComm.toLocaleString()} {t("hh.paid_word")}</span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-purple-500">${pendingComm.toLocaleString()} {t("hh.pending_word")}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            )}
-          </div>
+          <HHCommissionsTable lang={lang} data={commData} />
         </div>
       )}
 

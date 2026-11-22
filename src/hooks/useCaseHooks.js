@@ -262,8 +262,8 @@ function useApplications(caseId = null) {
         const consultantName = app.consultant?.full_name ?? "A candidate";
         const caseTitle = app.case?.title ?? "a case";
         for (const hhId of (hhId0 ? [hhId0] : [])) {
-          notify(hhId, "Candidate placed", `${consultantName} was accepted on "${caseTitle}". A commission may be due.`, 'headhunter');
-          sendEmailToUser(hhId, `Candidate Placed — ${caseTitle}`, `${consultantName} was accepted on "${caseTitle}". A commission may be due.`, 'headhunter');
+          // The in-app notice with the fee amount comes from the database (hh_commission_on_accept).
+          sendEmailToUser(hhId, `Candidate Placed — ${caseTitle}`, `${consultantName} was accepted on "${caseTitle}". Your placement fee is in My Placements → Commissions.`, 'headhunter');
         }
       }
     } else if (status === "rejected") {
