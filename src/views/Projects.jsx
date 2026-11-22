@@ -37,6 +37,7 @@ import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 import { usePartnerContext } from "../hooks/usePartnerContext.js";
 import { COMMON_CURRENCIES } from "../lib/costs.js";
 import { ProjectServiceTab } from "../components/ProjectServiceTab.jsx";
+import { CustomerProposalsTab } from "../components/CustomerProposalsTab.jsx";
 import { ProjectProposalsTab } from "../components/ProjectProposalsTab.jsx";
 
 const DELIVERABLE_ICON_MAP = {
@@ -1712,6 +1713,13 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
     supabase.rpc("can_manage_proposals", { p_project: project.id }).then(({ data }) => { if (alive) setCanProposals(data === true); });
     return () => { alive = false; };
   }, [project.id, auth.user?.id]);
+  // The project's customer (customer company member / client user) sees the proposals sent to them.
+  const [isProjectCustomer, setIsProjectCustomer] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    supabase.rpc("is_project_customer", { p_project: project.id }).then(({ data }) => { if (alive) setIsProjectCustomer(data === true); });
+    return () => { alive = false; };
+  }, [project.id, auth.user?.id]);
   // Service contracts (from accepted plan / on-demand proposals) → Service tab
   const [contractCount, setContractCount] = useState(0);
   useEffect(() => {
@@ -2154,7 +2162,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "requirements", label: t("project.tab_requirements"),  icon: SlidersHorizontal, count: null },
     { id: "cases",        label: t("project.tab_cases"),         icon: FolderOpen,        count: projCases.length },
     { id: "documents",    label: t("project.tab_documents"),     icon: FileText,          count: null },
-    ...(canProposals ? [{ id: "proposals", label: t("project.tab_proposals"), icon: FileSignature, count: null }] : []),
+    ...((canProposals || isProjectCustomer) ? [{ id: "proposals", label: t("project.tab_proposals"), icon: FileSignature, count: null }] : []),
     ...((canProposals || contractCount > 0) ? [{ id: "service", label: lang === "es" ? "Servicio" : "Service", icon: Gauge, count: contractCount || null }] : []),
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
@@ -3281,6 +3289,9 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         {/* Proposals */}
         {tab.id === "service" && (canProposals || contractCount > 0) && (
           <ProjectServiceTab project={project} canManage={canProposals} />
+        )}
+        {tab.id === "proposals" && !canProposals && isProjectCustomer && (
+          <CustomerProposalsTab project={project} auth={auth} />
         )}
         {tab.id === "proposals" && canProposals && (
           <ProjectProposalsTab project={project} auth={auth} />

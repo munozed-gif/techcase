@@ -47,10 +47,11 @@ const BG = {
   display: "flex", flexDirection: "column",
 };
 
-export default function ProposalReviewView({ token }) {
+// embedded: shown inside the platform (project → Proposals tab for the customer) instead of a full page.
+export default function ProposalReviewView({ token, embedded = false, defaultName = "", onBack, onDecided }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(defaultName ?? "");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
@@ -77,13 +78,16 @@ export default function ProposalReviewView({ token }) {
     if (e) { setError(e.message); setBusy(null); return; }
     const acceptedOption = decision === "accepted" ? opts.find(o => o.months === chosen) ?? null : null;
     setData(d => ({ ...d, status: decision, decided_by_name: name.trim(), decision_note: note.trim() || null, decided_at: new Date().toISOString(), accepted_option: acceptedOption }));
+    onDecided?.(decision);
     setBusy(null);
   }
 
+  const PAGE = embedded ? { ...BG, minHeight: "auto", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(79,110,247,.25)" } : BG;
   const Header = (
-    <header style={{ borderBottom: "1px solid rgba(79,110,247,.2)", background: "rgba(11,15,26,.97)", position: "sticky", top: 0, zIndex: 20 }}
+    <header style={{ borderBottom: "1px solid rgba(79,110,247,.2)", background: "rgba(11,15,26,.97)", position: embedded ? "static" : "sticky", top: 0, zIndex: 20 }}
       className="px-4 py-3 flex items-center justify-between gap-4">
       <div className="flex items-center gap-2.5">
+        {embedded && onBack && <button onClick={onBack} className="text-gray-400 hover:text-white text-sm mr-1">←</button>}
         <NovaLandingMark size={30} />
         <span className="font-bold text-sm" style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", letterSpacing: "-.03em" }}>
           <span style={{ color: "#4F6EF7" }}>Arena</span> <span style={{ color: "rgba(255,255,255,.85)" }}>Solutions Platform</span>
@@ -98,10 +102,10 @@ export default function ProposalReviewView({ token }) {
     </header>
   );
 
-  if (loading) return <div style={BG} className="items-center justify-center"><Loader2 className="animate-spin text-blue-400" /></div>;
+  if (loading) return <div style={{ ...PAGE, minHeight: embedded ? 240 : BG.minHeight }} className="items-center justify-center"><Loader2 className="animate-spin text-blue-400" /></div>;
 
   const Message = ({ icon, color, title, msg, extra }) => (
-    <div style={BG}>{Header}
+    <div style={PAGE}>{Header}
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="text-center max-w-md">
           <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 ${color}`}>{icon}</div>
@@ -120,12 +124,12 @@ export default function ProposalReviewView({ token }) {
   const expired = data.valid_until && new Date(data.valid_until + "T23:59:59") < new Date();
 
   return (
-    <div style={BG}>
+    <div style={PAGE}>
       {Header}
       <div className="flex-1 w-full max-w-6xl mx-auto px-4 py-5 grid lg:grid-cols-[1fr_320px] gap-5">
         <div className="rounded-2xl overflow-hidden border border-white/10 bg-white min-h-[70vh]">
           {data.html
-            ? <iframe title="proposal" srcDoc={data.html} className="w-full h-[78vh] bg-white" sandbox="allow-same-origin allow-popups allow-modals" />
+            ? <iframe title="proposal" srcDoc={data.html} className={`w-full ${embedded ? "h-[70vh]" : "h-[78vh]"} bg-white`} sandbox="allow-same-origin allow-popups allow-modals" />
             : <p className="p-6 text-sm text-gray-500">—</p>}
         </div>
         <aside className="space-y-4">
