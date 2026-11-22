@@ -200,6 +200,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         const { count } = await supabase.from('applications')
           .select('id', { count: 'exact', head: true })
           .eq('consultant_id', consultantId)
+          .is('submitted_by_headhunter_id', null)   // applications proposed by a headhunter don't count
           .gte('created_at', startOfMonth.toISOString());
         if (count >= planLimits.maxApps) {
           setUpgradeModal({ roleType: 'consultant', planKey: 'professional', title: 'Application limit reached', message: `Your plan allows ${planLimits.maxApps} application${planLimits.maxApps === 1 ? '' : 's'} per month. Upgrade to apply to more cases.` });

@@ -172,7 +172,14 @@ function TeamMemberTable({ members, teamBreakdown, totalScore, liveAvailability,
 }
 
 function ApplicantRankingSection({ caseData, auth, applications, reviewApplication }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  // "Proposed by {headhunter}" (+ commission for admins/managers, the headhunter, and the customer on HH-managed cases)
+  const [hhMeta, setHhMeta] = useState({});
+  useEffect(() => {
+    if (!caseData?.id) return;
+    supabase.rpc("hh_application_meta", { p_case: caseData.id })
+      .then(({ data }) => setHhMeta(Object.fromEntries((Array.isArray(data) ? data : []).map(m => [m.application_id, m]))));
+  }, [caseData?.id, applications?.length]);
   const { ranking, loading, clientSettings } = useApplicantRanking(caseData, applications);
   const overcommitTolerance = clientSettings?.max_overcommitment_tolerance ?? 0;
   const [liveAvailability, setLiveAvailability] = useState({});
@@ -527,6 +534,12 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                     );
                   })}
                 </div>
+                {hhMeta[app.id] && (
+                  <p className="text-[11px] mb-2 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 bg-violet-50 text-violet-700 font-semibold">
+                    {lang === "es" ? "Propuesto por" : "Proposed by"} {hhMeta[app.id].headhunter_name ?? "headhunter"}
+                    {hhMeta[app.id].commission_pct != null && <span className="font-normal text-violet-500">· {lang === "es" ? "comisión" : "commission"} {hhMeta[app.id].commission_pct}%</span>}
+                  </p>
+                )}
                 {app.cover_letter && <p className="text-xs text-gray-500 mb-2 line-clamp-1 italic">"{app.cover_letter}"</p>}
                 {(auth.isAdmin || auth.isManager) && app.status === "pending" && (
                   <div className="flex gap-2">

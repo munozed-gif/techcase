@@ -25,6 +25,7 @@ import { useLeaderboard } from "../hooks/useNotificationHooks.js";
 import { useConsultantProfile } from "../hooks/useProfileHooks.js";
 import { ApplyWizard } from "./ApplyWizard.jsx";
 import { HHProposalWizard } from "../components/HHProposalWizard.jsx";
+import { SubmitCandidateModal } from "../components/HHSubmissions.jsx";
 import { PersonAvatar, ProjectAvatar, UserAvatar } from "./Projects.jsx";
 import { GalaxyExplorer } from "../components/GalaxyExplorer.jsx";
 
@@ -876,7 +877,7 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
 // ============================================================
 let _arenaCaseIdx = 0; // persists carousel position across ArenaView remounts
 function ArenaView({ auth, onNavigate }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { isDark } = useTheme();
   const visCfg = useVisibilitySettings();
   const { settings: arenaSettings } = useSystemSettings();
@@ -936,6 +937,8 @@ function ArenaView({ auth, onNavigate }) {
 
   // ── Headhunter: my managed candidates for smart matching ─────────────────
   const [hhCandidates, setHhCandidates] = useState([]);
+  const [hhSubmit, setHhSubmit] = useState(null);     // { candidate, caseData } → propose modal
+  const [hhSubmitMsg, setHhSubmitMsg] = useState(null);
   const [myProposalCaseIds, setMyProposalCaseIds] = useState(new Set());
   const [myProposals, setMyProposals] = useState({}); // { [case_id]: proposal_id }
   useEffect(() => {
@@ -1383,6 +1386,12 @@ function ArenaView({ auth, onNavigate }) {
                           <span style={{ flex:1, fontSize:10, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cd.full_name}</span>
                           <span style={{ fontSize:10, fontWeight:700, color:scoreColor }}>{cd._score}%</span>
                           {applied && <span style={{ fontSize:8, background:'rgba(5,150,105,0.1)', color:'#059669', borderRadius:4, padding:'1px 5px', fontWeight:600 }}>Applied</span>}
+                          {!applied && (!c.is_head_hunter || c.head_hunter_id === auth.user?.id) && (
+                            <button onClick={() => setHhSubmit({ candidate: cd, caseData: c })}
+                              style={{ fontSize:9, fontWeight:700, color:'#fff', background:'#7C3AED', border:'none', borderRadius:6, padding:'2px 7px', cursor:'pointer' }}>
+                              {lang === 'es' ? 'Proponer' : 'Propose'}
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -1950,6 +1959,15 @@ function ArenaView({ auth, onNavigate }) {
 
   return (
     <div>
+      {hhSubmit && (
+        <SubmitCandidateModal lang={lang} userId={auth.user?.id} candidate={hhSubmit.candidate} caseData={hhSubmit.caseData}
+          onClose={() => setHhSubmit(null)} onDone={m => setHhSubmitMsg(m)} />
+      )}
+      {hhSubmitMsg && (
+        <div className="mb-3 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+          <span>✓ {hhSubmitMsg}</span><button onClick={() => setHhSubmitMsg(null)} className="text-emerald-600"><X size={14} /></button>
+        </div>
+      )}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">{t("arena.title")}</h1>

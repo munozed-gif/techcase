@@ -1287,6 +1287,7 @@ function PlanUsageCard({ auth }) {
         const { count: monthlyApps } = await supabase.from('applications')
           .select('id', { count: 'exact', head: true })
           .eq('consultant_id', ownId)
+          .is('submitted_by_headhunter_id', null)
           .gte('created_at', startOfMonth);
         const { count: totalApps } = await supabase.from('applications')
           .select('id', { count: 'exact', head: true })

@@ -14,6 +14,7 @@ import { APP_STATUS_COLORS, PLAN_BADGE, ROLE_TO_PLAN_TYPE } from "../lib/busines
 import { fmtDate, cap } from "../lib/uiUtils.jsx";
 import { usePlanConfig } from "../hooks/useSystemSettings.jsx";
 import { InviteCandidateModal, HHInvitationsList, ReferralLinkCard } from "../components/HHInvites.jsx";
+import { SubmitCandidateModal, MySubmissionsList, DefaultCommissionField } from "../components/HHSubmissions.jsx";
 
 // ─── Shared data hook ────────────────────────────────────────────────────────
 function useHeadhunterData(userId) {
@@ -39,10 +40,11 @@ function useHeadhunterData(userId) {
       if (candidateIds.length > 0) {
         const { data: apps, error: appsErr } = await supabase
           .from("applications")
-          .select(`id, consultant_id, case_id, status, submitted_at, proposed_rate, cover_letter,
+          .select(`id, consultant_id, case_id, status, submitted_at, proposed_rate, cover_letter, submitted_by_headhunter_id, headhunter_commission_pct,
             case:case_id(id, title, status, client:client_id(id, avatar_url, client_profiles(company_name))),
             consultant:consultant_id(id, full_name, avatar_url)`)
           .in("consultant_id", candidateIds)
+          .eq("submitted_by_headhunter_id", userId)   // only applications this headhunter proposed (placement credit)
           .order("submitted_at", { ascending: false });
         if (appsErr) console.error("HH applications query error:", appsErr.message, appsErr.details);
         // consultant names come from the candidates list (user records are private)
@@ -319,6 +321,8 @@ export function HeadhunterCandidates({ auth }) {
   const es = lang === "es";
   const { candidates, applications, loading, refetch } = useHeadhunterData(auth.user?.id);
   const [inviting, setInviting]   = useState(false);
+  const [proposing, setProposing] = useState(null);   // candidate → propose for a case
+  const [subNonce, setSubNonce]   = useState(0);
   const [inviteMsg, setInviteMsg] = useState(null);
   const [invNonce, setInvNonce]   = useState(0);
   const [search, setSearch]       = useState("");
@@ -385,10 +389,13 @@ export function HeadhunterCandidates({ auth }) {
       </div>
       {inviteMsg && <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">✓ {inviteMsg}</div>}
       {inviting && <InviteCandidateModal lang={lang} onClose={() => setInviting(false)} onSent={m => { setInviteMsg(m); setInvNonce(n => n + 1); }} />}
+      {proposing && <SubmitCandidateModal lang={lang} userId={auth.user?.id} candidate={proposing} onClose={() => setProposing(null)} onDone={m => { setInviteMsg(m); setSubNonce(n => n + 1); }} />}
+      <div className="flex justify-end"><DefaultCommissionField lang={lang} userId={auth.user?.id} /></div>
       <div className="grid lg:grid-cols-2 gap-4">
         <ReferralLinkCard lang={lang} />
         <HHInvitationsList userId={auth.user?.id} lang={lang} nonce={invNonce} />
       </div>
+      <MySubmissionsList lang={lang} nonce={subNonce} />
 
       {loading ? (
         <div className="flex justify-center py-16"><Spinner /></div>
@@ -480,6 +487,10 @@ export function HeadhunterCandidates({ auth }) {
                     <button onClick={() => setProfile(c.id)}
                       className="flex-1 text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center justify-center gap-1 py-1">
                       <User size={12} /> {t("hh.view_profile")}
+                    </button>
+                    <button onClick={() => setProposing(c)}
+                      className="flex-1 text-xs font-semibold text-violet-600 hover:text-violet-700 flex items-center justify-center gap-1 py-1">
+                      <Target size={12} /> {es ? "Proponer" : "Propose"}
                     </button>
                     {apps.length > 0 && (
                       <span className="text-[10px] text-gray-400 flex items-center gap-1">
