@@ -1,5 +1,5 @@
 // ============================================================
-// TECHCASE v9 — Invoices, Kanban, Documents & Time Tracking
+// ARENA v9 — Invoices, Kanban, Documents & Time Tracking
 // ============================================================
 // New in v9 (over v8):
 //   - Invoice & Billing Management
@@ -89,7 +89,7 @@ import {
   ROLE_COLORS, DEFAULT_PLAN_CONFIG, PLAN_BADGE, ROLE_TO_PLAN_TYPE,
   PROJECT_TYPES, SAP_AREAS, INDUSTRY_AREAS, STATUS_COLORS,
   CASE_CARD_COLORS, PRIORITY_COLORS, STATUS_CARD_ICONS,
-  DEFAULT_ACTIVITY_PHASES, TECHCASE_LOGO_URI, APP_STATUS_COLORS,
+  DEFAULT_ACTIVITY_PHASES, ARENA_LOGO_URI, APP_STATUS_COLORS,
   LIFECYCLE_PRESETS, getLifecycleStages, DEFAULT_PLAN_PRICES,
 } from "./src/lib/businessConstants.js";
 
@@ -656,7 +656,7 @@ function SetNewPasswordScreen({ onDone }) {
             {/* Tab row — matches AuthScreen tabs, display-only */}
             <div style={{ display:"flex", borderRadius:12, padding:4, background:"#0d1424", marginBottom:24 }}>
               <span style={{ flex:1, textAlign:"center", padding:"8px 0", borderRadius:8, background:"#1a2642", color:"#f1f5f9", fontWeight:600, fontSize:14, fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
-                Sign in to TechCase
+                Sign in to Arena
               </span>
               <span style={{ flex:1, textAlign:"center", padding:"8px 0", color:"#475569", fontSize:14 }}>
                 Create Account

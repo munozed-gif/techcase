@@ -883,7 +883,7 @@ async function registerTunnelUrl() {
   if (process.env.REGISTER_TUNNEL_FROM_LOGS !== '1') return;
 
   // Mode 2: cloudflared log file written by start-local.sh
-  const CF_LOG = process.env.CLOUDFLARED_LOG ?? '/tmp/cloudflared-techcase.log';
+  const CF_LOG = process.env.CLOUDFLARED_LOG ?? '/tmp/cloudflared-arena.log';
 
   await new Promise(r => setTimeout(r, 10000));
   for (let i = 0; i < 15; i++) {

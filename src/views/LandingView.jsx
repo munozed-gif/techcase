@@ -1415,7 +1415,7 @@ function DemoCarousel({ tl }) {
           <div className="dc-mockup">
             <div className="dc-chrome">
               <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
-              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/dashboard</span></div>
+              <div className="dc-urlbar"><span className="dc-urlstr">arenasolutionsplatform.com/dashboard</span></div>
             </div>
             <div className="dc-body">
               <div className="dc-stat-grid">
@@ -1448,7 +1448,7 @@ function DemoCarousel({ tl }) {
           <div className="dc-mockup">
             <div className="dc-chrome">
               <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
-              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/migration/s4hana-q4</span></div>
+              <div className="dc-urlbar"><span className="dc-urlstr">arenasolutionsplatform.com/migration/s4hana-q4</span></div>
             </div>
             <div className="dc-body">
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
@@ -1491,7 +1491,7 @@ function DemoCarousel({ tl }) {
           <div className="dc-mockup">
             <div className="dc-chrome">
               <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
-              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/cases/fico-q4</span></div>
+              <div className="dc-urlbar"><span className="dc-urlstr">arenasolutionsplatform.com/cases/fico-q4</span></div>
             </div>
             <div className="dc-body">
               <div className="dc-lc-track">
@@ -1543,7 +1543,7 @@ function DemoCarousel({ tl }) {
           <div className="dc-mockup">
             <div className="dc-chrome">
               <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
-              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/arena</span></div>
+              <div className="dc-urlbar"><span className="dc-urlstr">arenasolutionsplatform.com/arena</span></div>
             </div>
             <div className="dc-body">
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>

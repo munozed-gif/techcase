@@ -496,7 +496,7 @@ function ReportsView() {
               const csv = rows.map(r => r.join(",")).join("\n");
               const a = document.createElement("a");
               a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-              a.download = `techcase-report-${new Date().toISOString().slice(0,10)}.csv`;
+              a.download = `arena-report-${new Date().toISOString().slice(0,10)}.csv`;
               a.click();
             }}
             className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 px-3 py-1.5 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium">

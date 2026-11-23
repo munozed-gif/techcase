@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["arena-logo.svg", "apple-touch-icon.png", "favicon-32x32.png"],
       manifest: {
-        name: process.env.VITE_PLATFORM_NAME || "TechCase",
-        short_name: process.env.VITE_PLATFORM_SHORT_NAME || "TechCase",
+        name: process.env.VITE_PLATFORM_NAME || "Arena Solutions Platform",
+        short_name: process.env.VITE_PLATFORM_SHORT_NAME || "Arena",
         description: "SAP consulting cases, leaderboard and talent management",
         theme_color: "#1A4B8C",
         background_color: "#0C1522",

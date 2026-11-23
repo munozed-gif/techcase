@@ -6,7 +6,7 @@
 # tunnel URL to Supabase vm_tunnel_registry so the platform can find it.
 #
 # Also polls Supabase for remote restart commands sent from the
-# "Restart VM" button in the TechCase platform UI.
+# "Restart VM" button in the Arena platform UI.
 #
 # Requirements:
 #   - cloudflared   (sudo snap install cloudflared)

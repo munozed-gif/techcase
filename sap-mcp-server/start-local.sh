@@ -15,7 +15,7 @@
 set -e
 
 PORT=${PORT:-3100}
-CF_LOG="/tmp/cloudflared-techcase.log"
+CF_LOG="/tmp/cloudflared-arena.log"
 
 # Install npm deps if needed
 if [ ! -d node_modules ]; then

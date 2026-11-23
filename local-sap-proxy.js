@@ -6,7 +6,7 @@
 // Usage:
 //   node local-sap-proxy.js
 //
-// Then in TechCase → SAP System settings → VPN Proxy URL, enter:
+// Then in Arena → SAP System settings → VPN Proxy URL, enter:
 //   http://localhost:3001
 
 import https from "node:https";
@@ -105,5 +105,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, "127.0.0.1", () => {
   console.log(`SAP proxy listening on http://localhost:${PORT}`);
-  console.log(`Set VPN Proxy URL in TechCase settings to: http://localhost:${PORT}`);
+  console.log(`Set VPN Proxy URL in Arena settings to: http://localhost:${PORT}`);
 });

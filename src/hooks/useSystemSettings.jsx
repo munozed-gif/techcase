@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, createContext } from "react";
 import { supabase } from "../lib/supabase.js";
 import { ROLE_PERMISSIONS_DEFAULTS, WIZARD_MODE_DEFAULTS } from "../lib/constants.js";
-import { DEFAULT_PLAN_CONFIG, DEFAULT_PLAN_PRICES, TECHCASE_LOGO_URI } from "../lib/businessConstants.js";
+import { DEFAULT_PLAN_CONFIG, DEFAULT_PLAN_PRICES, ARENA_LOGO_URI } from "../lib/businessConstants.js";
 
 // ============================================================
 // SYSTEM SETTINGS (context-based — single Supabase query app-wide)
@@ -15,7 +15,7 @@ function usePlatformBranding() {
   return {
     platformName: settings['platform_name'] || cached['platform_name'] || 'Arena Solutions Platform',
     tagline:      settings['platform_tagline'] || cached['platform_tagline'] || 'Consultant Case Management',
-    logoUrl:      settings['brand_logo_url']  || cached['brand_logo_url']  || TECHCASE_LOGO_URI,
+    logoUrl:      settings['brand_logo_url']  || cached['brand_logo_url']  || ARENA_LOGO_URI,
     loading,
   };
 }
