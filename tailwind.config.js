@@ -8,7 +8,7 @@ export default {
     "./index.html",
     "./src/**/*.{js,jsx}",
     "./techcase-v8.jsx",
-    "./techcase-v9.jsx",
+    "./arena-v1.jsx",
   ],
   theme: {
     extend: {},
