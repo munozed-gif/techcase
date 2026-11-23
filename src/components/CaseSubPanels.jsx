@@ -3,7 +3,7 @@ import DOMPurify from "dompurify";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
   Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Laptop, Link2, ListChecks, Paperclip, Pause, Play,
-  RotateCcw, Search, SlidersHorizontal, Sparkles, Star, Target, User,
+  RefreshCw, RotateCcw, Search, SlidersHorizontal, Sparkles, Star, Target, User,
   UserCheck, Users, Wand2, X, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -4039,6 +4039,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     setStepLoading(true);
     setAiError(null);
     setSapCheck(null);
+    setProposalCheck(null);   // built on the previous coverage result — run it again after this
     try {
       const docBlocks = await buildAllDocBlocks();
       const customerCtx = analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : '';
@@ -4082,7 +4083,7 @@ Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words
       }
       setSapCheck(parsed);
       setActiveNode(1); // show SAP result
-      try { await saveAiNotesPatch({ sapCheck: parsed }); } catch (_) {}
+      try { await saveAiNotesPatch({ sapCheck: parsed, proposalCheck: null }); } catch (_) {}
     } catch (e) { setAiError(e.message); }
     setStepLoading(false);
   }
@@ -5770,7 +5771,10 @@ ${result}`;
                     fullResult = result + `\n\n## ${sapHeading}\n⚠ ${lang === 'es' ? 'Verificación en vivo no realizada' : 'Live check not run'}: ${sapSkipReason}. ${lang === 'es' ? 'Revise "Conexión SAP en Vivo" y vuelva a analizar.' : 'Check "Live SAP Connection" and analyze again.'}`;
                   }
                   setRequestSummary(fullResult);
-                  try { await saveAiNotesPatch({ requestSummary: fullResult }); } catch (_) {}
+                  // The coverage check and the proposal validation were built on the previous summary:
+                  // clear them so they are run again (in order) before generating.
+                  setSapCheck(null); setProposalCheck(null);
+                  try { await saveAiNotesPatch({ requestSummary: fullResult, sapCheck: null, proposalCheck: null }); } catch (_) {}
                 } catch (e) {
                   setRequestSummaryError(e.message);
                 } finally {
@@ -6049,6 +6053,14 @@ ${result}`;
                   </div>
                 )}
 
+                {sapCheck && !stepLoading && !specApproved && (
+                  <div className="flex justify-end">
+                    <button onClick={handleSapCheck}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+                      <RefreshCw size={12} />{L('Run again', 'Volver a ejecutar')}
+                    </button>
+                  </div>
+                )}
                 {sapCheck && !stepLoading && (
                   <div className={`border rounded-xl p-4 space-y-3 ${cc[0]} ${cc[1]}`}>
                     <div className="flex items-center justify-between">
@@ -6124,6 +6136,14 @@ ${result}`;
                 {stepLoading && aiStep === 2 && (
                   <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
                     <Spinner /><span className="text-sm">{t("spec.validating")}</span>
+                  </div>
+                )}
+                {proposalCheck && !stepLoading && !specApproved && sapCheck && (
+                  <div className="flex justify-end">
+                    <button onClick={handleProposalValidation}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+                      <RefreshCw size={12} />{L('Run again', 'Volver a ejecutar')}
+                    </button>
                   </div>
                 )}
                 {proposalCheck && !stepLoading && (
