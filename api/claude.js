@@ -216,6 +216,24 @@ export default async function handler(req, res) {
       data = fallback.data;
     }
 
+    // Long tool use (live SAP checks over MCP) can pause the answer: stop_reason "pause_turn".
+    // Send the partial answer back so the model continues, a few times at most, and return the
+    // whole answer (all content blocks, usage added up).
+    if (response.ok && data?.stop_reason === "pause_turn") {
+      let msgs = [...(body.messages ?? [])];
+      let allContent = [...(data.content ?? [])];
+      const usageSum = { ...(data.usage ?? {}) };
+      for (let round = 0; round < 4 && data?.stop_reason === "pause_turn"; round++) {
+        msgs = [...msgs, { role: "assistant", content: data.content }];
+        const next = await callAnthropicApi({ ...body, messages: msgs });
+        if (!next.response.ok) break;
+        response = next.response; data = next.data;
+        allContent = [...allContent, ...(data.content ?? [])];
+        for (const [k, v] of Object.entries(data.usage ?? {})) if (typeof v === "number") usageSum[k] = (usageSum[k] ?? 0) + v;
+      }
+      data = { ...data, content: allContent, usage: usageSum };
+    }
+
     // Still no answer text because thinking used the whole limit: retry once with thinking off
     // (accepted on Haiku 5.5 at the default effort).
     const hasText = (d) => Array.isArray(d?.content) && d.content.some(b => b.type === "text" && b.text);

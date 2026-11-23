@@ -205,8 +205,14 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
 
   if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error'); }
   const data = await res.json();
-  // Sonnet 5+ may return a thinking block before the text block — find by type
-  const text = data?.content?.find(b => b.type === 'text')?.text;
+  // The answer can hold thinking, text and tool blocks. With live SAP tools (MCP) it reads
+  // "intro text → tool calls → tool results → final text": the answer is the text written after
+  // the last tool step, not the first text block (that was only the intro).
+  const blocks = Array.isArray(data?.content) ? data.content : [];
+  let lastTool = -1;
+  blocks.forEach((b, i) => { if (/tool_(use|result)$/.test(b?.type ?? '')) lastTool = i; });
+  const textAfter = blocks.slice(lastTool + 1).filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n\n').trim();
+  const text = textAfter || blocks.filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n\n').trim();
   if (text) return text;
   // If the model ran out of tokens before generating any text (e.g. thinking consumed all tokens),
   // provide a clear error rather than raw API debug info

@@ -1121,6 +1121,14 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   }
   // Spanish / English for the approval panel's texts.
   const L = (en, es) => (lang === 'es' ? es : en);
+  // A spec has sections; a short answer without headings is an interrupted reply (e.g. only
+  // "I'll check the SAP system first"), never something to save as the specification.
+  const checkSpecText = text => {
+    if (!text || (text.length < 1500 && !/^#{1,3}\s|\n#{1,3}\s/.test(text))) {
+      throw new Error(L('The AI answer was incomplete (no specification returned). Generate this spec again.', 'La respuesta de la IA llegó incompleta (sin especificación). Vuelva a generar esta especificación.'));
+    }
+    return text;
+  };
 
   // Approval workflow sub-steps (Node 4)
   const [approvalStep, setApprovalStep]     = useState('generated'); // 'generated'|'checking'|'sending'|'approved'
@@ -3640,7 +3648,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
 
       const runSpec = async (key, promiseFn) => {
         try {
-          const result = await promiseFn();
+          const result = checkSpecText(await promiseFn());
           setSpecStatus(key, 'done');
           return result;
         } catch (e) {
@@ -3800,6 +3808,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           ? buildSpecDFromCPrompt(aiSpecC, customerContent, activeProfile ?? {}, contextStr, isModCase)
           : buildSpecDPrompt(customerContent, activeProfile ?? {}, contextStr, isModCase)
       );
+      checkSpecText(specD);
       setAiSpecD(specD);
       setSelectedSpec('d');
       setAiContent(specD);
@@ -3887,7 +3896,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     const setSpecStatus = (key, status) => setSpecStatuses(p => ({ ...p, [key]: status }));
     const setSpecError  = (key, msg)    => setSpecErrors(p => ({ ...p, [key]: msg }));
 
-    const specMap = {
+    const specMapRaw = {
       a: () => callSpec(buildSpecPrompt(true,  profile, profile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr)),
       b: () => callSpec(buildSpecPrompt(false, profile, contextStr)),
       c: () => callSpec(buildSpecCPrompt(customerContent, profile, profile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr)),
@@ -3895,6 +3904,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         ? buildSpecDFromCPrompt(aiSpecC, customerContent, profile, contextStr)
         : buildSpecDPrompt(customerContent, profile, contextStr)),
     };
+    const specMap = Object.fromEntries(Object.entries(specMapRaw).map(([k, fn]) => [k, async () => checkSpecText(await fn())]));
     const setters = { a: setAiSpecA, b: setAiSpecB, c: setAiSpecC, d: setAiSpecD };
     // Track newly generated values locally so we can persist them after state updates
     const newSpecs = { a: aiSpecA, b: aiSpecB, c: aiSpecC, d: aiSpecD };
