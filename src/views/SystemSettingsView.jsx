@@ -42,6 +42,7 @@ import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
 import { HHCommissionsTable } from "../components/HHCommissions.jsx";
 import { SettingsSalesTab } from "../components/SalesAdmin.jsx";
 import { SlaSettingsPanel } from "../components/SlaPanels.jsx";
+import { CardCarousel } from "../components/CardCarousel.jsx";
 
 // Case cost settings (lib/costs.js): VM, Arena fees, payment fees, contingency, taxes,
 // default consultant rates, exchange rates and AI prices. Platform currency: USD.
@@ -1837,7 +1838,7 @@ function InfraCheckSettingsCard({ ssCtx }) {
   const typeCfg = cfg[activeType];
 
   return (
-    <div className="mt-6 pt-5 border-t border-gray-100">
+    <div>
       <div className="flex items-center justify-between mb-3">
         <div>
           <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
@@ -2091,7 +2092,7 @@ function SettingsGenerationTab({ ssCtx }) {
   const SAVE_SLIDES = ["ai", "summary", "context", "profiles"];   // saved by the button below
   const slides = [
     { id: "ai",       label: t("sys.ai_config_title"), Icon: Sparkles, content: (<div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Sparkles size={16} className="text-purple-600" /> {t("sys.ai_config_title")}
         </h3>
@@ -2125,7 +2126,7 @@ function SettingsGenerationTab({ ssCtx }) {
 
     </div>) },
     { id: "infra",    label: "Infrastructure check", Icon: Activity, content: (<div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-gray-200 p-5"><InfraCheckSettingsCard ssCtx={ssCtx} /></div>
+      <div className=""><InfraCheckSettingsCard ssCtx={ssCtx} /></div>
     </div>) },
     { id: "estimation", label: "Estimation", Icon: BarChart2, content: <EstimationFactorsCard ssCtx={ssCtx} /> },
     { id: "costs",    label: "Costs", Icon: DollarSign, content: <CostConfigCard ssCtx={ssCtx} /> },
@@ -2138,7 +2139,7 @@ function SettingsGenerationTab({ ssCtx }) {
     </div>) },
     { id: "summary",  label: "Request summary", Icon: ListChecks, content: (<div className="space-y-6">
       {/* Request Summary Sections */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="">
         <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
           <ListChecks size={16} className="text-purple-600" /> Request Summary Sections
         </h3>
@@ -2203,7 +2204,7 @@ function SettingsGenerationTab({ ssCtx }) {
     </div>) },
     { id: "context",  label: t("gen.context_title"), Icon: Database, content: (<div className="space-y-6">
       {/* Generation Context */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="">
         <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
           <Database size={16} className="text-indigo-600" /> {t("gen.context_title")}
         </h3>
@@ -2298,7 +2299,7 @@ function SettingsGenerationTab({ ssCtx }) {
 
     </div>) },
     { id: "profiles", label: t("gen.tab_title"), Icon: Zap, content: (<div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="">
         <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
           <Zap size={16} className="text-blue-600" /> {t("gen.tab_title")}
         </h3>
@@ -2441,8 +2442,8 @@ function SettingsGenerationTab({ ssCtx }) {
   ];
 
   return (
-    <div className="space-y-4 max-w-3xl">
-      <SectionCarousel slides={slides} storageKey="settings_gen_slide"
+    <div>
+      <CardCarousel slides={slides} storageKey="settings_gen_slide"
         footer={id => SAVE_SLIDES.includes(id) && (
           <div className="space-y-3 mt-4">
       {toast && (
@@ -2460,71 +2461,6 @@ function SettingsGenerationTab({ ssCtx }) {
 
           </div>
         )} />
-    </div>
-  );
-}
-
-// Horizontal carousel of settings sections: scrollable tab strip, arrows, swipe, sliding panels.
-function SectionCarousel({ slides, storageKey, footer }) {
-  const [idx, setIdx] = useState(() => {
-    try { const k = localStorage.getItem(storageKey); const i = slides.findIndex(s => s.id === k); return i >= 0 ? i : 0; } catch { return 0; }
-  });
-  const [height, setHeight] = useState(null);
-  const panelRefs = useRef([]);
-  const tabRefs = useRef([]);
-  const touch = useRef(null);
-  const go = i => {
-    const n = Math.max(0, Math.min(slides.length - 1, i));
-    setIdx(n);
-    try { localStorage.setItem(storageKey, slides[n].id); } catch {}
-  };
-  // Keep the viewport as tall as the active panel (panels have different heights).
-  useEffect(() => {
-    const el = panelRefs.current[idx];
-    if (!el) return;
-    const update = () => setHeight(el.offsetHeight);
-    update();
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
-    ro?.observe(el);
-    tabRefs.current[idx]?.scrollIntoView?.({ behavior: "smooth", inline: "center", block: "nearest" });
-    return () => ro?.disconnect();
-  }, [idx]);
-
-  const arrow = "w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-500 hover:text-gray-800 hover:bg-gray-50 flex items-center justify-center flex-shrink-0 disabled:opacity-30";
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-4">
-        <button className={arrow} onClick={() => go(idx - 1)} disabled={idx === 0} aria-label="Previous"><ChevronLeft size={16} /></button>
-        <div className="flex-1 overflow-x-auto no-scrollbar" style={{ scrollbarWidth: "none" }}>
-          <div className="flex gap-1.5 w-max">
-            {slides.map((s, i) => (
-              <button key={s.id} ref={el => (tabRefs.current[i] = el)} onClick={() => go(i)}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap border transition-colors ${
-                  i === idx ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:text-gray-800"}`}>
-                <s.Icon size={14} />{s.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <button className={arrow} onClick={() => go(idx + 1)} disabled={idx === slides.length - 1} aria-label="Next"><ChevronRight size={16} /></button>
-      </div>
-      <div className="flex justify-center gap-1.5 mb-3">
-        {slides.map((s, i) => <button key={s.id} onClick={() => go(i)} aria-label={s.label}
-          className={`h-1.5 rounded-full transition-all ${i === idx ? "w-6 bg-blue-600" : "w-1.5 bg-gray-300"}`} />)}
-      </div>
-      <div className="overflow-hidden transition-[height] duration-300" style={{ height: height ?? "auto" }}
-        onTouchStart={e => { touch.current = e.touches[0].clientX; }}
-        onTouchEnd={e => { if (touch.current == null) return; const dx = e.changedTouches[0].clientX - touch.current; touch.current = null; if (Math.abs(dx) > 60) go(idx + (dx < 0 ? 1 : -1)); }}>
-        <div className="flex items-start transition-transform duration-300 ease-out" style={{ transform: `translateX(-${idx * 100}%)` }}>
-          {slides.map((s, i) => (
-            <div key={s.id} ref={el => (panelRefs.current[i] = el)} className="w-full flex-shrink-0 px-0.5" aria-hidden={i !== idx}
-              style={i === idx ? undefined : { visibility: "hidden" }}>
-              {s.content}
-              {footer?.(s.id)}
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -5675,39 +5611,17 @@ function ValidationsSettingsPanel({ auth }) {
 
 function SettingsWorkflowTab({ auth, ssCtx }) {
   const { lang } = useT();
-  const [wTab, setWTab] = useState("lifecycle");
-  const WTABS = [
-    { id: "lifecycle",  label: "Lifecycle Templates",   Icon: TrendingUp },
-    { id: "spec_gen",   label: "Spec Gen Templates",    Icon: Sparkles },
-    { id: "defaults",   label: "Defaults",              Icon: Settings },
-    { id: "gates",     label: "Transition Gates",    Icon: Lock },
-    { id: "validations", label: "Validations",        Icon: Shield },
-    { id: "phases",    label: "Activity Phases",     Icon: ListChecks },
-    { id: "sla",       label: "SLA",                 Icon: Shield },
-    { id: "migration", label: "Migration",            Icon: Rocket },
+  const slides = [
+    { id: "lifecycle",   label: "Lifecycle Templates", Icon: TrendingUp, content: <LifecycleSettingsView auth={auth} /> },
+    { id: "spec_gen",    label: "Spec Gen Templates",  Icon: Sparkles,   content: <SettingsSpecGenTemplatesTab ssCtx={ssCtx} auth={auth} /> },
+    { id: "defaults",    label: "Defaults",            Icon: Settings,   content: <SettingsDefaultLifecycleTab ssCtx={ssCtx} /> },
+    { id: "gates",       label: "Transition Gates",    Icon: Lock,       content: <TransitionGatesPanel auth={auth} /> },
+    { id: "validations", label: "Validations",         Icon: Shield,     content: <ValidationsSettingsPanel auth={auth} /> },
+    { id: "phases",      label: "Activity Phases",     Icon: ListChecks, content: <SettingsPhasesTab ssCtx={ssCtx} /> },
+    { id: "sla",         label: "SLA",                 Icon: Shield,     content: <SlaSettingsPanel ssCtx={ssCtx} lang={lang} /> },
+    { id: "migration",   label: "Migration",           Icon: Rocket,     content: <SettingsMigrationTab ssCtx={ssCtx} /> },
   ];
-  return (
-    <div>
-      <div className="flex gap-1 mb-5 border-b border-gray-100">
-        {WTABS.map(tb => (
-          <button key={tb.id} onClick={() => setWTab(tb.id)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-              wTab === tb.id ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}>
-            <tb.Icon size={14} />{tb.label}
-          </button>
-        ))}
-      </div>
-      {wTab === "lifecycle"  && <LifecycleSettingsView auth={auth} />}
-      {wTab === "spec_gen"   && <SettingsSpecGenTemplatesTab ssCtx={ssCtx} auth={auth} />}
-      {wTab === "defaults"   && <SettingsDefaultLifecycleTab ssCtx={ssCtx} />}
-      {wTab === "gates"      && <TransitionGatesPanel auth={auth} />}
-      {wTab === "validations" && <ValidationsSettingsPanel auth={auth} />}
-      {wTab === "phases"     && <SettingsPhasesTab ssCtx={ssCtx} />}
-      {wTab === "sla"        && <SlaSettingsPanel ssCtx={ssCtx} lang={lang} />}
-      {wTab === "migration"  && <SettingsMigrationTab ssCtx={ssCtx} />}
-    </div>
-  );
+  return <CardCarousel slides={slides} storageKey="settings_workflow_slide" height={760} />;
 }
 
 // ── Sign-up Flow settings — per-role ─────────────────────────
