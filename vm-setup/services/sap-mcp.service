@@ -1,5 +1,5 @@
 [Unit]
-Description=TechCase SAP MCP Server
+Description=Arena SAP MCP Server
 After=openfortivpn.service network-online.target
 Wants=network-online.target
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# TechCase SAP MCP Server — local laptop startup script
+# Arena SAP MCP Server — local laptop startup script
 # Starts cloudflared quick tunnel, captures the URL, then starts the MCP server.
 # The MCP server auto-registers the tunnel URL to Supabase so the platform finds it.
 #

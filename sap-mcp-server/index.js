@@ -1,12 +1,12 @@
 /**
- * TechCase SAP MCP Server
+ * Arena SAP MCP Server
  *
  * Exposes SAP ADT REST API operations as MCP tools so Claude can
  * read and write ABAP objects directly during code generation.
  *
  * Auth: each request carries a Bearer token that is base64-encoded JSON
  * of the SAP environment config: { host, username, password, client, type, proxyUrl? }
- * The TechCase platform generates this token from system_settings.sap_integration
+ * The Arena platform generates this token from system_settings.sap_integration
  * before calling the Anthropic API with mcp_servers config.
  *
  * Deploy: any Node 18+ host reachable by the Anthropic API (public URL required).
@@ -94,7 +94,7 @@ function objectPath(objectType, objectName) {
 
 function buildMcpServer(creds) {
   const server = new McpServer({
-    name: 'techcase-sap',
+    name: 'arena-sap',
     version: '1.8.0',
   });
 
@@ -584,7 +584,7 @@ const httpServer = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS' && req.url === '/health') { res.writeHead(204, CORS_HEADERS); res.end(); return; }
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.8.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', diagnostics: '/diagnostics', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'arena-sap-mcp', version: '1.8.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', diagnostics: '/diagnostics', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
     return;
   }
 
@@ -963,10 +963,10 @@ async function pollCommandQueue() {
 }
 
 httpServer.listen(PORT, () => {
-  console.log(`TechCase SAP MCP Server running on port ${PORT}`);
+  console.log(`Arena SAP MCP Server running on port ${PORT}`);
   console.log(`  MCP endpoint : http://localhost:${PORT}/mcp`);
   console.log(`  SAP info     : http://localhost:${PORT}/sap-info  (POST {host,username,password,client})`);
-  console.log(`  SAP proxy    : http://localhost:${PORT}/sap-proxy  (enter this as Proxy URL in TechCase)`);
+  console.log(`  SAP proxy    : http://localhost:${PORT}/sap-proxy  (enter this as Proxy URL in Arena)`);
   console.log(`  Health check : http://localhost:${PORT}/health`);
   console.log(`  Status       : http://localhost:${PORT}/status`);
   console.log(`  Restart      : http://localhost:${PORT}/restart  (POST)`);

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TechCase SAP VM Setup — Ubuntu 22.04 LTS
+# Arena SAP VM Setup — Ubuntu 22.04 LTS
 # Run as root once after EC2 launch:  sudo bash setup.sh
 set -euo pipefail
 

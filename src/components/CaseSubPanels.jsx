@@ -994,7 +994,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       // Password-less (server-side) environments get a short-lived ticket instead (sapCreds.js).
       const token = await sapMcpAuthToken(sapConnCfg, sapConnCfg._vpnProxyUrl ? { proxyUrl: sapConnCfg._vpnProxyUrl } : {});
       if (!token) return [];
-      return [{ type: 'url', url: `${effectiveMcpUrl}/mcp`, name: 'techcase-sap', authorization_token: token }];
+      return [{ type: 'url', url: `${effectiveMcpUrl}/mcp`, name: 'arena-sap', authorization_token: token }];
     } catch { return []; }
   }
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
