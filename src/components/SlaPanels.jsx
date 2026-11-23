@@ -76,6 +76,8 @@ export function SlaSettingsPanel({ ssCtx, lang = "en" }) {
         </p>
       </div>
 
+      <SlaAlertsCard ssCtx={ssCtx} lang={lang} />
+
       <div className="grid md:grid-cols-3 gap-4">
         {[[L("Partners with their own SLA", "Partners con SLA propio"), ov?.partners.map(p => p.name)],
           [L("Customers with their own SLA", "Clientes con SLA propio"), ov?.customers.map(c => c.name)],
@@ -327,6 +329,61 @@ export function EffectiveSlaCard({ lang = "en", customerId, projectId, clientUse
     <div className="space-y-2">
       <div className="text-xs text-gray-500">{L("Source", "Origen")}: <b className="text-gray-700">{sourceLabel(eff.source, es)}</b></div>
       <SlaPolicyEditor value={eff.policy} lang={lang} readOnly />
+    </div>
+  );
+}
+
+// ── Settings: automatic alerts (server-side schedule) ───────────────────────
+const FREQS = [1, 5, 10, 15, 30, 60];
+function SlaAlertsCard({ ssCtx, lang = "en" }) {
+  const es = lang === "es";
+  const L = (en, sp) => (es ? sp : en);
+  const cfg = { enabled: true, interval_minutes: 5, ...(ssCtx.settings["sla_alerts"] ?? {}) };
+  const [status, setStatus] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const loadStatus = useCallback(async () => {
+    const { data } = await supabase.rpc("sla_schedule_status");
+    setStatus(data ?? null);
+  }, []);
+  useEffect(() => { loadStatus(); }, [loadStatus]);
+  async function save(patch) {
+    setBusy(true);
+    await ssCtx.setSetting("sla_alerts", { ...cfg, ...patch });
+    setBusy(false);
+    loadStatus();
+  }
+  const last = status?.runs?.[0];
+  const fmt = d => d ? new Date(d).toLocaleString(es ? "es" : "en-US", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+      <div className="flex items-start gap-4">
+        <button onClick={() => save({ enabled: !cfg.enabled })} disabled={busy} role="switch" aria-checked={cfg.enabled}
+          className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 mt-0.5 ${cfg.enabled ? "bg-blue-600" : "bg-gray-300"}`}>
+          <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${cfg.enabled ? "translate-x-5" : ""}`} />
+        </button>
+        <div className="flex-1">
+          <div className="text-sm font-semibold text-gray-800">{L("Automatic SLA alerts", "Alertas automáticas de SLA")}</div>
+          <div className="text-xs text-gray-500 mt-0.5">
+            {L("The server checks every SLA clock on this schedule and sends “at risk” (80%) and “breached” notifications, even when nobody is signed in. Turned off, no alerts are sent (the SLA monitor still shows the clocks).",
+               "El servidor revisa todos los relojes de SLA con esta frecuencia y envía avisos de “en riesgo” (80%) e “incumplido”, aunque nadie haya iniciado sesión. Desactivado, no se envían avisos (el monitor de SLA sigue mostrando los relojes).")}
+          </div>
+          {cfg.enabled && (
+            <div className="flex items-center gap-2 mt-3">
+              <span className="text-xs text-gray-600">{L("Check every", "Revisar cada")}</span>
+              <select value={cfg.interval_minutes} disabled={busy} onChange={e => save({ interval_minutes: Number(e.target.value) })}
+                className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white">
+                {FREQS.map(m => <option key={m} value={m}>{m === 60 ? L("1 hour", "1 hora") : `${m} ${L(m === 1 ? "minute" : "minutes", m === 1 ? "minuto" : "minutos")}`}</option>)}
+              </select>
+              {busy && <Loader2 size={14} className="animate-spin text-gray-400" />}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="text-[11px] text-gray-500 border-t border-gray-50 pt-2">
+        {status == null ? L("Schedule status unavailable.", "Estado de la programación no disponible.")
+          : !status.scheduled ? L("Not scheduled.", "No programado.")
+          : <>{L("Scheduled", "Programado")} ({status.schedule}) · {L("last run", "última ejecución")}: {last ? `${fmt(last.start)} — ${last.status}${last.status !== "succeeded" && last.message ? ` (${last.message})` : ""}` : L("not yet", "aún no")}</>}
+      </div>
     </div>
   );
 }

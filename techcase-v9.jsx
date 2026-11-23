@@ -720,14 +720,6 @@ function PermGate({ auth, cap, fallback = null, children }) {
 
 export default function App() {
   const auth = useAuth();
-  // SLA clocks: warnings and breaches are checked (and notified once) every few minutes while someone is signed in.
-  useEffect(() => {
-    if (!auth.user?.id) return;
-    const run = () => supabase.rpc("sla_check_breaches").then(() => {}, () => {});
-    const first = setTimeout(run, 15000);
-    const id = setInterval(run, 5 * 60 * 1000);
-    return () => { clearTimeout(first); clearInterval(id); };
-  }, [auth.user?.id]);
   const [activeView, setActiveView]       = useState("dashboard");
   const [authed, setAuthed]               = useState(false);
   const [signupResumed, setSignupResumed] = useState(false);
