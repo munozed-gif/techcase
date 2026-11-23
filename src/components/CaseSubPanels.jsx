@@ -922,6 +922,25 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError,
   );
 }
 
+// Same look as "Generating specs with your feedback…": a faded button with a spinning ↻ and a
+// light-blue banner underneath, shown while a pipeline step (analyze / coverage / validation) runs.
+function StepRunning({ button, message }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <button disabled
+          className="px-4 py-2 bg-blue-600 opacity-40 cursor-not-allowed text-white text-xs font-semibold rounded-xl flex items-center gap-1.5">
+          <span className="animate-spin inline-block">↻</span> {button}
+        </button>
+      </div>
+      <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-800/40 rounded-xl px-3 py-2">
+        <span className="animate-spin inline-block">↻</span>
+        {message}
+      </div>
+    </div>
+  );
+}
+
 function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocument, refetchDocuments, onUpdate }) {
   const { t, lang } = useT();
   const ssCtx = useSystemSettings();
@@ -5858,10 +5877,11 @@ ${result}`;
                           {requestSummary ? 'Re-analyze' : 'Analyze'}
                         </button>
                       )}
-                      {requestSummaryLoading && (
-                        <div className="flex items-center gap-1 text-xs text-violet-500"><Spinner /><span>Analyzing…</span></div>
-                      )}
                     </div>
+                    {requestSummaryLoading && (
+                      <StepRunning button={L('Analyzing…', 'Analizando…')}
+                        message={L('Analyzing the request and the case documents — this may take a minute…', 'Analizando la solicitud y los documentos del caso — puede tardar un minuto…')} />
+                    )}
                     {!requestSummary && !requestSummaryLoading && !requestSummaryError && (
                       <p className="text-xs text-gray-400 italic">
                         Click <span className="font-semibold text-violet-600">Analyze</span> to extract a summary of what the customer is requesting and key considerations (reads attached documents).
@@ -6053,9 +6073,8 @@ ${result}`;
                 )}
 
                 {stepLoading && aiStep === 1 && (
-                  <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-                    <Spinner /><span className="text-sm">{t("spec.checking")}</span>
-                  </div>
+                  <StepRunning button={L('Checking…', 'Verificando…')}
+                    message={L('Checking standard SAP coverage against the case documents — this may take a minute…', 'Verificando la cobertura del estándar SAP con los documentos del caso — puede tardar un minuto…')} />
                 )}
 
                 {sapCheck && !stepLoading && !specApproved && (
@@ -6139,9 +6158,8 @@ ${result}`;
                   </div>
                 )}
                 {stepLoading && aiStep === 2 && (
-                  <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-                    <Spinner /><span className="text-sm">{t("spec.validating")}</span>
-                  </div>
+                  <StepRunning button={L('Validating…', 'Validando…')}
+                    message={L('Validating the proposal against the documents and the coverage check — this may take a minute…', 'Validando la propuesta con los documentos y la verificación del estándar — puede tardar un minuto…')} />
                 )}
                 {proposalCheck && !stepLoading && !specApproved && sapCheck && (
                   <div className="flex justify-end">
