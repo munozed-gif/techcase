@@ -197,7 +197,7 @@ export function CaseSlaPanel({ caseId, lang = "en", canEdit = true, refreshKey }
       <span className={`px-2 py-0.5 rounded-full font-semibold ${STATE_CLS[s]}`} title={`${t.resolution_hours} h`}>
         {L("Solution", "Solución")} {t.status === "cancelled" ? L("stopped", "detenido") : `${lbl(s)} ${["running", "breached", "paused"].includes(s) ? fmtDue(t.resolution_due, es) : fmtDue(t.resolved_at, es)}`}{pausedNote(t, es)}
       </span>
-      {paused && <span className="px-2 py-0.5 rounded-full font-semibold text-gray-600 bg-gray-100">⏸ {L("Clock paused — waiting for the customer since", "Reloj en pausa — esperando al cliente desde")} {fmtDue(t.paused_at, es)}</span>}
+      {paused && <span className="px-2 py-0.5 rounded-full font-semibold text-gray-600 bg-gray-100">⏸ {L("Clock paused since", "Reloj en pausa desde")} {fmtDue(t.paused_at, es)}</span>}
       {error && <span className="text-red-600">{error}</span>}
     </div>
   );
@@ -255,7 +255,7 @@ export function SlaMonitor({ lang: langProp, onOpenCase }) {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-          {[["open", L("Open", "Abiertos")], ["paused", L("Waiting for customer", "Esperando al cliente")], ["breached", L("Breached", "Incumplidos")], ["closed", L("Closed", "Cerrados")], ["all", L("All", "Todos")]].map(([id, l]) => (
+          {[["open", L("Open", "Abiertos")], ["paused", L("Paused", "En pausa")], ["breached", L("Breached", "Incumplidos")], ["closed", L("Closed", "Cerrados")], ["all", L("All", "Todos")]].map(([id, l]) => (
             <button key={id} onClick={() => setFilter(id)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${filter === id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}>{l}</button>
           ))}
         </div>

@@ -1,7 +1,7 @@
 // The one SLA editor: type × priority matrix (initial response / solution, business hours), the
 // business calendar the clock runs on, and the contract terms. Same shape for the platform default,
 // partner catalogs, customer overrides and service contracts.
-import { normalizeSla, calendarText } from "../lib/servicePlans.js";
+import { normalizeSla, calendarText, SLA_PAUSABLE_STATUSES } from "../lib/servicePlans.js";
 
 const inp = "w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white";
 const num = v => (v === "" ? "" : Number(v));
@@ -76,6 +76,27 @@ export function SlaPolicyEditor({ value, onChange, lang = "en", readOnly = false
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {showCalendar && (
+        <div>
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">{L("Pause the clock while the case is…", "Pausar el reloj mientras el caso está en…")}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {SLA_PAUSABLE_STATUSES.map(st => {
+              const on = sla.pause_statuses.includes(st.key);
+              if (readOnly) return on ? <span key={st.key} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700">⏸ {st[es ? "es" : "en"]}</span> : null;
+              return (
+                <button key={st.key} type="button" onClick={() => set({ pause_statuses: on ? sla.pause_statuses.filter(k => k !== st.key) : [...sla.pause_statuses, st.key] })}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${on ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
+                  {on ? "⏸ " : ""}{st[es ? "es" : "en"]}
+                </button>
+              );
+            })}
+            {readOnly && sla.pause_statuses.length === 0 && <span className="text-xs text-gray-400">{L("The clock never pauses.", "El reloj nunca se pausa.")}</span>}
+          </div>
+          {!readOnly && <p className="text-[11px] text-gray-400 mt-1">{L("While the case is in a highlighted status the clock stops; the business hours spent there are added to the due times when it moves on.",
+            "Mientras el caso está en un estado resaltado el reloj se detiene; las horas laborales en ese estado se suman a los vencimientos cuando avanza.")}</p>}
         </div>
       )}
 

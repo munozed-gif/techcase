@@ -52,6 +52,8 @@ export const DEFAULT_SERVICE_CATALOG = {
     calendar: { start: "09:00", hoursPerDay: 8, workDays: [1, 2, 3, 4, 5], timezone: "America/Mexico_City" },
     // Contract terms shown with the SLA.
     terms: { tier: "standard", uptime_pct: 99, dedicated_consultant: false, priority_support: false, notes: "" },
+    // Case statuses that pause the SLA clock (waiting on someone else).
+    pause_statuses: ["pending_customer", "pending_user", "pending_sap", "pending_vendor", "on_hold", "standby"],
   },
   premises: {
     es: [
@@ -92,6 +94,7 @@ export function normalizeSla(src, catalogHoursPerDay) {
     matrix: { ...base.matrix, ...(s.matrix ?? {}) },
     calendar: { ...base.calendar, ...(catalogHoursPerDay ? { hoursPerDay: Number(catalogHoursPerDay) } : {}), ...(s.calendar ?? {}) },
     terms: { ...base.terms, ...(s.terms ?? {}) },
+    pause_statuses: Array.isArray(s.pause_statuses) ? s.pause_statuses : base.pause_statuses,
   };
 }
 
@@ -198,6 +201,19 @@ export function calendarText(cal, es) {
   return `${es ? "Horario laboral" : "Business hours"}: ${dayTxt} ${cal.start ?? "09:00"}–${end}${cal.timezone ? ` (${cal.timezone})` : ""}.`;
 }
 
+/** Case statuses that can pause the SLA clock. */
+export const SLA_PAUSABLE_STATUSES = [
+  { key: "pending_customer", en: "Pending customer",  es: "Pendiente del cliente" },
+  { key: "pending_user",     en: "Pending user",      es: "Pendiente del usuario" },
+  { key: "pending_sap",      en: "Pending SAP",       es: "Pendiente de SAP" },
+  { key: "pending_vendor",   en: "Pending vendor",    es: "Pendiente del proveedor" },
+  { key: "on_hold",          en: "On hold",           es: "En espera" },
+  { key: "standby",          en: "Standby",           es: "En pausa (standby)" },
+  { key: "user_test",        en: "User test (UAT)",   es: "Prueba de usuario (UAT)" },
+  { key: "functional_test",  en: "Functional test",   es: "Prueba funcional" },
+  { key: "review",           en: "Review",            es: "Revisión" },
+];
+
 export function slaMarkdown(catalog, lang = "en") {
   const es = lang === "es";
   const { types, priorities, matrix } = catalog.sla;
@@ -213,6 +229,8 @@ export function slaMarkdown(catalog, lang = "en") {
   }
   const cal = catalog.sla.calendar;
   if (cal) lines.push("", calendarText(cal, es));
+  const paused = (catalog.sla.pause_statuses ?? []).map(k => SLA_PAUSABLE_STATUSES.find(x => x.key === k)?.[es ? "es" : "en"] ?? k);
+  if (paused.length) lines.push("", (es ? "El tiempo no corre mientras la solicitud está en: " : "The clock stops while the request is: ") + paused.join(", ") + ".");
   return lines.join("\n");
 }
 
