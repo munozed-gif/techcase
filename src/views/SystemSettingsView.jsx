@@ -1393,9 +1393,8 @@ function SettingsRolesTab({ ssCtx }) {
     );
   }
 
-  return (
-    <div className="space-y-4">
-
+  const ROLE_SLIDES = [
+    { id: "signup", label: "Sign-up access", Icon: UserPlus, content: (<div className="space-y-4">
       {/* ── Sign-up Access ── FIRST */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
         <div className="flex items-center gap-2 mb-1">
@@ -1424,6 +1423,8 @@ function SettingsRolesTab({ ssCtx }) {
         </p>
       </div>
 
+      </div>) },
+    { id: "arena", label: "Arena profile visibility", Icon: Users, content: (<div className="space-y-4">
       {/* ── Arena Profile Visibility ── */}
       {(() => {
         const ARENA_VIS_ROLES = ["consultant", "headhunter", "client", "key_user", "final_user", "project_manager", "internal_consultant"];
@@ -1555,6 +1556,8 @@ function SettingsRolesTab({ ssCtx }) {
         );
       })()}
 
+      </div>) },
+    { id: "perms", label: "Permissions", Icon: Shield, content: (<div className="space-y-4">
       {/* ── Permission cards — one per group ── */}
       <p className="text-xs text-gray-400 dark:text-gray-500 px-1">
         {t("roles.subtitle")}{" "}
@@ -1573,6 +1576,8 @@ function SettingsRolesTab({ ssCtx }) {
         );
       })}
 
+      </div>) },
+    { id: "wizard", label: "Wizard modes", Icon: Sparkles, content: (<div className="space-y-4">
       {/* Wizard Mode Defaults */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
         <div className="flex items-center gap-2 mb-1">
@@ -1623,6 +1628,8 @@ function SettingsRolesTab({ ssCtx }) {
         </div>
       </div>
 
+      </div>) },
+    { id: "menu", label: "Menu visibility", Icon: SlidersHorizontal, content: (<div className="space-y-4">
       {/* Menu Visibility */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
         <div className="flex items-center gap-2 mb-1">
@@ -1680,6 +1687,11 @@ function SettingsRolesTab({ ssCtx }) {
       </div>
 
 
+      </div>) },
+  ];
+  return (
+    <CardCarousel slides={ROLE_SLIDES} storageKey="settings_roles_slide" footer={() => (
+      <div className="space-y-3 mt-4">
       {toast && (
         <div className={`px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${toast.startsWith("Error") ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
           <CheckCircle2 size={14} /> {toast}
@@ -1696,7 +1708,8 @@ function SettingsRolesTab({ ssCtx }) {
           {saving ? t("state.saving") : <><Check size={14} /> {t("roles.save")}</>}
         </button>
       </div>
-    </div>
+      </div>
+    )} />
   );
 }
 
@@ -4540,7 +4553,7 @@ function SettingsPlansTab({ ssCtx, auth }) {
   }, []);
 
   useEffect(() => {
-    if (tab === 'config') {
+    if (!editConfig && planCfg.config !== undefined) {
       // Start from the defaults so plan types / limits added later (e.g. partner "proposals") show up.
       const cfg = JSON.parse(JSON.stringify(planCfg.config ?? {}));
       for (const [rt, plans] of Object.entries(DEFAULT_PLAN_CONFIG)) {
@@ -4549,7 +4562,7 @@ function SettingsPlansTab({ ssCtx, auth }) {
       }
       setEditConfig(cfg);
     }
-  }, [tab]);
+  }, [planCfg.config]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   async function changePlan(userId, plan, role) {
     setSaving(p => ({ ...p, [userId]: true }));
@@ -4582,17 +4595,8 @@ function SettingsPlansTab({ ssCtx, auth }) {
         <p className="text-sm text-gray-500 mt-0.5">Manage subscription plans and assign them to users.</p>
       </div>
 
-      {/* Sub-tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-        {[{id:'users',label:'User Plans'},{id:'config',label:'Plan Limits'},{id:'nav',label:'Feature Access'}].map(s => (
-          <button key={s.id} onClick={() => setTab(s.id)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === s.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'users' && (
+      <CardCarousel storageKey="settings_plans_slide" slides={[
+        { id: "users", label: "User plans", Icon: Users, content: (
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
@@ -4652,9 +4656,8 @@ function SettingsPlansTab({ ssCtx, auth }) {
             </div>
           )}
         </div>
-      )}
-
-      {tab === 'config' && editConfig && (
+      ) },
+        { id: "config", label: "Plan limits", Icon: SlidersHorizontal, content: (editConfig ? (
         <div className="space-y-6">
           {[...PLAN_TYPES, 'partner'].map(rt => (
             <div key={rt} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -4709,9 +4712,8 @@ function SettingsPlansTab({ ssCtx, auth }) {
             </button>
           </div>
         </div>
-      )}
-
-      {tab === 'nav' && (
+      ) : <div className="text-sm text-gray-400">Loading…</div>) },
+        { id: "nav", label: "Feature access", Icon: Lock, content: (
         <div className="space-y-6">
           <p className="text-sm text-gray-500">Control which sidebar items are available per membership plan. Unchecked items are hidden for users on that plan.</p>
           {PLAN_TYPES.map(rt => (
@@ -4776,7 +4778,8 @@ function SettingsPlansTab({ ssCtx, auth }) {
             </button>
           </div>
         </div>
-      )}
+      ) },
+      ]} />
     </div>
   );
 }
@@ -6038,28 +6041,8 @@ function SettingsPlatformCombinedTab({ ssCtx }) {
     { id: "invoice",      label: "Invoice Defaults",    Icon: Receipt,   Component: SettingsInvoiceTab },
     { id: "trust",        label: "Trust & Ratings",     Icon: BadgeCheck, Component: SettingsTrustTab },
   ];
-  const [open, setOpen] = useState({ signup: true, smtp: false, invitations: false, platform: true, invoice: true, trust: true });
-  return (
-    <div className="space-y-4">
-      {SECTIONS.map(({ id, label, Icon: Ic, Component }) => (
-        <div key={id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <button
-            onClick={() => setOpen(p => ({ ...p, [id]: !p[id] }))}
-            className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-            <span className="font-semibold text-gray-900 flex items-center gap-2">
-              <Ic size={15} className="text-blue-600" />{label}
-            </span>
-            <ChevronDown size={16} className={`text-gray-400 transition-transform duration-200 ${open[id] ? "rotate-180" : ""}`} />
-          </button>
-          {open[id] && (
-            <div className="px-5 pb-5 border-t border-gray-100">
-              <Component ssCtx={ssCtx} />
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+  return <CardCarousel storageKey="settings_platform_slide"
+    slides={SECTIONS.map(({ id, label, Icon, Component }) => ({ id, label, Icon, content: <Component ssCtx={ssCtx} /> }))} />;
 }
 
 function SettingsHeadhunterTab({ ssCtx }) {
@@ -6081,7 +6064,8 @@ function SettingsHeadhunterTab({ ssCtx }) {
   }
 
   return (
-    <div className="space-y-6">
+    <CardCarousel storageKey="settings_hh_slide" slides={[
+      { id: "perms", label: "Headhunter permissions", Icon: Shield, content: (<div className="space-y-6">
       <div>
         <h2 className="text-base font-bold text-gray-900 mb-1">Headhunter Permissions</h2>
         <p className="text-sm text-gray-500">Control what headhunters can see and do in the Arena.</p>
@@ -6108,6 +6092,8 @@ function SettingsHeadhunterTab({ ssCtx }) {
         ))}
       </div>
 
+      </div>) },
+      { id: "commission", label: "Commission & placement fee", Icon: DollarSign, content: (<div className="space-y-6">
       <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
         <label className="text-sm font-semibold text-gray-800 block mb-1">Default commission %</label>
         <p className="text-xs text-gray-500 mb-3">Pre-filled commission percentage when a headhunter submits a proposal.</p>
@@ -6133,12 +6119,16 @@ function SettingsHeadhunterTab({ ssCtx }) {
         />
       </div>
 
+      </div>) },
+      { id: "fees", label: "Placement fees", Icon: Receipt, content: (<div className="space-y-6">
       <div>
         <h2 className="text-base font-bold text-gray-900 mb-1">Headhunter placement fees</h2>
         <p className="text-sm text-gray-500 mb-3">Fees earned by headhunters. Record each payout once you pay it outside the platform; you can adjust or cancel a fee while it is pending.</p>
         <HHCommissionsTable lang={lang} staff />
       </div>
-    </div>
+
+      </div>) },
+    ]} />
   );
 }
 

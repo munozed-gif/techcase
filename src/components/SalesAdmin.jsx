@@ -1,7 +1,8 @@
 // Settings → Sales: customer protection, default commission, seller approvals, platform solutions,
 // seller commission payouts.
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Check, X, Ban } from "lucide-react";
+import { Loader2, Check, X, Ban, Settings2, Users, Package, DollarSign } from "lucide-react";
+import { CardCarousel } from "./CardCarousel.jsx";
 import { supabase } from "../lib/supabase.js";
 import { PAYERS, errText } from "../lib/sales.js";
 import { SolutionsEditor } from "./SolutionsEditor.jsx";
@@ -73,7 +74,8 @@ export function SettingsSalesTab({ ssCtx, auth }) {
   const section = (title, desc) => (<div><h2 className="text-base font-bold text-gray-900 mb-1">{title}</h2>{desc && <p className="text-sm text-gray-500">{desc}</p>}</div>);
 
   return (
-    <div className="space-y-8">
+    <CardCarousel storageKey="settings_sales_slide" slides={[
+      { id: "settings", label: "Sales settings", Icon: Settings2, content: (<div>
       <div className="space-y-3">
         {section("Sales", "Sellers (independent or inside a partner) register opportunities, build the proposal in a presale project, and earn a one-time commission when the customer accepts it.")}
         <div className={box + " flex items-start gap-4"}>
@@ -113,11 +115,18 @@ export function SettingsSalesTab({ ssCtx, auth }) {
         </div>
       </div>
 
+      </div>) },
+      { id: "sellers", label: "Sellers", Icon: Users, content: (<div>
       <div className="space-y-3">{section("Sellers")}<SellersList /></div>
+      </div>) },
+      { id: "solutions", label: "Platform solutions", Icon: Package, content: (<div>
       <div className="space-y-3">{section("Platform solutions", "Packaged solutions offered by the platform itself. Partners publish theirs in Partner → Solutions.")}
         <SolutionsEditor lang="en" platform userId={auth?.user?.id} /></div>
+      </div>) },
+      { id: "commissions", label: "Seller commissions", Icon: DollarSign, content: (<div>
       <div className="space-y-3">{section("Seller commissions", "Record each payout once you pay it outside the platform; adjust or cancel while pending.")}
         <SalesCommissionsTable lang="en" staff /></div>
-    </div>
+      </div>) },
+    ]} />
   );
 }
