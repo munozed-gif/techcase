@@ -796,6 +796,19 @@ export default function App() {
     try { localStorage.setItem('arena_returning', '1'); } catch {}
   }, [auth.loading, auth.user, showAuth]);
 
+  // Deep link from emails: ?case=<id> opens that case once signed in.
+  useEffect(() => {
+    if (!auth.user?.id) return;
+    const params = new URLSearchParams(window.location.search);
+    const cid = params.get('case');
+    if (!cid || !/^[0-9a-f-]{36}$/i.test(cid)) return;
+    setPendingCaseId(cid);
+    setActiveView('cases');
+    params.delete('case');
+    const rest = params.toString();
+    window.history.replaceState(null, '', rest ? `?${rest}` : window.location.pathname);
+  }, [auth.user?.id]);
+
   // Handle Stripe return URL (?stripe=success|cancel)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

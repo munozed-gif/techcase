@@ -379,11 +379,55 @@ function SlaAlertsCard({ ssCtx, lang = "en" }) {
           )}
         </div>
       </div>
+      {cfg.enabled && <SlaEmailSettings cfg={cfg} save={save} busy={busy} lang={lang} />}
       <div className="text-[11px] text-gray-500 border-t border-gray-50 pt-2">
         {status == null ? L("Schedule status unavailable.", "Estado de la programación no disponible.")
           : !status.scheduled ? L("Not scheduled.", "No programado.")
           : <>{L("Scheduled", "Programado")} ({status.schedule}) · {L("last run", "última ejecución")}: {last ? `${fmt(last.start)} — ${last.status}${last.status !== "succeeded" && last.message ? ` (${last.message})` : ""}` : L("not yet", "aún no")}</>}
       </div>
+    </div>
+  );
+}
+
+// Email part of the automatic alerts (queued in email_outbox, sent by send-queued-emails).
+function SlaEmailSettings({ cfg, save, busy, lang = "en" }) {
+  const es = lang === "es";
+  const L = (en, sp) => (es ? sp : en);
+  const emailOn = cfg.email_enabled !== false;
+  const events = cfg.email_events ?? ["at_risk", "breached"];
+  const [log, setLog] = useState(null);
+  useEffect(() => { supabase.rpc("sla_email_log", { p_limit: 8 }).then(({ data }) => setLog(Array.isArray(data) ? data : [])); }, [cfg]);
+  const toggleEvent = ev => save({ email_events: events.includes(ev) ? events.filter(x => x !== ev) : [...events, ev] });
+  const pill = st => ({ sent: "bg-green-100 text-green-700", pending: "bg-gray-100 text-gray-600", sending: "bg-blue-100 text-blue-700", failed: "bg-red-100 text-red-700", skipped: "bg-gray-100 text-gray-500" }[st] ?? "bg-gray-100 text-gray-600");
+  return (
+    <div className="border-t border-gray-50 pt-3 space-y-2">
+      <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+        <input type="checkbox" checked={emailOn} disabled={busy} onChange={e => save({ email_enabled: e.target.checked })} />
+        {L("Also send email", "Enviar también por correo")}
+      </label>
+      {emailOn && (
+        <div className="pl-6 space-y-2">
+          <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+            {[["at_risk", L("At risk (80%)", "En riesgo (80%)")], ["breached", L("Breached", "Incumplido")]].map(([k, l]) => (
+              <label key={k} className="flex items-center gap-1.5"><input type="checkbox" checked={events.includes(k)} disabled={busy} onChange={() => toggleEvent(k)} />{l}</label>
+            ))}
+          </div>
+          <p className="text-[11px] text-gray-400">{L("Same recipients as the in-app alerts, in each person's language. Each person can turn SLA emails off in Notifications → preferences.",
+            "Mismos destinatarios que los avisos en la app, en el idioma de cada persona. Cada uno puede desactivar los correos de SLA en Notificaciones → preferencias.")}</p>
+          {log && log.length > 0 && (
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold text-gray-500">{L("Latest emails", "Últimos correos")}</div>
+              {log.map((m, i) => (
+                <div key={i} className="flex items-center gap-2 text-[11px]">
+                  <span className={`px-1.5 py-0.5 rounded font-semibold ${pill(m.status)}`}>{m.status}</span>
+                  <span className="text-gray-500 truncate flex-1" title={m.error ?? ""}>{m.to} · {m.subject}</span>
+                  <span className="text-gray-400 whitespace-nowrap">{new Date(m.sent_at ?? m.created_at).toLocaleString(es ? "es" : "en-US", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

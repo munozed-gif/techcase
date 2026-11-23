@@ -12,6 +12,10 @@
  *   Legacy (pre-built HTML passed from client):
  *     { to, subject, html, text? }
  *
+ * Access: only signed-in platform users (their Supabase JWT in Authorization). Anonymous calls are
+ * refused so the function cannot be used to send mail on the platform's behalf. Max 10 recipients.
+ * Server-side mail (e.g. SLA alerts) goes through the email_outbox and send-queued-emails instead.
+ *
  * Required secrets (Edge Functions → Secrets):
  *   RESEND_API_KEY       — your Resend API key
  *   RESEND_FROM_EMAIL    — e.g. noreply@arenasolutionsplatform.com
@@ -19,6 +23,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.0";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -117,11 +122,25 @@ body { background-color: #0B0F1A !important; }
 // ── Main handler ──────────────────────────────────────────────────────────────
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  const deny = (status: number, error: string) =>
+    new Response(JSON.stringify({ error }), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+
+  // Only signed-in users of the platform may send.
+  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!token) return deny(401, "Sign-in required");
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+  const { data: authData } = await admin.auth.getUser(token);
+  const user = authData?.user;
+  if (!user) return deny(401, "Sign-in required");
+  const { data: profile } = await admin.from("users").select("is_active").eq("id", user.id).maybeSingle();
+  if (!profile || profile.is_active === false) return deny(403, "Not allowed");
 
   try {
     const body = await req.json();
     const { to, subject, text } = body;
 
+    const recipients = Array.isArray(to) ? to : [to];
+    if (recipients.length > 10) return deny(400, "Too many recipients");
     if (!to || !subject) {
       return new Response(JSON.stringify({ error: "Missing required fields: to, subject" }), {
         status: 400, headers: { ...CORS, "Content-Type": "application/json" },
