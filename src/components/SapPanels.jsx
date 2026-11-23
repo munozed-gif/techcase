@@ -7334,7 +7334,7 @@ Transport Request: ${transportReq || 'will be assigned at runtime'}
 Project: ${caseData.title}
 
 Requirements:
-- REPORT name must start with ZTECHCASE_ followed by a short descriptor (max 30 chars total)
+- REPORT name must start with ZARENA_ followed by a short descriptor (max 30 chars total)
 - If copying an existing entry (e.g. MT 101 → 901): read from source customizing tables and INSERT target rows
 - Use standard SAP customizing tables directly (e.g. T156/T156X/T156W for movement types, T052/T052U for payment terms)
 - Assign changes to transport: use CALL FUNCTION 'TR_OBJECT_INSERT' or set sy-tcode and let SAP auto-assign
@@ -7363,7 +7363,7 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
     if (!sapConfig?.host) return;
     const specState = manualSpecs[obj.id] ?? {};
     if (!specState.configScript || specState.scriptType !== 'abap') return;
-    const programName = ('ZTECHCASE_' + obj.name.replace(/[^A-Z0-9]/gi, '').toUpperCase()).slice(0, 30);
+    const programName = ('ZARENA_' + obj.name.replace(/[^A-Z0-9]/gi, '').toUpperCase()).slice(0, 30);
     const addLog = (msg) => setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), scriptLog: [...(p[obj.id]?.scriptLog ?? []), msg] } }));
     setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), applyingScript: true, scriptLog: [], appliedScript: false, scriptApplyError: null } }));
     try {
