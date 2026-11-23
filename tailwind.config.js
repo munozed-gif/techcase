@@ -7,7 +7,7 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,jsx}",
-    "./techcase-v8.jsx",
+    "./arena-v0.jsx",
     "./arena-v1.jsx",
   ],
   theme: {
