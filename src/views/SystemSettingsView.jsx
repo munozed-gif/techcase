@@ -41,6 +41,7 @@ import { DEFAULT_COST_CONFIG, costConfig } from "../lib/costs.js";
 import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
 import { HHCommissionsTable } from "../components/HHCommissions.jsx";
 import { SettingsSalesTab } from "../components/SalesAdmin.jsx";
+import { SettingsSecurityTab } from "../components/SecuritySettings.jsx";
 import { SlaSettingsPanel } from "../components/SlaPanels.jsx";
 import { CardCarousel } from "../components/CardCarousel.jsx";
 
@@ -6215,6 +6216,7 @@ function SystemSettingsView({ auth, onNavigate }) {
 
   const TABS = [
     { id: "people",      label: "People",          Icon: Users },
+    ...(auth?.profile?.role === "admin" ? [{ id: "security", label: "Security", Icon: Lock }] : []),
     { id: "partners",    label: "Partners",        Icon: Handshake },
     { id: "roles",       label: "Roles & Perms",   Icon: Shield },
     { id: "plans",       label: "Plans",           Icon: CreditCard },
@@ -6253,6 +6255,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       </div>
 
       {activeTab === "people"      && <SettingsPeopleTab ssCtx={ssCtx} auth={auth} onNavigate={onNavigate} />}
+      {activeTab === "security" && auth?.profile?.role === "admin" && <SettingsSecurityTab ssCtx={ssCtx} />}
       {activeTab === "partners"    && <PartnersAdminPanel />}
       {activeTab === "roles"       && <SettingsRolesTab ssCtx={ssCtx} />}
       {activeTab === "plans"       && <SettingsPlansTab ssCtx={ssCtx} auth={auth} />}

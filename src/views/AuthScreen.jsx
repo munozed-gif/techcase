@@ -10,6 +10,7 @@ import { Input } from "../components/ui.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
 import { NovaLandingMark } from "./LandingView.jsx";
+import { isRememberedDevice, setRememberDevice, peekSignOutReason, clearSignOutReason } from "../lib/sessionSecurity.js";
 
 // AuthScreen — sign-in, sign-up wizard, password reset
 
@@ -43,6 +44,10 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
   // Sign-in fields
   const [siEmail, setSiEmail]   = useState("");
   const [siPass,  setSiPass]    = useState("");
+  const [remember, setRemember] = useState(() => isRememberedDevice());
+  // Why the last session ended (inactivity / ended by an admin) — shown once.
+  const [signOutReason] = useState(() => peekSignOutReason());
+  useEffect(() => { clearSignOutReason(); }, []);
   // Sign-up wizard
   const [step, setStep]         = useState(0);
   const [email, setEmail]       = useState(resumeUser?.email ?? "");
@@ -152,6 +157,7 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
   async function handleSignIn() {
     if (loading) return;
     setError(""); setLoad(true);
+    setRememberDevice(remember);
     try { await auth.signIn(siEmail, siPass); onAuth(null); }
     catch (e) { setError(e.message); }
     setLoad(false);
@@ -500,6 +506,13 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
         {mode === "signin" && (
           <div className="rounded-2xl shadow-xl p-8" style={{background:'var(--t-card-bg)',color:'var(--t-text)'}}>
             {tabs}
+            {signOutReason && (
+              <div className="mb-4 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                {signOutReason.kind === "timed_out"
+                  ? `You were signed out after ${signOutReason.minutes >= 60 && signOutReason.minutes % 60 === 0 ? `${signOutReason.minutes / 60} h` : `${signOutReason.minutes} min`} of inactivity.`
+                  : "Your session was ended. Please sign in again."}
+              </div>
+            )}
             {forgotMode ? (
               forgotSent ? (
                 <div className="text-center py-4 space-y-3">
@@ -530,6 +543,11 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
                 <Input label={t("auth.password")} type="password" value={siPass}
                   onChange={e => setSiPass(e.target.value)} placeholder={t("auth.ph_password_dots")}
                   onKeyDown={e => e.key === "Enter" && handleSignIn()} />
+                <label className="flex items-start gap-2 mt-1 mb-1 cursor-pointer select-none">
+                  <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} className="mt-0.5 accent-blue-600" />
+                  <span className="text-xs" style={{color:'var(--t-text2)'}}>Keep me signed in on this device
+                    <span className="block text-[11px] opacity-75">Skips the automatic sign-out for inactivity. Don't use it on shared computers.</span></span>
+                </label>
                 {errorBox}
                 <button onClick={handleSignIn} disabled={loading}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">

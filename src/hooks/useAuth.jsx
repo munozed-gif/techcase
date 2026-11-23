@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase.js";
 import { logEvent } from "../lib/utils.js";
+import { signOutLogged } from "../lib/sessionSecurity.js";
 
 function useAuth() {
   const [user, setUser]                     = useState(null);
@@ -111,8 +112,8 @@ function useAuth() {
     return data;
   }
 
-  async function signOut() {
-    await supabase.auth.signOut();
+  async function signOut(reason = "signed_out") {
+    await signOutLogged(reason);
   }
 
   // For client team members, billing is under the associated client account.

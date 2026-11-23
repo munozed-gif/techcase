@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, Crosshair, Loader2, LogOut, XCircle } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { signOutLogged } from "../lib/sessionSecurity.js";
 import { NovaLandingMark } from "./LandingView.jsx";
 
 const T = {
@@ -164,7 +165,7 @@ export default function HHInviteView({ token, code }) {
           {wrongAccount ? (
             <>
               <p className="text-amber-300 text-sm">{L.otherAccount} <b>{info.email}</b>.</p>
-              <button onClick={() => supabase.auth.signOut()} className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white rounded-xl px-4 py-2.5" style={{ border: "1px solid rgba(255,255,255,.2)" }}><LogOut size={14} />{L.useOther}</button>
+              <button onClick={() => signOutLogged()} className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white rounded-xl px-4 py-2.5" style={{ border: "1px solid rgba(255,255,255,.2)" }}><LogOut size={14} />{L.useOther}</button>
             </>
           ) : notConsultant ? (
             <p className="text-amber-300 text-sm">{L.onlyConsultant}</p>

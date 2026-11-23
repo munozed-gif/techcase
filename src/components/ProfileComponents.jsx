@@ -5,6 +5,7 @@ import {
   User, Users, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { signOutLogged } from "../lib/sessionSecurity.js";
 import { useT, LanguageContext } from "../i18n/index.jsx";
 import { callClaude, logEvent, notify, sendEmailToUser } from "../lib/utils.js";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -120,7 +121,7 @@ function PendingApprovalScreen({ auth }) {
           return confirmLogout ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500 flex-1">Sign out?</span>
-              <button onClick={() => supabase.auth.signOut()}
+              <button onClick={() => signOutLogged()}
                 className="px-3 py-1.5 text-xs font-semibold text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors">
                 Yes, sign out
               </button>
@@ -621,7 +622,7 @@ function ProfileOnboardingScreen({ auth }) {
             return confirmLogout2 ? (
               <div className="flex items-center gap-1.5 ml-3">
                 <span className="text-xs text-gray-500">Sign out?</span>
-                <button onClick={() => supabase.auth.signOut()}
+                <button onClick={() => signOutLogged()}
                   className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors">Yes</button>
                 <button onClick={() => setConfirmLogout2(false)}
                   className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>

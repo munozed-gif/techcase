@@ -95,6 +95,7 @@ import {
 
 
 import { useLifecycleTemplates, runStartDateMonitor, useStartDateMonitor, runDueDateMonitor } from "./src/hooks/useLifecycleHooks.js";
+import { IdleGuard } from "./src/components/IdleGuard.jsx";
 
 import { SLA_PRIORITIES, SLA_DEFAULT_TYPES, makeDefaultMatrix, SLA_UNIT_LABELS, SlaMatrixEditor, INVOICE_STATUS_COLORS, fmt, cap, STATUS_LABEL_KEYS, AVAIL_LABEL_KEYS, PRIORITY_LABEL_KEYS, INV_STATUS_LABEL_KEYS, WORK_MODE_LABEL_KEYS, EXPERTISE_LABEL_KEYS, ROLE_LABEL_KEYS, SLA_TIER_LABEL_KEYS, fmtDate, timeAgo } from "./src/lib/uiUtils.jsx";
 
@@ -993,8 +994,8 @@ export default function App() {
     );
   }
 
-  async function handleSignOut() {
-    await auth.signOut();
+  async function handleSignOut(reason) {
+    await auth.signOut(typeof reason === "string" ? reason : "signed_out");
     setAuthed(false);
     setOnboarding(null);
     setActiveView("dashboard");
@@ -1105,6 +1106,7 @@ export default function App() {
     <SystemSettingsProvider>
       <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
         <StartDateMonitor auth={auth} />
+        <IdleGuard role={auth.role} onSignOut={handleSignOut} />
         <div className="min-h-screen bg-[#EAF4FD]">
           <Sidebar
             role={auth.role}
