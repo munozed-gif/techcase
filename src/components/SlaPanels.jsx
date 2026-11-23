@@ -22,7 +22,9 @@ function dueState(due, doneAt, breached) {
   if (breached || (due && new Date(due) < new Date())) return "breached";
   return "running";
 }
-const STATE_CLS = { met: "text-green-700 bg-green-50", late: "text-red-700 bg-red-50", breached: "text-red-700 bg-red-50", running: "text-blue-700 bg-blue-50" };
+const STATE_CLS = { met: "text-green-700 bg-green-50", late: "text-red-700 bg-red-50", breached: "text-red-700 bg-red-50", running: "text-blue-700 bg-blue-50", paused: "text-gray-600 bg-gray-100" };
+const isOpen = st => st === "running" || st === "paused";
+const pausedNote = (t, es) => Number(t.paused_hours) > 0 ? (es ? ` (+${Number(t.paused_hours)} h en pausa)` : ` (+${Number(t.paused_hours)} h paused)`) : "";
 
 // ── Settings → Workflow → SLA ────────────────────────────────────────────────
 export function SlaSettingsPanel({ ssCtx, lang = "en" }) {
@@ -180,20 +182,22 @@ export function CaseSlaPanel({ caseId, lang = "en", canEdit = true, refreshKey }
     if (!canEdit) return null;
     return <div className="flex items-center gap-2 text-xs text-gray-500"><ShieldCheck size={13} />SLA: {typeSel}</div>;
   }
-  const r = dueState(t.response_due, t.first_response_at, t.first_response_breached);
-  const s = t.status === "cancelled" ? "met" : dueState(t.resolution_due, t.resolved_at, t.resolution_breached);
-  const lbl = st => ({ met: L("met", "cumplido"), late: L("late", "tarde"), breached: L("breached", "incumplido"), running: L("due", "vence") }[st]);
+  const paused = t.status === "paused";
+  const r = paused && !t.first_response_at ? "paused" : dueState(t.response_due, t.first_response_at, t.first_response_breached);
+  const s = t.status === "cancelled" ? "met" : paused ? "paused" : dueState(t.resolution_due, t.resolved_at, t.resolution_breached);
+  const lbl = st => ({ met: L("met", "cumplido"), late: L("late", "tarde"), breached: L("breached", "incumplido"), running: L("due", "vence"), paused: L("paused · due was", "en pausa · vencía") }[st]);
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
       <span className="flex items-center gap-1 font-semibold text-gray-700"><ShieldCheck size={13} className="text-blue-600" />SLA</span>
       {typeSel || <span className="text-gray-600">{TYPES.find(x => x[0] === t.sla_type)?.[es ? 2 : 1] ?? t.sla_type}</span>}
       <span className="text-gray-400">· {(PRIOS[t.priority] ?? [t.priority, t.priority])[es ? 1 : 0]} · {sourceLabel(t.source, es)}</span>
       <span className={`px-2 py-0.5 rounded-full font-semibold ${STATE_CLS[r]}`} title={`${t.response_hours} h`}>
-        {L("Response", "Respuesta")} {lbl(r)} {r === "running" || r === "breached" ? fmtDue(t.response_due, es) : fmtDue(t.first_response_at, es)}
+        {L("Response", "Respuesta")} {lbl(r)} {["running", "breached", "paused"].includes(r) ? fmtDue(t.response_due, es) : fmtDue(t.first_response_at, es)}
       </span>
       <span className={`px-2 py-0.5 rounded-full font-semibold ${STATE_CLS[s]}`} title={`${t.resolution_hours} h`}>
-        {L("Solution", "Solución")} {t.status === "cancelled" ? L("stopped", "detenido") : `${lbl(s)} ${s === "running" || s === "breached" ? fmtDue(t.resolution_due, es) : fmtDue(t.resolved_at, es)}`}
+        {L("Solution", "Solución")} {t.status === "cancelled" ? L("stopped", "detenido") : `${lbl(s)} ${["running", "breached", "paused"].includes(s) ? fmtDue(t.resolution_due, es) : fmtDue(t.resolved_at, es)}`}{pausedNote(t, es)}
       </span>
+      {paused && <span className="px-2 py-0.5 rounded-full font-semibold text-gray-600 bg-gray-100">⏸ {L("Clock paused — waiting for the customer since", "Reloj en pausa — esperando al cliente desde")} {fmtDue(t.paused_at, es)}</span>}
       {error && <span className="text-red-600">{error}</span>}
     </div>
   );
@@ -217,7 +221,7 @@ export function SlaMonitor({ lang: langProp, onOpenCase }) {
 
   const stats = useMemo(() => {
     const r = rows ?? [];
-    const open = r.filter(x => x.status === "running");
+    const open = r.filter(x => isOpen(x.status));
     const closed = r.filter(x => x.status === "met" || x.status === "breached");
     const byCust = {};
     for (const x of closed) {
@@ -225,7 +229,7 @@ export function SlaMonitor({ lang: langProp, onOpenCase }) {
       byCust[k] = byCust[k] ?? { met: 0, total: 0 };
       byCust[k].total += 1; if (x.status === "met") byCust[k].met += 1;
     }
-    const soon = open.filter(x => !x.resolution_breached && new Date(x.resolution_due) - new Date() < 4 * 3600e3 && new Date(x.resolution_due) > new Date()).length;
+    const soon = open.filter(x => x.status === "running" && !x.resolution_breached && new Date(x.resolution_due) - new Date() < 4 * 3600e3 && new Date(x.resolution_due) > new Date()).length;
     return {
       open: open.length, breached: open.filter(x => x.response_breached || x.resolution_breached).length, soon,
       compliance: closed.length ? Math.round(closed.filter(x => x.status === "met").length * 100 / closed.length) : null, byCust,
@@ -233,7 +237,7 @@ export function SlaMonitor({ lang: langProp, onOpenCase }) {
   }, [rows]);
 
   if (!rows) return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-gray-300" /></div>;
-  const list = rows.filter(x => (filter === "open" ? x.status === "running" : filter === "breached" ? (x.response_breached || x.resolution_breached || x.status === "breached") : filter === "closed" ? x.status !== "running" : true))
+  const list = rows.filter(x => (filter === "open" ? isOpen(x.status) : filter === "paused" ? x.status === "paused" : filter === "breached" ? (x.response_breached || x.resolution_breached || x.status === "breached") : filter === "closed" ? !isOpen(x.status) : true))
     .filter(x => !q || `${x.title} ${x.customer ?? ""} ${x.project?.name ?? ""}`.toLowerCase().includes(q.toLowerCase()));
 
   return (
@@ -251,7 +255,7 @@ export function SlaMonitor({ lang: langProp, onOpenCase }) {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-          {[["open", L("Open", "Abiertos")], ["breached", L("Breached", "Incumplidos")], ["closed", L("Closed", "Cerrados")], ["all", L("All", "Todos")]].map(([id, l]) => (
+          {[["open", L("Open", "Abiertos")], ["paused", L("Waiting for customer", "Esperando al cliente")], ["breached", L("Breached", "Incumplidos")], ["closed", L("Closed", "Cerrados")], ["all", L("All", "Todos")]].map(([id, l]) => (
             <button key={id} onClick={() => setFilter(id)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${filter === id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}>{l}</button>
           ))}
         </div>
@@ -269,15 +273,15 @@ export function SlaMonitor({ lang: langProp, onOpenCase }) {
             </tr></thead>
             <tbody className="divide-y divide-gray-50">
               {list.map(x => {
-                const r = dueState(x.response_due, x.first_response_at, x.response_breached);
-                const s = x.status === "cancelled" ? "met" : dueState(x.resolution_due, x.resolved_at, x.resolution_breached);
+                const r = x.status === "paused" && !x.first_response_at ? "paused" : dueState(x.response_due, x.first_response_at, x.response_breached);
+                const s = x.status === "cancelled" ? "met" : x.status === "paused" ? "paused" : dueState(x.resolution_due, x.resolved_at, x.resolution_breached);
                 return (
                   <tr key={x.case_id} className="hover:bg-gray-50 cursor-pointer" onClick={() => onOpenCase?.(x.case_id)}>
                     <td className="px-4 py-2.5"><div className="font-medium text-gray-900">{x.title}</div><div className="text-[11px] text-gray-400">{x.project?.name ?? ""} · {x.case_status}</div></td>
                     <td className="px-4 py-2.5 text-xs text-gray-600">{x.customer ?? "—"}{x.partner ? <div className="text-gray-400">{x.partner}</div> : null}</td>
                     <td className="px-4 py-2.5 text-xs text-gray-600">{TYPES.find(t => t[0] === x.sla_type)?.[es ? 2 : 1] ?? x.sla_type} · {(PRIOS[x.priority] ?? [x.priority, x.priority])[es ? 1 : 0]}</td>
                     <td className="px-4 py-2.5"><span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATE_CLS[r]}`}>{fmtDue(x.first_response_at ?? x.response_due, es)}</span></td>
-                    <td className="px-4 py-2.5"><span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATE_CLS[s]}`}>{x.status === "cancelled" ? L("stopped", "detenido") : fmtDue(x.resolved_at ?? x.resolution_due, es)}</span></td>
+                    <td className="px-4 py-2.5"><span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATE_CLS[s]}`}>{x.status === "cancelled" ? L("stopped", "detenido") : `${x.status === "paused" ? "⏸ " : ""}${fmtDue(x.resolved_at ?? x.resolution_due, es)}${pausedNote(x, es)}`}</span></td>
                     <td className="px-4 py-2.5 text-xs text-gray-500">{sourceLabel(x.source, es)}</td>
                   </tr>
                 );
