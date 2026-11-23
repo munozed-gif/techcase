@@ -41,6 +41,7 @@ import { DEFAULT_COST_CONFIG, costConfig } from "../lib/costs.js";
 import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
 import { HHCommissionsTable } from "../components/HHCommissions.jsx";
 import { SettingsSalesTab } from "../components/SalesAdmin.jsx";
+import { SlaSettingsPanel } from "../components/SlaPanels.jsx";
 
 // Case cost settings (lib/costs.js): VM, Arena fees, payment fees, contingency, taxes,
 // default consultant rates, exchange rates and AI prices. Platform currency: USD.
@@ -5587,6 +5588,7 @@ function ValidationsSettingsPanel({ auth }) {
 }
 
 function SettingsWorkflowTab({ auth, ssCtx }) {
+  const { lang } = useT();
   const [wTab, setWTab] = useState("lifecycle");
   const WTABS = [
     { id: "lifecycle",  label: "Lifecycle Templates",   Icon: TrendingUp },
@@ -5616,7 +5618,7 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
       {wTab === "gates"      && <TransitionGatesPanel auth={auth} />}
       {wTab === "validations" && <ValidationsSettingsPanel auth={auth} />}
       {wTab === "phases"     && <SettingsPhasesTab ssCtx={ssCtx} />}
-      {wTab === "sla"        && <SlaClientView auth={auth} />}
+      {wTab === "sla"        && <SlaSettingsPanel ssCtx={ssCtx} lang={lang} />}
       {wTab === "migration"  && <SettingsMigrationTab ssCtx={ssCtx} />}
     </div>
   );

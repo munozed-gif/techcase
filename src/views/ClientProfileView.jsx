@@ -1,3 +1,4 @@
+import { EffectiveSlaCard } from "../components/SlaPanels.jsx";
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext.jsx";
 import {
@@ -797,87 +798,13 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       {/* SLA TAB */}
       {tabItem.id === "sla" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="font-bold text-gray-900">{t("sla.title")}</h2>
-              <p className="text-sm text-gray-400 mt-0.5">{t("sla.subtitle")}</p>
-            </div>
-            <button onClick={() => setSlaEditing(p => !p)}
-              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
-              {slaEditing ? t("sla.cancel") : t("sla.edit")}
-            </button>
+          <div className="mb-5">
+            <h2 className="font-bold text-gray-900">{t("sla.title")}</h2>
+            <p className="text-sm text-gray-400 mt-0.5">{lang === "es"
+              ? "SLA vigente para esta empresa. Se define en Ajustes → Flujo → SLA, por partner, por cliente o por el contrato de servicio."
+              : "The SLA in force for this company. It is set in Settings → Workflow → SLA, per partner, per customer or by the service contract."}</p>
           </div>
-
-          {/* Header fields */}
-          {slaEditing ? (
-            <div className="space-y-4 mb-5 pb-5 border-b border-gray-100">
-              <div className="grid grid-cols-2 gap-3">
-                <Select label={t("sla.tier")} value={slaForm.tier}
-                  onChange={e => setSlaForm(p => ({ ...p, tier: e.target.value }))}
-                  options={[{ value:"standard", label:t("sla.tier_standard") },{ value:"premium", label:t("sla.tier_premium") },{ value:"enterprise", label:t("sla.tier_enterprise") }]} />
-                <Input label={t("sla.uptime")} type="number" value={slaForm.uptime_guarantee_pct}
-                  onChange={e => setSlaForm(p => ({ ...p, uptime_guarantee_pct: Number(e.target.value) }))} />
-              </div>
-              <div className="flex gap-6">
-                {[["dedicated_consultant", t("sla.dedicated")],["priority_support", t("sla.priority_support")]].map(([k,lbl]) => (
-                  <label key={k} className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" checked={slaForm[k]} onChange={e => setSlaForm(p => ({ ...p, [k]: e.target.checked }))} className="rounded accent-blue-600" />
-                    {lbl}
-                  </label>
-                ))}
-              </div>
-            </div>
-          ) : sla ? (
-            <div className="flex flex-wrap items-center gap-2 mb-5">
-              <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{SLA_TIER_LABEL_KEYS[sla.tier] ? t(SLA_TIER_LABEL_KEYS[sla.tier]) : cap(sla.tier)} {t("sla.tier_suffix")}</Badge>
-              {sla.uptime_guarantee_pct && <Badge className="bg-gray-100 text-gray-700">{sla.uptime_guarantee_pct}{t("sla.uptime_badge")}</Badge>}
-              {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">{t("sla.priority_support")}</Badge>}
-              {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">{t("sla.dedicated")}</Badge>}
-            </div>
-          ) : null}
-
-          {/* Legend */}
-          {!slaEditing && sla && (
-            <div className="flex items-center gap-4 text-xs text-gray-400 mb-3">
-              <span><span className="text-blue-400 mr-1">↩</span>{t("sla.initial_response")}</span>
-              <span><Check size={13} className="text-green-500 mr-1 inline" />{t("sla.resolution")}</span>
-            </div>
-          )}
-
-          {/* Matrix */}
-          {(sla || slaEditing) ? (
-            <SlaMatrixEditor caseTypes={slaCaseTypes} matrix={slaMatrix} editing={slaEditing}
-              onChangeCaseTypes={setSlaCaseTypes} onChangeMatrix={setSlaMatrix} />
-          ) : (
-            <div className="text-center py-8 text-gray-400">
-              <div className="mb-2 flex justify-center"><FileText className="w-8 h-8 text-gray-300" /></div>
-              <p className="text-sm mb-4">{t("sla.none")}</p>
-              <button onClick={() => setSlaEditing(true)}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
-                {t("sla.configure")}
-              </button>
-            </div>
-          )}
-
-          {/* Notes + actions */}
-          {slaEditing ? (
-            <div className="mt-5 space-y-4">
-              <Textarea label={t("sla.notes")} value={slaForm.notes} onChange={e => setSlaForm(p => ({ ...p, notes: e.target.value }))}
-                placeholder={t("sla.extra_terms")} />
-              <div className="flex justify-end gap-3">
-                <button onClick={() => setSlaEditing(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
-                <button onClick={handleSaveSla} disabled={savingSla}
-                  className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-                  {savingSla ? t("sla.saving") : t("sla.save")}
-                </button>
-              </div>
-            </div>
-          ) : sla?.notes ? (
-            <div className="mt-4 bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
-              <div className="font-medium text-yellow-800 mb-1">{t("sla.notes")}</div>
-              {sla.notes}
-            </div>
-          ) : null}
+          <EffectiveSlaCard lang={lang} clientUserId={effectiveClientId} />
         </div>
       )}
 

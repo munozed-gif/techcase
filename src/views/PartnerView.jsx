@@ -18,6 +18,7 @@ import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
 import { useT } from "../i18n/index.jsx";
 import { SolutionsEditor } from "../components/SolutionsEditor.jsx";
+import { CustomerSlaModal } from "../components/SlaPanels.jsx";
 import { DeliveryRequestsPanel, OpenTendersPanel } from "../components/SalesDelivery.jsx";
 import { errText as salesErr } from "../lib/sales.js";
 
@@ -331,6 +332,8 @@ function CustomerUsers({ customer, canManage, partnerName }) {
 function CustomersTab({ partner, canManage, onChanged, auth }) {
   const [rows, setRows] = useState(null);
   const [sapFor, setSapFor] = useState(null);
+  const [slaFor, setSlaFor] = useState(null);
+  const { lang: slaLang } = useT();
   const [editing, setEditing] = useState(null);   // customer row or {} for new
   const [openId, setOpenId] = useState(null);
   const [nonce, setNonce] = useState(0);
@@ -383,6 +386,9 @@ function CustomersTab({ partner, canManage, onChanged, auth }) {
             <button onClick={() => setSapFor(c)} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
               <Server size={13} />SAP systems
             </button>
+            <button onClick={() => setSlaFor(c)} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
+              <Shield size={13} />SLA{c.sla ? " ★" : ""}
+            </button>
             {canManage && <button onClick={() => setEditing(c)} className="p-1.5 text-gray-400 hover:text-gray-700"><Pencil size={14} /></button>}
             {canManage && <button onClick={() => setArchived(c, true)} className="text-xs text-gray-400 hover:text-red-600">Archive</button>}
           </div>
@@ -406,6 +412,7 @@ function CustomersTab({ partner, canManage, onChanged, auth }) {
           </div>
         </details>
       )}
+      {slaFor && <CustomerSlaModal customer={slaFor} lang={slaLang} canManage={canManage} onClose={() => setSlaFor(null)} onSaved={() => { setSlaFor(null); setNonce(n => n + 1); }} />}
       <Modal open={!!sapFor} onClose={() => setSapFor(null)} title={sapFor ? `SAP systems — ${sapFor.name}` : ""} wide>
         {sapFor && (
           <div>

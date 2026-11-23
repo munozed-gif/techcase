@@ -263,6 +263,7 @@ import {
   ClientTeamView, ClientTeamList,
 } from "./src/views/OperationsViews.jsx";
 import { SlaView } from "./src/views/SlaView.jsx";
+import { SlaMonitor } from "./src/components/SlaPanels.jsx";
 
 
 // ============================================================
@@ -719,6 +720,14 @@ function PermGate({ auth, cap, fallback = null, children }) {
 
 export default function App() {
   const auth = useAuth();
+  // SLA clocks: warnings and breaches are checked (and notified once) every few minutes while someone is signed in.
+  useEffect(() => {
+    if (!auth.user?.id) return;
+    const run = () => supabase.rpc("sla_check_breaches").then(() => {}, () => {});
+    const first = setTimeout(run, 15000);
+    const id = setInterval(run, 5 * 60 * 1000);
+    return () => { clearTimeout(first); clearInterval(id); };
+  }, [auth.user?.id]);
   const [activeView, setActiveView]       = useState("dashboard");
   const [authed, setAuthed]               = useState(false);
   const [signupResumed, setSignupResumed] = useState(false);
@@ -1012,7 +1021,7 @@ export default function App() {
       case "consultants":    return <ConsultantsView auth={auth} onNavigate={({ view, clientId }) => { setPendingClientId(clientId ?? null); setActiveView(view); }} />;
       case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
       case "reports":        return <PermGate auth={auth} cap="view_reports" fallback={<Dashboard auth={auth} />}><ReportsView /></PermGate>;
-      case "sla":            return (auth.isAdmin || auth.isManager) ? <SlaView auth={auth} /> : <Dashboard auth={auth} />;
+      case "sla":            return (auth.isAdmin || auth.isManager) ? <SlaMonitor onOpenCase={id => { setPendingCaseId(id); setActiveView("cases"); }} /> : <Dashboard auth={auth} />;
       case "db-connections": return <DbConnectionsView auth={auth} />;
       case "team-members":   return <ClientTeamView auth={auth} />;
       case "client-profile": return (auth.isClient || auth.isInvitedClient || ((auth.isAdmin || auth.isManager) && pendingClientId))

@@ -1,3 +1,4 @@
+import { CaseSlaPanel } from "../components/SlaPanels.jsx";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Activity, AlertTriangle, Archive, BadgeCheck, BarChart2, Briefcase,
@@ -3395,6 +3396,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
               )}
             </div>
           </div>
+          <div className="mt-2"><CaseSlaPanel caseId={caseData.id} lang={lang} canEdit={!!canEditCase} refreshKey={`${caseData.status}|${caseData.priority}`} /></div>
 
           {showEditWizard && (
             <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || t("cd.no_description")}</p>

@@ -48,6 +48,10 @@ export const DEFAULT_SERVICE_CATALOG = {
       info:        { critical: [1, 8],   high: [2, 16], normal: [4, 32], low: [8, 64] },
       improvement: { critical: [2, 16],  high: [3, 32], normal: [6, 48], low: [16, 96] },
     },
+    // Business calendar the SLA clock runs on (business hours only).
+    calendar: { start: "09:00", hoursPerDay: 8, workDays: [1, 2, 3, 4, 5], timezone: "America/Mexico_City" },
+    // Contract terms shown with the SLA.
+    terms: { tier: "standard", uptime_pct: 99, dedicated_consultant: false, priority_support: false, notes: "" },
   },
   premises: {
     es: [
@@ -77,6 +81,20 @@ export const DEFAULT_SERVICE_CATALOG = {
 
 const r2 = n => Math.round((Number(n) || 0) * 100) / 100;
 
+/** SLA policy with defaults filled in (same shape everywhere: catalogs, customer overrides, contracts). */
+export function normalizeSla(src, catalogHoursPerDay) {
+  const base = DEFAULT_SERVICE_CATALOG.sla;
+  const s = src ?? {};
+  return {
+    ...base, ...s,
+    types: s.types?.length ? s.types : base.types,
+    priorities: s.priorities?.length ? s.priorities : base.priorities,
+    matrix: { ...base.matrix, ...(s.matrix ?? {}) },
+    calendar: { ...base.calendar, ...(catalogHoursPerDay ? { hoursPerDay: Number(catalogHoursPerDay) } : {}), ...(s.calendar ?? {}) },
+    terms: { ...base.terms, ...(s.terms ?? {}) },
+  };
+}
+
 /** Catalog with defaults filled in (partner catalog → platform default → built-in). */
 export function resolveCatalog(partnerCatalog, platformDefault) {
   const src = partnerCatalog ?? platformDefault ?? {};
@@ -88,7 +106,7 @@ export function resolveCatalog(partnerCatalog, platformDefault) {
     terms: (src.terms?.length ? src.terms : base.terms).map(Number).sort((a, b) => a - b),
     onDemand: { ...base.onDemand, ...(src.onDemand ?? {}) },
     factors: { ...base.factors, ...(src.factors ?? {}) },
-    sla: { ...base.sla, ...(src.sla ?? {}), matrix: { ...base.sla.matrix, ...(src.sla?.matrix ?? {}) } },
+    sla: normalizeSla(src.sla, src.hoursPerDay),
     premises: { ...base.premises, ...(src.premises ?? {}) },
   };
 }
@@ -167,9 +185,23 @@ const slaTime = (h, hpd, es) => {
   return `${d} ${es ? (d === 1 ? "día" : "días") : (d === 1 ? "day" : "days")}`;
 };
 
+const DAY_NAMES = { en: ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], es: ["", "lun", "mar", "mié", "jue", "vie", "sáb", "dom"] };
+/** "Business hours: Mon–Fri 09:00–17:00 (America/Mexico_City)" */
+export function calendarText(cal, es) {
+  const days = (cal.workDays ?? [1, 2, 3, 4, 5]).map(Number).sort((a, b) => a - b);
+  const n = DAY_NAMES[es ? "es" : "en"];
+  const contiguous = days.every((d, i) => i === 0 || d === days[i - 1] + 1);
+  const dayTxt = contiguous && days.length > 1 ? `${n[days[0]]}–${n[days[days.length - 1]]}` : days.map(d => n[d]).join(", ");
+  const [h, m] = String(cal.start ?? "09:00").split(":").map(Number);
+  const endMin = h * 60 + (m || 0) + Math.round((Number(cal.hoursPerDay) || 8) * 60);
+  const end = `${String(Math.floor(endMin / 60) % 24).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
+  return `${es ? "Horario laboral" : "Business hours"}: ${dayTxt} ${cal.start ?? "09:00"}–${end}${cal.timezone ? ` (${cal.timezone})` : ""}.`;
+}
+
 export function slaMarkdown(catalog, lang = "en") {
   const es = lang === "es";
   const { types, priorities, matrix } = catalog.sla;
+  const hpd = Number(catalog.sla.calendar?.hoursPerDay) || catalog.hoursPerDay;
   const lines = [`## ${es ? "Acuerdo de nivel de servicio (SLA)" : "Service level agreement (SLA)"}`, "",
     es ? "Tiempos en horario laboral, según el tipo de solicitud y su prioridad." : "Times in business hours, by request type and priority.", "",
     `| ${es ? "Tipo" : "Type"} | ${es ? "Prioridad" : "Priority"} | ${es ? "Respuesta inicial" : "Initial response"} | ${es ? "Solución" : "Solution"} |`,
@@ -177,8 +209,10 @@ export function slaMarkdown(catalog, lang = "en") {
   for (const tp of types) for (const pr of priorities) {
     const v = matrix[tp.key]?.[pr.key];
     if (!v) continue;
-    lines.push(`| ${tp[es ? "es" : "en"]} | ${pr[es ? "es" : "en"]} | ${slaTime(v[0], catalog.hoursPerDay, es)} | ${slaTime(v[1], catalog.hoursPerDay, es)} |`);
+    lines.push(`| ${tp[es ? "es" : "en"]} | ${pr[es ? "es" : "en"]} | ${slaTime(v[0], hpd, es)} | ${slaTime(v[1], hpd, es)} |`);
   }
+  const cal = catalog.sla.calendar;
+  if (cal) lines.push("", calendarText(cal, es));
   return lines.join("\n");
 }
 

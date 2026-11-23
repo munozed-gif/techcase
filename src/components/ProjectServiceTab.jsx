@@ -1,6 +1,8 @@
 // Project → Service: service contracts created from accepted plan / on-demand proposals.
 // Shows the hours pool (hours logged on the project's cases, weighted by the hour type factor),
 // usage per month, additional hours and the contract invoices.
+import { SlaPolicyEditor } from "./SlaPolicyEditor.jsx";
+import { calendarText, normalizeSla as normSla } from "../lib/servicePlans.js";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Receipt, Gauge, CalendarRange, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -118,6 +120,8 @@ function ContractCard({ k, canManage, lang, L, onChanged }) {
         )}
       </div>
 
+      <ContractSla k={k} canManage={canManage} lang={lang} L={L} onChanged={onChanged} />
+
       {isPlan && (
         <div>
           <div className="flex items-center justify-between text-xs mb-1">
@@ -206,6 +210,46 @@ function ContractCard({ k, canManage, lang, L, onChanged }) {
       )}
 
       {msg && <p className={`text-xs flex items-center gap-1.5 ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.ok ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}{msg.text}</p>}
+    </div>
+  );
+}
+
+// The contract's SLA (snapshot taken when the customer accepted; it wins over customer / partner / platform SLAs).
+function ContractSla({ k, canManage, lang, L, onChanged }) {
+  const es = lang === "es";
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState(false);
+  const [sla, setSla] = useState(() => normSla(k.sla));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const cur = normSla(k.sla);
+  async function save() {
+    setBusy(true); setErr(null);
+    const { error } = await supabase.from("service_contracts").update({ sla }).eq("id", k.id);
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    setEdit(false); onChanged();
+  }
+  return (
+    <div className="border border-gray-100 rounded-xl">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-3 py-2 text-xs">
+        <span className="font-semibold text-gray-700">SLA · <span className="capitalize">{cur.terms.tier}</span>{cur.terms.uptime_pct ? ` · ${cur.terms.uptime_pct}%` : ""} · <span className="font-normal text-gray-500">{calendarText(cur.calendar, es)}</span></span>
+        <span className="text-blue-600">{open ? L("Hide", "Ocultar") : L("Show", "Ver")}</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-3">
+          <SlaPolicyEditor value={edit ? sla : cur} onChange={setSla} lang={lang} readOnly={!edit} />
+          {err && <p className="text-xs text-red-600">{err}</p>}
+          {canManage && (edit ? (
+            <div className="flex gap-2">
+              <button onClick={save} disabled={busy} className="text-xs font-semibold bg-blue-600 text-white rounded-lg px-3 py-1.5 disabled:opacity-50">{busy ? "…" : L("Save SLA", "Guardar SLA")}</button>
+              <button onClick={() => { setEdit(false); setSla(cur); }} className="text-xs text-gray-500 px-2">{L("Cancel", "Cancelar")}</button>
+            </div>
+          ) : (
+            <button onClick={() => { setSla(cur); setEdit(true); }} className="text-xs font-semibold text-blue-600 hover:underline">{L("Edit contract SLA", "Editar SLA del contrato")}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

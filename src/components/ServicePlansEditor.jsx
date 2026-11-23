@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Plus, Trash2, RotateCcw, Check } from "lucide-react";
 import { DEFAULT_SERVICE_CATALOG, resolveCatalog, computeServiceTotals, termName } from "../lib/servicePlans.js";
 import { fmtMoney } from "../lib/costs.js";
+import { SlaPolicyEditor } from "./SlaPolicyEditor.jsx";
 
 /**
  * Editor of a service-plan catalog (UE plans, terms, rates, extra hour, on demand, multipliers,
@@ -105,35 +106,8 @@ export function ServicePlansEditor({ value, fallback, onSave, lang = "en", title
         <Field label={L("On-site factor (×)", "Factor en sitio (×)")}><input type="number" step="0.1" value={c.factors.onsite} onChange={e => set({ factors: { ...c.factors, onsite: num(e.target.value) } })} className={inp} /></Field>
       </div>
 
-      {/* SLA */}
-      <div>
-        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">{L("SLA — initial response / solution (business hours)", "SLA — respuesta inicial / solución (horas laborales)")}</p>
-        <div className="overflow-x-auto">
-          <table className="text-xs">
-            <thead><tr className="text-gray-500"><th className="text-left font-medium pr-3" />{c.sla.priorities.map(p => <th key={p.key} className="font-medium px-1">{p[es ? "es" : "en"]}</th>)}</tr></thead>
-            <tbody>
-              {c.sla.types.map(tp => (
-                <tr key={tp.key} className="border-t border-gray-50">
-                  <td className="pr-3 py-1 text-gray-700 whitespace-nowrap">{tp[es ? "es" : "en"]}</td>
-                  {c.sla.priorities.map(pr => {
-                    const v = c.sla.matrix[tp.key]?.[pr.key] ?? ["", ""];
-                    const setV = (idx, val) => set({ sla: { ...c.sla, matrix: { ...c.sla.matrix, [tp.key]: { ...(c.sla.matrix[tp.key] ?? {}), [pr.key]: idx === 0 ? [num(val), v[1]] : [v[0], num(val)] } } } });
-                    return (
-                      <td key={pr.key} className="px-1 py-1">
-                        <div className="flex items-center gap-1">
-                          <input type="number" step="0.5" value={v[0]} onChange={e => setV(0, e.target.value)} className={inp + " w-14"} title={L("Initial response (h)", "Respuesta inicial (h)")} />
-                          <span className="text-gray-300">/</span>
-                          <input type="number" step="0.5" value={v[1]} onChange={e => setV(1, e.target.value)} className={inp + " w-14"} title={L("Solution (h)", "Solución (h)")} />
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* SLA — same editor as Settings → Workflow → SLA, customer overrides and contracts */}
+      <SlaPolicyEditor value={c.sla} onChange={sla => set({ sla })} lang={lang} />
 
       {/* Premises */}
       <div className="grid sm:grid-cols-2 gap-3">
