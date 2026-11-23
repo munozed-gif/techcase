@@ -1421,7 +1421,7 @@ app.post('/sap-write-mcp', async (req, res) => {
     if (!transport && parentName && parentName !== '$TMP' && effectivePolicy.autoCreateTransport && effectiveCaps.hasCts) {
       const trDesc = transportDescription
         ? sapShortText(transportDescription)
-        : `Techcase: ${resolvedName}${description ? ' - ' + description : ''}`.slice(0, 60);
+        : `Arena: ${resolvedName}${description ? ' - ' + description : ''}`.slice(0, 60);
       console.log(`[bridge] [timing] createTransport start for ${resolvedName} (MCP tool)`);
       const _trStart = Date.now();
       try {

@@ -577,7 +577,7 @@ define structure ${name} {
 // create it (SAP allows 60 characters).
 function caseTransportDescription(caseData) {
   const ref = caseData?.case_ref ? `${caseData.case_ref} ` : '';
-  return sapShortText(`Techcase: ${ref}${caseData?.title ?? ''}`.trim());
+  return sapShortText(`Arena: ${ref}${caseData?.title ?? ''}`.trim());
 }
 
 // Add a transport the pipeline wrote an object into to the case's Transport tab
