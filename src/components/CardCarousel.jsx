@@ -11,10 +11,13 @@ const arrowStyle = { position: "absolute", zIndex: 10, width: 32, height: 32, bo
  * slides: [{ id, label, Icon, content, badge? }] · storageKey: remembers the last section
  * footer(id): optional node rendered at the bottom of that card · height: card height on desktop
  */
-export function CardCarousel({ slides, storageKey, footer, height = 720 }) {
-  const [active, setActive] = useState(() => {
+export function CardCarousel({ slides, storageKey, footer, height = 720, active: activeProp, onActiveChange }) {
+  const [activeInner, setActiveInner] = useState(() => {
     try { const k = storageKey && localStorage.getItem(storageKey); return slides.some(s => s.id === k) ? k : slides[0]?.id; } catch { return slides[0]?.id; }
   });
+  // Controlled (active + onActiveChange) or uncontrolled.
+  const active = activeProp ?? activeInner;
+  const setActive = id => { if (onActiveChange) onActiveChange(id); else setActiveInner(id); };
   const [mounted, setMounted] = useState(() => new Set([active]));
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 640);
   const ref = useRef(null);

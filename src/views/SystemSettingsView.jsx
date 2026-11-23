@@ -736,7 +736,9 @@ function SettingsCatalogTab({ ssCtx }) {
 
   const [selectedCat, setSelectedCat] = useState("sap_areas");
   const [catalogData, setCatalogData] = useState({});
-  const [newValue, setNewValue]       = useState("");
+  const [newValues, setNewValues]     = useState({});   // per category
+  const newValue = newValues[selectedCat] ?? "";
+  const setNewValue = v => setNewValues(p => ({ ...p, [selectedCat]: v }));
   const [saving, setSaving]           = useState(false);
   const [toast, setToast]             = useState(null);
   const { t } = useT();
@@ -799,21 +801,13 @@ function SettingsCatalogTab({ ssCtx }) {
   const current = catalogData[selectedCat] ?? [];
 
   return (
-    <div className="flex gap-6">
-      <div className="w-48 flex-shrink-0">
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          {Object.keys(CATALOG_DEFAULTS).map(cat => (
-            <button key={cat} onClick={() => { setSelectedCat(cat); setNewValue(""); }}
-              className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors border-r-2
-                ${selectedCat === cat ? "bg-blue-50 text-blue-700 border-blue-600" : "border-transparent text-gray-600 hover:bg-gray-50"}`}>
-              {CATEGORY_LABELS[cat]}
-              <span className="ml-1 text-xs text-gray-400">({(catalogData[cat] ?? CATALOG_DEFAULTS[cat]).length})</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex-1">
+    <CardCarousel storageKey="settings_catalog_slide" active={selectedCat} onActiveChange={setSelectedCat}
+      slides={Object.keys(CATALOG_DEFAULTS).map(cat => ({
+        id: cat, label: `${CATEGORY_LABELS[cat]} (${(catalogData[cat] ?? CATALOG_DEFAULTS[cat]).length})`, Icon: Tag,
+        content: cat !== selectedCat
+          ? <div className="text-sm text-gray-400 font-mono">{(catalogData[cat] ?? CATALOG_DEFAULTS[cat]).slice(0, 12).join(" · ")}</div>
+          : (
+      <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-900">{CATEGORY_LABELS[selectedCat]}</h3>
           <div className="flex gap-2 items-center">
@@ -856,7 +850,8 @@ function SettingsCatalogTab({ ssCtx }) {
           </button>
         </div>
       </div>
-    </div>
+          ),
+      }))} />
   );
 }
 
@@ -4074,31 +4069,6 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   return (
     <div className="space-y-4">
 
-      {/* Persona tab cards */}
-      <div className="grid grid-cols-4 gap-3">
-        {PERSONA_TABS.map(({ id, label, roles, Icon: Ic, border, activeBg, accentTxt, lightBg }) => {
-          const count = id === 'client_team'
-            ? users.filter(u => roles.includes(u.role)).length + teamMembers.filter(m => roles.includes(m.role)).length
-            : users.filter(u => roles.includes(u.role)).length;
-          const isActive = personaTab === id;
-          return (
-            <button key={id} onClick={() => setPersonaTab(id)}
-              className={`rounded-2xl border-2 p-4 text-left transition-all ${
-                isActive ? `${border} bg-white shadow-sm` : "border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300"
-              }`}>
-              <div className="flex items-start justify-between mb-2">
-                <div className={`p-2 rounded-xl ${isActive ? `${activeBg} text-white` : `${lightBg}`}`}>
-                  <Ic size={15} className={isActive ? "" : accentTxt} />
-                </div>
-                <span className={`text-2xl font-bold tabular-nums ${isActive ? accentTxt : "text-gray-400"}`}>{count}</span>
-              </div>
-              <div className={`text-sm font-semibold ${isActive ? "text-gray-900" : "text-gray-500"}`}>{label}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{roles.map(r => r.replace("_", " ")).join(" · ")}</div>
-            </button>
-          );
-        })}
-      </div>
-
       {/* Pending approvals banner */}
       {pendingUsers.length > 0 && (
         <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
@@ -4118,6 +4088,16 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
         </div>
       )}
 
+      <p className="text-xs text-gray-400 flex items-center gap-1.5"><Shield size={12} />Role permissions are set in Settings → Roles &amp; Perms.</p>
+      <CardCarousel storageKey="settings_people_slide" height={760}
+        active={personaTab} onActiveChange={id => { setPersonaTab(id); setDetailUser(null); setSearch(""); setEditId(null); }}
+        slides={PERSONA_TABS.map(pt => {
+          const count = pt.id === 'client_team'
+            ? users.filter(u => pt.roles.includes(u.role)).length + teamMembers.filter(m => pt.roles.includes(m.role)).length
+            : users.filter(u => pt.roles.includes(u.role)).length;
+          return { id: pt.id, label: `${pt.label} (${count})`, Icon: pt.Icon, content: pt.id !== personaTab
+            ? <div className="text-sm text-gray-400">{count} user(s) · {pt.roles.map(r => r.replace("_", " ")).join(" · ")}</div>
+            : (<div className="space-y-4">
       {/* Role pills within multi-role groups */}
       {groupRoles.length > 1 && (
         <div className="flex gap-2">
@@ -4140,7 +4120,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
       <div className="grid grid-cols-5 gap-5 items-start">
 
         {/* LEFT: User list */}
-        <div className="col-span-3 bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className={`${detailUser ? "col-span-3" : "col-span-5"} bg-white rounded-2xl border border-gray-200 overflow-hidden`}>
           <div className="flex items-center gap-2 p-4 border-b border-gray-100">
             <div className="relative flex-1">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -4246,8 +4226,8 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
           )}
         </div>
 
-        {/* RIGHT: User detail panel or permissions */}
-        <div className="col-span-2 space-y-4">
+        {/* RIGHT: user detail panel (role permissions live in Roles & Perms) */}
+        <div className={detailUser ? "col-span-2 space-y-4" : "hidden"}>
 
           {/* User detail panel */}
           {detailUser && !isNavigable && (
@@ -4348,61 +4328,11 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
             </div>
           )}
 
-          {/* Permissions panel */}
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
-                <Shield size={14} className="text-blue-600" />Permissions — {t("role." + selectedRole)}
-              </h3>
-              {selectedRole !== "admin" && (
-                <button onClick={savePermissions} disabled={matrixSaving}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-colors">
-                  {matrixSaving ? t("state.saving") : t("action.save")}
-                </button>
-              )}
-            </div>
-            {selectedRole === "admin" ? (
-              <div className="p-4">
-                <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-xs text-red-700">
-                  Admin has unrestricted access to all capabilities and cannot be configured.
-                </div>
-                <div className="mt-3 space-y-1">
-                  {CAPS.map(cap => (
-                    <div key={cap} className="flex items-center justify-between py-1.5 px-2 rounded-lg text-xs">
-                      <span className="text-gray-700">{t("roles.cap." + cap)}</span>
-                      <span className="w-4 h-4 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
-                        <Check size={10} />
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : !matrix ? (
-              <div className="flex justify-center py-8"><Spinner /></div>
-            ) : (
-              <div className="p-2">
-                <div className="space-y-0.5 max-h-[340px] overflow-y-auto">
-                  {CAPS.map(cap => (
-                    <label key={cap}
-                      className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-50 cursor-pointer group">
-                      <span className="text-xs text-gray-700 group-hover:text-gray-900 pr-3">{t("roles.cap." + cap)}</span>
-                      <input type="checkbox"
-                        checked={matrix[cap]?.[selectedRole] ?? false}
-                        onChange={() => togglePermission(cap)}
-                        className="rounded accent-blue-600 w-4 h-4 flex-shrink-0 cursor-pointer" />
-                    </label>
-                  ))}
-                </div>
-                {matrixToast && (
-                  <div className={`mt-3 px-3 py-2 rounded-lg text-xs ${matrixToast.startsWith("Error") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                    {matrixToast}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
         </div>
       </div>
+
+      </div>) };
+        })} />
 
       {/* Add user modal */}
       {showAdd && (
