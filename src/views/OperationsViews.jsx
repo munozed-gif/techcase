@@ -962,7 +962,7 @@ function SapProfileFields({ meta = {}, onChange, dbType }) {
       )}
       {dbType === "sap_rfc" && (
         <Input label={t("sap.rfc_dest_label")} value={meta.rfc_destination ?? ""}
-          onChange={e => set("rfc_destination", e.target.value)} placeholder="TECHCASE_RFC" />
+          onChange={e => set("rfc_destination", e.target.value)} placeholder="ARENA_RFC" />
       )}
     </div>
   );
