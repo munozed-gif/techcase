@@ -19,6 +19,7 @@ import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
 import { useT } from "../i18n/index.jsx";
 import { SolutionsEditor } from "../components/SolutionsEditor.jsx";
 import { CustomerSlaModal } from "../components/SlaPanels.jsx";
+import { CardCarousel } from "../components/CardCarousel.jsx";
 import { DeliveryRequestsPanel, OpenTendersPanel } from "../components/SalesDelivery.jsx";
 import { errText as salesErr } from "../lib/sales.js";
 
@@ -765,22 +766,17 @@ function PartnerView({ auth, onNavigate }) {
       {partner.status === "approved" && (
         <>
           <UsageStrip limits={partner.limits} usage={usage} />
-          <div className="flex border-b border-gray-200 mb-5 overflow-x-auto">
-            {TABS.map(({ id, label, Icon: Ic }) => (
-              <button key={id} onClick={() => setTab(id)}
-                className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px ${tab === id ? "border-blue-600 text-blue-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
-                <Ic size={15} />{label}
-              </button>
-            ))}
-          </div>
-          {tab === "customers" && <CustomersTab partner={partner} canManage={canManage} onChanged={changed} auth={auth} />}
-          {tab === "validations" && <ValidationsTab partner={partner} canManage={canManage} />}
-          {tab === "projects"  && <ProjectsTab partner={partner} onNavigate={onNavigate} />}
-          {tab === "members"   && <MembersTab partner={partner} canManage={canManage} isOwner={partner.role === "owner"} myId={auth.user?.id} onChanged={changed} />}
-          {tab === "plan"      && <PlanTab partner={partner} auth={auth} canManage={canManage} />}
-          {tab === "service_plans" && <PartnerServicePlansTab partner={partner} canManage={canManage} />}
-          {tab === "solutions" && <PartnerSolutionsTab partner={partner} canManage={canManage} auth={auth} />}
-          {tab === "deliveries" && <PartnerDeliveriesTab auth={auth} canManage={canManage} onNavigate={onNavigate} />}
+          <CardCarousel key={partner.id} storageKey="partner_area_slide" height={760} active={tab} onActiveChange={setTab}
+            slides={TABS.map(({ id, label, Icon }) => ({ id, label, Icon, content: {
+              customers:     <CustomersTab partner={partner} canManage={canManage} onChanged={changed} auth={auth} />,
+              projects:      <ProjectsTab partner={partner} onNavigate={onNavigate} />,
+              members:       <MembersTab partner={partner} canManage={canManage} isOwner={partner.role === "owner"} myId={auth.user?.id} onChanged={changed} />,
+              validations:   <ValidationsTab partner={partner} canManage={canManage} />,
+              plan:          <PlanTab partner={partner} auth={auth} canManage={canManage} />,
+              service_plans: <PartnerServicePlansTab partner={partner} canManage={canManage} />,
+              solutions:     <PartnerSolutionsTab partner={partner} canManage={canManage} auth={auth} />,
+              deliveries:    <PartnerDeliveriesTab auth={auth} canManage={canManage} onNavigate={onNavigate} />,
+            }[id] }))} />
         </>
       )}
     </div>
