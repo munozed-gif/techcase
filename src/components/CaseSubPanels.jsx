@@ -4036,6 +4036,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
   }
 
   async function handleSapCheck() {
+    setAiStep(1);             // drives the "running" spinner on the step and in its panel
+    setActiveNode(1);
     setStepLoading(true);
     setAiError(null);
     setSapCheck(null);
@@ -4082,6 +4084,7 @@ Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words
         parsed = m ? JSON.parse(m[0]) : { coverage: 'none', summary: raw, standard_transactions: [], gaps: [], recommendation: '' };
       }
       setSapCheck(parsed);
+      setAiStep(2);
       setActiveNode(1); // show SAP result
       try { await saveAiNotesPatch({ sapCheck: parsed, proposalCheck: null }); } catch (_) {}
     } catch (e) { setAiError(e.message); }
@@ -4090,6 +4093,8 @@ Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words
 
   async function handleProposalValidation() {
     if (!sapCheck) return;
+    setAiStep(2);             // drives the "running" spinner on the step and in its panel
+    setActiveNode(2);
     setStepLoading(true);
     setAiError(null);
     setProposalCheck(null);
