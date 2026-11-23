@@ -1,8 +1,8 @@
-import { useState, useEffect, Component } from "react";
+import { useState, useEffect, useRef, Component } from "react";
 import {
   Activity, AlertCircle, AlertTriangle, BadgeCheck, BarChart2, Briefcase,
   Building2, Calendar, CalendarDays, CalendarRange, Check, CheckCircle2,
-  ChevronDown, ChevronUp, ClipboardList, CreditCard, Crosshair, Database, DollarSign, Download,
+  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardList, CreditCard, Crosshair, Database, DollarSign, Download,
   ExternalLink, FileCode2, FileText, FolderKanban, FolderOpen, Globe,
   Handshake, ListChecks, Lock, Mail, Palette, Pencil, Phone, Plus, Receipt,
   RefreshCw, RotateCcw, Search, Send, Settings, Shield, SlidersHorizontal,
@@ -2087,8 +2087,10 @@ function SettingsGenerationTab({ ssCtx }) {
   const PROFILE_KEYS = ["basic", "standard", "full"];
   const PROFILE_ICONS = { basic: Zap, standard: BarChart2, full: Sparkles };
 
-  return (
-    <div className="space-y-6 max-w-3xl">
+  // Sections shown as a horizontal carousel (tab strip + sliding panels).
+  const SAVE_SLIDES = ["ai", "summary", "context", "profiles"];   // saved by the button below
+  const slides = [
+    { id: "ai",       label: t("sys.ai_config_title"), Icon: Sparkles, content: (<div className="space-y-6">
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Sparkles size={16} className="text-purple-600" /> {t("sys.ai_config_title")}
@@ -2118,42 +2120,23 @@ function SettingsGenerationTab({ ssCtx }) {
           <p className="text-xs text-gray-400 mt-1">{t("sys.prototype_model_hint")}</p>
         </div>
 
-        {/* ── Infrastructure Check Settings ─────────────────────── */}
-        <InfraCheckSettingsCard ssCtx={ssCtx} />
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
-        <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-          <Zap size={16} className="text-blue-600" /> {t("gen.tab_title")}
-        </h3>
-        <p className="text-xs text-gray-400 mb-4">{t("gen.tab_subtitle")}</p>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t("gen.default_profile")}</label>
-          <div className="flex gap-2 flex-wrap mb-1">
-            {PROFILE_KEYS.map(pk => {
-              const Icon = PROFILE_ICONS[pk];
-              const isSel = form.default_profile === pk;
-              return (
-                <button key={pk} onClick={() => setForm(p => ({ ...p, default_profile: pk }))}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${isSel ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-200 hover:bg-gray-50'}`}>
-                  <Icon size={13} /> {t("gen.profile_" + pk)}
-                  {isSel && <Check size={12} className="text-blue-600 ml-1" />}
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-xs text-gray-400">{t("gen.default_profile_hint")}</p>
-        </div>
-      </div>
-
-      <EstimationFactorsCard ssCtx={ssCtx} />
-      <CostConfigCard ssCtx={ssCtx} />
+    </div>) },
+    { id: "infra",    label: "Infrastructure check", Icon: Activity, content: (<div className="space-y-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5"><InfraCheckSettingsCard ssCtx={ssCtx} /></div>
+    </div>) },
+    { id: "estimation", label: "Estimation", Icon: BarChart2, content: <EstimationFactorsCard ssCtx={ssCtx} /> },
+    { id: "costs",    label: "Costs", Icon: DollarSign, content: <CostConfigCard ssCtx={ssCtx} /> },
+    { id: "plans",    label: "Service plans", Icon: Briefcase, content: (<div className="space-y-6">
       <ServicePlansEditor value={ssCtx.settings["service_plans_default"] ?? null} fallback={null}
         title="Service plans — platform default"
         hint="Default UE plans for service proposals (1 UE = one full-time consultant month). Each partner can keep its own catalog in its Partner area; projects without a partner use these values."
         onSave={catalog => ssCtx.setSetting("service_plans_default", catalog)} />
 
+    </div>) },
+    { id: "summary",  label: "Request summary", Icon: ListChecks, content: (<div className="space-y-6">
       {/* Request Summary Sections */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
@@ -2217,6 +2200,8 @@ function SettingsGenerationTab({ ssCtx }) {
         </button>
       </div>
 
+    </div>) },
+    { id: "context",  label: t("gen.context_title"), Icon: Database, content: (<div className="space-y-6">
       {/* Generation Context */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
@@ -2308,6 +2293,33 @@ function SettingsGenerationTab({ ssCtx }) {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+    </div>) },
+    { id: "profiles", label: t("gen.tab_title"), Icon: Zap, content: (<div className="space-y-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <Zap size={16} className="text-blue-600" /> {t("gen.tab_title")}
+        </h3>
+        <p className="text-xs text-gray-400 mb-4">{t("gen.tab_subtitle")}</p>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t("gen.default_profile")}</label>
+          <div className="flex gap-2 flex-wrap mb-1">
+            {PROFILE_KEYS.map(pk => {
+              const Icon = PROFILE_ICONS[pk];
+              const isSel = form.default_profile === pk;
+              return (
+                <button key={pk} onClick={() => setForm(p => ({ ...p, default_profile: pk }))}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${isSel ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-200 hover:bg-gray-50'}`}>
+                  <Icon size={13} /> {t("gen.profile_" + pk)}
+                  {isSel && <Check size={12} className="text-blue-600 ml-1" />}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-gray-400">{t("gen.default_profile_hint")}</p>
         </div>
       </div>
 
@@ -2424,6 +2436,15 @@ function SettingsGenerationTab({ ssCtx }) {
         </div>
       </div>
 
+    </div>) },
+    { id: "usage",    label: "AI usage", Icon: TrendingUp, content: <AiUsageAdminPanel ssCtx={ssCtx} /> },
+  ];
+
+  return (
+    <div className="space-y-4 max-w-3xl">
+      <SectionCarousel slides={slides} storageKey="settings_gen_slide"
+        footer={id => SAVE_SLIDES.includes(id) && (
+          <div className="space-y-3 mt-4">
       {toast && (
         <div className={`px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${toast.startsWith("Error") ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
           <CheckCircle2 size={14} /> {toast}
@@ -2437,8 +2458,73 @@ function SettingsGenerationTab({ ssCtx }) {
         </button>
       </div>
 
-      {/* ── AI Usage Admin ──────────────────────────────────── */}
-      <AiUsageAdminPanel ssCtx={ssCtx} />
+          </div>
+        )} />
+    </div>
+  );
+}
+
+// Horizontal carousel of settings sections: scrollable tab strip, arrows, swipe, sliding panels.
+function SectionCarousel({ slides, storageKey, footer }) {
+  const [idx, setIdx] = useState(() => {
+    try { const k = localStorage.getItem(storageKey); const i = slides.findIndex(s => s.id === k); return i >= 0 ? i : 0; } catch { return 0; }
+  });
+  const [height, setHeight] = useState(null);
+  const panelRefs = useRef([]);
+  const tabRefs = useRef([]);
+  const touch = useRef(null);
+  const go = i => {
+    const n = Math.max(0, Math.min(slides.length - 1, i));
+    setIdx(n);
+    try { localStorage.setItem(storageKey, slides[n].id); } catch {}
+  };
+  // Keep the viewport as tall as the active panel (panels have different heights).
+  useEffect(() => {
+    const el = panelRefs.current[idx];
+    if (!el) return;
+    const update = () => setHeight(el.offsetHeight);
+    update();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    ro?.observe(el);
+    tabRefs.current[idx]?.scrollIntoView?.({ behavior: "smooth", inline: "center", block: "nearest" });
+    return () => ro?.disconnect();
+  }, [idx]);
+
+  const arrow = "w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-500 hover:text-gray-800 hover:bg-gray-50 flex items-center justify-center flex-shrink-0 disabled:opacity-30";
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <button className={arrow} onClick={() => go(idx - 1)} disabled={idx === 0} aria-label="Previous"><ChevronLeft size={16} /></button>
+        <div className="flex-1 overflow-x-auto no-scrollbar" style={{ scrollbarWidth: "none" }}>
+          <div className="flex gap-1.5 w-max">
+            {slides.map((s, i) => (
+              <button key={s.id} ref={el => (tabRefs.current[i] = el)} onClick={() => go(i)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap border transition-colors ${
+                  i === idx ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:text-gray-800"}`}>
+                <s.Icon size={14} />{s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button className={arrow} onClick={() => go(idx + 1)} disabled={idx === slides.length - 1} aria-label="Next"><ChevronRight size={16} /></button>
+      </div>
+      <div className="flex justify-center gap-1.5 mb-3">
+        {slides.map((s, i) => <button key={s.id} onClick={() => go(i)} aria-label={s.label}
+          className={`h-1.5 rounded-full transition-all ${i === idx ? "w-6 bg-blue-600" : "w-1.5 bg-gray-300"}`} />)}
+      </div>
+      <div className="overflow-hidden transition-[height] duration-300" style={{ height: height ?? "auto" }}
+        onTouchStart={e => { touch.current = e.touches[0].clientX; }}
+        onTouchEnd={e => { if (touch.current == null) return; const dx = e.changedTouches[0].clientX - touch.current; touch.current = null; if (Math.abs(dx) > 60) go(idx + (dx < 0 ? 1 : -1)); }}>
+        <div className="flex items-start transition-transform duration-300 ease-out" style={{ transform: `translateX(-${idx * 100}%)` }}>
+          {slides.map((s, i) => (
+            <div key={s.id} ref={el => (panelRefs.current[i] = el)} className="w-full flex-shrink-0 px-0.5" aria-hidden={i !== idx}
+              style={i === idx ? undefined : { visibility: "hidden" }}>
+              {s.content}
+              {footer?.(s.id)}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
