@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import DOMPurify from "dompurify";
+import { diffSpecs, KIND_LABEL } from "../lib/specDiff.js";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
   Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Laptop, Link2, ListChecks, Paperclip, Pause, Play,
@@ -1079,6 +1080,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [specErrors,   setSpecErrors]   = useState({ a: null,  b: null,  c: null,  d: null,  proto: null });
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [analysisCustomerContent, setAnalysisCustomerContent] = useState('');
+  // What each spec lost compared with the version it replaced at the last regeneration.
+  const [regenDiff, setRegenDiff] = useState({});
   const [prevMode, setPrevMode]         = useState(null); // 'manual' | 'wizard' | null
   // Generation profile modal
   const [showGenModal, setShowGenModal]   = useState(false);
@@ -2270,6 +2273,7 @@ ${mdToHtml(markdownContent)}
           if (nd.prevMode)      setPrevMode(nd.prevMode);
           if (nd.analysisCustomerContent) setAnalysisCustomerContent(nd.analysisCustomerContent);
           if (nd.requestSummary) setRequestSummary(nd.requestSummary);
+          setRegenDiff(nd.regenDiff ?? {});
           if (nd.activeProfile) setActiveProfile(nd.activeProfile);
           if (nd.protoHtml)    { setProtoHtmlState(nd.protoHtml); setProtoSaved(true); setActiveProfile(p => p ?? { prototype_enabled: true }); }
         } catch (_) {}
@@ -3601,6 +3605,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     }
     setGeneratingSpecs(true);
     setAiError(null);
+    // Keep the versions being replaced, to report what the new ones drop.
+    const prevSpecs = { a: aiSpecA, b: aiSpecB, c: aiSpecC, d: aiSpecD };
     setAiSpecA('');
     setAiSpecB('');
     setAiSpecC('');
@@ -3704,6 +3710,12 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       }
 
       const firstKey = specA ? 'a' : specB ? 'b' : specC ? 'c' : 'd';
+      const newDiff = {};
+      for (const [k, v] of Object.entries({ a: specA, b: specB, c: specC, d: specD })) {
+        const dd = v ? diffSpecs(prevSpecs[k], v) : null;
+        if (dd) newDiff[k] = dd;
+      }
+      setRegenDiff(newDiff);
       setSelectedSpec(firstKey);
       setAiContent(specA || specB || specC || specD);
       setSavedSpecUrls({ a: null, b: null, c: null, d: null });
@@ -3721,7 +3733,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const updatedLog = [...genLog, newLogEntry];
       try {
-        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
+        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile, regenDiff: newDiff }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
         setGenLog(updatedLog);
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (e) {
@@ -3828,6 +3840,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           : buildSpecDPrompt(customerContent, activeProfile ?? {}, contextStr, isModCase)
       );
       checkSpecText(specD);
+      const dD = diffSpecs(aiSpecD, specD);
+      const nextDiff = { ...regenDiff };
+      if (dD) nextDiff.d = dD; else delete nextDiff.d;
+      setRegenDiff(nextDiff);
       setAiSpecD(specD);
       setSelectedSpec('d');
       setAiContent(specD);
@@ -3857,7 +3873,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       } catch (saveErr) { console.warn('Spec D doc save failed:', saveErr?.message); }
       // Persist in spec notes
       try {
-        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, requestSummary, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff: nextDiff }), title: caseData.title + t("spec.doc_title_suffix") });
       } catch (_) {}
     } catch (e) {
       console.error('Spec D generation error:', e?.message);
@@ -3977,7 +3993,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           mode: 'ai', status: spec?.status ?? 'draft',
           content: newSpecs.a || newSpecs.b || newSpecs.c || newSpecs.d,
           objects: [],
-          notes: JSON.stringify({ sapCheck, proposalCheck, specA: newSpecs.a, specB: newSpecs.b, specC: newSpecs.c, specD: newSpecs.d, selectedSpec: firstKey, prevMode, analysisCustomerContent, requestSummary, activeProfile: profile }),
+          notes: JSON.stringify({ sapCheck, proposalCheck, specA: newSpecs.a, specB: newSpecs.b, specC: newSpecs.c, specD: newSpecs.d, selectedSpec: firstKey, prevMode, analysisCustomerContent, requestSummary, activeProfile: profile, regenDiff }),
           title: caseData.title + t("spec.doc_title_suffix"),
         });
       } catch (_) {}
@@ -4046,7 +4062,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         status: 'submitted',
         content: specContent ?? null,
         objects: specObjects ?? [],
-        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile }) : null),
+        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff }) : null),
         document_ids: specMode === 'manual' ? manualDocIds : [],
         title: caseData.title + t("spec.doc_title_suffix"),
       });
@@ -6398,6 +6414,10 @@ ${result}`;
                           }`}>
                           <span className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold ${hasError ? 'bg-red-500' : s.dot}`}>{hasError ? '!' : s.key.toUpperCase()}</span>
                           <span className="truncate">{s.label}</span>
+                          {!hasError && regenDiff?.[s.key] && (
+                            <span title={L('This version dropped content the previous one had', 'Esta versión perdió contenido que tenía la anterior')}
+                              className="text-amber-500 flex-shrink-0"><AlertTriangle size={13} /></span>
+                          )}
                           <span className="ml-auto flex-shrink-0">
                             {hasError
                               ? <span className="text-xs text-red-500 font-semibold">Failed</span>
@@ -6445,6 +6465,45 @@ ${result}`;
                       </div>
 
                       <div className="p-5 max-h-[600px] overflow-y-auto">
+                        {selectedSpec && !specHasFailed(selectedSpec) && regenDiff?.[selectedSpec] && (() => {
+                          const dd = regenDiff[selectedSpec];
+                          const kindName = k => (KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
+                          const h = dd.hours;
+                          return (
+                            <div className="mb-4 p-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
+                              <div className="flex items-start gap-2">
+                                <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+                                <div className="flex-1 font-semibold">
+                                  {L('This regeneration dropped content the previous version had — review it before approving.', 'Esta regeneración perdió contenido que tenía la versión anterior — revísela antes de aprobar.')}
+                                </div>
+                                {!specApproved && (
+                                  <button onClick={async () => {
+                                      const next = { ...regenDiff }; delete next[selectedSpec]; setRegenDiff(next);
+                                      try { await saveAiNotesPatch({ regenDiff: next }); } catch (_) {}
+                                    }}
+                                    className="flex-shrink-0 px-2 py-0.5 rounded-md border border-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 font-semibold">
+                                    {L('Reviewed', 'Revisado')}
+                                  </button>
+                                )}
+                              </div>
+                              {dd.droppedKinds?.length > 0 && (
+                                <div><span className="font-semibold">{L('Object types no longer included', 'Tipos de objeto que ya no aparecen')}:</span> {dd.droppedKinds.map(kindName).join(', ')}</div>
+                              )}
+                              {dd.droppedObjects?.length > 0 && (
+                                <div><span className="font-semibold">{L('Objects removed', 'Objetos eliminados')}:</span> {dd.droppedObjects.map(o => `${o.name}${o.type ? ` (${o.type})` : ''}`).join(' · ')}</div>
+                              )}
+                              {dd.prevCount > dd.nextCount && !(dd.droppedObjects?.length) && (
+                                <div><span className="font-semibold">{L('Technical objects', 'Objetos técnicos')}:</span> {dd.prevCount} → {dd.nextCount}</div>
+                              )}
+                              {dd.droppedIds?.length > 0 && (
+                                <div><span className="font-semibold">{L('SAP objects no longer mentioned', 'Objetos SAP que ya no se mencionan')}:</span> {dd.droppedIds.join(', ')}</div>
+                              )}
+                              {h && h.changePct !== null && Math.abs(h.changePct) >= 20 && (
+                                <div><span className="font-semibold">{L('Estimated hours', 'Horas estimadas')}:</span> {h.prev.standard} → {h.next.standard} h {L('standard', 'estándar')} ({h.changePct > 0 ? '+' : ''}{h.changePct}%) · Arena {h.prev.arena} → {h.next.arena} h</div>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {selectedSpec && specHasFailed(selectedSpec) ? (
                           <div className="flex flex-col items-center py-10 gap-4">
                             <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
@@ -6502,7 +6561,7 @@ ${result}`;
                         {!specApproved && (
                           <button onClick={async () => {
                             const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : selectedSpec === 'd' ? aiSpecD : aiSpecA;
-                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
+                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
                           }} disabled={!selectedSpec} className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
                             {t("spec.save_draft")}
                           </button>
