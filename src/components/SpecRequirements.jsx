@@ -97,7 +97,8 @@ const STATUS_CLS = {
 };
 
 export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccept, onUnaccept, loading, canEdit, L, ruleViolations }) {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpen] = useState(null);   // null = automatic: open while there are gaps
+  const open = openState ?? (checked && (stats.gaps.length > 0 || (ruleViolations ?? []).length > 0));
   const [reasonFor, setReasonFor] = useState(null);
   const [reason, setReason] = useState('');
   const statusTxt = s => s === 'covered' ? L('covered', 'cubierto') : s === 'partial' ? L('partial', 'parcial') : L('missing', 'falta');
@@ -126,11 +127,16 @@ export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccep
     <div className={`mb-4 p-3 rounded-xl border text-xs space-y-2 ${tone}`}>
       <div className="flex flex-wrap items-center gap-2">
         {checked && current && stats.ok ? <CheckCircle2 size={15} className="text-emerald-600" /> : <AlertTriangle size={15} className={checked && current ? 'text-red-600' : 'text-gray-400'} />}
-        <button onClick={() => setOpen(o => !o)} className="font-semibold text-gray-800 text-left flex-1">
+        <button onClick={() => setOpen(!open)} className="font-semibold text-gray-800 text-left flex-1">
           {!stats.total ? L('Requirements coverage — no requirements checklist yet', 'Cobertura de requerimientos — aún no hay checklist de requerimientos')
             : !checked ? L('Requirements coverage — not checked', 'Cobertura de requerimientos — sin verificar')
             : `${L('Requirements coverage', 'Cobertura de requerimientos')}: ${stats.pct}% (${stats.covered}/${stats.total})${stats.openGaps.length ? ` · ${stats.openGaps.length} ${L('open gaps', 'brechas abiertas')}` : ''}${stats.openRules.length ? ` · ${stats.openRules.length} ${L('rule violations', 'reglas incumplidas')}` : ''}${!current ? ` · ${L('outdated: the spec changed', 'desactualizada: la spec cambió')}` : ''}`}
         </button>
+        {checked && (
+          <button onClick={() => setOpen(!open)} className="px-2.5 py-1 rounded-lg border border-gray-300 bg-white font-semibold text-gray-700 hover:bg-gray-50">
+            {open ? L('Hide detail', 'Ocultar detalle') : L(`Show gaps (${stats.gaps.length + (ruleViolations ?? []).length})`, `Ver brechas (${stats.gaps.length + (ruleViolations ?? []).length})`)}
+          </button>
+        )}
         {canEdit && stats.total > 0 && (
           <button onClick={onCheck} disabled={loading} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-gray-300 bg-white font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
             <RefreshCw size={12} className={loading === 'check' ? 'animate-spin' : ''} />{loading === 'check' ? L('Checking…', 'Verificando…') : L('Check coverage', 'Verificar cobertura')}
@@ -143,11 +149,11 @@ export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccep
         )}
       </div>
       {checked && current && !stats.ok && (
-        <p className="text-red-700">{L('The spec cannot be sent to the customer until every requirement is covered or its gap is accepted with a reason.', 'La spec no se puede enviar al cliente hasta que cada requerimiento esté cubierto o su brecha se acepte con un motivo.')}</p>
+        <p className="text-red-700">{L('The spec cannot be sent until every requirement is covered or its gap is accepted with a reason. For each gap below: "Fix gaps" regenerates the spec adding what is missing (from the customer documents); if the customer has to define it, add it as a question for the customer; if it is out of scope, accept the gap with the reason.', 'La spec no se puede enviar hasta que cada requerimiento esté cubierto o su brecha se acepte con un motivo. Para cada brecha de abajo: "Corregir brechas" regenera la spec agregando lo que falta (desde los documentos del cliente); si lo tiene que definir el cliente, agréguelo como pregunta para el cliente; si queda fuera de alcance, acepte la brecha con el motivo.')}</p>
       )}
       {open && checked && (
         <div className="space-y-1.5 pt-1">
-          {stats.rows.map(r => (
+          {[...stats.rows].sort((a, b) => (a.status === 'covered') - (b.status === 'covered')).map(r => (
             <div key={r.id} className="p-2 rounded-lg bg-white border border-gray-100">
               <div className="flex items-start gap-2">
                 <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold flex-shrink-0 ${STATUS_CLS[r.status] ?? STATUS_CLS.missing}`}>{statusTxt(r.status)}</span>

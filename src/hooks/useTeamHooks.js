@@ -120,19 +120,16 @@ function useConsultantTeams(userId) {
         ? "This person declined the invitation."
         : "Already invited or a member.");
     }
-    const { data: existingUser } = await supabase
-      .from("users")
-      .select("id, full_name, email")
-      .ilike("email", norm)
-      .maybeSingle();
-    const { error } = await supabase.from("consultant_team_members").insert({
+    // The database links the account by email (trigger consultant_team_member_link_user): the
+    // browser cannot read other users' rows, so it cannot look the invitee up itself.
+    const { data: inserted, error } = await supabase.from("consultant_team_members").insert({
       team_id: teamId,
-      user_id: existingUser?.id ?? null,
       email: norm,
       role: "member",
       status: "pending",
-    });
+    }).select("user_id").single();
     if (error) throw error;
+    const existingUser = inserted?.user_id ? { id: inserted.user_id, full_name: null, email: norm } : null;
     if (existingUser?.id) {
       await notify(
         existingUser.id,
