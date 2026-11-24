@@ -245,10 +245,15 @@ function useApplications(caseId = null) {
     if (status === "accepted") {
       const app = applications.find(a => a.id === appId);
       if (app) {
-        await supabase.from("case_assignments").upsert({
-          case_id: app.case_id, consultant_id: app.consultant_id,
-          time_commitment: app.time_commitment,
-        });
+        // A team application assigns every member named in its role assignments, not only the applicant.
+        const members = [...new Set([app.consultant_id, ...((app.role_assignments ?? []).map(r => r.consultant_id).filter(Boolean))])];
+        const { data: existing } = await supabase.from("case_assignments").select("consultant_id")
+          .eq("case_id", app.case_id).in("consultant_id", members);
+        const have = new Set((existing ?? []).map(e => e.consultant_id));
+        const toAdd = members.filter(id => !have.has(id))
+          .map(id => ({ case_id: app.case_id, consultant_id: id, time_commitment: app.time_commitment }));
+        if (toAdd.length) await supabase.from("case_assignments").insert(toAdd);
+        // (The database also does this — trigger applications_assign_team — and notifies the members.)
         notify(app.consultant_id, "Application accepted", "Your application has been accepted. You are now assigned to the case.", 'case_assignment');
         sendEmailToUser(app.consultant_id, "Your Application Was Accepted", buildEmailHtml({
           title: "Application Accepted 🎉",
