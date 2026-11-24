@@ -1536,7 +1536,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       { key: 'checks', label: L('Case checks', 'Revisión del caso'),
         status: checksLoading ? 'checking' : !caseChecks ? 'pending' : blockingChecks.length ? 'error' : openChecks.length ? 'warning' : 'ok',
         detail: !caseChecks ? '' : blockingChecks.length ? L(`${blockingChecks.length} to resolve before Analyze`, `${blockingChecks.length} por resolver antes de Analizar`)
-          : openChecks.length ? L(`${openChecks.length} warnings`, `${openChecks.length} advertencias`) : L('Documents, project and duplicates checked', 'Documentos, proyecto y duplicados revisados') },
+          : openChecks.length ? L(`${openChecks.length} warning${openChecks.length === 1 ? '' : 's'}`, `${openChecks.length} advertencia${openChecks.length === 1 ? '' : 's'}`) : L('Documents, project and duplicates checked', 'Documentos, proyecto y duplicados revisados') },
       ...steps.map(st => {
         const state = analysisState(st);
         const at = analysisMeta?.[st]?.at;

@@ -27,7 +27,7 @@ export function CaseChecksPanel({ issues, resolved, loading, onRecheck, onResolv
         {blocking.length ? <ShieldAlert size={15} className="text-red-600" /> : <ShieldCheck size={15} className={open.length ? 'text-amber-600' : 'text-emerald-600'} />}
         <span className="font-semibold text-gray-800 flex-1">
           {blocking.length ? L(`Case checks — ${blocking.length} to resolve before Analyze`, `Revisión del caso — ${blocking.length} por resolver antes de Analizar`)
-            : open.length ? L(`Case checks — ${open.length} warnings`, `Revisión del caso — ${open.length} advertencias`)
+            : open.length ? L(`Case checks — ${open.length} warning${open.length === 1 ? '' : 's'}`, `Revisión del caso — ${open.length} advertencia${open.length === 1 ? '' : 's'}`)
             : L('Case checks — all good', 'Revisión del caso — todo en orden')}
         </span>
         <button onClick={onRecheck} disabled={loading} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-300 bg-white font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50">
