@@ -23,6 +23,19 @@ const KINDS = {
   transport:          { label: 'Transport approval',       Icon: Truck,          who: 'Approver' },
 };
 
+// What an admin can do on behalf of the person: [approve label | null, reject label]. A null approve
+// means only the invitee can accept (they must create an account / answer) — the admin can revoke.
+const ACTIONS = {
+  team_invite: ['Accept on their behalf', 'Decline'], client_team_invite: ['Activate', 'Deactivate'],
+  case_invite: [null, 'Revoke'], customer_invite: [null, 'Revoke'], hh_invite: ['Accept on their behalf', 'Decline'],
+  partner_signup: ['Approve', 'Reject'], seller_signup: ['Approve', 'Reject'],
+  application: ['Accept', 'Reject'], hh_proposal: ['Accept', 'Reject'], delivery_bid: ['Accept / award', 'Decline'],
+  spec_review: ['Approve on behalf of the customer', 'Request changes'], spec_questions: [null, 'Revoke link'],
+  proposal: ['Accept on behalf of the customer', 'Reject'], blueprint_approval: ['Approve all objects', 'Reject all objects'],
+  transport: ['Approve', 'Reject'],
+};
+const NOTE_REQUIRED = new Set(['spec_review', 'proposal']);
+
 const ago = iso => {
   if (!iso) return '';
   const d = Math.floor((Date.now() - new Date(iso)) / 86400000);
@@ -35,6 +48,20 @@ export function AllPendingApprovals() {
   const [kind, setKind] = useState('all');
   const [q, setQ] = useState('');
   const [hideExpired, setHideExpired] = useState(true);
+  const [acting, setActing] = useState(null);   // { key, approve }
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(null);       // { text, err }
+
+  async function decide(r, approve) {
+    setBusy(true); setDone(null);
+    const { data, error: e } = await supabase.rpc('admin_decide_approval', { p_kind: r.kind, p_id: r.id, p_approve: approve, p_note: note.trim() || null });
+    setBusy(false);
+    if (e) { setDone({ err: true, text: e.message }); return; }
+    setDone({ err: false, text: `${KINDS[r.kind]?.label ?? r.kind} — ${r.title || r.approver}: ${data?.result ?? 'done'}.` });
+    setActing(null); setNote('');
+    await load();
+  }
 
   async function load() {
     setError(null);
@@ -57,7 +84,7 @@ export function AllPendingApprovals() {
         <Inbox size={18} className="text-gray-500" />
         <h3 className="text-base font-bold text-gray-900">All pending approvals</h3>
         <span className="px-2 py-0.5 rounded-full bg-gray-100 text-xs font-semibold text-gray-600">{visible.length}</span>
-        <span className="text-xs text-gray-400 flex-1">Everything waiting for someone on the platform — invitations, sign-ups, applications, customer reviews, transports.</span>
+        <span className="text-xs text-gray-400 flex-1">Everything waiting for someone on the platform. You can decide on their behalf — it is recorded in the audit log.</span>
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search…" className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm w-48" />
         <button onClick={load} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50" title="Refresh"><RefreshCw size={14} /></button>
       </div>
@@ -75,6 +102,7 @@ export function AllPendingApprovals() {
         )}
       </div>
       {error && <p className="px-5 py-3 text-sm text-red-600">{error}</p>}
+      {done && <p className={`px-5 py-2 text-sm ${done.err ? 'text-red-600' : 'text-green-700'}`}>{done.err ? '' : '✓ '}{done.text}</p>}
       {rows === null ? (
         <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
       ) : !list.length ? (
@@ -84,8 +112,11 @@ export function AllPendingApprovals() {
           {list.map(r => {
             const k = KINDS[r.kind] ?? { label: r.kind, Icon: Inbox, who: '' };
             const exp = isExpired(r);
+            const key = `${r.kind}:${r.id}`;
+            const [okLabel, noLabel] = ACTIONS[r.kind] ?? [null, null];
+            const open = acting?.key === key;
             return (
-              <div key={`${r.kind}:${r.id}`} className="px-5 py-3 flex items-start gap-3">
+              <div key={key} className="px-5 py-3 flex flex-wrap items-start gap-3">
                 <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0"><k.Icon size={15} className="text-gray-500" /></div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -100,6 +131,24 @@ export function AllPendingApprovals() {
                     {r.expires_at && !exp && <span>expires {new Date(r.expires_at).toLocaleDateString()}</span>}
                   </div>
                 </div>
+                {!open && (
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    {okLabel && <button onClick={() => { setActing({ key, approve: true }); setNote(''); setDone(null); }} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-600 text-white hover:bg-green-700">{okLabel}</button>}
+                    {noLabel && <button onClick={() => { setActing({ key, approve: false }); setNote(''); setDone(null); }} className="px-2.5 py-1 rounded-lg text-xs font-semibold border border-red-200 text-red-600 hover:bg-red-50">{noLabel}</button>}
+                  </div>
+                )}
+                {open && (
+                  <div className="basis-full pl-11 flex flex-wrap items-center gap-2">
+                    <span className={`text-xs font-semibold ${acting.approve ? 'text-green-700' : 'text-red-600'}`}>{acting.approve ? okLabel : noLabel}:</span>
+                    <input autoFocus value={note} onChange={e => setNote(e.target.value)}
+                      placeholder={!acting.approve && NOTE_REQUIRED.has(r.kind) ? 'Comment (required) — what has to change / why' : 'Note (optional) — recorded and sent with the decision'}
+                      className="flex-1 min-w-[220px] px-3 py-1.5 border border-gray-200 rounded-lg text-xs" />
+                    <button disabled={busy || (!acting.approve && NOTE_REQUIRED.has(r.kind) && !note.trim())} onClick={() => decide(r, acting.approve)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40 ${acting.approve ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>{busy ? 'Saving…' : 'Confirm'}</button>
+                    <button onClick={() => setActing(null)} className="px-3 py-1.5 rounded-lg text-xs border border-gray-200 text-gray-600">Cancel</button>
+                    <p className="basis-full text-[11px] text-gray-400">Recorded in the audit log as decided by you on behalf of {r.approver || 'them'}; they are notified.</p>
+                  </div>
+                )}
               </div>
             );
           })}

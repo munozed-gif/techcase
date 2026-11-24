@@ -61,7 +61,7 @@ begin
          a.submitted_at, null, a.status::text, a.case_id, cs.project_id
     from applications a left join cases cs on cs.id = a.case_id
     left join users au on au.id = a.consultant_id left join users mg on mg.id = cs.manager_id
-   where a.status::text in ('pending', 'submitted', 'under_review')
+   where a.status::text = 'pending'
   union all
   -- Headhunter proposals on cases.
   select 'hh_proposal', hp.id, cs.title, coalesce(mg.full_name, 'Case manager'), mg.email, hu.full_name,
@@ -74,7 +74,7 @@ begin
   select 'delivery_bid', d.id, coalesce(pr.name, 'Opportunity'), 'Seller', null, sb.full_name,
          d.created_at, null, d.status::text, null, d.project_id
     from project_deliveries d left join projects pr on pr.id = d.project_id left join users sb on sb.id = d.submitted_by
-   where d.status::text in ('pending', 'submitted')
+   where d.status::text in ('requested', 'submitted')
   union all
   -- Specs shared with the customer for approval.
   select 'spec_review', r.id, coalesce(r.case_title, cs.title), coalesce(r.customer_name, 'Customer'), r.customer_email, cb.full_name,
@@ -99,12 +99,13 @@ begin
          ar.created_at, ar.expires_at, ar.status::text, ar.case_id, coalesce(ar.project_id, cs.project_id)
     from approval_requests ar left join cases cs on cs.id = ar.case_id left join projects pr on pr.id = ar.project_id
    where ar.status::text = 'pending'
+     and exists (select 1 from approval_request_objects o where o.approval_request_id = ar.id and o.decision is null)
   union all
   -- Transport requests waiting for approval.
   select 'transport', tr.id, coalesce(tr.request_number, '') || coalesce(' — ' || tr.description, ''), 'Approver', null, cb.full_name,
          tr.created_at, null, tr.approval_status::text, tr.case_id, tr.project_id
     from case_transport_requests tr left join users cb on cb.id = tr.created_by
-   where tr.approval_status::text = 'pending'
+   where tr.approval_status::text = 'pending_review'
   ) x
   order by x.created_at desc nulls last;
 end $$;
