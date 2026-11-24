@@ -6796,7 +6796,6 @@ ${result}`;
             {/* ── Node 7: Questions for the customer (sub-item of the analysis) ── */}
             {activeNode === 7 && (
               <div className="space-y-4">
-                {analysisStrip()}
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-600 space-y-1">
                   <div className="text-sm font-semibold text-gray-800">{L('Questions for the customer', 'Preguntas para el cliente')}</div>
                   <p>{L('Contradictions, ambiguities and missing information found in the documents. Send the open ones to the customer: they get a link to answer without logging in, and the customer users of the case also see them in the app, in My reviews. Answers come back here automatically and are used when generating; open questions become stated assumptions in the spec.',
@@ -6812,7 +6811,6 @@ ${result}`;
             {/* ── Node 1: SAP Verification ── */}
             {activeNode === 1 && (
               <div className="space-y-4">
-                {analysisStrip()}
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                   <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step1_h")}</h3>
                   <p className="text-xs text-gray-500">{t("spec.ai_step1_desc")}</p>
@@ -6893,7 +6891,6 @@ ${result}`;
             {/* ── Node 2: Proposal Validation ── */}
             {activeNode === 2 && (
               <div className="space-y-4">
-                {analysisStrip()}
                 {sapCheck && (
                   <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${cc[0]} ${cc[1]} ${cc[2]}`}>
                     <span className="font-semibold">{t("spec.step1_badge")}</span>
