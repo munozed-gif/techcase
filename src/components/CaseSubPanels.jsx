@@ -3658,10 +3658,13 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
           return await callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: mcpServers });
         } catch (e) {
-          // If MCP server failed (connection closed / unavailable), retry without MCP
+          // Retry with EVERYTHING the first try had (documents, ABAP standards, context). Only the
+          // live SAP tools are dropped, and only when they were what failed.
+          if (e?.code === 'ai_limit_reached') throw e;
           const isMcpErr = mcpServers.length > 0 && /mcp|connection closed|connection error|listing tools/i.test(e?.message ?? '');
-          const fallbackMcp = isMcpErr ? [] : mcpServers;
-          return callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 40000, mcp_servers: fallbackMcp });
+          const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
+          const sysRetry = isMcpErr ? sys.replace(mcpNote, '').replace(mcpRulesNote, '') : sys;
+          return callClaude({ feature: 'spec',  model: genModel, system: sysRetry, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: isMcpErr ? [] : mcpServers });
         }
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
@@ -3826,8 +3829,13 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         try {
           const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
           return await callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: mcpServersD });
-        } catch (_) {
-          return callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 40000, mcp_servers: mcpServersD });
+        } catch (e) {
+          // Retry with the same documents; drop the live SAP tools only if they failed.
+          if (e?.code === 'ai_limit_reached') throw e;
+          const isMcpErr = mcpServersD.length > 0 && /mcp|connection closed|connection error|listing tools/i.test(e?.message ?? '');
+          const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
+          const sysRetry = isMcpErr ? sys.replace(mcpNoteD, '').replace(mcpRulesNoteD, '') : sys;
+          return callClaude({ feature: 'spec',  model: genModel, system: sysRetry, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: isMcpErr ? [] : mcpServersD });
         }
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
@@ -3920,8 +3928,13 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       try {
         const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
         return await callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: mcpServersR });
-      } catch (_) {
-        return callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 40000, mcp_servers: mcpServersR });
+      } catch (e) {
+        // Retry with the same documents; drop the live SAP tools only if they failed.
+        if (e?.code === 'ai_limit_reached') throw e;
+        const isMcpErr = mcpServersR.length > 0 && /mcp|connection closed|connection error|listing tools/i.test(e?.message ?? '');
+        const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
+        const sysRetry = isMcpErr ? sys.replace(mcpNoteR, '').replace(mcpRulesNoteR, '') : sys;
+        return callClaude({ feature: 'spec',  model: genModel, system: sysRetry, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: isMcpErr ? [] : mcpServersR });
       }
     };
     const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
