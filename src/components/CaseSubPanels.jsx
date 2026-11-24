@@ -4350,12 +4350,11 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         runSpec('a', () => callSpec(buildSpecPrompt(true,  genProfile, genProfile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr, isModCase))),
         runSpec('b', () => callSpec(buildSpecPrompt(false, genProfile, contextStr, isModCase))),
         specCPromise,
-        specCPromise.then(cContent =>
-          runSpec('d', () => callSpec(cContent
-            ? buildSpecDFromCPrompt(cContent, customerContent, genProfile, contextStr, isModCase)
-            : buildSpecDPrompt(customerContent, genProfile, contextStr, isModCase)
-          ))
-        ),
+        // D is written from C: without C it is not generated (marked failed so "Retry failed" picks it up).
+        specCPromise.then(cContent => {
+          if (!cContent) { setSpecStatus('d', 'error'); setSpecError('d', L('Requires Spec C, which was not generated. It is generated when Spec C is retried.', 'Requiere la Spec C, que no se generó. Se generará al reintentar la Spec C.')); return null; }
+          return runSpec('d', () => callSpec(buildSpecDFromCPrompt(cContent, customerContent, genProfile, contextStr, isModCase)));
+        }),
       ]);
       ({ a: specA, b: specB, c: specC, d: specD } = withCalculatedHours({ a: specA, b: specB, c: specC, d: specD }));
 
@@ -4407,8 +4406,11 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       if (fromApprovalReview) setApprovalStep('sending');
       await saveAllSpecsAsDocuments(specA, specB, specC, specD, sapCheck, proposalCheck);
 
-      // Generate interactive prototype if enabled for this profile
-      if (genProfile?.prototype_enabled) {
+      // Generate interactive prototype if enabled for this profile — only from Spec C.
+      if (genProfile?.prototype_enabled && !specC) {
+        setSpecStatus('proto', 'error'); setSpecError('proto', L('Requires Spec C, which was not generated. It is generated when Spec C is retried.', 'Requiere la Spec C, que no se generó. Se generará al reintentar la Spec C.')); setProtoError(true);
+      }
+      if (genProfile?.prototype_enabled && specC) {
         setSpecStatus('proto', 'generating');
         try {
           const protoStyle = genProfile.prototype_style ?? 'auto';
@@ -4474,6 +4476,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
   // ── Standalone Spec D generation (for cases that already have A/B/C) ─────
   async function handleGenerateSpecD() {
     if (generatingSpecD) return;
+    // Spec D is written from Spec C: generate C first.
+    if (!aiSpecC) { setAiError(L('Spec D is written from Spec C — generate Spec C first.', 'La Spec D se redacta a partir de la Spec C — genere primero la Spec C.')); return; }
     setGeneratingSpecD(true);
     setAiSpecD('');
     try {
@@ -4502,11 +4506,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const _baseCtxD = sanitizeForJson(await buildGenContext());
       const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock() + requirementsPromptBlock(requirements) + questionsPromptBlock(questions);
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
-      let specD = await callSpec(
-        aiSpecC
-          ? buildSpecDFromCPrompt(aiSpecC, customerContent, activeProfile ?? {}, contextStr, isModCase)
-          : buildSpecDPrompt(customerContent, activeProfile ?? {}, contextStr, isModCase)
-      );
+      let specD = await callSpec(buildSpecDFromCPrompt(aiSpecC, customerContent, activeProfile ?? {}, contextStr, isModCase));
       checkSpecText(specD);
       specD = withCalculatedHours({ d: specD }).d;
       const dD = diffSpecs(aiSpecD, specD);
@@ -4609,9 +4609,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       a: () => callSpec(buildSpecPrompt(true,  profile, profile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr)),
       b: () => callSpec(buildSpecPrompt(false, profile, contextStr)),
       c: () => callSpec(buildSpecCPrompt(customerContent, profile, profile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr)),
-      d: () => callSpec(aiSpecC
-        ? buildSpecDFromCPrompt(aiSpecC, customerContent, profile, contextStr)
-        : buildSpecDPrompt(customerContent, profile, contextStr)),
+      // D is written from C (the one just retried, if C was retried too).
+      d: () => callSpec(buildSpecDFromCPrompt(newSpecs.c, customerContent, profile, contextStr)),
     };
     const specMap = Object.fromEntries(Object.entries(specMapRaw).map(([k, fn]) => [k, async () => checkSpecText(await fn())]));
     const setters = { a: setAiSpecA, b: setAiSpecB, c: setAiSpecC, d: setAiSpecD };
@@ -4619,9 +4618,13 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     const newSpecs = { a: aiSpecA, b: aiSpecB, c: aiSpecC, d: aiSpecD };
 
     const specKeys = failedKeys.filter(k => k !== 'proto');
+    // D and the prototype need Spec C: C first; D runs after it, only if C exists.
+    const runD = specKeys.includes('d');
+    const firstKeys = specKeys.filter(k => k !== 'd');
+    const markNeedsC = key => { setSpecStatus(key, 'error'); setSpecError(key, L('Requires Spec C, which was not generated. It is generated when Spec C is retried.', 'Requiere la Spec C, que no se generó. Se generará al reintentar la Spec C.')); };
     if (mcpServersR.length > 0) {
       // Serialize MCP-backed specs to avoid concurrent tunnel connection failures
-      for (const key of specKeys) {
+      for (const key of firstKeys) {
         setSpecStatus(key, 'generating');
         setSpecError(key, null);
         try {
@@ -4639,7 +4642,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       }
     } else {
       await Promise.all(
-        specKeys.map(async key => {
+        firstKeys.map(async key => {
           setSpecStatus(key, 'generating');
           setSpecError(key, null);
           try {
@@ -4656,6 +4659,17 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           }
         })
       );
+    }
+
+    if (runD) {
+      if (!newSpecs.c) markNeedsC('d');
+      else {
+        setSpecStatus('d', 'generating'); setSpecError('d', null);
+        try {
+          const result = await specMap.d();
+          if (result) { newSpecs.d = result; setAiSpecD(result); if (!selectedSpec || selectedSpec === 'd') { setSelectedSpec('d'); setAiContent(result); } setSpecStatus('d', 'done'); }
+        } catch (e) { setSpecStatus('d', 'error'); setSpecError('d', e.message); }
+      }
     }
 
     // Calculated hours on the retried specs (Spec D follows Spec C's estimate).
@@ -4680,8 +4694,9 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       } catch (_) {}
     }
 
-    // Retry proto if it was also failed
-    if (failedKeys.includes('proto') && profile?.prototype_enabled) {
+    // Retry proto if it was also failed — only from Spec C.
+    if (failedKeys.includes('proto') && profile?.prototype_enabled && !newSpecs.c) markNeedsC('proto');
+    if (failedKeys.includes('proto') && profile?.prototype_enabled && newSpecs.c) {
       setSpecStatus('proto', 'generating');
       try {
         const specA = aiSpecA; const specB = aiSpecB;
