@@ -6771,6 +6771,19 @@ ${result}`;
                             </div>
                           );
                         })()}
+                        {(selectedSpec === 'a' || selectedSpec === 'c') && !specHasFailed(selectedSpec) && (() => {
+                          const v = checkRules(selectedSpec === 'a' ? aiSpecA : aiSpecC, activeRules(ssCtx.settings, caseData.project_id));
+                          if (!v.length) return null;
+                          return (
+                            <div className="mb-4 p-3 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 text-xs text-red-800 dark:text-red-300 space-y-1.5">
+                              <div className="flex items-start gap-2 font-semibold">
+                                <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+                                {L('The spec does not meet the project mandatory rules — regenerate it or add the missing objects.', 'La spec no cumple las reglas obligatorias del proyecto — regenérela o agregue los objetos que faltan.')}
+                              </div>
+                              {v.map(x => <div key={x.id}><span className="font-semibold">{x.text}</span> — {x.detail}</div>)}
+                            </div>
+                          );
+                        })()}
                         {(selectedSpec === 'a' || selectedSpec === 'c') && !specHasFailed(selectedSpec) && (
                           <SpecHoursPanel
                             content={selectedSpec === 'a' ? aiSpecA : aiSpecC}
