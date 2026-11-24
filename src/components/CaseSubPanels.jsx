@@ -1098,12 +1098,16 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   async function saveAiNotesPatch(patch) {
     // A manual / wizard spec is never turned into an AI one by an analysis step.
     if (spec?.id && spec.mode && spec.mode !== 'ai') return;
-    let cur = {};
-    if (spec?.mode === 'ai' && spec?.notes) { try { cur = JSON.parse(spec.notes) ?? {}; } catch { cur = {}; } }
+    // Merge into the LATEST notes (notesRef), not the ones loaded with the screen: several steps can
+    // save one after another (e.g. "Run all analysis") before the spec is reloaded.
+    let cur = notesRef.current;
+    if (!cur && spec?.mode === 'ai' && spec?.notes) { try { cur = JSON.parse(spec.notes) ?? {}; } catch { cur = {}; } }
+    cur = cur ?? {};
+    notesRef.current = { ...cur, ...patch };
     await saveSpec({
       mode: 'ai', status: spec?.status ?? 'draft',
       ...(spec?.id ? {} : { content: null, objects: [] }),
-      notes: JSON.stringify({ ...cur, ...patch }),
+      notes: JSON.stringify(notesRef.current),
       title: spec?.title ?? (caseData.title + t("spec.doc_title_suffix")),
     });
   }
@@ -1162,6 +1166,17 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [hoursOverrides, setHoursOverrides] = useState({});
   const [scenarioCount, setScenarioCount] = useState(0);
   const docScenariosRef = useRef(0);
+  // When each analysis step last ran and on which documents ({ at, docs }); a step is outdated when
+  // the case documents changed since, or a step before it ran again later.
+  const [analysisMeta, setAnalysisMeta] = useState({});
+  const analyzeRef = useRef(null);            // Analyze lives in the render block; Run all calls it here
+  const [runningAll, setRunningAll] = useState(false);
+  const genGateOverrideRef = useRef(false);
+  // Latest AI notes of the spec (kept across quick consecutive saves).
+  const notesRef = useRef(null);
+  useEffect(() => {
+    if (spec?.mode === 'ai' && spec?.notes) { try { notesRef.current = { ...(notesRef.current ?? {}), ...JSON.parse(spec.notes) }; } catch { /* keep */ } }
+  }, [spec?.notes, spec?.mode]);
   const [prevMode, setPrevMode]         = useState(null); // 'manual' | 'wizard' | null
   // Generation profile modal
   const [showGenModal, setShowGenModal]   = useState(false);
@@ -1386,6 +1401,104 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const hoursOpts = (overrides = hoursOverrides) => ({
     settings: ssCtx.settings, estCtx: specEstCtx, scenarios: docScenariosRef.current || scenarioCount, overrides, lang,
   });
+  // ── Freshness of the analysis steps ─────────────────────────
+  // Fingerprint of the customer documents (generated Arena files excluded).
+  const inputDocsHash = (() => {
+    const key = (documents ?? []).filter(d => !isGeneratedDoc(d))
+      .map(d => `${d.file_name}|${d.created_at ?? ''}|${d.file_size_kb ?? ''}`).sort().join('\n');
+    let h = 5381; for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
+    return `${(h >>> 0).toString(36)}`;
+  })();
+  const REQUIREMENTS_STEP = false;   // turned on with the requirements checklist
+  const ANALYSIS_ORDER = ['summary', 'coverage', 'validation', 'requirements'];
+  const analysisStepOn = step => step === 'coverage' ? isSgNodeEnabled('sap_verification')
+    : step === 'validation' ? isSgNodeEnabled('proposal_validation')
+    : step === 'requirements' ? REQUIREMENTS_STEP : true;
+  // 'missing' | 'outdated' | 'fresh'
+  function analysisState(step, meta = analysisMeta) {
+    const m = meta?.[step];
+    if (!m?.at) return 'missing';
+    if (m.docs !== inputDocsHash) return 'outdated';
+    for (const prev of ANALYSIS_ORDER.slice(0, ANALYSIS_ORDER.indexOf(step))) {
+      if (analysisStepOn(prev) && meta?.[prev]?.at && meta[prev].at > m.at) return 'outdated';
+    }
+    return 'fresh';
+  }
+  const staleAnalysisSteps = (meta = analysisMeta) => ANALYSIS_ORDER.filter(st => analysisStepOn(st) && analysisState(st, meta) !== 'fresh');
+  async function markAnalysisStep(step, extraPatch = {}) {
+    const next = { ...(notesRef.current?.analysisMeta ?? analysisMeta), [step]: { at: new Date().toISOString(), docs: inputDocsHash } };
+    setAnalysisMeta(next);
+    try { await saveAiNotesPatch({ ...extraPatch, analysisMeta: next }); } catch (_) {}
+    return next;
+  }
+  const ANALYSIS_STEP_LABEL = {
+    summary: L('Analysis summary', 'Resumen del análisis'), coverage: L('Standard coverage check', 'Verificación del estándar'),
+    validation: L('Proposal validation', 'Validación de la propuesta'), requirements: L('Requirements checklist', 'Checklist de requerimientos'),
+  };
+  // Run the analysis steps in order, each with the result of the previous one.
+  async function handleRunAllAnalysis() {
+    if (runningAll) return;
+    setRunningAll(true);
+    try {
+      // Analyze is defined in the summary node's render: show it so the ref holds the current closure.
+      setActiveNode(6);
+      await new Promise(r => setTimeout(r, 60));
+      const summary = await analyzeRef.current?.();
+      if (!summary) return;
+      let sc = null;
+      if (analysisStepOn('coverage')) { sc = await handleSapCheck({ summary }); if (!sc) return; }
+      if (analysisStepOn('validation') && sc) { const pc = await handleProposalValidation({ sapCheck: sc, summary }); if (!pc) return; }
+      if (analysisStepOn('requirements')) await analyzeRef.requirements?.();
+    } finally { setRunningAll(false); }
+  }
+  // Status of every analysis step + "Run all analysis", shown on the pipeline nodes.
+  function analysisStrip() {
+    const steps = ANALYSIS_ORDER.filter(analysisStepOn);
+    const stale = steps.filter(st => analysisState(st) !== 'fresh');
+    const busy = runningAll || stepLoading || requestSummaryLoading;
+    const badge = st => {
+      const state = analysisState(st);
+      const cls = state === 'fresh' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+        : state === 'outdated' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-gray-50 text-gray-500 border-gray-200';
+      const txt = state === 'fresh' ? L('current', 'al día') : state === 'outdated' ? L('outdated', 'desactualizado') : L('not run', 'sin ejecutar');
+      return <span key={st} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-semibold ${cls}`}>{ANALYSIS_STEP_LABEL[st]}: {txt}</span>;
+    };
+    return (
+      <div className={`flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl border ${stale.length ? 'border-amber-200 bg-amber-50/40' : 'border-emerald-200 bg-emerald-50/40'}`}>
+        <div className="flex flex-wrap gap-1.5 flex-1">{steps.map(badge)}</div>
+        {!specApproved && (
+          <button onClick={handleRunAllAnalysis} disabled={busy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50">
+            {runningAll ? <><Spinner />{L('Running analysis…', 'Ejecutando análisis…')}</> : <><RefreshCw size={12} />{L('Run all analysis', 'Ejecutar todo el análisis')}</>}
+          </button>
+        )}
+        {stale.length > 0 && <p className="w-full text-[11px] text-amber-700">{L('Specs can be generated once every step is current (the documents changed or a step was not run).', 'Las specs se pueden generar cuando todos los pasos estén al día (cambiaron los documentos o falta ejecutar un paso).')}</p>}
+      </div>
+    );
+  }
+  // Generate only on current analysis: blocks (admins may override, recorded in the notes).
+  function generationGateOk() {
+    const stale = staleAnalysisSteps();
+    if (!stale.length) return true;
+    const list = stale.map(st => `• ${ANALYSIS_STEP_LABEL[st]} (${analysisState(st) === 'missing' ? L('not run', 'sin ejecutar') : L('outdated', 'desactualizado')})`).join('\n');
+    if (auth.isAdmin && (genGateOverrideRef.current || window.confirm(L(`The analysis is not current:\n${list}\n\nGenerate anyway? (admin override, recorded)`, `El análisis no está al día:\n${list}\n\n¿Generar de todos modos? (excepción de administrador, queda registrada)`)))) {
+      genGateOverrideRef.current = true;
+      saveAiNotesPatch({ genGateOverride: { at: new Date().toISOString(), by: auth.user?.id ?? null, stale } }).catch(() => {});
+      return true;
+    }
+    setAiError(L(`Run the analysis before generating — not current:\n${list}\nUse "Run all analysis".`, `Ejecute el análisis antes de generar — no está al día:\n${list}\nUse "Ejecutar todo el análisis".`));
+    return false;
+  }
+
+  // Findings of the coverage check and the proposal validation, for the spec prompts.
+  function analysisFindingsBlock(sc = sapCheck, pc = proposalCheck) {
+    const parts = [];
+    if (sc?.gaps?.length) parts.push(`Standard SAP coverage (${sc.coverage ?? '—'}) — gaps that need development:\n${sc.gaps.map(g => `- ${g}`).join('\n')}${sc.recommendation ? `\nRecommendation: ${sc.recommendation}` : ''}`);
+    if (pc?.concerns?.length) parts.push(`Proposal validation (score ${pc.score ?? '—'}/10) — concerns:\n${pc.concerns.map(c => `- ${c}`).join('\n')}${pc.recommendation ? `\nRecommendation: ${pc.recommendation}` : ''}`);
+    if (!parts.length) return '';
+    return `\n\nANALYSIS FINDINGS — address every point in the specification. When a point cannot be resolved from the customer's documents, list it in Assumptions / Next Steps as an open question for the customer (do not silently drop it):\n${parts.join('\n\n')}`;
+  }
+
   // Rewrite the objects table and estimate of Specs A and C with calculated hours; Spec D (derived
   // from C, no objects table) gets C's estimate.
   function withCalculatedHours(specs, overrides) {
@@ -2378,6 +2491,7 @@ ${mdToHtml(markdownContent)}
           if (nd.analysisCustomerContent) setAnalysisCustomerContent(nd.analysisCustomerContent);
           if (nd.requestSummary) setRequestSummary(nd.requestSummary);
           setRegenDiff(nd.regenDiff ?? {});
+          setAnalysisMeta(nd.analysisMeta ?? {});
           setHoursOverrides(nd.hoursOverrides ?? {});
           if (nd.scenarioCount !== undefined) { setScenarioCount(nd.scenarioCount); docScenariosRef.current = nd.scenarioCount; }
           if (nd.activeProfile) setActiveProfile(nd.activeProfile);
@@ -3707,6 +3821,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
   }
 
   async function handleGenerateSpecs({ autoSubmit = false, genProfile = null, fromApprovalReview = false } = {}) {
+    if (!genProfile || fromApprovalReview) {
+      genGateOverrideRef.current = false;
+      if (!generationGateOk()) return;
+    }
     if (!genProfile) {
       // Show profile picker modal; actual generation runs after modal confirm
       setPendingGenOpts({ autoSubmit, fromApprovalReview });
@@ -3737,7 +3855,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const summaryCtx = requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '';
       const additionalCtxStr = additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '';
       const reviewFeedbackStr = specFeedback?.trim() ? `\n\nREVIEW FEEDBACK (apply to this generation — cumulative notes from previous review rounds):\n${sanitizeForJson(specFeedback.trim())}` : '';
-      const contextStr = _baseCtx + summaryCtx + additionalCtxStr + reviewFeedbackStr + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id));
+      const contextStr = _baseCtx + summaryCtx + additionalCtxStr + reviewFeedbackStr + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock();
       const hasLiveSap = contextStr.includes('SAP Live System:');
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       const sysLiveNote = hasLiveSap
@@ -3847,7 +3965,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const updatedLog = [...genLog, newLogEntry];
       try {
-        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile, regenDiff: newDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
+        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ ...(notesRef.current ?? {}), sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile, regenDiff: newDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
         setGenLog(updatedLog);
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (e) {
@@ -3951,7 +4069,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
       const _baseCtxD = sanitizeForJson(await buildGenContext());
-      const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id));
+      const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock();
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       let specD = await callSpec(
         aiSpecC
@@ -3993,7 +4111,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       } catch (saveErr) { console.warn('Spec D doc save failed:', saveErr?.message); }
       // Persist in spec notes
       try {
-        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff: nextDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ ...(notesRef.current ?? {}), sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff: nextDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix") });
       } catch (_) {}
     } catch (e) {
       console.error('Spec D generation error:', e?.message);
@@ -4051,7 +4169,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     };
     const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
     const _baseCtxR = sanitizeForJson(await buildGenContext());
-    const contextStr = _baseCtxR + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id));
+    const contextStr = _baseCtxR + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock();
     const abapCtx = sanitizeForJson(abap.contextText);
     const setSpecStatus = (key, status) => setSpecStatuses(p => ({ ...p, [key]: status }));
     const setSpecError  = (key, msg)    => setSpecErrors(p => ({ ...p, [key]: msg }));
@@ -4125,7 +4243,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           mode: 'ai', status: spec?.status ?? 'draft',
           content: newSpecs.a || newSpecs.b || newSpecs.c || newSpecs.d,
           objects: [],
-          notes: JSON.stringify({ sapCheck, proposalCheck, specA: newSpecs.a, specB: newSpecs.b, specC: newSpecs.c, specD: newSpecs.d, selectedSpec: firstKey, prevMode, analysisCustomerContent, requestSummary, activeProfile: profile, regenDiff , hoursOverrides, scenarioCount: docScenariosRef.current }),
+          notes: JSON.stringify({ ...(notesRef.current ?? {}), sapCheck, proposalCheck, specA: newSpecs.a, specB: newSpecs.b, specC: newSpecs.c, specD: newSpecs.d, selectedSpec: firstKey, prevMode, analysisCustomerContent, requestSummary, activeProfile: profile, regenDiff , hoursOverrides, scenarioCount: docScenariosRef.current }),
           title: caseData.title + t("spec.doc_title_suffix"),
         });
       } catch (_) {}
@@ -4194,7 +4312,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         status: 'submitted',
         content: specContent ?? null,
         objects: specObjects ?? [],
-        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff , hoursOverrides, scenarioCount: docScenariosRef.current }) : null),
+        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ ...(notesRef.current ?? {}), sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff , hoursOverrides, scenarioCount: docScenariosRef.current }) : null),
         document_ids: specMode === 'manual' ? manualDocIds : [],
         title: caseData.title + t("spec.doc_title_suffix"),
       });
@@ -4202,7 +4320,9 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     } catch (e) { alert(e.message); }
   }
 
-  async function handleSapCheck() {
+  async function handleSapCheck(opts = {}) {
+    const summaryIn = opts.summary !== undefined ? opts.summary : requestSummary;
+    let result = null;
     setAiStep(1);             // drives the "running" spinner on the step and in its panel
     setActiveNode(1);
     setStepLoading(true);
@@ -4212,7 +4332,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     try {
       const docBlocks = await buildAllDocBlocks();
       const customerCtx = analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : '';
-      const summaryCtxSap = requestSummary ? `\nRequest Summary (pre-analysis):\n${requestSummary}` : '';
+      const summaryCtxSap = summaryIn ? `\nRequest Summary (pre-analysis):\n${summaryIn}` : '';
       const additionalCtxSap = additionalCtx?.trim() ? `\nAdditional Considerations:\n${additionalCtx.trim()}` : '';
       const prompt = `Analyze this SAP case and determine whether STANDARD SAP functionality covers the requirement — without any custom ABAP development.${docBlocks.length > 0 ? '\n\nThe attached documents (case files, project reference docs, and ABAP standards) contain the detailed requirements.' : ''}
 
@@ -4253,13 +4373,18 @@ Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words
       setSapCheck(parsed);
       setAiStep(2);
       setActiveNode(1); // show SAP result
-      try { await saveAiNotesPatch({ sapCheck: parsed, proposalCheck: null }); } catch (_) {}
+      await markAnalysisStep('coverage', { sapCheck: parsed, proposalCheck: null });
+      result = parsed;
     } catch (e) { setAiError(e.message); }
     setStepLoading(false);
+    return result;
   }
 
-  async function handleProposalValidation() {
-    if (!sapCheck) return;
+  async function handleProposalValidation(opts = {}) {
+    const sc = opts.sapCheck !== undefined ? opts.sapCheck : sapCheck;
+    const summaryIn = opts.summary !== undefined ? opts.summary : requestSummary;
+    if (!sc) return null;
+    let result = null;
     setAiStep(2);             // drives the "running" spinner on the step and in its panel
     setActiveNode(2);
     setStepLoading(true);
@@ -4268,7 +4393,7 @@ Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words
     try {
       const docBlocks = await buildAllDocBlocks();
       const customerCtx2 = analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : '';
-      const summaryCtxProp = requestSummary ? `\nRequest Summary (pre-analysis):\n${requestSummary}` : '';
+      const summaryCtxProp = summaryIn ? `\nRequest Summary (pre-analysis):\n${summaryIn}` : '';
       const additionalCtxProp = additionalCtx?.trim() ? `\nAdditional Considerations:\n${additionalCtx.trim()}` : '';
       const prompt = `Validate the proposed custom SAP development for this case.${docBlocks.length > 0 ? '\n\nThe attached documents contain the requirements.' : ''}
 
@@ -4278,9 +4403,9 @@ SAP Module: ${caseData.area_sap ?? ''}
 Industry: ${caseData.area_industry ?? ''}${customerCtx2}${summaryCtxProp}${additionalCtxProp}
 
 Standard SAP coverage analysis already completed:
-- Coverage: ${sapCheck.coverage}
-- Summary: ${sapCheck.summary}
-- Gaps requiring custom dev: ${(sapCheck.gaps ?? []).join('; ') || 'none listed'}
+- Coverage: ${sc.coverage}
+- Summary: ${sc.summary}
+- Gaps requiring custom dev: ${(sc.gaps ?? []).join('; ') || 'none listed'}
 
 Now validate whether proceeding with custom ABAP development is well-justified, correctly scoped, and technically sound.
 
@@ -4308,11 +4433,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
         parsed = m ? JSON.parse(m[0]) : { valid: true, score: 7, risk_level: 'medium', strengths: [], concerns: [], recommendation: raw };
       }
       setProposalCheck(parsed);
-      try { await saveAiNotesPatch({ sapCheck, proposalCheck: parsed }); } catch (_) {}
+      await markAnalysisStep('validation', { sapCheck: sc, proposalCheck: parsed });
+      result = parsed;
       setAiStep(3);
       setActiveNode(3); // auto-advance to generate step
     } catch (e) { setAiError(e.message); }
     setStepLoading(false);
+    return result;
   }
 
   async function handleApprove() {
@@ -5829,6 +5956,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               }
 
               async function handleAnalyzeRequest() {
+                let analyzeResult = null;
                 setRequestSummaryLoading(true);
                 setRequestSummaryError(null);
                 try {
@@ -5946,13 +6074,16 @@ ${result}`;
                   // The coverage check and the proposal validation were built on the previous summary:
                   // clear them so they are run again (in order) before generating.
                   setSapCheck(null); setProposalCheck(null);
-                  try { await saveAiNotesPatch({ requestSummary: fullResult, sapCheck: null, proposalCheck: null }); } catch (_) {}
+                  await markAnalysisStep('summary', { requestSummary: fullResult, sapCheck: null, proposalCheck: null });
+                  analyzeResult = fullResult;
                 } catch (e) {
                   setRequestSummaryError(e.message);
                 } finally {
                   setRequestSummaryLoading(false);
                 }
+                return analyzeResult;
               }
+              analyzeRef.current = handleAnalyzeRequest;
 
               const gc = { ...GENERATION_CONTEXT_DEFAULTS, ...(ssCtx.settings["generation_context"] ?? {}) };
               const ctxItems = [
@@ -6012,12 +6143,13 @@ ${result}`;
                     )}
                   </div>
 
+                  {analysisStrip()}
                   {/* AI Request Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Request Summary</h4>
                       {!requestSummaryLoading && (
-                        <button onClick={handleAnalyzeRequest}
+                        <button onClick={() => handleAnalyzeRequest()}
                           disabled={specApproved && !auth.isAdmin}
                           title={specApproved && !auth.isAdmin ? 'Spec is approved — analysis is locked' : undefined}
                           className="px-3 py-1 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700 flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
@@ -6200,6 +6332,7 @@ ${result}`;
             {/* ── Node 1: SAP Verification ── */}
             {activeNode === 1 && (
               <div className="space-y-4">
+                {analysisStrip()}
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                   <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step1_h")}</h3>
                   <p className="text-xs text-gray-500">{t("spec.ai_step1_desc")}</p>
@@ -6207,7 +6340,7 @@ ${result}`;
 
                 {!sapCheck && !stepLoading && !specApproved && (
                   <div className="text-center py-4">
-                    <button onClick={handleSapCheck}
+                    <button onClick={() => handleSapCheck()}
                       className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
                       {t("spec.ai_check_btn")}
                     </button>
@@ -6227,7 +6360,7 @@ ${result}`;
 
                 {sapCheck && !stepLoading && !specApproved && (
                   <div className="flex justify-end">
-                    <button onClick={handleSapCheck}
+                    <button onClick={() => handleSapCheck()}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
                       <RefreshCw size={12} />{L('Run again', 'Volver a ejecutar')}
                     </button>
@@ -6265,7 +6398,7 @@ ${result}`;
                     )}
                     {!specApproved && (
                       <div className="flex gap-3 justify-between items-center pt-1">
-                        <button onClick={handleSapCheck} className={`text-xs underline ${cc[2]}`}>{t("spec.rerun_check")}</button>
+                        <button onClick={() => handleSapCheck()} className={`text-xs underline ${cc[2]}`}>{t("spec.rerun_check")}</button>
                         <button onClick={() => setActiveNode(2)}
                           className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
                           {t("spec.continue_step2")}
@@ -6280,6 +6413,7 @@ ${result}`;
             {/* ── Node 2: Proposal Validation ── */}
             {activeNode === 2 && (
               <div className="space-y-4">
+                {analysisStrip()}
                 {sapCheck && (
                   <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${cc[0]} ${cc[1]} ${cc[2]}`}>
                     <span className="font-semibold">{t("spec.step1_badge")}</span>
@@ -6293,7 +6427,7 @@ ${result}`;
                 </div>
                 {!proposalCheck && !stepLoading && !specApproved && (
                   <div className="text-center py-4">
-                    <button onClick={handleProposalValidation}
+                    <button onClick={() => handleProposalValidation()}
                       className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
                       {t("spec.validate_proposal")}
                     </button>
@@ -6311,7 +6445,7 @@ ${result}`;
                 )}
                 {proposalCheck && !stepLoading && !specApproved && sapCheck && (
                   <div className="flex justify-end">
-                    <button onClick={handleProposalValidation}
+                    <button onClick={() => handleProposalValidation()}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
                       <RefreshCw size={12} />{L('Run again', 'Volver a ejecutar')}
                     </button>
@@ -6355,7 +6489,7 @@ ${result}`;
                     )}
                     {!specApproved && (
                       <div className="flex gap-3 justify-between items-center pt-1">
-                        <button onClick={handleProposalValidation}
+                        <button onClick={() => handleProposalValidation()}
                           className={`text-xs underline ${proposalCheck.valid ? 'text-green-700' : 'text-amber-700'}`}>{t("spec.revalidate")}</button>
                         <button onClick={() => setActiveNode(3)}
                           className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
@@ -6371,6 +6505,7 @@ ${result}`;
             {/* ── Node 3: Generate Specification ── */}
             {activeNode === 3 && (
               <div className="space-y-4">
+                {!specApproved && !viewingProto && analysisStrip()}
                 {/* Analysis accordion */}
                 {(sapCheck || proposalCheck) && !viewingProto && (
                   <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -6463,7 +6598,7 @@ ${result}`;
                         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"/>+ {t("spec.opt_proto")}</span>
                       )}
                     </div>
-                    <button onClick={handleGenerateSpecs}
+                    <button onClick={() => handleGenerateSpecs()}
                       className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
                       {t("spec.gen_all_three")}
                     </button>
@@ -6709,7 +6844,7 @@ ${result}`;
                         {!specApproved && (
                           <button onClick={async () => {
                             const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : selectedSpec === 'd' ? aiSpecD : aiSpecA;
-                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
+                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ ...(notesRef.current ?? {}), sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
                           }} disabled={!selectedSpec} className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
                             {t("spec.save_draft")}
                           </button>
