@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import DOMPurify from "dompurify";
 import { diffSpecs, KIND_LABEL } from "../lib/specDiff.js";
+import { applySpecHours, replaceEstimateSection, countMatrixScenarios, readObjects, computeEstimate } from "../lib/specHours.js";
+import { activeRules, rulesPromptBlock, checkRules } from "../lib/projectRules.js";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
   Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Laptop, Link2, ListChecks, Paperclip, Pause, Play,
@@ -923,6 +925,76 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError,
   );
 }
 
+// Calculated hours of a spec: one row per technical object; the consultant can change the complexity
+// or set the hours of an object, and the tables of Specs A, C and D are recalculated.
+function SpecHoursPanel({ content, opts, overrides, onApply, readOnly, L }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(overrides ?? {});
+  useEffect(() => { setDraft(overrides ?? {}); }, [overrides]);
+  const { objects } = readObjects(content);
+  if (!objects.length) return null;
+  const est = computeEstimate(objects, { ...opts, overrides: draft });
+  const dirty = JSON.stringify(draft) !== JSON.stringify(overrides ?? {});
+  const set = (name, patch) => setDraft(d => {
+    const n = { ...d, [name]: { ...(d[name] ?? {}), ...patch } };
+    if (n[name].hours === '' || n[name].hours === undefined) delete n[name].hours;
+    if (!Object.keys(n[name]).length) delete n[name];
+    return n;
+  });
+  const cxLabel = { low: L('Low', 'Baja'), medium: L('Medium', 'Media'), high: L('High', 'Alta') };
+  return (
+    <div className="mb-4 rounded-xl border border-gray-200 dark:border-gray-700">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200">
+        <ChevronDown size={13} className={`transition-transform ${open ? '' : '-rotate-90'}`} />
+        {L('Calculated hours', 'Horas calculadas')}
+        <span className="ml-auto font-normal text-gray-500">{L('Standard', 'Estándar')} {est.total.std} h · Arena {est.total.arena} h · {est.scenarios} {L('scenarios', 'escenarios')}</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-2">
+          <p className="text-[11px] text-gray-500">{L('Hours come from the standard hours catalog (Settings → Spec quality) by object type and complexity. Change the complexity or set the hours of an object; the tables of Specs A, C and D are recalculated.', 'Las horas salen del catálogo de horas estándar (Configuración → Calidad de specs) por tipo y complejidad del objeto. Cambie la complejidad o fije las horas de un objeto; se recalculan las tablas de las Specs A, C y D.')}</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead><tr className="text-gray-500 border-b border-gray-100 dark:border-gray-700">
+                <th className="text-left py-1 pr-2">{L('Object', 'Objeto')}</th><th className="text-left py-1 pr-2">{L('Type', 'Tipo')}</th>
+                <th className="text-left py-1 pr-2">{L('Complexity', 'Complejidad')}</th><th className="text-right py-1 pr-2">{L('Standard h', 'Horas est.')}</th><th className="text-right py-1">Arena h</th>
+              </tr></thead>
+              <tbody>
+                {est.rows.map(r => (
+                  <tr key={r.name} className="border-b border-gray-50 dark:border-gray-800">
+                    <td className="py-1 pr-2 font-mono text-[11px] text-gray-800 dark:text-gray-200">{r.name}</td>
+                    <td className="py-1 pr-2 text-gray-500">{(KIND_LABEL[r.kind] ?? [r.kind, r.kind])[L('en', 'es') === 'es' ? 1 : 0]}</td>
+                    <td className="py-1 pr-2">
+                      <select disabled={readOnly} value={r.complexity} onChange={e => set(r.name, { complexity: e.target.value })}
+                        className="px-1.5 py-0.5 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900">
+                        {['low', 'medium', 'high'].map(c => <option key={c} value={c}>{cxLabel[c]}</option>)}
+                      </select>
+                    </td>
+                    <td className="py-1 pr-2 text-right">
+                      <input disabled={readOnly} type="number" min="0" step="0.5" value={draft[r.name]?.hours ?? ''} placeholder={String(r.std)}
+                        onChange={e => set(r.name, { hours: e.target.value === '' ? '' : Number(e.target.value) })}
+                        className="w-16 px-1.5 py-0.5 border border-gray-200 dark:border-gray-700 rounded text-right bg-white dark:bg-gray-900" />
+                    </td>
+                    <td className="py-1 text-right text-gray-600 dark:text-gray-300">{r.arena}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="text-[11px] text-gray-500">
+            {L('Analysis', 'Análisis')} {est.phases.analysis.std} · {L('Development', 'Desarrollo')} {est.phases.dev.std} · {L('Unit tests', 'Pruebas unitarias')} {est.phases.unit.std} · UAT {est.phases.uat.std} → <b>{est.total.std} h</b> ({L('Arena', 'Arena')} {est.total.arena} h)
+          </div>
+          {!readOnly && (
+            <div className="flex justify-end gap-2">
+              {Object.keys(draft).length > 0 && <button onClick={() => setDraft({})} className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">{L('Reset to catalog', 'Volver al catálogo')}</button>}
+              <button disabled={!dirty} onClick={() => onApply(draft)} className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">{L('Recalculate specs', 'Recalcular specs')}</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Same look as "Generating specs with your feedback…": a faded button with a spinning ↻ and a
 // light-blue banner underneath, shown while a pipeline step (analyze / coverage / validation) runs.
 function StepRunning({ button, message }) {
@@ -977,6 +1049,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       .then(c => { if (alive) setSpecEstCtx(c); }).catch(() => {});
     return () => { alive = false; };
   }, [caseData.id, caseData.expected_seniority, caseData.case_assignments?.[0]?.consultant_id, ssCtx.settings?.estimation_factors, ssCtx.settings?.case_sap_live_check, ssCtx.settings?.generation_context]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Hours are calculated by the platform after generation (src/lib/specHours.js): the AI only gives
+  // each technical object a complexity.
+  const specHoursNote = '\nTIME ESTIMATION: do NOT calculate or invent hours. The platform calculates every hour of this section (standard and Arena) from the technical objects (type × complexity), the test-matrix size and the consultant factors, and replaces this table. Keep this heading and the table skeleton below with [h] placeholders.\n';
   const arenaEstNote = (() => {
     const c = specEstCtx; if (!c) return '';
     const f = c.factors;
@@ -1082,6 +1157,11 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [analysisCustomerContent, setAnalysisCustomerContent] = useState('');
   // What each spec lost compared with the version it replaced at the last regeneration.
   const [regenDiff, setRegenDiff] = useState({});
+  // Consultant adjustments to the calculated hours ({ [objectName]: { complexity?, hours? } }) and the
+  // number of test-matrix scenarios found in the case documents (drives UAT hours).
+  const [hoursOverrides, setHoursOverrides] = useState({});
+  const [scenarioCount, setScenarioCount] = useState(0);
+  const docScenariosRef = useRef(0);
   const [prevMode, setPrevMode]         = useState(null); // 'manual' | 'wizard' | null
   // Generation profile modal
   const [showGenModal, setShowGenModal]   = useState(false);
@@ -1248,6 +1328,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       .filter(d => { const k = `${(d.file_name ?? '').toLowerCase()}|${d.file_size_kb ?? ''}`; if (seen.has(k)) return false; seen.add(k); return true; })
       .sort((a, b) => rank(a) - rank(b));
     let budget = DOC_CHARS_TOTAL;
+    let scenarios = 0;
     for (const doc of docs) {
       const lower = (doc.file_name ?? '').toLowerCase();
       const ext = lower.split('.').pop() ?? '';
@@ -1287,6 +1368,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
           if (text) {
             blocks.push({ type: 'text', text: `${label}\n${text}` });
             budget -= text.length;
+            if (/^(xlsx?|csv)$/.test(ext)) scenarios += countMatrixScenarios(text);
           } else {
             blocks.push({ type: 'text', text: `[Attached file: ${doc.file_name} — ${warning ?? 'content empty'}]` });
           }
@@ -1295,7 +1377,29 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
         blocks.push({ type: 'text', text: `[Attached file: ${doc.file_name} — could not be loaded]` });
       }
     }
+    docScenariosRef.current = scenarios;
+    setScenarioCount(scenarios);
     return blocks;
+  }
+
+  // ── Calculated hours (src/lib/specHours.js) ──────────────────
+  const hoursOpts = (overrides = hoursOverrides) => ({
+    settings: ssCtx.settings, estCtx: specEstCtx, scenarios: docScenariosRef.current || scenarioCount, overrides, lang,
+  });
+  // Rewrite the objects table and estimate of Specs A and C with calculated hours; Spec D (derived
+  // from C, no objects table) gets C's estimate.
+  function withCalculatedHours(specs, overrides) {
+    const out = { ...specs };
+    let estC = null;
+    for (const k of ['a', 'c']) {
+      if (!out[k]) continue;
+      const r = applySpecHours(out[k], hoursOpts(overrides));
+      out[k] = r.md;
+      if (k === 'c') estC = r.estimate;
+    }
+    if (!estC && specs.c === undefined && aiSpecC) estC = applySpecHours(aiSpecC, hoursOpts(overrides)).estimate;
+    if (out.d && estC) out.d = replaceEstimateSection(out.d, estC, lang);
+    return out;
   }
 
   // Builds ALL doc blocks: case docs + project docs + ABAP standards (text capped at DOC_CHARS_TOTAL + 60k)
@@ -2274,6 +2378,8 @@ ${mdToHtml(markdownContent)}
           if (nd.analysisCustomerContent) setAnalysisCustomerContent(nd.analysisCustomerContent);
           if (nd.requestSummary) setRequestSummary(nd.requestSummary);
           setRegenDiff(nd.regenDiff ?? {});
+          setHoursOverrides(nd.hoursOverrides ?? {});
+          if (nd.scenarioCount !== undefined) { setScenarioCount(nd.scenarioCount); docScenariosRef.current = nd.scenarioCount; }
           if (nd.activeProfile) setActiveProfile(nd.activeProfile);
           if (nd.protoHtml)    { setProtoHtmlState(nd.protoHtml); setProtoSaved(true); setActiveProfile(p => p ?? { prototype_enabled: true }); }
         } catch (_) {}
@@ -2451,13 +2557,14 @@ Generate the specification with EXACTLY these sections in order:
 
 ## 5. Technical Objects
 
-| # | Object | Type | Description | Hours |
-|---|--------|------|-------------|-------|
-| 1 | Z[NAME] | [type] | [description] | [h] |
-| | | | **Subtotal** | **[total]** |
+| # | Object | Type | Complexity | Description |
+|---|--------|------|------------|-------------|
+| 1 | Z[NAME] | [type] | [Low / Medium / High] | [description] |
+
+(Complexity is required for every object: Low, Medium or High — in the output language. Do NOT write hours: the platform calculates them from the object type and complexity.)
 
 ## 6. Time Estimation
-${arenaEstNote}
+${specHoursNote}
 
 | Phase | Included Objects | Hours |
 |-------|-----------------|-------|
@@ -2986,13 +3093,14 @@ Generate with EXACTLY these sections:
 
 ## 5. Technical Objects
 
-| # | Object | Type | Description | Hours |
-|---|--------|------|-------------|-------|
-| 1 | Z[NAME] | [type] | [description] | [h] |
-| | | | **Subtotal** | **[total]** |
+| # | Object | Type | Complexity | Description |
+|---|--------|------|------------|-------------|
+| 1 | Z[NAME] | [type] | [Low / Medium / High] | [description] |
+
+(Complexity is required for every object: Low, Medium or High — in the output language. Do NOT write hours: the platform calculates them from the object type and complexity.)
 
 ## 6. Time Estimation
-${arenaEstNote}
+${specHoursNote}
 
 | Phase | Included Objects | Hours |
 |-------|-----------------|-------|
@@ -3116,6 +3224,7 @@ Use real standard SAP transaction codes and configuration objects for ${caseData
 This option formalizes EXACTLY what the customer proposed, without any AI alternatives or suggestions. Do NOT add any SAP standard alternatives or custom dev recommendations — this is a direct formalization of the customer's own technical proposal.
 
 CRITICAL CONSTRAINTS — STRICT AS-IS RULE:
+- EXCEPTION: the PROJECT MANDATORY RULES listed in the context are part of the customer's requirements. Apply them and add the objects they require (e.g. Fiori maintenance app, authorization objects), marked "(regla del proyecto)".
 - Include ONLY what the customer explicitly described. If the customer did not ask for it, do NOT include it — no exceptions.
 - Do NOT add objects, screens, transactions, reports, tables, enhancements, user-exits, workflows, notifications, logs, audit trails, or any other element that is not directly stated in the customer's proposal.
 - Do NOT suggest improvements, alternatives, or best practices — this document records what was asked, not what could be better.
@@ -3143,13 +3252,14 @@ Generate with EXACTLY these sections:
 
 ## 4. Technical Objects
 
-| # | Object | Type | Description | Hours |
-|---|--------|------|-------------|-------|
-| 1 | Z[NAME] | [type] | [description per customer proposal] | [h] |
-| | | | **Subtotal** | **[total]** |
+| # | Object | Type | Complexity | Description |
+|---|--------|------|------------|-------------|
+| 1 | Z[NAME] | [type] | [Low / Medium / High] | [description per customer proposal] |
+
+(Complexity is required for every object: Low, Medium or High — in the output language. Do NOT write hours: the platform calculates them from the object type and complexity.)
 
 ## 5. Time Estimation
-${arenaEstNote}
+${specHoursNote}
 
 | Phase | Included Objects | Hours |
 |-------|-----------------|-------|
@@ -3264,7 +3374,7 @@ Generate with EXACTLY these sections:
 1. [testable acceptance criterion a business user can verify]
 
 ## 8. Time Estimation
-${arenaEstNote}
+${specHoursNote}
 
 | Phase | Hours |
 |-------|-------|
@@ -3341,7 +3451,7 @@ Generate with EXACTLY these sections:
 1. [testable acceptance criterion a business user can verify]
 
 ## 8. Time Estimation
-${arenaEstNote}
+${specHoursNote}
 
 | Phase | Hours |
 |-------|-------|
@@ -3627,7 +3737,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const summaryCtx = requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '';
       const additionalCtxStr = additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '';
       const reviewFeedbackStr = specFeedback?.trim() ? `\n\nREVIEW FEEDBACK (apply to this generation — cumulative notes from previous review rounds):\n${sanitizeForJson(specFeedback.trim())}` : '';
-      const contextStr = _baseCtx + summaryCtx + additionalCtxStr + reviewFeedbackStr;
+      const contextStr = _baseCtx + summaryCtx + additionalCtxStr + reviewFeedbackStr + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id));
       const hasLiveSap = contextStr.includes('SAP Live System:');
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       const sysLiveNote = hasLiveSap
@@ -3688,7 +3798,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
 
       // C must finish before D so D can use C's output as its source
       const specCPromise = runSpec('c', () => callSpec(buildSpecCPrompt(customerContent, genProfile, genProfile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr, isModCase)));
-      const [specA, specB, specC, specD] = await Promise.all([
+      let [specA, specB, specC, specD] = await Promise.all([
         runSpec('a', () => callSpec(buildSpecPrompt(true,  genProfile, genProfile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr, isModCase))),
         runSpec('b', () => callSpec(buildSpecPrompt(false, genProfile, contextStr, isModCase))),
         specCPromise,
@@ -3699,6 +3809,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           ))
         ),
       ]);
+      ({ a: specA, b: specB, c: specC, d: specD } = withCalculatedHours({ a: specA, b: specB, c: specC, d: specD }));
 
       if (specA) { setAiSpecA(specA); }
       if (specB) { setAiSpecB(specB); }
@@ -3736,7 +3847,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const updatedLog = [...genLog, newLogEntry];
       try {
-        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile, regenDiff: newDiff }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
+        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile, regenDiff: newDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
         setGenLog(updatedLog);
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (e) {
@@ -3840,14 +3951,15 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
       const _baseCtxD = sanitizeForJson(await buildGenContext());
-      const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '');
+      const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id));
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
-      const specD = await callSpec(
+      let specD = await callSpec(
         aiSpecC
           ? buildSpecDFromCPrompt(aiSpecC, customerContent, activeProfile ?? {}, contextStr, isModCase)
           : buildSpecDPrompt(customerContent, activeProfile ?? {}, contextStr, isModCase)
       );
       checkSpecText(specD);
+      specD = withCalculatedHours({ d: specD }).d;
       const dD = diffSpecs(aiSpecD, specD);
       const nextDiff = { ...regenDiff };
       if (dD) nextDiff.d = dD; else delete nextDiff.d;
@@ -3881,7 +3993,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       } catch (saveErr) { console.warn('Spec D doc save failed:', saveErr?.message); }
       // Persist in spec notes
       try {
-        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff: nextDiff }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff: nextDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix") });
       } catch (_) {}
     } catch (e) {
       console.error('Spec D generation error:', e?.message);
@@ -3939,7 +4051,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     };
     const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
     const _baseCtxR = sanitizeForJson(await buildGenContext());
-    const contextStr = _baseCtxR + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '');
+    const contextStr = _baseCtxR + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id));
     const abapCtx = sanitizeForJson(abap.contextText);
     const setSpecStatus = (key, status) => setSpecStatuses(p => ({ ...p, [key]: status }));
     const setSpecError  = (key, msg)    => setSpecErrors(p => ({ ...p, [key]: msg }));
@@ -3997,6 +4109,13 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       );
     }
 
+    // Calculated hours on the retried specs (Spec D follows Spec C's estimate).
+    {
+      const retried = Object.fromEntries(failedKeys.filter(k => k !== 'proto' && newSpecs[k]).map(k => [k, newSpecs[k]]));
+      if (retried.d && !retried.c) retried.c = newSpecs.c;   // D needs C's estimate
+      const calc = withCalculatedHours(retried);
+      for (const k of Object.keys(retried)) if (calc[k] && calc[k] !== newSpecs[k]) { newSpecs[k] = calc[k]; setters[k](calc[k]); }
+    }
     // Persist the updated specs so they survive a logout/reload
     const anyNew = failedKeys.filter(k => k !== 'proto').some(k => newSpecs[k]);
     if (anyNew) {
@@ -4006,7 +4125,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           mode: 'ai', status: spec?.status ?? 'draft',
           content: newSpecs.a || newSpecs.b || newSpecs.c || newSpecs.d,
           objects: [],
-          notes: JSON.stringify({ sapCheck, proposalCheck, specA: newSpecs.a, specB: newSpecs.b, specC: newSpecs.c, specD: newSpecs.d, selectedSpec: firstKey, prevMode, analysisCustomerContent, requestSummary, activeProfile: profile, regenDiff }),
+          notes: JSON.stringify({ sapCheck, proposalCheck, specA: newSpecs.a, specB: newSpecs.b, specC: newSpecs.c, specD: newSpecs.d, selectedSpec: firstKey, prevMode, analysisCustomerContent, requestSummary, activeProfile: profile, regenDiff , hoursOverrides, scenarioCount: docScenariosRef.current }),
           title: caseData.title + t("spec.doc_title_suffix"),
         });
       } catch (_) {}
@@ -4075,7 +4194,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         status: 'submitted',
         content: specContent ?? null,
         objects: specObjects ?? [],
-        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff }) : null),
+        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff , hoursOverrides, scenarioCount: docScenariosRef.current }) : null),
         document_ids: specMode === 'manual' ? manualDocIds : [],
         title: caseData.title + t("spec.doc_title_suffix"),
       });
@@ -6492,7 +6611,7 @@ ${result}`;
                                 {!specApproved && (
                                   <button onClick={async () => {
                                       const next = { ...regenDiff }; delete next[selectedSpec]; setRegenDiff(next);
-                                      try { await saveAiNotesPatch({ regenDiff: next }); } catch (_) {}
+                                      try { await saveAiNotesPatch({ regenDiff: next , hoursOverrides, scenarioCount: docScenariosRef.current }); } catch (_) {}
                                     }}
                                     className="flex-shrink-0 px-2 py-0.5 rounded-md border border-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 font-semibold">
                                     {L('Reviewed', 'Revisado')}
@@ -6517,6 +6636,22 @@ ${result}`;
                             </div>
                           );
                         })()}
+                        {(selectedSpec === 'a' || selectedSpec === 'c') && !specHasFailed(selectedSpec) && (
+                          <SpecHoursPanel
+                            content={selectedSpec === 'a' ? aiSpecA : aiSpecC}
+                            opts={hoursOpts()} overrides={hoursOverrides} readOnly={specApproved} L={L}
+                            onApply={async (next) => {
+                              const calc = withCalculatedHours({ a: aiSpecA, c: aiSpecC, d: aiSpecD }, next);
+                              setHoursOverrides(next);
+                              if (calc.a) setAiSpecA(calc.a);
+                              if (calc.c) setAiSpecC(calc.c);
+                              if (calc.d) setAiSpecD(calc.d);
+                              const shown = selectedSpec === 'a' ? calc.a : calc.c;
+                              if (shown) setAiContent(shown);
+                              setSavedSpecUrls(prev => ({ ...prev, a: null, c: null, d: null }));
+                              try { await saveAiNotesPatch({ specA: calc.a ?? aiSpecA, specC: calc.c ?? aiSpecC, specD: calc.d ?? aiSpecD, hoursOverrides: next }); } catch (_) {}
+                            }} />
+                        )}
                         {selectedSpec && specHasFailed(selectedSpec) ? (
                           <div className="flex flex-col items-center py-10 gap-4">
                             <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
@@ -6574,7 +6709,7 @@ ${result}`;
                         {!specApproved && (
                           <button onClick={async () => {
                             const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : selectedSpec === 'd' ? aiSpecD : aiSpecA;
-                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
+                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
                           }} disabled={!selectedSpec} className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
                             {t("spec.save_draft")}
                           </button>

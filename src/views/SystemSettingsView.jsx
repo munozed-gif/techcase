@@ -42,6 +42,7 @@ import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
 import { HHCommissionsTable } from "../components/HHCommissions.jsx";
 import { SettingsSalesTab } from "../components/SalesAdmin.jsx";
 import { SettingsSecurityTab } from "../components/SecuritySettings.jsx";
+import { SettingsSpecQualityTab } from "../components/SpecQualitySettings.jsx";
 import { SlaSettingsPanel } from "../components/SlaPanels.jsx";
 import { CardCarousel } from "../components/CardCarousel.jsx";
 
@@ -6224,6 +6225,7 @@ function SystemSettingsView({ auth, onNavigate }) {
     { id: "workflow",    label: "Workflow",         Icon: TrendingUp },
     { id: "catalog",     label: "Catalog",          Icon: Tag },
     { id: "generation",  label: "AI & Generation",  Icon: Zap },
+    { id: "spec_quality", label: "Spec quality",    Icon: ListChecks },
     { id: "abap",        label: "ABAP Templates",   Icon: FileCode2 },
     { id: "sap_policy",  label: "SAP MCP Policy",   Icon: FileCode2 },
     { id: "sap_vm",      label: "SAP VM & Bridge",  Icon: Monitor },
@@ -6263,6 +6265,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       {activeTab === "workflow"    && <SettingsWorkflowTab auth={auth} ssCtx={ssCtx} />}
       {activeTab === "catalog"     && <SettingsCatalogTab ssCtx={ssCtx} />}
       {activeTab === "generation"  && <SettingsGenerationTab ssCtx={ssCtx} />}
+      {activeTab === "spec_quality" && <SettingsSpecQualityTab ssCtx={ssCtx} />}
       {activeTab === "abap"        && <AbapTemplatesSection auth={auth} />}
       {activeTab === "sap_policy"  && <div className="p-6"><SapMcpPolicyPanel auth={auth} /></div>}
       {activeTab === "sap_vm"      && <div className="p-6"><SettingsSapVmTab ssCtx={ssCtx} /></div>}

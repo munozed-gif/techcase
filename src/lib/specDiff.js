@@ -2,8 +2,8 @@
 // technical objects (by name and by kind — names often change between runs), SAP objects /
 // identifiers no longer mentioned, and the change in estimated hours.
 
-const OBJ_HEADING = /^(?:#{1,4}\s*(?:\d+(?:\.\d+)*\.?\s*)?|\d+(?:\.\d+)*\.?\s+)(objetos?\s+t[eé]cnicos|technical\s+objects|objetos\s+de\s+desarrollo)\b/i;
-const TIME_HEADING = /^(?:#{1,4}\s*(?:\d+(?:\.\d+)*\.?\s*)?|\d+(?:\.\d+)*\.?\s+)(estimaci[oó]n|time\s+estimation)/i;
+export const OBJ_HEADING = /^(?:#{1,4}\s*(?:\d+(?:\.\d+)*\.?\s*)?|\d+(?:\.\d+)*\.?\s+)(objetos?\s+t[eé]cnicos|technical\s+objects|objetos\s+de\s+desarrollo)\b/i;
+export const TIME_HEADING = /^(?:#{1,4}\s*(?:\d+(?:\.\d+)*\.?\s*)?|\d+(?:\.\d+)*\.?\s+)(estimaci[oó]n|time\s+estimation)/i;
 const ANY_HEADING = /^(#{1,4}\s+\S|\d+\.\s+[A-ZÁÉÍÓÚ])/;
 
 // Kinds of object, so "ZMM021_ENH_MIGO (BAdI)" → "ZMM021_EVT (ampliación)" still counts as kept.
@@ -32,11 +32,11 @@ export const KIND_LABEL = {
   transaction: ['Transaction', 'Transacción'], form: ['Form', 'Formulario'],
 };
 
-const kindOf = text => KINDS.find(([, re]) => re.test(text))?.[0] ?? 'other';
-const cells = line => line.split('|').map(c => c.replace(/\*\*|`/g, '').trim());
+export const kindOf = text => KINDS.find(([, re]) => re.test(text))?.[0] ?? 'other';
+export const cells = line => line.split('|').map(c => c.replace(/\*\*|`/g, '').trim());
 const num = s => { const m = String(s ?? '').replace(',', '.').match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; };
 
-function section(md, startRe) {
+export function section(md, startRe) {
   const lines = String(md ?? '').split('\n');
   const i = lines.findIndex(l => startRe.test(l.trim()));
   if (i < 0) return [];
