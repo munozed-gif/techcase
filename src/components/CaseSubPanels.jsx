@@ -6990,7 +6990,6 @@ ${result}`;
             {/* ── Node 3: Generate Specification ── */}
             {activeNode === 3 && (
               <div className="space-y-4">
-                {!specApproved && !viewingProto && analysisStrip()}
                 {/* Analysis accordion */}
                 {(sapCheck || proposalCheck) && !viewingProto && (
                   <div className="border border-gray-200 rounded-xl overflow-hidden">
