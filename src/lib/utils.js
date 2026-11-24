@@ -170,6 +170,20 @@ function aiLanguageNote(outputLang) {
     + `Keep code, SAP object/transaction names, technical identifiers, JSON keys and enum values exactly as requested (enum values stay in English).`;
 }
 
+// Resolves when the page is visible and the device is online (a phone that locked its screen or
+// went to the background cuts the open requests: "Load failed" / "Failed to fetch").
+function _whenUsable(maxWaitMs = 10 * 60 * 1000) {
+  const ok = () => (typeof document === 'undefined' || document.visibilityState === 'visible') && (typeof navigator === 'undefined' || navigator.onLine !== false);
+  if (ok()) return Promise.resolve();
+  return new Promise(resolve => {
+    const done = () => { if (!ok()) return; cleanup(); resolve(); };
+    const cleanup = () => { document.removeEventListener('visibilitychange', done); window.removeEventListener('online', done); clearTimeout(t); };
+    const t = setTimeout(() => { cleanup(); resolve(); }, maxWaitMs);
+    document.addEventListener('visibilitychange', done); window.addEventListener('online', done);
+  });
+}
+const _isNetworkError = e => e instanceof TypeError || /load failed|failed to fetch|networkerror|network connection was lost/i.test(e?.message ?? '');
+
 async function callClaude({ system, messages, max_tokens = 2048, model = 'claude-haiku-4-5', mcp_servers, feature, caseId, projectId, outputLang }) {
   const langNote = aiLanguageNote(outputLang);
   if (langNote) system = (system ?? '') + langNote;
@@ -180,21 +194,38 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
     userId = session?.user?.id ?? null;
   } catch (_) {}
 
-  const res = await fetch('/api/claude', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sanitizeDeep({
-      system, messages, max_tokens, model,
-      user_id: userId,
-      case_id: caseId ?? _aiContext.caseId ?? null,
-      project_id: projectId ?? _aiContext.projectId ?? null,
-      feature: feature ?? 'other',
-      ...(mcp_servers?.length ? { mcp_servers } : {}),
-    })),
-  });
+  const payload = JSON.stringify(sanitizeDeep({
+    system, messages, max_tokens, model,
+    user_id: userId,
+    case_id: caseId ?? _aiContext.caseId ?? null,
+    project_id: projectId ?? _aiContext.projectId ?? null,
+    feature: feature ?? 'other',
+    ...(mcp_servers?.length ? { mcp_servers } : {}),
+  }));
+  // Connection lost (screen locked, app in background, network change): wait until the page is
+  // usable again and retry, up to 3 times, instead of failing every spec generated in parallel.
+  let res;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await _whenUsable();
+      res = await fetch('/api/claude', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
+      break;
+    } catch (e) {
+      if (!_isNetworkError(e) || attempt >= 3) {
+        const err = new Error(_isNetworkError(e)
+          ? 'Se perdió la conexión con el servidor durante la generación (por ejemplo, la pantalla se bloqueó o el navegador pasó a segundo plano). Mantenga la pantalla activa y vuelva a intentarlo.'
+          : (e?.message ?? String(e)));
+        err.code = _isNetworkError(e) ? 'network' : undefined;
+        throw err;
+      }
+      await new Promise(r => setTimeout(r, [2000, 6000, 15000][attempt]));
+    }
+  }
+  // Errors that are not JSON (gateway timeout, request too large) get a readable message.
+  const readJson = async () => { const t = await res.text(); try { return JSON.parse(t); } catch { return { error: { message: t.slice(0, 200) } }; } };
 
   if (res.status === 402) {
-    const e = await res.json();
+    const e = await readJson();
     const err = new Error(e.error?.message ?? 'Monthly AI generation limit reached. Go to Profile → AI to add your API key or upgrade to Pro.');
     err.code = 'ai_limit_reached';
     err.used  = e.error?.used;
@@ -203,8 +234,12 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
     throw err;
   }
 
-  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error'); }
-  const data = await res.json();
+  if (!res.ok) {
+    if (res.status === 504) throw new Error('El servidor de IA tardó demasiado en responder (tiempo límite). Vuelva a intentarlo.');
+    if (res.status === 413) throw new Error('La solicitud a la IA es demasiado grande (documentos o imágenes). Quite documentos que no sean necesarios y vuelva a intentarlo.');
+    const e = await readJson(); throw new Error(e.error?.message || `Claude API error (${res.status})`);
+  }
+  const data = await readJson();
   // The answer can hold thinking, text and tool blocks. With live SAP tools (MCP) it reads
   // "intro text → tool calls → tool results → final text": the answer is the text written after
   // the last tool step, not the first text block (that was only the intro).
