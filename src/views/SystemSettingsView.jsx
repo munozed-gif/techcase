@@ -36,6 +36,7 @@ import { SlaClientView } from "./OperationsViews.jsx";
 import { ConsultantProfilePanel } from "./ArenaView.jsx";
 import { ValidationRulesEditor } from "../components/ValidationRulesPanel.jsx";
 import { PartnersAdminPanel } from "./PartnerView.jsx";
+import { AllPendingApprovals } from "../components/AllPendingApprovals.jsx";
 import { DEFAULT_ESTIMATION_FACTORS, estimationFactors } from "../lib/estimation.js";
 import { DEFAULT_COST_CONFIG, costConfig } from "../lib/costs.js";
 import { ServicePlansEditor } from "../components/ServicePlansEditor.jsx";
@@ -2894,6 +2895,9 @@ function UserApprovalQueue() {
           </div>
         </div>
       )}
+
+      {/* ── Every other approval waiting on someone (invitations, sign-ups, reviews…) ── */}
+      <AllPendingApprovals />
 
       {/* ── Approval History ── */}
       <ApprovalHistory ROLE_COLORS={ROLE_COLORS} />
