@@ -9,6 +9,7 @@ import { runCaseChecks, blockingIssues } from "../lib/caseChecks.js";
 import { CaseChecksPanel } from "./CaseChecksPanel.jsx";
 import { normalizeQuestions, questionsPromptBlock, openQuestions, mergeLinkAnswers } from "../lib/questions.js";
 import { QuestionsPanel } from "./SpecQuestions.jsx";
+import { SignoffPanel } from "./SpecSignoff.jsx";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
   Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Laptop, Link2, ListChecks, Paperclip, Pause, Play,
@@ -1189,6 +1190,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [qError, setQError] = useState(null);
   const [qLinks, setQLinks] = useState([]);                 // spec_question_links of the case
   const [qCopied, setQCopied] = useState(null);
+  const [signoff, setSignoff] = useState(null);             // notes.signoff: { by, name, at, specHash }
   const genGateOverrideRef = useRef(false);
   // Latest AI notes of the spec (kept across quick consecutive saves).
   const notesRef = useRef(null);
@@ -1836,22 +1838,57 @@ ${md}`;
       if (key === 'c') { setAiSpecC(newMd); if (calc.d) setAiSpecD(calc.d); } else setAiSpecA(newMd);
       if (selectedSpec === key) setAiContent(newMd);
       setSavedSpecUrls(prev => ({ ...prev, [key]: null, ...(key === 'c' ? { d: null } : {}) }));
-      await saveAiNotesPatch({ [key === 'c' ? 'specC' : 'specA']: newMd, ...(key === 'c' && calc.d ? { specD: calc.d } : {}), regenDiff: nextDiff });
+      await saveAiNotesPatch({ [key === 'c' ? 'specC' : 'specA']: newMd, ...(key === 'c' && calc.d ? { specD: calc.d } : {}), regenDiff: nextDiff, specGeneratedAt: new Date().toISOString() });
       setReqLoading(null);
       await handleCheckCoverage(key, newMd);
     } catch (e) { setReqError(e.message); setReqLoading(null); }
   }
-  // Nothing goes to the customer below 100% coverage unless each gap is accepted with a reason.
-  function sendGateOk() {
+  // ── Consultant sign-off before anything goes to the customer ─
+  const specsHash = () => textHash([aiSpecA, aiSpecB, aiSpecC, aiSpecD].map(x => x ?? '').join('\u0000'));
+  function signoffConditions() {
     const key = gateSpecKey();
-    if (!key) return true;
-    const { stats, checked, current } = coverageFor(key);
-    let msg = null;
-    if (!stats.total) msg = L('Extract and review the requirements checklist first (Run all analysis).', 'Primero extraiga y revise el checklist de requerimientos (Ejecutar todo el análisis).');
-    else if (!checked || !current) msg = L('Check the requirements coverage of the current spec first.', 'Primero verifique la cobertura de requerimientos de la spec actual.');
-    else if (!stats.ok) msg = L(`The spec covers ${stats.pct}% of the requirements (${stats.openGaps.length} open gaps, ${stats.openRules.length} rule violations). Fix the gaps or accept each one with a reason before sending it to the customer.`, `La spec cubre el ${stats.pct}% de los requerimientos (${stats.openGaps.length} brechas abiertas, ${stats.openRules.length} reglas incumplidas). Corrija las brechas o acepte cada una con un motivo antes de enviarla al cliente.`);
-    if (msg) { alert(msg); return false; }
-    return true;
+    const cv = key ? coverageFor(key) : null;
+    const genAt = notesRef.current?.specGeneratedAt ?? null;
+    const live = questions.filter(q => q.status !== 'discarded');
+    const open = live.filter(q => q.status === 'open');
+    const late = genAt ? live.filter(q => q.status === 'answered' && q.at && q.at > genAt) : [];
+    const pendingLinks = qLinks.filter(l => l.status === 'pending');
+    return [
+      { key: 'coverage', ok: !!cv && cv.stats.total > 0 && cv.checked && cv.current && cv.stats.openGaps.length === 0,
+        label: L('Requirements covered (or gaps accepted)', 'Requerimientos cubiertos (o brechas aceptadas)'),
+        detail: !cv ? L('No generated spec', 'No hay spec generada') : !cv.stats.total ? L('No requirements checklist', 'Sin checklist de requerimientos')
+          : !cv.checked || !cv.current ? L('Coverage not checked on the current spec', 'Cobertura sin verificar en la spec actual')
+          : cv.stats.openGaps.length ? L(`${cv.stats.pct}% — ${cv.stats.openGaps.length} open gaps`, `${cv.stats.pct}% — ${cv.stats.openGaps.length} brechas abiertas`) : `${cv.stats.pct}%` },
+      { key: 'rules', ok: !!cv && cv.stats.openRules.length === 0,
+        label: L('Project mandatory rules met (or accepted)', 'Reglas obligatorias del proyecto cumplidas (o aceptadas)'),
+        detail: cv?.stats.openRules.length ? cv.stats.openRules.map(v => v.text).join(' · ') : '' },
+      { key: 'questions', ok: open.length === 0,
+        label: L('Customer questions answered or acknowledged', 'Preguntas al cliente respondidas o aceptadas como supuesto'),
+        detail: open.length ? L(`${open.length} open${pendingLinks.length ? ' — waiting for the customer' : ''}`, `${open.length} abiertas${pendingLinks.length ? ' — esperando al cliente' : ''}`)
+          : live.length ? L(`${live.filter(q => q.status === 'answered').length} answered · ${live.filter(q => q.status === 'acknowledged').length} as assumptions`, `${live.filter(q => q.status === 'answered').length} respondidas · ${live.filter(q => q.status === 'acknowledged').length} como supuesto`) : '' },
+      { key: 'answers_in_spec', ok: late.length === 0,
+        label: L('The spec includes every answer received', 'La spec incluye todas las respuestas recibidas'),
+        detail: late.length ? L(`Answers after the last generation: ${late.map(q => q.id).join(', ')} — regenerate`, `Respuestas posteriores a la última generación: ${late.map(q => q.id).join(', ')} — regenere`) : '' },
+    ];
+  }
+  const signoffValid = () => !!signoff?.at && signoff.specHash === specsHash();
+  async function handleSignoff(on) {
+    const next = on ? { by: auth.user?.id ?? null, name: auth.profile?.full_name ?? null, at: new Date().toISOString(), specHash: specsHash(),
+      conditions: signoffConditions().map(c => ({ key: c.key, ok: c.ok, detail: c.detail })) } : null;
+    setSignoff(next);
+    try { await saveAiNotesPatch({ signoff: next }); } catch (_) {}
+    if (on) logEvent?.('spec.signed_off', { entityType: 'case', entityId: caseData.id, entityName: caseData.title });
+  }
+  // Nothing goes to the customer without a current sign-off.
+  function sendGateOk() {
+    if (!gateSpecKey()) return true;
+    if (signoffValid()) return true;
+    const pending = signoffConditions().filter(c => !c.ok);
+    alert(pending.length
+      ? L(`The spec cannot be sent yet:\n${pending.map(c => `• ${c.label}${c.detail ? ` — ${c.detail}` : ''}`).join('\n')}`, `La spec todavía no se puede enviar:\n${pending.map(c => `• ${c.label}${c.detail ? ` — ${c.detail}` : ''}`).join('\n')}`)
+      : signoff?.at ? L('The spec changed after the sign-off. Sign it off again before sending it.', 'La spec cambió después de la firma. Fírmela de nuevo antes de enviarla.')
+        : L('Sign off the spec before sending it to the customer.', 'Firme la spec antes de enviarla al cliente.'));
+    return false;
   }
 
   // Rewrite the objects table and estimate of Specs A and C with calculated hours; Spec D (derived
@@ -2850,6 +2887,7 @@ ${mdToHtml(markdownContent)}
           setRequirements(Array.isArray(nd.requirements) ? nd.requirements : []);
           setReqCoverage(nd.reqCoverage && typeof nd.reqCoverage === 'object' ? nd.reqCoverage : {});
           setQuestions(Array.isArray(nd.questions) ? nd.questions : []);
+          setSignoff(nd.signoff ?? null);
           setHoursOverrides(nd.hoursOverrides ?? {});
           if (nd.scenarioCount !== undefined) { setScenarioCount(nd.scenarioCount); docScenariosRef.current = nd.scenarioCount; }
           if (nd.activeProfile) setActiveProfile(nd.activeProfile);
@@ -4324,7 +4362,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const updatedLog = [...genLog, newLogEntry];
       try {
-        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ ...(notesRef.current ?? {}), sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile, regenDiff: newDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
+        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ ...(notesRef.current ?? {}), specGeneratedAt: new Date().toISOString(), sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile, regenDiff: newDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
         setGenLog(updatedLog);
         if ((specC || specA) && inScope(requirements).length) handleCheckCoverage(specC ? 'c' : 'a', specC || specA);
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
@@ -4471,7 +4509,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       } catch (saveErr) { console.warn('Spec D doc save failed:', saveErr?.message); }
       // Persist in spec notes
       try {
-        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ ...(notesRef.current ?? {}), sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff: nextDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ ...(notesRef.current ?? {}), specGeneratedAt: new Date().toISOString(), sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, requestSummary, activeProfile, regenDiff: nextDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix") });
       } catch (_) {}
     } catch (e) {
       console.error('Spec D generation error:', e?.message);
@@ -4603,7 +4641,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           mode: 'ai', status: spec?.status ?? 'draft',
           content: newSpecs.a || newSpecs.b || newSpecs.c || newSpecs.d,
           objects: [],
-          notes: JSON.stringify({ ...(notesRef.current ?? {}), sapCheck, proposalCheck, specA: newSpecs.a, specB: newSpecs.b, specC: newSpecs.c, specD: newSpecs.d, selectedSpec: firstKey, prevMode, analysisCustomerContent, requestSummary, activeProfile: profile, regenDiff , hoursOverrides, scenarioCount: docScenariosRef.current }),
+          notes: JSON.stringify({ ...(notesRef.current ?? {}), specGeneratedAt: new Date().toISOString(), sapCheck, proposalCheck, specA: newSpecs.a, specB: newSpecs.b, specC: newSpecs.c, specD: newSpecs.d, selectedSpec: firstKey, prevMode, analysisCustomerContent, requestSummary, activeProfile: profile, regenDiff , hoursOverrides, scenarioCount: docScenariosRef.current }),
           title: caseData.title + t("spec.doc_title_suffix"),
         });
       } catch (_) {}
@@ -7113,6 +7151,10 @@ ${result}`;
                       </div>
 
                       <div className="p-5 max-h-[600px] overflow-y-auto">
+                        {selectedSpec && !specHasFailed(selectedSpec) && gateSpecKey() && (
+                          <SignoffPanel conditions={signoffConditions()} signoff={signoff} valid={signoffValid()} L={L}
+                            canSign={!specApproved && (auth.isAdmin || isCaseOwner)} onSign={() => handleSignoff(true)} onUndo={() => handleSignoff(false)} />
+                        )}
                         {selectedSpec && !specHasFailed(selectedSpec) && regenDiff?.[selectedSpec] && (() => {
                           const dd = regenDiff[selectedSpec];
                           const kindName = k => (KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
