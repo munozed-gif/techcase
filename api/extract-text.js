@@ -1,16 +1,16 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { url, fileName, maxChars } = req.body ?? {};
+  const { url, fileName, maxChars, images: wantImages } = req.body ?? {};
   // Default 15k chars; callers may ask for more (the spec generator asks for 120k), capped at 200k.
   const LIMIT = Math.min(Math.max(parseInt(maxChars, 10) || 15000, 1000), 200000);
   // Cut to LIMIT and say so in the text, so the AI never reads a cut document as complete.
-  const out = text => {
+  const out = (text, extra = {}) => {
     const t = text ?? "";
-    if (t.length <= LIMIT) return res.json({ text: t, total_chars: t.length });
+    if (t.length <= LIMIT) return res.json({ text: t, total_chars: t.length, ...extra });
     return res.json({
       text: t.slice(0, LIMIT) + `\n\n[... DOCUMENT TRUNCATED: only the first ${LIMIT} of ${t.length} characters are included. The rest exists but is not shown — do not report it as missing.]`,
-      truncated: true, total_chars: t.length,
+      truncated: true, total_chars: t.length, ...extra,
     });
   };
   if (!url) return res.status(400).json({ error: "url required" });
@@ -61,7 +61,27 @@ export default async function handler(req, res) {
     if (ext === "docx") {
       const mammoth = (await import("mammoth")).default;
       const result = await mammoth.extractRawText({ buffer });
-      return out(result.value.replace(/\n{3,}/g, "\n\n"));
+      const text = result.value.replace(/\n{3,}/g, "\n\n");
+      if (!wantImages) return out(text);
+      // Embedded images (screenshots with test data, SAP screens) in document order, so the AI can
+      // read them too. Kept within the response size: up to 10 images, ~1.4 MB each, ~3.2 MB total.
+      const images = [];
+      let skipped = 0, total = 0;
+      const OK = /^image\/(png|jpe?g|gif|webp)$/i;
+      await mammoth.convertToHtml({ buffer }, {
+        convertImage: mammoth.images.imgElement(async image => {
+          try {
+            const type = (image.contentType || "").toLowerCase().replace("image/jpg", "image/jpeg");
+            if (!OK.test(type)) { skipped++; return { src: "" }; }
+            const data = await image.read("base64");
+            if (data.length < 2500) return { src: "" };                       // icons / bullets
+            if (images.length >= 10 || data.length > 1_400_000 || total + data.length > 3_200_000) { skipped++; return { src: "" }; }
+            images.push({ media_type: type, data }); total += data.length;
+          } catch { skipped++; }
+          return { src: "" };
+        }),
+      });
+      return out(text, { images, images_skipped: skipped });
     }
 
     // DOC (Word 97-2003 binary)

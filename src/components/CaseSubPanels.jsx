@@ -9,6 +9,7 @@ import { runCaseChecks, blockingIssues } from "../lib/caseChecks.js";
 import { CaseChecksPanel } from "./CaseChecksPanel.jsx";
 import { normalizeQuestions, questionsPromptBlock, openQuestions, mergeLinkAnswers } from "../lib/questions.js";
 import { QuestionsPanel } from "./SpecQuestions.jsx";
+import { detectDocLang } from "../lib/docLang.js";
 import { SignoffPanel } from "./SpecSignoff.jsx";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
@@ -1190,7 +1191,11 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [qError, setQError] = useState(null);
   const [qLinks, setQLinks] = useState([]);                 // spec_question_links of the case
   const [qCopied, setQCopied] = useState(null);
-  const [signoff, setSignoff] = useState(null);             // notes.signoff: { by, name, at, specHash }
+  const [signoff, setSignoff] = useState(null);
+  const docLangRef = useRef(null);                          // language of the customer documents (notes.docLang)
+  // Specs and questions for the customer are written in the customer's language; analysis stays in the user's.
+  const specLang = () => docLangRef.current || lang;
+  const MAX_DOC_IMAGES = 16;                                // images per AI call (embedded + attached)             // notes.signoff: { by, name, at, specHash }
   const genGateOverrideRef = useRef(false);
   // Latest AI notes of the spec (kept across quick consecutive saves).
   const notesRef = useRef(null);
@@ -1364,6 +1369,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       .sort((a, b) => rank(a) - rank(b));
     let budget = DOC_CHARS_TOTAL;
     let scenarios = 0;
+    let imageCount = 0;
+    let langSample = '';
     for (const doc of docs) {
       const lower = (doc.file_name ?? '').toLowerCase();
       const ext = lower.split('.').pop() ?? '';
@@ -1381,8 +1388,10 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       }
       try {
         if (imageType) {
+          if (imageCount >= MAX_DOC_IMAGES) { blocks.push({ type: 'text', text: `[Attached image: ${doc.file_name} — not included, image limit for this request reached]` }); continue; }
           blocks.push({ type: 'text', text: `${label} (image below)` });
           blocks.push(await imageToBlock(doc.file_url, imageType));
+          imageCount++;
         } else if (isPdf) {
           const resp = await fetch(doc.file_url);
           const blob = await resp.blob();
@@ -1394,16 +1403,27 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
             continue;
           }
           // Server-side extraction converts binary formats (doc, docx, xlsx) to clean text
+          // Word documents also return their embedded images (screenshots with test data, SAP screens).
+          const wantImages = ext === 'docx' && imageCount < MAX_DOC_IMAGES;
           const r = await fetch('/api/extract-text', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: doc.file_url, fileName: doc.file_name, maxChars: Math.min(DOC_CHARS_PER_FILE, budget) }),
+            body: JSON.stringify({ url: doc.file_url, fileName: doc.file_name, maxChars: Math.min(DOC_CHARS_PER_FILE, budget), images: wantImages }),
           });
-          const { text, warning } = await r.json();
+          const { text, warning, images } = await r.json();
           if (text) {
             blocks.push({ type: 'text', text: `${label}\n${text}` });
             budget -= text.length;
+            if (!/^(xlsx?|csv)$/.test(ext) && langSample.length < 20000) langSample += `\n${text.slice(0, 8000)}`;
             if (/^(xlsx?|csv)$/.test(ext)) scenarios += countMatrixScenarios(text);
+            const imgs = (images ?? []).slice(0, MAX_DOC_IMAGES - imageCount);
+            for (const [i, im] of imgs.entries()) {
+              blocks.push({ type: 'text', text: `[Image ${i + 1} of ${imgs.length} embedded in ${doc.file_name}, in document order]` });
+              // Same scaling / compression as attached images (keeps the request small).
+              try { blocks.push(await imageToBlock(`data:${im.media_type};base64,${im.data}`, im.media_type)); }
+              catch { blocks.push({ type: 'image', source: { type: 'base64', media_type: im.media_type, data: im.data } }); }
+            }
+            imageCount += imgs.length;
           } else {
             blocks.push({ type: 'text', text: `[Attached file: ${doc.file_name} — ${warning ?? 'content empty'}]` });
           }
@@ -1414,12 +1434,17 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     }
     docScenariosRef.current = scenarios;
     setScenarioCount(scenarios);
+    const dl = detectDocLang(langSample);
+    if (dl && dl !== docLangRef.current) { docLangRef.current = dl; saveAiNotesPatch({ docLang: dl }).catch(() => {}); }
+    if (imageCount > 0 || docs.some(d => /\.pdf$/i.test(d.file_name ?? ''))) {
+      blocks.unshift({ type: 'text', text: 'NOTE ON SCREENSHOTS: the customer documents include images (screenshots of SAP screens, table extracts, test data). Read them as part of the requirements: take the IDs, document numbers, test data, field values and screen labels they show, and use them as facts (e.g. which order belongs to which delivery, warehouse, plant, movement type, queue, program or transaction). Do not ask the customer for information a screenshot already shows — cite it instead ("según la captura de …"). If a screen looks custom (non-standard labels or layout), say it is probably a Z development and treat the program name as an open point.' });
+    }
     return blocks;
   }
 
   // ── Calculated hours (src/lib/specHours.js) ──────────────────
   const hoursOpts = (overrides = hoursOverrides) => ({
-    settings: ssCtx.settings, estCtx: specEstCtx, scenarios: docScenariosRef.current || scenarioCount, overrides, lang,
+    settings: ssCtx.settings, estCtx: specEstCtx, scenarios: docScenariosRef.current || scenarioCount, overrides, lang: specLang(),
   });
   // ── Freshness of the analysis steps ─────────────────────────
   // Fingerprint of the customer documents (generated Arena files excluded).
@@ -1684,7 +1709,7 @@ Case: ${caseData.title}
 Description: ${caseData.description ?? ''}${analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : ''}${summaryIn ? `\nRequest Summary (pre-analysis):\n${summaryIn}` : ''}${(reqs ?? []).length ? `\nRequirements checklist:\n${reqs.filter(r => !r.outOfScope).map(r => `- ${r.id}: ${r.text}`).join('\n')}` : ''}${answeredBlock()}
 
 Respond with ONLY a JSON array (empty if there is nothing to ask), no markdown fences:
-[{ "kind": "contradiction" | "ambiguity" | "missing", "text": "the question for the customer, clear and self-contained", "sources": "document / section of each side", "affects": ["REQ-03"], "assumption": "what the spec assumes if not answered" }]${jsonLangNote(lang)}`;
+[{ "kind": "contradiction" | "ambiguity" | "missing", "text": "the question for the customer, clear and self-contained", "sources": "document / section of each side", "affects": ["REQ-03"], "assumption": "what the spec assumes if not answered" }]${jsonLangNote(specLang())}`;
       const raw = await callClaude({ feature: 'spec_questions', model: analysisModel,
         system: 'You are an SAP senior functional consultant preparing questions for the customer before writing a specification. Respond ONLY with a valid JSON array.',
         messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: prompt }] : prompt }], max_tokens: 8000 });
@@ -1728,7 +1753,7 @@ Respond with ONLY a JSON array (empty if there is nothing to ask), no markdown f
       const { data, error } = await supabase.from('spec_question_links').insert({
         case_id: caseData.id, case_title: caseData.title ?? '',
         questions: open.map(q => ({ id: q.id, kind: q.kind, text: q.text, sources: q.sources, assumption: q.assumption })),
-        platform: { name: ssCtx.settings['platform_name'] || 'Arena Solution Platform', tagline: ssCtx.settings['platform_tagline'] || 'SAP Solutions', lang },
+        platform: { name: ssCtx.settings['platform_name'] || 'Arena Solution Platform', tagline: ssCtx.settings['platform_tagline'] || 'SAP Solutions', lang: specLang() },
       }).select().single();
       if (error) throw error;
       await copyQuestionsLink(data);
@@ -1903,7 +1928,7 @@ ${md}`;
       if (k === 'c') estC = r.estimate;
     }
     if (!estC && specs.c === undefined && aiSpecC) estC = applySpecHours(aiSpecC, hoursOpts(overrides)).estimate;
-    if (out.d && estC) out.d = replaceEstimateSection(out.d, estC, lang);
+    if (out.d && estC) out.d = replaceEstimateSection(out.d, estC, specLang());
     return out;
   }
 
@@ -2888,6 +2913,7 @@ ${mdToHtml(markdownContent)}
           setReqCoverage(nd.reqCoverage && typeof nd.reqCoverage === 'object' ? nd.reqCoverage : {});
           setQuestions(Array.isArray(nd.questions) ? nd.questions : []);
           setSignoff(nd.signoff ?? null);
+          if (nd.docLang) docLangRef.current = nd.docLang;
           setHoursOverrides(nd.hoursOverrides ?? {});
           if (nd.scenarioCount !== undefined) { setScenarioCount(nd.scenarioCount); docScenariosRef.current = nd.scenarioCount; }
           if (nd.activeProfile) setActiveProfile(nd.activeProfile);
@@ -3654,7 +3680,7 @@ TOTAL:||Total|[amount]|
 ## 9. Next Steps
 1. [action item to start the custom development]
 
-Use realistic Z object names, actual SAP table names for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_a', genProfile)}${buildGenSuffix(genProfile, lang)}`;
+Use realistic Z object names, actual SAP table names for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_a', genProfile)}${buildGenSuffix(genProfile, specLang())}`;
     } else {
       return `Write Option B: Standard SAP Configuration Functional Specification for this case.${sapCtx}
 
@@ -3723,7 +3749,7 @@ TOTAL:||Total|[amount]|
 ## 9. Next Steps
 1. [action item: configure standard SAP]
 
-Use real standard SAP transaction codes and configuration objects for ${caseData.area_sap ?? 'the module'}.${buildSectionConstraint('spec_b', genProfile)}${buildGenSuffix(genProfile, lang)}`;
+Use real standard SAP transaction codes and configuration objects for ${caseData.area_sap ?? 'the module'}.${buildSectionConstraint('spec_b', genProfile)}${buildGenSuffix(genProfile, specLang())}`;
     }
   }
 
@@ -3828,7 +3854,7 @@ Use ONLY the format that matches the customer's actual proposal. Never add a rep
 ## 8. Next Steps
 1. [action item derived from the customer's proposed approach]
 
-Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real field/column values based on the proposal.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile, lang)}`;
+Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real field/column values based on the proposal.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile, specLang())}`;
   }
 
   function buildSpecDPrompt(customerContent, genProfile, contextStr = '', isModCase = false) {
@@ -3894,7 +3920,7 @@ ${specHoursNote}
 | Unit Testing | [h] |
 | Functional Testing | [h] |
 | **Total** | **[total]** |
-${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang)}`;
+${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, specLang())}`;
   }
 
   // Doc D sourced from Doc C: non-technical business language translation of the customer proposal
@@ -3971,7 +3997,7 @@ ${specHoursNote}
 | Unit Testing | [h] |
 | Functional Testing | [h] |
 | **Total** | **[total — must match Option C total]** |
-${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang)}`;
+${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, specLang())}`;
   }
 
   // Strip lone surrogates (WebKit regex-replace throws on them) AND null bytes / ASCII
