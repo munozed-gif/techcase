@@ -3,6 +3,8 @@ import DOMPurify from "dompurify";
 import { diffSpecs, KIND_LABEL } from "../lib/specDiff.js";
 import { applySpecHours, replaceEstimateSection, countMatrixScenarios, readObjects, computeEstimate } from "../lib/specHours.js";
 import { activeRules, rulesPromptBlock, checkRules } from "../lib/projectRules.js";
+import { normalizeRequirements, parseJsonArray, requirementsPromptBlock, coverageStats, inScope, textHash } from "../lib/requirements.js";
+import { RequirementsChecklist, CoveragePanel } from "./SpecRequirements.jsx";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
   Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Laptop, Link2, ListChecks, Paperclip, Pause, Play,
@@ -1171,6 +1173,10 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [analysisMeta, setAnalysisMeta] = useState({});
   const analyzeRef = useRef(null);            // Analyze lives in the render block; Run all calls it here
   const [runningAll, setRunningAll] = useState(false);
+  const [requirements, setRequirements] = useState([]);   // notes.requirements
+  const [reqCoverage, setReqCoverage] = useState({});      // notes.reqCoverage: { [specKey]: { at, specHash, items, accepted } }
+  const [reqLoading, setReqLoading] = useState(null);      // 'extract' | 'check' | 'fix' | null
+  const [reqError, setReqError] = useState(null);
   const genGateOverrideRef = useRef(false);
   // Latest AI notes of the spec (kept across quick consecutive saves).
   const notesRef = useRef(null);
@@ -1409,7 +1415,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     let h = 5381; for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
     return `${(h >>> 0).toString(36)}`;
   })();
-  const REQUIREMENTS_STEP = false;   // turned on with the requirements checklist
+  const REQUIREMENTS_STEP = true;
   const ANALYSIS_ORDER = ['summary', 'coverage', 'validation', 'requirements'];
   const analysisStepOn = step => step === 'coverage' ? isSgNodeEnabled('sap_verification')
     : step === 'validation' ? isSgNodeEnabled('proposal_validation')
@@ -1448,7 +1454,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       let sc = null;
       if (analysisStepOn('coverage')) { sc = await handleSapCheck({ summary }); if (!sc) return; }
       if (analysisStepOn('validation') && sc) { const pc = await handleProposalValidation({ sapCheck: sc, summary }); if (!pc) return; }
-      if (analysisStepOn('requirements')) await analyzeRef.requirements?.();
+      if (analysisStepOn('requirements')) await handleExtractRequirements({ summary });
     } finally { setRunningAll(false); }
   }
   // Status of every analysis step + "Run all analysis", shown on the pipeline nodes.
@@ -1497,6 +1503,144 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     if (pc?.concerns?.length) parts.push(`Proposal validation (score ${pc.score ?? '—'}/10) — concerns:\n${pc.concerns.map(c => `- ${c}`).join('\n')}${pc.recommendation ? `\nRecommendation: ${pc.recommendation}` : ''}`);
     if (!parts.length) return '';
     return `\n\nANALYSIS FINDINGS — address every point in the specification. When a point cannot be resolved from the customer's documents, list it in Assumptions / Next Steps as an open question for the customer (do not silently drop it):\n${parts.join('\n\n')}`;
+  }
+
+  // ── Requirement traceability (src/lib/requirements.js) ──────
+  const canEditReqs = () => !specApproved && (auth.isAdmin || isCaseOwner);
+  const whoAmI = () => ({ by: auth.user?.id ?? null, name: auth.profile?.full_name ?? null });
+  async function saveRequirements(next) {
+    setRequirements(next);
+    try { await saveAiNotesPatch({ requirements: next }); } catch (_) {}
+  }
+  async function handleExtractRequirements(opts = {}) {
+    const summaryIn = opts.summary !== undefined ? opts.summary : requestSummary;
+    setReqLoading('extract'); setReqError(null);
+    let result = null;
+    try {
+      const docBlocks = await buildDocumentBlocks();
+      const prompt = `List EVERY requirement the customer states for this SAP case, from the attached customer documents (and the case description). One item per distinct requirement — functional rules, fields and data, screens, outputs/reports, integrations, authorizations, validations and error messages, and non-functional needs. Do not merge different requirements into one item and do not invent requirements.
+For test matrices (sheets of test scenarios), do NOT list each row: group the scenarios by type and add one item per group with kind "test_scenario" (e.g. "Scenarios 1-12: purchase orders with discount — must ...").
+
+Case: ${caseData.title}
+Description: ${caseData.description ?? ''}${analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : ''}${summaryIn ? `\nRequest Summary (pre-analysis):\n${summaryIn}` : ''}
+
+Respond with ONLY a JSON array, no markdown fences:
+[{ "source": "document name and section/page/sheet", "text": "the requirement, precise and testable", "kind": "functional" | "data" | "ui" | "report" | "integration" | "authorization" | "test_scenario" | "non_functional" }]${jsonLangNote(lang)}`;
+      const raw = await callClaude({ feature: 'spec_requirements', model: analysisModel,
+        system: 'You are an SAP senior functional consultant doing requirements traceability. Respond ONLY with a valid JSON array.',
+        messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: prompt }] : prompt }], max_tokens: 12000 });
+      const parsed = parseJsonArray(raw, 'requirements');
+      if (!parsed) throw new Error(L('The requirements could not be read from the AI answer — run it again.', 'No se pudieron leer los requerimientos de la respuesta de la IA — ejecútelo de nuevo.'));
+      // Keep what the consultants added by hand and their out-of-scope decisions (matched by text).
+      const prevOut = Object.fromEntries(requirements.filter(r => r.outOfScope && !r.manual).map(r => [r.text.trim().toLowerCase(), r]));
+      let next = normalizeRequirements(parsed).map(r => {
+        const o = prevOut[r.text.trim().toLowerCase()];
+        return o ? { ...r, outOfScope: true, reason: o.reason, by: o.by, at: o.at } : r;
+      });
+      const manual = requirements.filter(r => r.manual && r.text?.trim());
+      next = [...next, ...manual.map((r, i) => ({ ...r, id: `REQ-${String(next.length + i + 1).padStart(2, '0')}` }))];
+      setRequirements(next);
+      await markAnalysisStep('requirements', { requirements: next });
+      result = next;
+    } catch (e) { setReqError(e.message); }
+    setReqLoading(null);
+    return result;
+  }
+  // Which generated spec the coverage check and the send gate are about.
+  const gateSpecKey = () => (aiSpecC ? 'c' : aiSpecA ? 'a' : null);
+  const specText = k => ({ a: aiSpecA, b: aiSpecB, c: aiSpecC, d: aiSpecD })[k];
+  async function handleCheckCoverage(key, text, reqs = requirements) {
+    const md = text ?? specText(key);
+    const list = inScope(reqs);
+    if (!md || !list.length) return null;
+    setReqLoading('check'); setReqError(null);
+    let result = null;
+    try {
+      const prompt = `Check whether this SAP specification covers each customer requirement.
+
+REQUIREMENTS:
+${list.map(r => `- ${r.id}: ${r.text}`).join('\n')}
+
+SPECIFICATION:
+${md}
+
+For EACH requirement id answer:
+- "covered": the spec explicitly and fully specifies it (where: the section / object that does);
+- "partial": it is mentioned but incomplete or ambiguous (note: what is missing);
+- "missing": the spec does not address it (an open question listed in the spec counts as "partial").
+Respond with ONLY a JSON array, no markdown fences:
+[{ "id": "REQ-01", "status": "covered" | "partial" | "missing", "where": "section / object", "note": "what is missing (empty if covered)" }]${jsonLangNote(lang)}`;
+      const raw = await callClaude({ feature: 'spec_coverage', model: analysisModel,
+        system: 'You are a strict SAP QA reviewer. Only mark a requirement covered when the specification really specifies it. Respond ONLY with a valid JSON array.',
+        messages: [{ role: 'user', content: prompt }], max_tokens: 8000 });
+      const items = parseJsonArray(raw, 'items');
+      if (!items) throw new Error(L('The coverage result could not be read — run it again.', 'No se pudo leer el resultado de la cobertura — ejecútelo de nuevo.'));
+      const prev = reqCoverage?.[key]?.accepted ?? {};
+      const next = { ...reqCoverage, [key]: { at: new Date().toISOString(), specHash: textHash(md), items: items.map(i => ({ id: String(i.id), status: ['covered', 'partial', 'missing'].includes(i.status) ? i.status : 'missing', where: i.where ?? '', note: i.note ?? '' })), accepted: prev } };
+      setReqCoverage(next);
+      await saveAiNotesPatch({ reqCoverage: next });
+      result = next[key];
+    } catch (e) { setReqError(e.message); }
+    setReqLoading(null);
+    return result;
+  }
+  async function setGapAccepted(key, gapKey, reason) {
+    const cur = reqCoverage?.[key] ?? {};
+    const accepted = { ...(cur.accepted ?? {}) };
+    if (reason) accepted[gapKey] = { reason, ...whoAmI(), at: new Date().toISOString() }; else delete accepted[gapKey];
+    const next = { ...reqCoverage, [key]: { ...cur, accepted } };
+    setReqCoverage(next);
+    try { await saveAiNotesPatch({ reqCoverage: next }); } catch (_) {}
+  }
+  function coverageFor(key) {
+    const md = specText(key);
+    const cov = reqCoverage?.[key];
+    const violations = md ? checkRules(md, activeRules(ssCtx.settings, caseData.project_id)) : [];
+    return { stats: coverageStats(requirements, cov, violations), checked: !!cov?.at, current: !!cov?.at && cov.specHash === textHash(md), violations };
+  }
+  // Regenerate the spec closing its open gaps and rule violations, then check it again.
+  async function handleFixGaps(key) {
+    const md = specText(key);
+    const { stats } = coverageFor(key);
+    if (!md) return;
+    setReqLoading('fix'); setReqError(null);
+    try {
+      const gaps = stats.openGaps.map(g => `- ${g.id}: ${g.text}${g.note ? ` — missing: ${g.note}` : ''}`);
+      const rules = stats.openRules.map(v => `- ${v.text} — ${v.detail}`);
+      const docBlocks = await buildDocumentBlocks();
+      const prompt = `Below is the current specification. A coverage review found these gaps. Return the COMPLETE corrected specification (same sections, same format, same language) that closes every gap: specify each missing or partial requirement from the attached customer documents, add the objects the project rules require (marked "(regla del proyecto)") to the technical objects table, and keep everything else that is correct. Keep the Complexity column and do not write hours. Update the "Trazabilidad de requerimientos" section. If a requirement truly cannot be resolved from the documents, list it under Assumptions / Next Steps as an open question with its id.
+${gaps.length ? `\nREQUIREMENT GAPS:\n${gaps.join('\n')}` : ''}${rules.length ? `\nPROJECT RULE VIOLATIONS:\n${rules.join('\n')}` : ''}${requirementsPromptBlock(requirements)}${rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id))}
+
+CURRENT SPECIFICATION:
+${md}`;
+      const raw = await callClaude({ feature: 'spec', model: genModel,
+        system: 'You are an SAP functional consultant. Return only the full corrected functional specification in markdown.',
+        messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: sanitizeForJson(prompt) }] : sanitizeForJson(prompt) }], max_tokens: 40000 });
+      const fixed = checkSpecText(raw);
+      const calc = withCalculatedHours(key === 'c' ? { c: fixed, d: aiSpecD } : { a: fixed });
+      const newMd = calc[key];
+      const dd = diffSpecs(md, newMd);
+      const nextDiff = { ...regenDiff }; if (dd) nextDiff[key] = dd; else delete nextDiff[key];
+      setRegenDiff(nextDiff);
+      if (key === 'c') { setAiSpecC(newMd); if (calc.d) setAiSpecD(calc.d); } else setAiSpecA(newMd);
+      if (selectedSpec === key) setAiContent(newMd);
+      setSavedSpecUrls(prev => ({ ...prev, [key]: null, ...(key === 'c' ? { d: null } : {}) }));
+      await saveAiNotesPatch({ [key === 'c' ? 'specC' : 'specA']: newMd, ...(key === 'c' && calc.d ? { specD: calc.d } : {}), regenDiff: nextDiff });
+      setReqLoading(null);
+      await handleCheckCoverage(key, newMd);
+    } catch (e) { setReqError(e.message); setReqLoading(null); }
+  }
+  // Nothing goes to the customer below 100% coverage unless each gap is accepted with a reason.
+  function sendGateOk() {
+    const key = gateSpecKey();
+    if (!key) return true;
+    const { stats, checked, current } = coverageFor(key);
+    let msg = null;
+    if (!stats.total) msg = L('Extract and review the requirements checklist first (Run all analysis).', 'Primero extraiga y revise el checklist de requerimientos (Ejecutar todo el análisis).');
+    else if (!checked || !current) msg = L('Check the requirements coverage of the current spec first.', 'Primero verifique la cobertura de requerimientos de la spec actual.');
+    else if (!stats.ok) msg = L(`The spec covers ${stats.pct}% of the requirements (${stats.openGaps.length} open gaps, ${stats.openRules.length} rule violations). Fix the gaps or accept each one with a reason before sending it to the customer.`, `La spec cubre el ${stats.pct}% de los requerimientos (${stats.openGaps.length} brechas abiertas, ${stats.openRules.length} reglas incumplidas). Corrija las brechas o acepte cada una con un motivo antes de enviarla al cliente.`);
+    if (msg) { alert(msg); return false; }
+    return true;
   }
 
   // Rewrite the objects table and estimate of Specs A and C with calculated hours; Spec D (derived
@@ -2492,6 +2636,8 @@ ${mdToHtml(markdownContent)}
           if (nd.requestSummary) setRequestSummary(nd.requestSummary);
           setRegenDiff(nd.regenDiff ?? {});
           setAnalysisMeta(nd.analysisMeta ?? {});
+          setRequirements(Array.isArray(nd.requirements) ? nd.requirements : []);
+          setReqCoverage(nd.reqCoverage && typeof nd.reqCoverage === 'object' ? nd.reqCoverage : {});
           setHoursOverrides(nd.hoursOverrides ?? {});
           if (nd.scenarioCount !== undefined) { setScenarioCount(nd.scenarioCount); docScenariosRef.current = nd.scenarioCount; }
           if (nd.activeProfile) setActiveProfile(nd.activeProfile);
@@ -3855,7 +4001,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const summaryCtx = requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '';
       const additionalCtxStr = additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '';
       const reviewFeedbackStr = specFeedback?.trim() ? `\n\nREVIEW FEEDBACK (apply to this generation — cumulative notes from previous review rounds):\n${sanitizeForJson(specFeedback.trim())}` : '';
-      const contextStr = _baseCtx + summaryCtx + additionalCtxStr + reviewFeedbackStr + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock();
+      const contextStr = _baseCtx + summaryCtx + additionalCtxStr + reviewFeedbackStr + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock() + requirementsPromptBlock(requirements);
       const hasLiveSap = contextStr.includes('SAP Live System:');
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       const sysLiveNote = hasLiveSap
@@ -3967,6 +4113,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       try {
         await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ ...(notesRef.current ?? {}), sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile, regenDiff: newDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
         setGenLog(updatedLog);
+        if ((specC || specA) && inScope(requirements).length) handleCheckCoverage(specC ? 'c' : 'a', specC || specA);
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (e) {
         // Never lose a generated spec silently — the text is still on screen, so say it wasn't stored.
@@ -4069,7 +4216,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
       const _baseCtxD = sanitizeForJson(await buildGenContext());
-      const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock();
+      const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock() + requirementsPromptBlock(requirements);
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       let specD = await callSpec(
         aiSpecC
@@ -4169,7 +4316,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     };
     const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
     const _baseCtxR = sanitizeForJson(await buildGenContext());
-    const contextStr = _baseCtxR + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock();
+    const contextStr = _baseCtxR + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock() + requirementsPromptBlock(requirements);
     const abapCtx = sanitizeForJson(abap.contextText);
     const setSpecStatus = (key, status) => setSpecStatuses(p => ({ ...p, [key]: status }));
     const setSpecError  = (key, msg)    => setSpecErrors(p => ({ ...p, [key]: msg }));
@@ -4306,6 +4453,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
 
   // ── Approval helpers ─────────────────────────────────────────
   async function handleSubmit(specContent, specMode, specObjects) {
+    if (specMode === 'ai' && !sendGateOk()) return;
     try {
       await saveSpec({
         mode: specMode,
@@ -4496,6 +4644,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
   }
 
   async function createShareLink() {
+    if (!sendGateOk()) return;
     const PREFIXES = { a: 'SpecA_', b: 'SpecB_', c: 'SpecC_', d: 'SpecD_', proto: 'Prototype_' };
     const docIds = {};
     for (const [key, prefix] of Object.entries(PREFIXES)) {
@@ -4530,6 +4679,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
   async function copyShareLink() {
     if (!shareToken?.token) return;
+    if (!sendGateOk()) return;
     const url = `${window.location.origin}/review/${shareToken.token}`;
     await navigator.clipboard.writeText(url);
     setShareCopied(true);
@@ -6144,6 +6294,9 @@ ${result}`;
                   </div>
 
                   {analysisStrip()}
+                  <RequirementsChecklist requirements={requirements} onChange={saveRequirements}
+                    onExtract={() => handleExtractRequirements()} loading={reqLoading === 'extract'} error={reqError}
+                    canEdit={canEditReqs()} state={analysisState('requirements')} L={L} lang={lang} who={auth.user?.id ?? null} />
                   {/* AI Request Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
@@ -6772,16 +6925,16 @@ ${result}`;
                           );
                         })()}
                         {(selectedSpec === 'a' || selectedSpec === 'c') && !specHasFailed(selectedSpec) && (() => {
-                          const v = checkRules(selectedSpec === 'a' ? aiSpecA : aiSpecC, activeRules(ssCtx.settings, caseData.project_id));
-                          if (!v.length) return null;
+                          const k = selectedSpec;
+                          const cv = coverageFor(k);
                           return (
-                            <div className="mb-4 p-3 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 text-xs text-red-800 dark:text-red-300 space-y-1.5">
-                              <div className="flex items-start gap-2 font-semibold">
-                                <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-                                {L('The spec does not meet the project mandatory rules — regenerate it or add the missing objects.', 'La spec no cumple las reglas obligatorias del proyecto — regenérela o agregue los objetos que faltan.')}
-                              </div>
-                              {v.map(x => <div key={x.id}><span className="font-semibold">{x.text}</span> — {x.detail}</div>)}
-                            </div>
+                            <>
+                              <CoveragePanel stats={cv.stats} checked={cv.checked} current={cv.current} ruleViolations={cv.violations}
+                                loading={reqLoading} canEdit={canEditReqs()} L={L}
+                                onCheck={() => handleCheckCoverage(k)} onFix={() => handleFixGaps(k)}
+                                onAccept={(gk, reason) => setGapAccepted(k, gk, reason)} onUnaccept={gk => setGapAccepted(k, gk, null)} />
+                              {reqError && <p className="mb-3 text-xs text-red-500">{reqError}</p>}
+                            </>
                           );
                         })()}
                         {(selectedSpec === 'a' || selectedSpec === 'c') && !specHasFailed(selectedSpec) && (
