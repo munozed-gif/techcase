@@ -1,7 +1,8 @@
 // Questions for the customer (src/lib/questions.js): the list the analysis finds, edited by the
 // consultants, answered by the customer on /questions/:token or recorded by hand.
 import { useState } from "react";
-import { HelpCircle, RefreshCw, Plus, Send, Copy, Check, Ban, Undo2 } from "lucide-react";
+import { HelpCircle, RefreshCw, Plus, Send, Copy, Check, Ban, Undo2, ChevronDown } from "lucide-react";
+import { usePersistedOpen } from "./SpecRequirements.jsx";
 import { Q_KINDS, Q_KIND_LABEL, liveQuestions, openQuestions } from "../lib/questions.js";
 
 const kindName = (k, lang) => (Q_KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
@@ -11,7 +12,7 @@ const STATUS_CLS = {
 };
 
 export function QuestionsPanel({ questions, onChange, onExtract, loading, error, canEdit, state, L, lang, who, links, onSendLink, onCopyLink, onRevokeLink, copiedId }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = usePersistedOpen('genctx_questions_open');
   const [answerFor, setAnswerFor] = useState(null);
   const [answer, setAnswer] = useState('');
   const list = questions ?? [];
@@ -29,6 +30,7 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
           <HelpCircle size={14} />{L('Questions for the customer', 'Preguntas para el cliente')}
           {liveQuestions(list).length > 0 && <span className="normal-case font-normal text-gray-400">· {nOpen} {L('open', 'abiertas')} / {liveQuestions(list).length}</span>}
           <span className={`normal-case font-semibold ${stateCls}`}>· {state === 'fresh' ? L('current', 'al día') : state === 'outdated' ? L('outdated', 'desactualizado') : L('not run', 'sin ejecutar')}</span>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         <div className="flex gap-2">
           {canEdit && nOpen > 0 && (

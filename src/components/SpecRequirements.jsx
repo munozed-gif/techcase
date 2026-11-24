@@ -1,13 +1,20 @@
 // Requirement traceability UI: the editable requirements checklist (summary node) and the
 // coverage panel of a generated spec (spec node). Logic lives in src/lib/requirements.js.
 import { useState } from "react";
-import { Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, ListChecks, Wrench, Undo2 } from "lucide-react";
+import { Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, ListChecks, Wrench, Undo2, ChevronDown } from "lucide-react";
 import { REQ_KINDS, REQ_KIND_LABEL, inScope } from "../lib/requirements.js";
 
 const kindName = (k, lang) => (REQ_KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
 
+// Open / closed state remembered per browser.
+export function usePersistedOpen(key, def = true) {
+  const [open, setOpenState] = useState(() => { try { const v = localStorage.getItem(key); return v === null ? def : JSON.parse(v); } catch { return def; } });
+  const setOpen = v => setOpenState(prev => { const next = typeof v === 'function' ? v(prev) : v; try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* ignore */ } return next; });
+  return [open, setOpen];
+}
+
 export function RequirementsChecklist({ requirements, onChange, onExtract, loading, error, canEdit, state, L, lang, who }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = usePersistedOpen('genctx_reqs_open');
   const [reasonFor, setReasonFor] = useState(null);
   const [reason, setReason] = useState('');
   const list = requirements ?? [];
@@ -24,6 +31,7 @@ export function RequirementsChecklist({ requirements, onChange, onExtract, loadi
           <ListChecks size={14} />{L('Requirements checklist', 'Checklist de requerimientos')}
           {list.length > 0 && <span className="normal-case font-normal text-gray-400">· {inScope(list).length} {L('in scope', 'en alcance')}</span>}
           <span className={`normal-case font-semibold ${stateCls}`}>· {state === 'fresh' ? L('current', 'al día') : state === 'outdated' ? L('outdated', 'desactualizado') : L('not run', 'sin ejecutar')}</span>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         {canEdit && (
           <button onClick={onExtract} disabled={loading}

@@ -1236,7 +1236,13 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [requestSummary, setRequestSummary]         = useState(null);
   const [requestSummaryLoading, setRequestSummaryLoading] = useState(false);
   const [requestSummaryError, setRequestSummaryError]     = useState(null);
-  const [ctxCollapsed, setCtxCollapsed]             = useState(false);
+  // Collapsed sections of the analysis node, remembered per browser.
+  const persisted = (key, def) => { try { const v = localStorage.getItem(key); return v === null ? def : JSON.parse(v); } catch { return def; } };
+  const persist = (key, setter) => v => setter(prev => { const next = typeof v === 'function' ? v(prev) : v; try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* ignore */ } return next; });
+  const [ctxCollapsed, _setCtxCollapsed]           = useState(() => persisted('genctx_ctx_collapsed', false));
+  const setCtxCollapsed = persist('genctx_ctx_collapsed', _setCtxCollapsed);
+  const [summaryCollapsed, _setSummaryCollapsed]   = useState(() => persisted('genctx_summary_collapsed', false));
+  const setSummaryCollapsed = persist('genctx_summary_collapsed', _setSummaryCollapsed);
   const [metaCollapsed, setMetaCollapsed]           = useState(() => {
     try { return JSON.parse(localStorage.getItem('genctx_casemeta_collapsed') ?? 'false'); } catch { return false; }
   });
@@ -6591,8 +6597,14 @@ ${result}`;
                     onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
                   {/* AI Request Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Request Summary</h4>
+                    <div className={`flex items-center justify-between gap-2 ${summaryCollapsed ? '' : 'mb-2'}`}>
+                      <button onClick={() => setSummaryCollapsed(v => !v)} className="flex items-center gap-2 flex-1 text-left min-w-0">
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Request Summary</h4>
+                        {requestSummary && !requestSummaryLoading && summaryCollapsed && (
+                          <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 rounded-full px-1.5 py-0.5">{L('Ready', 'Listo')}</span>
+                        )}
+                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ml-auto ${summaryCollapsed ? '' : 'rotate-180'}`} />
+                      </button>
                       {!requestSummaryLoading && (
                         <button onClick={() => handleAnalyzeRequest()}
                           disabled={specApproved && !auth.isAdmin}
@@ -6607,7 +6619,7 @@ ${result}`;
                       <StepRunning button={L('Analyzing…', 'Analizando…')}
                         message={L('Analyzing the request and the case documents — this may take a minute…', 'Analizando la solicitud y los documentos del caso — puede tardar un minuto…')} />
                     )}
-                    {!requestSummary && !requestSummaryLoading && !requestSummaryError && (
+                    {!summaryCollapsed && !requestSummary && !requestSummaryLoading && !requestSummaryError && (
                       <p className="text-xs text-gray-400 italic">
                         Click <span className="font-semibold text-violet-600">Analyze</span> to extract a summary of what the customer is requesting and key considerations (reads attached documents).
                       </p>
@@ -6615,7 +6627,7 @@ ${result}`;
                     {requestSummaryError && (
                       <p className="text-xs text-red-500">{requestSummaryError}</p>
                     )}
-                    {requestSummary && !requestSummaryLoading && (
+                    {!summaryCollapsed && requestSummary && !requestSummaryLoading && (
                       <div className="overflow-y-auto max-h-[420px]">
                         <MarkdownAccordion text={requestSummary} defaultAllOpen />
                       </div>
