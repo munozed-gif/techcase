@@ -46,10 +46,8 @@ function useConsultantTeams(userId) {
         const memberUserIds = [...new Set((membersData ?? []).map(m => m.user_id).filter(Boolean))];
         let userMap = {};
         if (memberUserIds.length > 0) {
-          const { data: usersData } = await supabase
-            .from("users")
-            .select("id, full_name, avatar_url, email")
-            .in("id", memberUserIds);
+          // Names come from the database function: the browser cannot read other users' rows.
+          const { data: usersData } = await supabase.rpc("team_member_people", { p_team_ids: myTeams.map(t => t.id) });
           (usersData ?? []).forEach(u => { userMap[u.id] = u; });
         }
 
@@ -129,7 +127,12 @@ function useConsultantTeams(userId) {
       status: "pending",
     }).select("user_id").single();
     if (error) throw error;
-    const existingUser = inserted?.user_id ? { id: inserted.user_id, full_name: null, email: norm } : null;
+    let existingUser = null;
+    if (inserted?.user_id) {
+      const { data: people } = await supabase.rpc("team_member_people", { p_team_ids: [teamId] });
+      const person = (people ?? []).find(u => u.id === inserted.user_id);
+      existingUser = { id: inserted.user_id, full_name: person?.full_name ?? null, email: norm };
+    }
     if (existingUser?.id) {
       await notify(
         existingUser.id,
