@@ -7,6 +7,8 @@ import { normalizeRequirements, parseJsonArray, requirementsPromptBlock, coverag
 import { RequirementsChecklist, CoveragePanel } from "./SpecRequirements.jsx";
 import { runCaseChecks, blockingIssues } from "../lib/caseChecks.js";
 import { CaseChecksPanel } from "./CaseChecksPanel.jsx";
+import { normalizeQuestions, questionsPromptBlock, openQuestions, mergeLinkAnswers } from "../lib/questions.js";
+import { QuestionsPanel } from "./SpecQuestions.jsx";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
   Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Laptop, Link2, ListChecks, Paperclip, Pause, Play,
@@ -1182,6 +1184,11 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [caseChecks, setCaseChecks] = useState(null);       // issues of src/lib/caseChecks.js (notes.caseChecks)
   const [checksResolved, setChecksResolved] = useState({});
   const [checksLoading, setChecksLoading] = useState(false);
+  const [questions, setQuestions] = useState([]);           // notes.questions (src/lib/questions.js)
+  const [qLoading, setQLoading] = useState(false);
+  const [qError, setQError] = useState(null);
+  const [qLinks, setQLinks] = useState([]);                 // spec_question_links of the case
+  const [qCopied, setQCopied] = useState(null);
   const genGateOverrideRef = useRef(false);
   // Latest AI notes of the spec (kept across quick consecutive saves).
   const notesRef = useRef(null);
@@ -1470,7 +1477,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     }
     return true;
   }
-  const ANALYSIS_ORDER = ['summary', 'coverage', 'validation', 'requirements'];
+  const ANALYSIS_ORDER = ['summary', 'coverage', 'validation', 'requirements', 'questions'];
   const analysisStepOn = step => step === 'coverage' ? isSgNodeEnabled('sap_verification')
     : step === 'validation' ? isSgNodeEnabled('proposal_validation')
     : step === 'requirements' ? REQUIREMENTS_STEP : true;
@@ -1494,6 +1501,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const ANALYSIS_STEP_LABEL = {
     summary: L('Analysis summary', 'Resumen del análisis'), coverage: L('Standard coverage check', 'Verificación del estándar'),
     validation: L('Proposal validation', 'Validación de la propuesta'), requirements: L('Requirements checklist', 'Checklist de requerimientos'),
+    questions: L('Questions for the customer', 'Preguntas para el cliente'),
   };
   // Run the analysis steps in order, each with the result of the previous one.
   async function handleRunAllAnalysis() {
@@ -1508,15 +1516,17 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       let sc = null;
       if (analysisStepOn('coverage')) { sc = await handleSapCheck({ summary }); if (!sc) return; }
       if (analysisStepOn('validation') && sc) { const pc = await handleProposalValidation({ sapCheck: sc, summary }); if (!pc) return; }
-      if (analysisStepOn('requirements')) await handleExtractRequirements({ summary });
+      let reqs = requirements;
+      if (analysisStepOn('requirements')) { reqs = await handleExtractRequirements({ summary }); if (!reqs) return; }
+      await handleExtractQuestions({ summary, reqs });
     } finally { setRunningAll(false); }
   }
   // Status of every analysis step + "Run all analysis", shown on the pipeline nodes.
   function analysisStrip() {
     const steps = ANALYSIS_ORDER.filter(analysisStepOn);
     const stale = steps.filter(st => analysisState(st) !== 'fresh');
-    const busy = runningAll || stepLoading || requestSummaryLoading || !!reqLoading;
-    const running = { summary: requestSummaryLoading, coverage: stepLoading && aiStep === 1, validation: stepLoading && aiStep === 2, requirements: reqLoading === 'extract' };
+    const busy = runningAll || stepLoading || requestSummaryLoading || !!reqLoading || qLoading;
+    const running = { summary: requestSummaryLoading, coverage: stepLoading && aiStep === 1, validation: stepLoading && aiStep === 2, requirements: reqLoading === 'extract', questions: qLoading };
     const blockingChecks = blockingIssues(caseChecks, checksResolved);
     const openChecks = (caseChecks ?? []).filter(i => !checksResolved?.[i.key]);
     const fmt = iso => { try { return new Date(iso).toLocaleString(lang === 'es' ? 'es' : 'en', { dateStyle: 'short', timeStyle: 'short' }); } catch { return iso; } };
@@ -1650,6 +1660,103 @@ Respond with ONLY a JSON array, no markdown fences:
     setReqLoading(null);
     return result;
   }
+  // ── Questions for the customer (src/lib/questions.js) ───────
+  async function saveQuestions(next) {
+    setQuestions(next);
+    try { await saveAiNotesPatch({ questions: next }); } catch (_) {}
+  }
+  async function handleExtractQuestions(opts = {}) {
+    const summaryIn = opts.summary !== undefined ? opts.summary : requestSummary;
+    const reqs = opts.reqs ?? requirements;
+    setQLoading(true); setQError(null);
+    let result = null;
+    try {
+      const docBlocks = await buildDocumentBlocks();
+      const prompt = `Before a functional specification is written for this SAP case, find what must be asked to the customer:
+- CONTRADICTIONS between the documents (or within one): e.g. the spec says one value and the test matrix another;
+- AMBIGUITIES: rules or terms that can be read in more than one way;
+- MISSING INFORMATION needed to specify a requirement (values, tables, conditions, volumes, users).
+Only real, specific points — quote both sides of a contradiction with its source. Do not ask about things the documents answer. For each one propose the assumption the spec will use if the customer does not answer.
+
+Case: ${caseData.title}
+Description: ${caseData.description ?? ''}${analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : ''}${summaryIn ? `\nRequest Summary (pre-analysis):\n${summaryIn}` : ''}${(reqs ?? []).length ? `\nRequirements checklist:\n${reqs.filter(r => !r.outOfScope).map(r => `- ${r.id}: ${r.text}`).join('\n')}` : ''}${answeredBlock()}
+
+Respond with ONLY a JSON array (empty if there is nothing to ask), no markdown fences:
+[{ "kind": "contradiction" | "ambiguity" | "missing", "text": "the question for the customer, clear and self-contained", "sources": "document / section of each side", "affects": ["REQ-03"], "assumption": "what the spec assumes if not answered" }]${jsonLangNote(lang)}`;
+      const raw = await callClaude({ feature: 'spec_questions', model: analysisModel,
+        system: 'You are an SAP senior functional consultant preparing questions for the customer before writing a specification. Respond ONLY with a valid JSON array.',
+        messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: prompt }] : prompt }], max_tokens: 8000 });
+      const parsed = parseJsonArray(raw, 'questions');
+      if (!parsed) throw new Error(L('The questions could not be read from the AI answer — run it again.', 'No se pudieron leer las preguntas de la respuesta de la IA — ejecútelo de nuevo.'));
+      // Keep what is already decided (answered, discarded, added by hand); new questions get new ids.
+      const kept = questions.filter(q => q.status === 'answered' || q.status === 'discarded' || q.manual);
+      const keptText = new Set(kept.map(q => q.text.trim().toLowerCase()));
+      let n = Math.max(0, ...kept.map(q => Number(String(q.id).replace(/\D/g, '')) || 0));
+      const fresh = normalizeQuestions(parsed).filter(q => !keptText.has(q.text.toLowerCase()))
+        .map(q => ({ ...q, id: `Q-${String(++n).padStart(2, '0')}` }));
+      const next = [...kept, ...fresh];
+      setQuestions(next);
+      await markAnalysisStep('questions', { questions: next });
+      result = next;
+    } catch (e) { setQError(e.message); }
+    setQLoading(false);
+    return result;
+  }
+  function answeredBlock() {
+    const a = questions.filter(q => q.status === 'answered' && q.answer);
+    return a.length ? `\nAlready answered by the customer (do not ask again):\n${a.map(q => `- ${q.text} → ${q.answer}`).join('\n')}` : '';
+  }
+  async function loadQuestionLinks() {
+    const { data } = await supabase.from('spec_question_links').select('*').eq('case_id', caseData.id).order('created_at', { ascending: false });
+    setQLinks(data ?? []);
+    return data ?? [];
+  }
+  useEffect(() => {
+    if (specLoading) return;
+    loadQuestionLinks().then(links => {
+      const base = notesRef.current?.questions ?? [];
+      const { questions: merged, changed } = mergeLinkAnswers(base, links);
+      if (changed) saveQuestions(merged);
+    }).catch(() => {});
+  }, [specLoading, caseData.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function sendQuestionsLink() {
+    const open = openQuestions(questions);
+    if (!open.length) return;
+    try {
+      const { data, error } = await supabase.from('spec_question_links').insert({
+        case_id: caseData.id, case_title: caseData.title ?? '',
+        questions: open.map(q => ({ id: q.id, kind: q.kind, text: q.text, sources: q.sources, assumption: q.assumption })),
+        platform: { name: ssCtx.settings['platform_name'] || 'Arena Solution Platform', tagline: ssCtx.settings['platform_tagline'] || 'SAP Solutions', lang },
+      }).select().single();
+      if (error) throw error;
+      await copyQuestionsLink(data);
+      await loadQuestionLinks();
+    } catch (e) { setQError(e.message); }
+  }
+  async function copyQuestionsLink(l) {
+    try { await navigator.clipboard.writeText(`${window.location.origin}/questions/${l.token}`); } catch (_) {}
+    setQCopied(l.id); setTimeout(() => setQCopied(null), 2500);
+  }
+  async function revokeQuestionsLink(l) {
+    if (!window.confirm(L('Revoke this link? The customer will not be able to answer with it.', '¿Revocar este enlace? El cliente ya no podrá responder con él.'))) return;
+    await supabase.from('spec_question_links').update({ status: 'revoked' }).eq('id', l.id);
+    await loadQuestionLinks();
+  }
+  // Open questions at generation: ask whether to generate on their assumptions (recorded as acknowledged).
+  function openQuestionsOk() {
+    const open = openQuestions(questions);
+    if (!open.length) return true;
+    const ok = window.confirm(L(
+      `${open.length} questions for the customer are still open:\n${open.slice(0, 8).map(q => `• ${q.id}: ${q.text}`).join('\n')}${open.length > 8 ? '\n…' : ''}\n\nGenerate using their assumptions? They are recorded as acknowledged and listed in the spec as open questions.`,
+      `Hay ${open.length} preguntas para el cliente sin responder:\n${open.slice(0, 8).map(q => `• ${q.id}: ${q.text}`).join('\n')}${open.length > 8 ? '\n…' : ''}\n\n¿Generar con sus supuestos? Quedan registradas como aceptadas y listadas en la spec como preguntas abiertas.`));
+    if (!ok) return false;
+    const at = new Date().toISOString();
+    const next = questions.map(q => (q.status === 'open' ? { ...q, status: 'acknowledged', by: auth.user?.id ?? null, name: auth.profile?.full_name ?? null, at } : q));
+    setQuestions(next);
+    saveAiNotesPatch({ questions: next }).catch(() => {});
+    return true;
+  }
+
   // Which generated spec the coverage check and the send gate are about.
   const gateSpecKey = () => (aiSpecC ? 'c' : aiSpecA ? 'a' : null);
   const specText = k => ({ a: aiSpecA, b: aiSpecB, c: aiSpecC, d: aiSpecD })[k];
@@ -1713,7 +1820,7 @@ Respond with ONLY a JSON array, no markdown fences:
       const rules = stats.openRules.map(v => `- ${v.text} — ${v.detail}`);
       const docBlocks = await buildDocumentBlocks();
       const prompt = `Below is the current specification. A coverage review found these gaps. Return the COMPLETE corrected specification (same sections, same format, same language) that closes every gap: specify each missing or partial requirement from the attached customer documents, add the objects the project rules require (marked "(regla del proyecto)") to the technical objects table, and keep everything else that is correct. Keep the Complexity column and do not write hours. Update the "Trazabilidad de requerimientos" section. If a requirement truly cannot be resolved from the documents, list it under Assumptions / Next Steps as an open question with its id.
-${gaps.length ? `\nREQUIREMENT GAPS:\n${gaps.join('\n')}` : ''}${rules.length ? `\nPROJECT RULE VIOLATIONS:\n${rules.join('\n')}` : ''}${requirementsPromptBlock(requirements)}${rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id))}
+${gaps.length ? `\nREQUIREMENT GAPS:\n${gaps.join('\n')}` : ''}${rules.length ? `\nPROJECT RULE VIOLATIONS:\n${rules.join('\n')}` : ''}${requirementsPromptBlock(requirements)}${questionsPromptBlock(questions)}${rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id))}
 
 CURRENT SPECIFICATION:
 ${md}`;
@@ -2742,6 +2849,7 @@ ${mdToHtml(markdownContent)}
           setAnalysisMeta(nd.analysisMeta ?? {});
           setRequirements(Array.isArray(nd.requirements) ? nd.requirements : []);
           setReqCoverage(nd.reqCoverage && typeof nd.reqCoverage === 'object' ? nd.reqCoverage : {});
+          setQuestions(Array.isArray(nd.questions) ? nd.questions : []);
           setHoursOverrides(nd.hoursOverrides ?? {});
           if (nd.scenarioCount !== undefined) { setScenarioCount(nd.scenarioCount); docScenariosRef.current = nd.scenarioCount; }
           if (nd.activeProfile) setActiveProfile(nd.activeProfile);
@@ -4074,6 +4182,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     if (!genProfile || fromApprovalReview) {
       genGateOverrideRef.current = false;
       if (!generationGateOk()) return;
+      if (!openQuestionsOk()) return;
     }
     if (!genProfile) {
       // Show profile picker modal; actual generation runs after modal confirm
@@ -4105,7 +4214,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const summaryCtx = requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '';
       const additionalCtxStr = additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '';
       const reviewFeedbackStr = specFeedback?.trim() ? `\n\nREVIEW FEEDBACK (apply to this generation — cumulative notes from previous review rounds):\n${sanitizeForJson(specFeedback.trim())}` : '';
-      const contextStr = _baseCtx + summaryCtx + additionalCtxStr + reviewFeedbackStr + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock() + requirementsPromptBlock(requirements);
+      const contextStr = _baseCtx + summaryCtx + additionalCtxStr + reviewFeedbackStr + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock() + requirementsPromptBlock(requirements) + questionsPromptBlock(questions);
       const hasLiveSap = contextStr.includes('SAP Live System:');
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       const sysLiveNote = hasLiveSap
@@ -4320,7 +4429,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
       const _baseCtxD = sanitizeForJson(await buildGenContext());
-      const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock() + requirementsPromptBlock(requirements);
+      const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock() + requirementsPromptBlock(requirements) + questionsPromptBlock(questions);
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       let specD = await callSpec(
         aiSpecC
@@ -4420,7 +4529,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     };
     const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
     const _baseCtxR = sanitizeForJson(await buildGenContext());
-    const contextStr = _baseCtxR + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock() + requirementsPromptBlock(requirements);
+    const contextStr = _baseCtxR + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '') + (additionalCtx?.trim() ? `\n\nADDITIONAL CONSIDERATIONS (from consultant):\n${sanitizeForJson(additionalCtx.trim())}` : '') + rulesPromptBlock(activeRules(ssCtx.settings, caseData.project_id)) + analysisFindingsBlock() + requirementsPromptBlock(requirements) + questionsPromptBlock(questions);
     const abapCtx = sanitizeForJson(abap.contextText);
     const setSpecStatus = (key, status) => setSpecStatuses(p => ({ ...p, [key]: status }));
     const setSpecError  = (key, msg)    => setSpecErrors(p => ({ ...p, [key]: msg }));
@@ -6412,6 +6521,10 @@ ${result}`;
                   <RequirementsChecklist requirements={requirements} onChange={saveRequirements}
                     onExtract={() => handleExtractRequirements()} loading={reqLoading === 'extract'} error={reqError}
                     canEdit={canEditReqs()} state={analysisState('requirements')} L={L} lang={lang} who={auth.user?.id ?? null} />
+                  <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
+                    loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
+                    who={{ id: auth.user?.id ?? null, name: auth.profile?.full_name ?? null }} links={qLinks}
+                    onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
                   {/* AI Request Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">

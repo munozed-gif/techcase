@@ -144,6 +144,7 @@ import ApprovalView from "./src/views/ApprovalView.jsx";
 import CustomerSpecReviewView from "./src/views/CustomerSpecReviewView.jsx";
 import HHInviteView from "./src/views/HHInviteView.jsx";
 import ProposalReviewView from "./src/views/ProposalReviewView.jsx";
+import CustomerQuestionsView from "./src/views/CustomerQuestionsView.jsx";
 import MyReviewsView from "./src/views/MyReviewsView.jsx";
 
 
@@ -707,6 +708,8 @@ const _shareMatch = typeof window !== 'undefined' && window.location.pathname.ma
 const _approveMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/approve\/([^/?#]+)/);
 // Intercept /review/:token — customer-facing spec review link, no auth required
 const _reviewMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/review\/([^/?#]+)/);
+// Intercept /questions/:token — customer answers the open questions of a case, no auth required
+const _questionsMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/questions\/([^/?#]+)/);
 // Intercept /proposal/:token — customer proposal review link, no auth required
 const _proposalMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/proposal\/([^/?#]+)/);
 // Intercept /hh-invite/:token and /hh/:code — headhunter candidate invitation / personal link
@@ -856,6 +859,10 @@ export default function App() {
     return <CustomerSpecReviewView token={_reviewMatch[1]} />;
   }
 
+  // /questions/:token — customer answers the case's open questions, no login needed
+  if (_questionsMatch) {
+    return <CustomerQuestionsView token={_questionsMatch[1]} />;
+  }
   // /proposal/:token — customer proposal (accept / ask for changes / reject), no login needed
   if (_proposalMatch) {
     return <ProposalReviewView token={_proposalMatch[1]} />;
