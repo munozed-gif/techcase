@@ -11,7 +11,7 @@ import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
   Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Laptop, Link2, ListChecks, Paperclip, Pause, Play,
   RefreshCw, RotateCcw, Search, SlidersHorizontal, Sparkles, Star, Target, User,
-  UserCheck, Users, Wand2, X, Zap,
+  UserCheck, Users, Wand2, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { bridgeAuthHeaders, resolveVmUrl } from "../lib/bridgeAuth.js";
@@ -1515,24 +1515,74 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   function analysisStrip() {
     const steps = ANALYSIS_ORDER.filter(analysisStepOn);
     const stale = steps.filter(st => analysisState(st) !== 'fresh');
-    const busy = runningAll || stepLoading || requestSummaryLoading;
-    const badge = st => {
-      const state = analysisState(st);
-      const cls = state === 'fresh' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-        : state === 'outdated' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-gray-50 text-gray-500 border-gray-200';
-      const txt = state === 'fresh' ? L('current', 'al día') : state === 'outdated' ? L('outdated', 'desactualizado') : L('not run', 'sin ejecutar');
-      return <span key={st} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-semibold ${cls}`}>{ANALYSIS_STEP_LABEL[st]}: {txt}</span>;
-    };
+    const busy = runningAll || stepLoading || requestSummaryLoading || !!reqLoading;
+    const running = { summary: requestSummaryLoading, coverage: stepLoading && aiStep === 1, validation: stepLoading && aiStep === 2, requirements: reqLoading === 'extract' };
+    const blockingChecks = blockingIssues(caseChecks, checksResolved);
+    const openChecks = (caseChecks ?? []).filter(i => !checksResolved?.[i.key]);
+    const fmt = iso => { try { return new Date(iso).toLocaleString(lang === 'es' ? 'es' : 'en', { dateStyle: 'short', timeStyle: 'short' }); } catch { return iso; } };
+    const rows = [
+      { key: 'checks', label: L('Case checks', 'Revisión del caso'),
+        status: checksLoading ? 'checking' : !caseChecks ? 'pending' : blockingChecks.length ? 'error' : openChecks.length ? 'warning' : 'ok',
+        detail: !caseChecks ? '' : blockingChecks.length ? L(`${blockingChecks.length} to resolve before Analyze`, `${blockingChecks.length} por resolver antes de Analizar`)
+          : openChecks.length ? L(`${openChecks.length} warnings`, `${openChecks.length} advertencias`) : L('Documents, project and duplicates checked', 'Documentos, proyecto y duplicados revisados') },
+      ...steps.map(st => {
+        const state = analysisState(st);
+        const at = analysisMeta?.[st]?.at;
+        return { key: st, label: ANALYSIS_STEP_LABEL[st],
+          status: running[st] ? 'checking' : state === 'fresh' ? 'ok' : state === 'outdated' ? 'warning' : 'pending',
+          pill: state === 'outdated' && !running[st] ? L('Outdated', 'Desactualizado') : null,
+          detail: state === 'missing' ? '' : state === 'outdated'
+            ? L(`Run ${fmt(at)} — the documents or an earlier step changed since`, `Ejecutado ${fmt(at)} — desde entonces cambiaron los documentos o un paso anterior`)
+            : L(`Run ${fmt(at)}`, `Ejecutado ${fmt(at)}`) };
+      }),
+    ];
+    const icon = st => st === 'checking' ? <RefreshCw size={14} className="animate-spin text-blue-600 dark:text-blue-400" />
+      : st === 'ok' ? <CheckCircle2 size={14} className="text-green-500" />
+      : st === 'warning' ? <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
+      : st === 'error' ? <XCircle size={14} className="text-red-600 dark:text-red-400" />
+      : <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-gray-200 dark:border-gray-600" />;
+    const pillCls = 'text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none';
+    const pill = (st, txt) => st === 'checking' ? <span className={`${pillCls} bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300`}>{L('Running…', 'Ejecutando…')}</span>
+      : st === 'ok' ? <span className={`${pillCls} bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300`}>{L('Current', 'Al día')}</span>
+      : st === 'warning' ? <span className={`${pillCls} bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-300`}>{txt ?? L('Warning', 'Aviso')}</span>
+      : st === 'error' ? <span className={`${pillCls} bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300`}>{L('Blocked', 'Bloqueado')}</span>
+      : <span className={`${pillCls} bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500`}>{L('Not run', 'Sin ejecutar')}</span>;
+    const bg = st => st === 'ok' ? 'border-green-100 dark:border-green-900/40 bg-green-50/40 dark:bg-green-900/10'
+      : st === 'error' ? 'border-red-100 dark:border-red-900/40 bg-red-50/30 dark:bg-red-900/10'
+      : st === 'warning' ? 'border-amber-100 dark:border-amber-900/40 bg-amber-50/20 dark:bg-amber-900/10'
+      : st === 'checking' ? 'border-blue-100 dark:border-blue-800/40 bg-blue-50/20 dark:bg-blue-900/10'
+      : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/20';
+    const allOk = !stale.length && !blockingChecks.length;
     return (
-      <div className={`flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl border ${stale.length ? 'border-amber-200 bg-amber-50/40' : 'border-emerald-200 bg-emerald-50/40'}`}>
-        <div className="flex flex-wrap gap-1.5 flex-1">{steps.map(badge)}</div>
-        {!specApproved && (
-          <button onClick={handleRunAllAnalysis} disabled={busy}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50">
-            {runningAll ? <><Spinner />{L('Running analysis…', 'Ejecutando análisis…')}</> : <><RefreshCw size={12} />{L('Run all analysis', 'Ejecutar todo el análisis')}</>}
-          </button>
-        )}
-        {stale.length > 0 && <p className="w-full text-[11px] text-amber-700">{L('Specs can be generated once every step is current (the documents changed or a step was not run).', 'Las specs se pueden generar cuando todos los pasos estén al día (cambiaron los documentos o falta ejecutar un paso).')}</p>}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex-1">{L('Analysis pipeline', 'Pipeline de análisis')}</span>
+          {allOk && <span className="text-[10px] font-medium text-green-600 dark:text-green-400 flex items-center gap-1"><CheckCircle2 size={10} />{L('Ready to generate', 'Listo para generar')}</span>}
+          {!specApproved && (
+            <button onClick={handleRunAllAnalysis} disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50">
+              {runningAll ? <><Spinner />{L('Running analysis…', 'Ejecutando análisis…')}</> : <><RefreshCw size={12} />{L('Run all analysis', 'Ejecutar todo el análisis')}</>}
+            </button>
+          )}
+        </div>
+        <div className="space-y-1">
+          {rows.map((r, idx) => (
+            <div key={r.key} className={`rounded-lg border transition-colors ${bg(r.status)}`}>
+              <div className="flex items-start gap-2.5 px-3 py-2">
+                <div className="shrink-0 mt-0.5">{icon(r.status)}</div>
+                <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full bg-gray-100 dark:bg-gray-700 text-[9px] font-bold text-gray-500 dark:text-gray-400 flex items-center justify-center leading-none">{idx + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{r.label}</span>
+                    {pill(r.status, r.pill)}
+                  </div>
+                  {r.detail && <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug break-words">{r.detail}</p>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        {!allOk && <p className="text-[11px] text-amber-700 dark:text-amber-400">{L('Specs can be generated once every step is current.', 'Las specs se pueden generar cuando todos los pasos estén al día.')}</p>}
       </div>
     );
   }
