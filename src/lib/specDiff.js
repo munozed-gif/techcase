@@ -7,7 +7,12 @@ export const TIME_HEADING = /^(?:#{1,4}\s*(?:\d+(?:\.\d+)*\.?\s*)?|\d+(?:\.\d+)*
 const ANY_HEADING = /^(#{1,4}\s+\S|\d+\.\s+[A-ZÁÉÍÓÚ])/;
 
 // Kinds of object, so "ZMM021_ENH_MIGO (BAdI)" → "ZMM021_EVT (ampliación)" still counts as kept.
+// Order matters: specific multi-word types first ("message class" is not a class, "table type"
+// is DDIC, not a table, "function module" is not a module of another kind).
 const KINDS = [
+  ['message',   /mensaje|message class|message text/i],
+  ['function',  /m[oó]dulo de funci[oó]n|function module/i],
+  ['ddic',      /estructura|structure|tipo de tabla|table type|elemento de datos|data element|dominio|domain|ddic/i],
   ['fiori',     /fiori|ui5|\bapp\b|aplicaci[oó]n/i],
   ['service',   /odata|\brap\b|service binding|servicio|\bapi\b|sicf|web ?service/i],
   ['enhancement', /badi|ampliaci[oó]n|enhancement|user[- ]?exit|implementaci[oó]n/i],
@@ -18,9 +23,6 @@ const KINDS = [
   ['auth',      /autorizaci[oó]n|authorization|\brol(es)?\b|pfcg|\brole/i],
   ['integration', /iflow|cpi|integration suite|integraci[oó]n|interfaz/i],
   ['config',    /configuraci[oó]n|customizing|spro|ppf|soamanager/i],
-  ['ddic',      /estructura|structure|tipo de tabla|table type|elemento de datos|dominio|ddic/i],
-  ['message',   /mensaje|message class/i],
-  ['function',  /m[oó]dulo de funci[oó]n|function module/i],
   ['transaction', /transacci[oó]n|transaction|t-?code/i],
   ['form',      /formulario|smartform|adobe form|form\b/i],
 ];
@@ -32,7 +34,9 @@ export const KIND_LABEL = {
   transaction: ['Transaction', 'Transacción'], form: ['Form', 'Formulario'],
 };
 
-export const kindOf = text => KINDS.find(([, re]) => re.test(text))?.[0] ?? 'other';
+const matchKind = text => KINDS.find(([, re]) => re.test(text))?.[0] ?? null;
+// The Type column decides; name and description only when the type says nothing recognisable.
+export const kindOf = (text, type) => (type ? matchKind(type) : null) ?? matchKind(text) ?? 'other';
 export const cells = line => line.split('|').map(c => c.replace(/\*\*|`/g, '').trim());
 const num = s => { const m = String(s ?? '').replace(',', '.').match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; };
 
@@ -60,7 +64,7 @@ export function parseObjects(md) {
   return rows
     .filter(r => r !== head && !r.every(c => /^:?-{2,}:?$|^$/.test(c)))
     .filter(r => !/subtotal|^total$/i.test(r.join(' ')) && (r[nameIx] ?? '').length > 1)
-    .map(r => ({ name: r[nameIx], type: r[typeIx] ?? '', kind: kindOf(`${r[typeIx] ?? ''} ${r[nameIx] ?? ''} ${r[descIx] ?? ''}`) }));
+    .map(r => ({ name: r[nameIx], type: r[typeIx] ?? '', kind: kindOf(`${r[typeIx] ?? ''} ${r[nameIx] ?? ''} ${r[descIx] ?? ''}`, r[typeIx]) }));
 }
 
 /** SAP objects / identifiers named in the text (Z objects, BAPIs, CDS views, APIs, namespaces). */

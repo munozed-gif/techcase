@@ -81,7 +81,7 @@ export function readObjects(md) {
     .map(r => {
       const name = r[nameIx], type = typeIx >= 0 ? r[typeIx] : '', description = descIx >= 0 ? r[descIx] : '';
       return { name, type, description, complexity: normalizeComplexity(cxIx >= 0 ? r[cxIx] : ''),
-        kind: kindOf(`${type} ${name} ${description}`), rule: /regla del proyecto|project rule/i.test(`${type} ${description}`) };
+        kind: kindOf(`${type} ${name} ${description}`, type), rule: /regla del proyecto|project rule/i.test(`${type} ${description}`) };
     });
   return { objects, start, tableFrom: from, tableTo: i };
 }
@@ -148,7 +148,7 @@ function estimateSection(est, es, headingLevel = '##', number = '5.') {
     ['UAT support', `${c.uat_base} h + ${c.uat_per_scenario} h × ${est.scenarios} test-matrix scenarios`, p.uat],
   ];
   const out = [
-    `${headingLevel} ${number} ${es ? 'Estimación de tiempos' : 'Time estimation'}`, '',
+    `${headingLevel} ${number ? `${number} ` : ''}${es ? 'Estimación de tiempos' : 'Time estimation'}`, '',
     es ? '| Fase | Base del cálculo | Horas estándar | Horas Arena |' : '| Phase | Basis | Standard hours | Arena hours |',
     '|---|---|---|---|',
     ...rows.map(([n, b, v]) => `| ${n} | ${b} | ${fmt(v.std, es)} | ${fmt(v.arena, es)} |`),
