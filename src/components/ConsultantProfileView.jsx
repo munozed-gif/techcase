@@ -234,6 +234,9 @@ function ConsultantProfileView({ userId, onBack }) {
         if (cancelled) return;
         setProfileData(profRes.data ?? null);
         setCpData(cpRes.data ?? null);
+        supabase.rpc('consultant_commitment', { p_ids: [targetUserId] }).then(({ data }) => {
+          if (!cancelled && Array.isArray(data) && data[0]) setCpData(prev => prev ? { ...prev, _free: Number(data[0].free_pct) } : prev);
+        });
         setRatingsData(ratingsRes.data ?? []);
         setDimensions(dimsRes.data ?? []);
         setAssignedCount(assignRes.count ?? 0);
@@ -418,7 +421,7 @@ function ConsultantProfileView({ userId, onBack }) {
               )}
               {cpData != null && (
                 <span className="text-xs text-emerald-600 font-medium">
-                  {Math.max(0, 100 - (cpData.external_occupancy_pct ?? 0))}% free
+                  {cpData._free ?? Math.max(0, 100 - (cpData.external_occupancy_pct ?? 0))}% free
                 </span>
               )}
             </div>

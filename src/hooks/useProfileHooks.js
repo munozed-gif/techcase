@@ -99,9 +99,13 @@ function useConsultantProfile(consultantId, profileId) {
       setProfile(data ?? null);
     }
 
-    const { data: avail } = await supabase.rpc("get_consultant_availability",
-      { p_consultant_id: resolvedId });
-    setAvailability(avail);
+    const [{ data: avail }, { data: commit }] = await Promise.all([
+      supabase.rpc("get_consultant_availability", { p_consultant_id: resolvedId }),
+      // Active case commitment (same rule as the team assignment screen).
+      supabase.rpc("consultant_commitment", { p_ids: [resolvedId] }),
+    ]);
+    const c = Array.isArray(commit) ? commit[0] : null;
+    setAvailability(avail ? { ...avail, cases_pct: Number(c?.cases_pct ?? 0) } : (c ? { cases_pct: Number(c.cases_pct ?? 0) } : avail));
     if (!silent) setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedId]);

@@ -97,29 +97,20 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
       const memberIds = (memberRows ?? []).map(m => m.user_id).filter(Boolean);
       let profileMap = {};
       let usersMap = {};
-      let assignments = [];
+      const availMap = {};
       if (memberIds.length > 0) {
-        const [{ data: profiles }, { data: usersRows }, { data: activeAssignments }] = await Promise.all([
+        const [{ data: profiles }, { data: people }, { data: commitment }] = await Promise.all([
           supabase.from("consultant_profiles")
             .select("id, full_name, headline, skills, external_occupancy_pct")
             .in("id", memberIds),
-          supabase.from("users").select("id, full_name, email, avatar_url").in("id", memberIds),
-          supabase.from("case_assignments")
-            .select("consultant_id, time_commitment, case:case_id(status)")
-            .in("consultant_id", memberIds),
+          // Names through the team function: other users' rows are not readable from the browser.
+          supabase.rpc("team_member_people", { p_team_ids: [selectedTeamId] }),
+          // Live availability: active assignments on open cases + external occupancy (one rule everywhere).
+          supabase.rpc("consultant_commitment", { p_ids: memberIds }),
         ]);
         for (const p of (profiles ?? [])) profileMap[p.id] = p;
-        for (const u of (usersRows ?? [])) usersMap[u.id] = u;
-        assignments = activeAssignments ?? [];
-        // Compute live availability per member
-        const availMap = {};
-        for (const id of memberIds) {
-          const extPct = profileMap[id]?.external_occupancy_pct ?? 0;
-          const activePct = assignments
-            .filter(a => a.consultant_id === id && !TERMINAL.includes(a.case?.status))
-            .reduce((sum, a) => sum + (a.time_commitment ?? 0), 0);
-          availMap[id] = Math.max(0, 100 - extPct - activePct);
-        }
+        for (const u of (people ?? [])) usersMap[u.id] = u;
+        for (const c of (commitment ?? [])) availMap[c.consultant_id] = Math.round(Number(c.free_pct));
         setMemberAvailability(availMap);
       }
       const members = (memberRows ?? []).map(m => ({
@@ -156,20 +147,8 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
     (async () => {
       setAvailLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      const [{ data: profile }, { data: assignments }] = await Promise.all([
-        supabase.from("consultant_profiles")
-          .select("external_occupancy_pct")
-          .eq("id", user.id)
-          .maybeSingle(),
-        supabase.from("case_assignments")
-          .select("time_commitment, case:case_id(status)")
-          .eq("consultant_id", user.id),
-      ]);
-      const externalPct = profile?.external_occupancy_pct ?? 0;
-      const activePct = (assignments ?? [])
-        .filter(a => !TERMINAL.includes(a.case?.status))
-        .reduce((sum, a) => sum + (a.time_commitment ?? 0), 0);
-      const free = Math.max(0, 100 - externalPct - activePct);
+      const { data: commitment } = await supabase.rpc("consultant_commitment", { p_ids: [user.id] });
+      const free = Math.round(Number(commitment?.[0]?.free_pct ?? 100));
       setMaxAvailable(free);
       setTerms(p => ({ ...p, time_commitment: Math.min(p.time_commitment, free || 10) }));
       setAvailLoading(false);

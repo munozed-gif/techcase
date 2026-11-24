@@ -247,7 +247,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
   if (loading) return <Spinner />;
 
   // Availability breakdown
-  const activeCaseCommitment = 0; // case_assignments removed from join; RPC provides totals
+  const activeCaseCommitment = Math.min(100, Math.round(Number(availability?.cases_pct ?? 0))); // consultant_commitment()
   const extOccupancy = profile?.external_occupancy_pct ?? 0;
   const totalUsed = Math.min(100, activeCaseCommitment + extOccupancy);
   const freeAvail = Math.max(0, 100 - totalUsed);
