@@ -1239,12 +1239,15 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   // Collapsed sections of the analysis node, remembered per browser.
   const persisted = (key, def) => { try { const v = localStorage.getItem(key); return v === null ? def : JSON.parse(v); } catch { return def; } };
   const persist = (key, setter) => v => setter(prev => { const next = typeof v === 'function' ? v(prev) : v; try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* ignore */ } return next; });
-  const [ctxCollapsed, _setCtxCollapsed]           = useState(() => persisted('genctx_ctx_collapsed', false));
-  const setCtxCollapsed = persist('genctx_ctx_collapsed', _setCtxCollapsed);
-  const [summaryCollapsed, _setSummaryCollapsed]   = useState(() => persisted('genctx_summary_collapsed', false));
-  const setSummaryCollapsed = persist('genctx_summary_collapsed', _setSummaryCollapsed);
+  // All sections of the analysis page start minimized; each remembers what the user opens.
+  const [ctxCollapsed, _setCtxCollapsed]           = useState(() => persisted('genctx2_ctx_collapsed', true));
+  const setCtxCollapsed = persist('genctx2_ctx_collapsed', _setCtxCollapsed);
+  const [summaryCollapsed, _setSummaryCollapsed]   = useState(() => persisted('genctx2_summary_collapsed', true));
+  const setSummaryCollapsed = persist('genctx2_summary_collapsed', _setSummaryCollapsed);
+  const [genCtxCollapsed, _setGenCtxCollapsed]     = useState(() => persisted('genctx2_settings_collapsed', true));
+  const setGenCtxCollapsed = persist('genctx2_settings_collapsed', _setGenCtxCollapsed);
   const [metaCollapsed, setMetaCollapsed]           = useState(() => {
-    try { return JSON.parse(localStorage.getItem('genctx_casemeta_collapsed') ?? 'false'); } catch { return false; }
+    try { return JSON.parse(localStorage.getItem('genctx2_casemeta_collapsed') ?? 'true'); } catch { return true; }
   });
   const [additionalCtx, setAdditionalCtx]           = useState('');
   const [additionalCtxSaving, setAdditionalCtxSaving] = useState(false);
@@ -6573,29 +6576,29 @@ ${result}`;
 
                   {/* Generation Context active settings */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">{t("gen.context_title") || "Generation Context"}</h4>
-                    <div className="flex flex-wrap gap-1.5">
+                    <SectionHeader Icon={SlidersHorizontal} title={t("gen.context_title") || "Generation Context"}
+                      detail={`${ctxItems.filter(i => gc[i.key]).length} / ${ctxItems.length} ${L('active', 'activos')}`}
+                      open={!genCtxCollapsed} onToggle={() => setGenCtxCollapsed(v => !v)} />
+                    {!genCtxCollapsed && <div className="flex flex-wrap gap-1.5 mt-3">
                       {ctxItems.map(({ key, label }) => (
                         <span key={key} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${gc[key] ? 'bg-indigo-50 border-indigo-100 text-indigo-700' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
                           {gc[key] ? <Check size={9} className="text-indigo-500" /> : <X size={9} />}
                           {label}
                         </span>
                       ))}
-                    </div>
+                    </div>}
                   </div>
 
                   {/* Case metadata — collapsible */}
                   <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <button
-                      onClick={() => {
-                        const next = !metaCollapsed;
-                        setMetaCollapsed(next);
-                        try { localStorage.setItem('genctx_casemeta_collapsed', JSON.stringify(next)); } catch {}
-                      }}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Case Metadata</h4>
-                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${metaCollapsed ? '' : 'rotate-180'}`} />
-                    </button>
+                    <div className="p-4">
+                      <SectionHeader Icon={FileText} title={L('Case metadata', 'Datos del caso')}
+                        open={!metaCollapsed} onToggle={() => {
+                          const next = !metaCollapsed;
+                          setMetaCollapsed(next);
+                          try { localStorage.setItem('genctx2_casemeta_collapsed', JSON.stringify(next)); } catch {}
+                        }} />
+                    </div>
                     {!metaCollapsed && (
                       <div className="px-4 pb-4 border-t border-gray-100">
                         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-3">
@@ -6624,6 +6627,11 @@ ${result}`;
                   <RequirementsChecklist requirements={requirements} onChange={saveRequirements}
                     onExtract={() => handleExtractRequirements()} loading={reqLoading === 'extract'} error={reqError}
                     canEdit={canEditReqs()} state={analysisState('requirements')} L={L} lang={lang} who={auth.user?.id ?? null} />
+                  {/* Questions for the customer (also its own node) */}
+                  <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
+                      loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
+                      who={{ id: auth.user?.id ?? null, name: auth.profile?.full_name ?? null }} links={qLinks}
+                      onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
                   {/* AI Request Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className={summaryCollapsed ? '' : 'mb-2'}>

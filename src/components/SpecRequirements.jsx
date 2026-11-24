@@ -14,7 +14,7 @@ export function usePersistedOpen(key, def = true) {
 }
 
 export function RequirementsChecklist({ requirements, onChange, onExtract, loading, error, canEdit, state, L, lang, who }) {
-  const [open, setOpen] = usePersistedOpen('genctx_reqs_open');
+  const [open, setOpen] = usePersistedOpen('genctx2_reqs_open', false);
   const [reasonFor, setReasonFor] = useState(null);
   const [reason, setReason] = useState('');
   const list = requirements ?? [];

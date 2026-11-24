@@ -12,7 +12,7 @@ const STATUS_CLS = {
 };
 
 export function QuestionsPanel({ questions, onChange, onExtract, loading, error, canEdit, state, L, lang, who, links, onSendLink, onCopyLink, onRevokeLink, copiedId }) {
-  const [open, setOpen] = usePersistedOpen('genctx_questions_open');
+  const [open, setOpen] = usePersistedOpen('genctx2_questions_open', false);
   const [answerFor, setAnswerFor] = useState(null);
   const [answer, setAnswer] = useState('');
   const list = questions ?? [];
