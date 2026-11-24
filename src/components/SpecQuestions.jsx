@@ -2,7 +2,7 @@
 // consultants, answered by the customer on /questions/:token or recorded by hand.
 import { useState } from "react";
 import { HelpCircle, RefreshCw, Plus, Send, Copy, Check, Ban, Undo2, ChevronDown } from "lucide-react";
-import { usePersistedOpen } from "./SpecRequirements.jsx";
+import { usePersistedOpen, SectionHeader } from "./SpecRequirements.jsx";
 import { Q_KINDS, Q_KIND_LABEL, liveQuestions, openQuestions } from "../lib/questions.js";
 
 const kindName = (k, lang) => (Q_KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
@@ -21,32 +21,17 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
   const statusTxt = s => ({ open: L('Open', 'Abierta'), answered: L('Answered', 'Respondida'), acknowledged: L('Assumption accepted', 'Supuesto aceptado'), discarded: L('Discarded', 'Descartada') })[s] ?? s;
   const nextId = () => `Q-${String(Math.max(0, ...list.map(q => Number(String(q.id).replace(/\D/g, '')) || 0)) + 1).padStart(2, '0')}`;
   const nOpen = openQuestions(list).length;
-  const stateCls = state === 'fresh' ? 'text-emerald-700' : state === 'outdated' ? 'text-amber-700' : 'text-gray-400';
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <button onClick={() => setOpen(o => !o)} className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-          <HelpCircle size={14} />{L('Questions for the customer', 'Preguntas para el cliente')}
-          {liveQuestions(list).length > 0 && <span className="normal-case font-normal text-gray-400">· {nOpen} {L('open', 'abiertas')} / {liveQuestions(list).length}</span>}
-          <span className={`normal-case font-semibold ${stateCls}`}>· {state === 'fresh' ? L('current', 'al día') : state === 'outdated' ? L('outdated', 'desactualizado') : L('not run', 'sin ejecutar')}</span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-        </button>
-        <div className="flex gap-2">
-          {canEdit && nOpen > 0 && (
-            <button onClick={onSendLink} className="px-3 py-1 text-xs font-semibold bg-[#1A4B8C] text-white rounded-lg hover:bg-blue-900 flex items-center gap-1">
-              <Send size={12} />{L('Send to customer', 'Enviar al cliente')}
-            </button>
-          )}
-          {canEdit && (
-            <button onClick={onExtract} disabled={loading}
-              className="px-3 py-1 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700 flex items-center gap-1 disabled:opacity-50">
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-              {loading ? L('Looking for questions…', 'Buscando preguntas…') : list.length ? L('Look again', 'Buscar de nuevo') : L('Find questions', 'Buscar preguntas')}
-            </button>
-          )}
-        </div>
-      </div>
+      <SectionHeader Icon={HelpCircle} title={L('Questions for the customer', 'Preguntas para el cliente')}
+        detail={liveQuestions(list).length ? `${nOpen} ${L('open', 'abiertas')} / ${liveQuestions(list).length}` : null}
+        pill={loading ? L('Looking…', 'Buscando…') : state === 'fresh' ? L('Current', 'Al día') : state === 'outdated' ? L('Outdated', 'Desactualizado') : L('Not run', 'Sin ejecutar')} pillTone={loading ? 'running' : state === 'fresh' ? 'ok' : state === 'outdated' ? 'warn' : 'muted'}
+        open={open} onToggle={() => setOpen(o => !o)}
+        actions={[
+          canEdit && nOpen > 0 && { Icon: Send, title: L('Send the open questions to the customer (copies the link)', 'Enviar las preguntas abiertas al cliente (copia el enlace)'), onClick: onSendLink },
+          canEdit && { Icon: RefreshCw, title: list.length ? L('Look for questions again', 'Buscar preguntas de nuevo') : L('Find questions', 'Buscar preguntas'), onClick: onExtract, loading, primary: true },
+        ]} />
       {error && <p className="text-xs text-red-500">{error}</p>}
       {(links ?? []).length > 0 && (
         <div className="space-y-1">

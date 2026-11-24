@@ -4,7 +4,7 @@ import { diffSpecs, KIND_LABEL } from "../lib/specDiff.js";
 import { applySpecHours, replaceEstimateSection, countMatrixScenarios, readObjects, computeEstimate } from "../lib/specHours.js";
 import { activeRules, rulesPromptBlock, checkRules } from "../lib/projectRules.js";
 import { normalizeRequirements, parseJsonArray, requirementsPromptBlock, coverageStats, inScope, textHash } from "../lib/requirements.js";
-import { RequirementsChecklist, CoveragePanel } from "./SpecRequirements.jsx";
+import { RequirementsChecklist, CoveragePanel, SectionHeader } from "./SpecRequirements.jsx";
 import { runCaseChecks, blockingIssues } from "../lib/caseChecks.js";
 import { CaseChecksPanel } from "./CaseChecksPanel.jsx";
 import { normalizeQuestions, questionsPromptBlock, openQuestions, mergeLinkAnswers } from "../lib/questions.js";
@@ -6597,23 +6597,13 @@ ${result}`;
                     onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
                   {/* AI Request Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <div className={`flex items-center justify-between gap-2 ${summaryCollapsed ? '' : 'mb-2'}`}>
-                      <button onClick={() => setSummaryCollapsed(v => !v)} className="flex items-center gap-2 flex-1 text-left min-w-0">
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Request Summary</h4>
-                        {requestSummary && !requestSummaryLoading && summaryCollapsed && (
-                          <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 rounded-full px-1.5 py-0.5">{L('Ready', 'Listo')}</span>
-                        )}
-                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ml-auto ${summaryCollapsed ? '' : 'rotate-180'}`} />
-                      </button>
-                      {!requestSummaryLoading && (
-                        <button onClick={() => handleAnalyzeRequest()}
-                          disabled={specApproved && !auth.isAdmin}
-                          title={specApproved && !auth.isAdmin ? 'Spec is approved — analysis is locked' : undefined}
-                          className="px-3 py-1 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700 flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
-                          <Sparkles className="w-3 h-3" />
-                          {requestSummary ? 'Re-analyze' : 'Analyze'}
-                        </button>
-                      )}
+                    <div className={summaryCollapsed ? '' : 'mb-2'}>
+                      <SectionHeader Icon={FileText} title={L('Request summary', 'Resumen de la solicitud')}
+                        pill={requestSummaryLoading ? L('Analyzing…', 'Analizando…') : requestSummary ? L('Ready', 'Listo') : L('Not run', 'Sin ejecutar')}
+                        pillTone={requestSummaryLoading ? 'running' : requestSummary ? 'ok' : 'muted'}
+                        open={!summaryCollapsed} onToggle={() => setSummaryCollapsed(v => !v)}
+                        actions={[{ Icon: requestSummary ? RefreshCw : Sparkles, title: requestSummary ? L('Analyze again', 'Volver a analizar') : L('Analyze', 'Analizar'),
+                          onClick: () => handleAnalyzeRequest(), loading: requestSummaryLoading, disabled: specApproved && !auth.isAdmin, primary: true }]} />
                     </div>
                     {requestSummaryLoading && (
                       <StepRunning button={L('Analyzing…', 'Analizando…')}
@@ -6636,26 +6626,14 @@ ${result}`;
 
                   {/* Compiled context — collapsible */}
                   <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <button
-                      onClick={() => setCtxCollapsed(v => !v)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Compiled AI Context</h4>
-                        {compiledCtxLoading && <Spinner />}
-                        {compiledCtxPreview && !compiledCtxLoading && (
-                          <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 rounded-full px-1.5 py-0.5">Ready</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {compiledCtxPreview && !compiledCtxLoading && (
-                          <button onClick={e => { e.stopPropagation(); handleBuildCtx(); }}
-                            className="text-[10px] font-semibold text-gray-400 border border-gray-200 rounded-lg px-2 py-0.5 hover:bg-gray-50">
-                            Refresh
-                          </button>
-                        )}
-                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${ctxCollapsed ? '' : 'rotate-180'}`} />
-                      </div>
-                    </button>
+                    <div className="p-4">
+                      <SectionHeader Icon={Code2} title={L('Compiled AI context', 'Contexto compilado para la IA')}
+                        pill={compiledCtxLoading ? L('Loading…', 'Cargando…') : compiledCtxPreview ? L('Ready', 'Listo') : L('Not loaded', 'Sin cargar')}
+                        pillTone={compiledCtxLoading ? 'running' : compiledCtxPreview ? 'ok' : 'muted'}
+                        open={!ctxCollapsed} onToggle={() => setCtxCollapsed(v => !v)}
+                        actions={[{ Icon: RefreshCw, title: compiledCtxPreview ? L('Refresh the context', 'Actualizar el contexto') : L('Load the context', 'Cargar el contexto'),
+                          onClick: () => handleBuildCtx(), loading: compiledCtxLoading, primary: true }]} />
+                    </div>
                     {!ctxCollapsed && (
                       <div className="px-4 pb-4 space-y-2 border-t border-gray-100">
                         {compiledCtxLoading && (

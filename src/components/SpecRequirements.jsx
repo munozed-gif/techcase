@@ -23,24 +23,13 @@ export function RequirementsChecklist({ requirements, onChange, onExtract, loadi
     const n = Math.max(0, ...list.map(r => Number(String(r.id).replace(/\D/g, '')) || 0)) + 1;
     return `REQ-${String(n).padStart(2, '0')}`;
   };
-  const stateCls = state === 'fresh' ? 'text-emerald-700' : state === 'outdated' ? 'text-amber-700' : 'text-gray-400';
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <button onClick={() => setOpen(o => !o)} className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-          <ListChecks size={14} />{L('Requirements checklist', 'Checklist de requerimientos')}
-          {list.length > 0 && <span className="normal-case font-normal text-gray-400">· {inScope(list).length} {L('in scope', 'en alcance')}</span>}
-          <span className={`normal-case font-semibold ${stateCls}`}>· {state === 'fresh' ? L('current', 'al día') : state === 'outdated' ? L('outdated', 'desactualizado') : L('not run', 'sin ejecutar')}</span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-        </button>
-        {canEdit && (
-          <button onClick={onExtract} disabled={loading}
-            className="px-3 py-1 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700 flex items-center gap-1 disabled:opacity-50">
-            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-            {loading ? L('Extracting…', 'Extrayendo…') : list.length ? L('Extract again', 'Extraer de nuevo') : L('Extract requirements', 'Extraer requerimientos')}
-          </button>
-        )}
-      </div>
+      <SectionHeader Icon={ListChecks} title={L('Requirements checklist', 'Checklist de requerimientos')}
+        detail={list.length ? `${inScope(list).length} ${L('in scope', 'en alcance')}` : null}
+        pill={loading ? L('Extracting…', 'Extrayendo…') : state === 'fresh' ? L('Current', 'Al día') : state === 'outdated' ? L('Outdated', 'Desactualizado') : L('Not run', 'Sin ejecutar')} pillTone={loading ? 'running' : state === 'fresh' ? 'ok' : state === 'outdated' ? 'warn' : 'muted'}
+        open={open} onToggle={() => setOpen(o => !o)}
+        actions={[canEdit && { Icon: RefreshCw, title: list.length ? L('Extract again', 'Extraer de nuevo') : L('Extract requirements', 'Extraer requerimientos'), onClick: onExtract, loading, primary: true }]} />
       {error && <p className="text-xs text-red-500">{error}</p>}
       {open && (
         <>
@@ -184,6 +173,42 @@ export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccep
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// One header style for the analysis sections (summary, checklist, questions, compiled context):
+// icon · TITLE · detail · status pill … icon actions · chevron.
+const PILL = {
+  ok:      'bg-emerald-50 text-emerald-700 border-emerald-100',
+  warn:    'bg-amber-50 text-amber-700 border-amber-100',
+  muted:   'bg-gray-50 text-gray-500 border-gray-200',
+  running: 'bg-blue-50 text-blue-600 border-blue-100',
+};
+export function SectionHeader({ Icon, title, detail, pill, pillTone = 'ok', open, onToggle, actions = [] }) {
+  return (
+    <div className="flex items-center gap-2">
+      <button onClick={onToggle} className="flex items-start gap-2 flex-1 min-w-0 text-left">
+        {Icon && <Icon size={14} className="text-gray-400 flex-shrink-0 mt-0.5" />}
+        <span className="min-w-0">
+          <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide leading-snug">{title}</span>
+          {(detail || pill) && (
+            <span className="mt-1 flex flex-wrap items-center gap-1.5">
+              {pill && <span className={`text-[10px] font-semibold border rounded-full px-1.5 py-0.5 whitespace-nowrap ${PILL[pillTone] ?? PILL.ok}`}>{pill}</span>}
+              {detail && <span className="text-[11px] text-gray-400 whitespace-nowrap">{detail}</span>}
+            </span>
+          )}
+        </span>
+      </button>
+      {actions.filter(Boolean).map(a => (
+        <button key={a.title} onClick={a.onClick} disabled={a.disabled || a.loading} title={a.title} aria-label={a.title}
+          className={`flex-shrink-0 p-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${a.primary ? 'border-violet-200 text-violet-600 hover:bg-violet-50' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+          <a.Icon size={13} className={a.loading ? 'animate-spin' : ''} />
+        </button>
+      ))}
+      <button onClick={onToggle} title={open ? 'Ocultar' : 'Mostrar'} className="flex-shrink-0 p-1 text-gray-400">
+        <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
     </div>
   );
 }
