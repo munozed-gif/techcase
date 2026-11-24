@@ -5,6 +5,8 @@ import { applySpecHours, replaceEstimateSection, countMatrixScenarios, readObjec
 import { activeRules, rulesPromptBlock, checkRules } from "../lib/projectRules.js";
 import { normalizeRequirements, parseJsonArray, requirementsPromptBlock, coverageStats, inScope, textHash } from "../lib/requirements.js";
 import { RequirementsChecklist, CoveragePanel } from "./SpecRequirements.jsx";
+import { runCaseChecks, blockingIssues } from "../lib/caseChecks.js";
+import { CaseChecksPanel } from "./CaseChecksPanel.jsx";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
   Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Laptop, Link2, ListChecks, Paperclip, Pause, Play,
@@ -1177,6 +1179,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [reqCoverage, setReqCoverage] = useState({});      // notes.reqCoverage: { [specKey]: { at, specHash, items, accepted } }
   const [reqLoading, setReqLoading] = useState(null);      // 'extract' | 'check' | 'fix' | null
   const [reqError, setReqError] = useState(null);
+  const [caseChecks, setCaseChecks] = useState(null);       // issues of src/lib/caseChecks.js (notes.caseChecks)
+  const [checksResolved, setChecksResolved] = useState({});
+  const [checksLoading, setChecksLoading] = useState(false);
   const genGateOverrideRef = useRef(false);
   // Latest AI notes of the spec (kept across quick consecutive saves).
   const notesRef = useRef(null);
@@ -1416,6 +1421,55 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     return `${(h >>> 0).toString(36)}`;
   })();
   const REQUIREMENTS_STEP = true;
+  // ── Case checks before Analyze (src/lib/caseChecks.js) ──────
+  const checksKey = `${inputDocsHash}|${caseData.project_id ?? ''}`;
+  async function runCaseChecksNow() {
+    setChecksLoading(true);
+    try {
+      const docs = (documents ?? []).filter(d => !isGeneratedDoc(d));
+      const [proj, sib] = await Promise.all([
+        caseData.project_id ? supabase.from('projects').select('id, name, customer_id, client_id').eq('id', caseData.project_id).maybeSingle() : Promise.resolve({ data: null }),
+        caseData.project_id ? supabase.from('cases').select('id, title, case_ref, status').eq('project_id', caseData.project_id).neq('id', caseData.id) : Promise.resolve({ data: [] }),
+      ]);
+      const heads = {};
+      await Promise.all(docs.filter(d => /\.(docx?|pdf|xlsx?|txt|md|csv)$/i.test(d.file_name ?? '')).map(async d => {
+        try {
+          const r = await fetch('/api/extract-text', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: d.file_url, fileName: d.file_name, maxChars: 3000 }) });
+          const j = await r.json();
+          heads[d.id] = { text: j.text ?? '', total: j.total_chars ?? (j.text ?? '').length, error: j.error ?? null };
+        } catch (e) { heads[d.id] = { text: '', total: 0, error: e.message }; }
+      }));
+      const issues = runCaseChecks({ caseData, documents: docs, project: proj.data, siblings: sib.data ?? [], heads, cutAt: DOC_CHARS_PER_FILE });
+      setCaseChecks(issues);
+      const resolved = notesRef.current?.caseChecks?.resolved ?? checksResolved;
+      try { await saveAiNotesPatch({ caseChecks: { at: new Date().toISOString(), key: checksKey, issues, resolved } }); } catch (_) {}
+      return issues;
+    } finally { setChecksLoading(false); }
+  }
+  useEffect(() => {
+    if (specLoading) return;
+    const stored = notesRef.current?.caseChecks;
+    if (stored?.resolved) setChecksResolved(stored.resolved);
+    if (stored?.key === checksKey && Array.isArray(stored.issues)) { setCaseChecks(stored.issues); return; }
+    runCaseChecksNow().catch(() => {});
+  }, [specLoading, checksKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function setCheckResolved(key, reason) {
+    const next = { ...checksResolved };
+    if (reason) next[key] = { reason, by: auth.user?.id ?? null, name: auth.profile?.full_name ?? null, at: new Date().toISOString() }; else delete next[key];
+    setChecksResolved(next);
+    try { await saveAiNotesPatch({ caseChecks: { ...(notesRef.current?.caseChecks ?? {}), issues: caseChecks, resolved: next } }); } catch (_) {}
+  }
+  async function analyzeAllowed() {
+    const issues = caseChecks ?? await runCaseChecksNow();
+    const b = blockingIssues(issues, checksResolved);
+    if (b.length) {
+      setRequestSummaryError(L(`Resolve the case checks before analyzing (${b.length} blocking).`, `Resuelva la revisión del caso antes de analizar (${b.length} bloqueantes).`));
+      setActiveNode(6);
+      return false;
+    }
+    return true;
+  }
   const ANALYSIS_ORDER = ['summary', 'coverage', 'validation', 'requirements'];
   const analysisStepOn = step => step === 'coverage' ? isSgNodeEnabled('sap_verification')
     : step === 'validation' ? isSgNodeEnabled('proposal_validation')
@@ -6107,6 +6161,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
               async function handleAnalyzeRequest() {
                 let analyzeResult = null;
+                if (!(await analyzeAllowed())) return null;
                 setRequestSummaryLoading(true);
                 setRequestSummaryError(null);
                 try {
@@ -6293,6 +6348,16 @@ ${result}`;
                     )}
                   </div>
 
+                  <CaseChecksPanel issues={caseChecks} resolved={checksResolved} loading={checksLoading} L={L}
+                    canEdit={!specApproved && (auth.isAdmin || isCaseOwner)} needsProject={!caseData.project_id}
+                    onRecheck={() => runCaseChecksNow()} onResolve={setCheckResolved} onUnresolve={k => setCheckResolved(k, null)}
+                    onRemoveDoc={deleteDocument ? async (i) => {
+                      const doc = (documents ?? []).find(d => i.key.endsWith(d.id));
+                      if (!doc || !window.confirm(L(`Remove "${doc.file_name}" from this case?`, `¿Quitar "${doc.file_name}" de este caso?`))) return;
+                      await deleteDocument(doc.id, doc.file_url);
+                      if (refetchDocuments) await refetchDocuments();
+                    } : null}
+                    onLinkProject={async (pid) => { await onUpdate?.(caseData.id, { project_id: pid }); }} />
                   {analysisStrip()}
                   <RequirementsChecklist requirements={requirements} onChange={saveRequirements}
                     onExtract={() => handleExtractRequirements()} loading={reqLoading === 'extract'} error={reqError}
