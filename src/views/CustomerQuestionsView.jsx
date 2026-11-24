@@ -1,7 +1,7 @@
 // /questions/:token — the customer answers the open questions of a case without logging in
 // (spec_questions_by_token / spec_questions_answer). Answers can be saved as a draft and sent once.
 import { useState, useEffect, useRef } from "react";
-import { AlertCircle, CheckCircle2, Clock, Loader2, Send, Save, HelpCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Loader2, Send, Save, HelpCircle, ChevronLeft } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { NovaLandingMark } from "./LandingView.jsx";
 
@@ -27,10 +27,13 @@ const T = {
     expires: d => `Enlace válido por ${d} día${d === 1 ? '' : 's'} más`, from: 'Enviado por', project: 'Proyecto', answered: (a, n) => `${a} de ${n} respondidas`,
   },
 };
-const BG = { minHeight: '100dvh', background: '#0B0F1A', color: '#fff' };
+const BG_PAGE = { minHeight: '100dvh', background: '#0B0F1A', color: '#fff' };
+const BG_EMBED = { background: '#0B0F1A', color: '#fff', borderRadius: 16, overflow: 'hidden' };
 const KIND_CLS = { contradiction: 'bg-red-900/40 text-red-300 border-red-700/40', ambiguity: 'bg-amber-900/40 text-amber-300 border-amber-700/40', missing: 'bg-blue-900/40 text-blue-300 border-blue-700/40' };
 
-export default function CustomerQuestionsView({ token }) {
+// embedded: shown inside the app (My reviews) for a signed-in customer user — no page header, a
+// back button, and the user's name pre-filled.
+export default function CustomerQuestionsView({ token, embedded = false, defaultName = '', onBack, onSent }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [answers, setAnswers] = useState({});
@@ -46,7 +49,7 @@ export default function CustomerQuestionsView({ token }) {
       if (e || !d || d.expired) { setError(true); return; }
       setData(d);
       setAnswers(Object.fromEntries(Object.entries(d.answers ?? {}).map(([k, v]) => [k, v?.answer ?? ''])));
-      setName(d.customer_name ?? '');
+      setName(d.customer_name || defaultName || '');
       if (d.status === 'answered') setDone(true);
       loaded.current = true;
     });
@@ -59,6 +62,10 @@ export default function CustomerQuestionsView({ token }) {
     return T[nav] ? nav : 'es';
   })();
   const L = T[lang];
+  const BG = embedded ? { ...BG_EMBED, minHeight: 320 } : BG_PAGE;
+  const back = embedded && onBack ? (
+    <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-gray-300 hover:text-white px-4 pt-4"><ChevronLeft size={16} />{lang === 'es' ? 'Volver' : 'Back'}</button>
+  ) : null;
   const qs = data?.questions ?? [];
   const nAnswered = qs.filter(q => answers[q.id]?.trim()).length;
   const payload = () => Object.fromEntries(qs.map(q => [q.id, { answer: answers[q.id] ?? '' }]));
@@ -74,11 +81,11 @@ export default function CustomerQuestionsView({ token }) {
     const { error: e } = await supabase.rpc('spec_questions_answer', { p_token: token, p_answers: payload(), p_name: name || null, p_email: email || null, p_final: final });
     setBusy(null);
     if (e) { setMsg({ err: true, text: e.message }); return; }
-    if (final) setDone(true); else { setMsg({ err: false, text: L.saved }); setTimeout(() => setMsg(null), 2500); }
+    if (final) { setDone(true); onSent?.(); } else { setMsg({ err: false, text: L.saved }); setTimeout(() => setMsg(null), 2500); }
   }
 
   if (error) return (
-    <div style={BG} className="flex items-center justify-center px-6">
+    <div style={BG} className="flex flex-col items-center justify-center px-6">{back}
       <div className="text-center max-w-sm">
         <div className="w-14 h-14 rounded-2xl bg-red-900/40 border border-red-700/40 flex items-center justify-center mx-auto mb-4"><AlertCircle size={24} className="text-red-400" /></div>
         <h2 className="text-white text-lg font-bold mb-2">{L.notFound}</h2>
@@ -89,7 +96,7 @@ export default function CustomerQuestionsView({ token }) {
   );
   if (!data) return <div style={BG} className="flex items-center justify-center"><Loader2 className="animate-spin text-gray-400" /></div>;
   if (done) return (
-    <div style={BG} className="flex items-center justify-center px-6">
+    <div style={BG} className="flex flex-col items-center justify-center px-6 py-10">{back}
       <div className="text-center max-w-sm">
         <div className="w-16 h-16 rounded-2xl bg-green-900/40 border border-green-700/40 flex items-center justify-center mx-auto mb-4"><CheckCircle2 size={28} className="text-green-400" /></div>
         <h2 className="text-white text-xl font-bold mb-2">{L.doneTitle}</h2>
@@ -102,14 +109,15 @@ export default function CustomerQuestionsView({ token }) {
   const brand = data.platform?.name || 'Arena Solution Platform';
   return (
     <div style={BG}>
-      <header style={{ borderBottom: '1px solid rgba(79,110,247,.2)', background: 'rgba(11,15,26,.97)', position: 'sticky', top: 0, zIndex: 20 }} className="px-4 py-3 flex items-center gap-3">
+      {back}
+      {!embedded && <header style={{ borderBottom: '1px solid rgba(79,110,247,.2)', background: 'rgba(11,15,26,.97)', position: 'sticky', top: 0, zIndex: 20 }} className="px-4 py-3 flex items-center gap-3">
         <NovaLandingMark size={30} />
         <span className="font-bold text-sm text-[#4F6EF7] truncate">{brand}</span>
         <div className="flex-1 text-right min-w-0">
           <p className="text-gray-400 text-xs">{L.title}</p>
           <p className="text-white text-sm font-semibold truncate">{data.case_title}</p>
         </div>
-      </header>
+      </header>}
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-4">
         <div className="space-y-2">
           <h1 className="text-xl font-bold flex items-center gap-2"><HelpCircle size={20} className="text-[#4F6EF7]" />{L.title}</h1>

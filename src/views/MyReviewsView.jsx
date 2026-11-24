@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
+import CustomerQuestionsView from "./CustomerQuestionsView.jsx";
+import { HelpCircle, ChevronRight } from "lucide-react";
 
 const OBJECT_TYPE_LABEL = {
   function_module: "Function Module", report: "Report", class: "Class",
@@ -195,9 +197,15 @@ export default function MyReviewsView({ auth }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState({});
   const [lastRefresh, setLastRefresh] = useState(null);
+  // Questions about the customer's requirements, answered here or through the e-mailed link.
+  const [questions, setQuestions] = useState([]);
+  const [openQ, setOpenQ] = useState(null);
+  const { lang } = useT();
+  const Lq = (en, es) => (lang === 'es' ? es : en);
 
   const load = useCallback(async () => {
     setLoading(true);
+    supabase.rpc("my_customer_questions").then(({ data }) => setQuestions(Array.isArray(data) ? data : []));
     const userEmail = auth.profile?.email ?? auth.user?.email ?? '';
     const { data } = await supabase
       .from("approval_requests")
@@ -236,6 +244,15 @@ export default function MyReviewsView({ auth }) {
   const pending  = requests.filter(r => (r.approval_request_objects ?? []).some(o => !o.decision));
   const complete = requests.filter(r => (r.approval_request_objects ?? []).length > 0 && (r.approval_request_objects ?? []).every(o => !!o.decision));
 
+  if (openQ) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <CustomerQuestionsView token={openQ.token} embedded defaultName={auth.profile?.full_name ?? ""}
+          onBack={() => { setOpenQ(null); load(); }} onSent={() => load()} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
@@ -257,6 +274,28 @@ export default function MyReviewsView({ auth }) {
           {t("reviews.refresh")}
         </button>
       </div>
+
+      {questions.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2"><HelpCircle size={15} className="text-blue-500" />{Lq('Questions about your requirements', 'Preguntas sobre sus requerimientos')}</h2>
+          {questions.map(q => (
+            <button key={q.id} onClick={() => setOpenQ(q)}
+              className="w-full text-left bg-white border border-gray-200 hover:border-blue-300 rounded-2xl p-4 flex items-center gap-3 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0"><HelpCircle size={17} /></div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-gray-900 text-sm truncate">{q.case_title}</div>
+                <div className="text-xs text-gray-500 flex flex-wrap gap-x-2">
+                  {q.project && <span>{q.project}</span>}
+                  <span>{q.answered}/{q.questions} {Lq('answered', 'respondidas')}</span>
+                  {q.created_by_name && <span>{Lq('from', 'de')} {q.created_by_name}</span>}
+                  <span>{Lq('until', 'hasta')} {new Date(q.expires_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
+            </button>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-16">

@@ -1763,6 +1763,7 @@ Respond with ONLY a JSON array (empty if there is nothing to ask), no markdown f
       }).select().single();
       if (error) throw error;
       await copyQuestionsLink(data);
+      supabase.rpc('spec_questions_notify', { p_link: data.id }).then(() => {}, () => {});   // in-app notice to the customer users
       await loadQuestionLinks();
     } catch (e) { setQError(e.message); }
   }
@@ -5567,7 +5568,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 }}
               />
 
-              {/* Node 6: Compiled Context — turns green when analysis results exist */}
+              {/* Node 6: Compiled Context — the analysis, with its checks as sub-items (like the specs under Generate) */}
               <NodeBtn id={6} icon={Code2}
                 title={t("spec.compiled_ctx_lbl") || "Compiled Context"}
                 sub={requestSummaryLoading ? (t("spec.checking") || "Analyzing…") : requestSummary ? (t("spec.compiled_ctx_ready") || "Analysis ready") : (t("spec.compiled_ctx_sub") || "Assembled prompt context")}
@@ -5575,31 +5576,48 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 isActive={activeNode===6}
                 canClick={true}
                 onClick={() => setActiveNode(6)}
-              />
-
-              {/* Node 1: SAP Verification */}
-              <div className={isSgNodeEnabled("sap_verification") ? "" : "opacity-40"}>
-              <NodeBtn id={1} icon={CheckCircle2}
-                title={getSgNodeLabel("sap_verification", t("spec.ai_step1_h"))}
-                sub={!isSgNodeEnabled("sap_verification") ? L("Disabled by template", "Desactivado por la plantilla") : sapCheck ? ({ full: L("Full coverage", "Cobertura total"), partial: L("Partial coverage", "Cobertura parcial"), none: L("No standard coverage", "Sin cobertura estándar") }[sapCheck.coverage] ?? sapCheck.coverage) : sapStatus==='running' ? t("spec.checking") : sapStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
-                status={!isSgNodeEnabled("sap_verification") ? "skipped" : sapStatus}
-                isActive={activeNode===1}
-                canClick={isSgNodeEnabled("sap_verification")}
-                onClick={() => { if (isSgNodeEnabled("sap_verification")) setActiveNode(1); }}
-              />
-              </div>
-
-              {/* Node 2: Proposal Validation */}
-              <div className={isSgNodeEnabled("proposal_validation") ? "" : "opacity-40"}>
-              <NodeBtn id={2} icon={Target}
-                title={getSgNodeLabel("proposal_validation", t("spec.ai_step2_h"))}
-                sub={!isSgNodeEnabled("proposal_validation") ? L("Disabled by template", "Desactivado por la plantilla") : proposalCheck ? `${L("Score", "Puntuación")} ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? t("spec.locked") : propStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
-                status={!isSgNodeEnabled("proposal_validation") ? "skipped" : propStatus}
-                isActive={activeNode===2}
-                canClick={isSgNodeEnabled("proposal_validation") && propStatus !== 'locked'}
-                onClick={() => { if (isSgNodeEnabled("proposal_validation") && propStatus !== 'locked') setActiveNode(2); }}
-              />
-              </div>
+              >
+                {(() => {
+                  const openQ = openQuestions(questions).length;
+                  const subs = [
+                    isSgNodeEnabled("sap_verification") && {
+                      node: 1, label: getSgNodeLabel("sap_verification", L('Standard coverage', 'Cobertura estándar')), dot: 'bg-emerald-500',
+                      state: sapStatus === 'running' ? 'running' : sapCheck ? (analysisState('coverage') === 'outdated' ? 'outdated' : 'done') : 'pending',
+                      hint: sapCheck ? ({ full: L('Full', 'Total'), partial: L('Partial', 'Parcial'), none: L('None', 'Ninguna') }[sapCheck.coverage] ?? '') : '',
+                    },
+                    isSgNodeEnabled("proposal_validation") && {
+                      node: 2, label: getSgNodeLabel("proposal_validation", L('Proposal validation', 'Validación de la propuesta')), dot: 'bg-amber-500',
+                      state: propStatus === 'running' ? 'running' : proposalCheck ? (analysisState('validation') === 'outdated' ? 'outdated' : 'done') : propStatus === 'locked' ? 'locked' : 'pending',
+                      hint: proposalCheck ? `${proposalCheck.score}/10` : '',
+                    },
+                    {
+                      node: 7, label: L('Customer questions', 'Preguntas al cliente'), dot: 'bg-blue-500',
+                      state: qLoading ? 'running' : !questions.length ? 'pending' : openQ ? 'open' : 'done',
+                      hint: questions.length ? (openQ ? `${openQ} ${L('open', 'abiertas')}` : L('answered', 'respondidas')) : '',
+                    },
+                  ].filter(Boolean);
+                  return (
+                    <div className="ml-8 mt-1 space-y-1 relative z-10">
+                      {subs.map(x => {
+                        const cls = x.state === 'done' ? 'bg-green-50 border-green-200 text-green-700'
+                          : x.state === 'outdated' || x.state === 'open' ? 'bg-amber-50 border-amber-200 text-amber-700'
+                          : x.state === 'running' ? 'bg-blue-50 border-blue-200 text-blue-700'
+                          : 'bg-gray-50 border-gray-100 text-gray-400';
+                        return (
+                          <button key={x.node} disabled={x.state === 'locked'} onClick={() => setActiveNode(x.node)}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all disabled:opacity-50 ${cls} ${activeNode === x.node ? 'ring-2 ring-blue-300' : ''}`}>
+                            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${x.dot}`} />
+                            <span className="truncate font-medium">{x.label}</span>
+                            {x.state === 'running' ? <RefreshCw size={10} className="ml-auto animate-spin flex-shrink-0" />
+                              : x.hint ? <span className="ml-auto text-[10px] flex-shrink-0">{x.hint}</span>
+                              : x.state === 'done' ? <Check size={10} className="text-green-600 ml-auto flex-shrink-0" /> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </NodeBtn>
 
               {/* Node 3: Generate Specification + sub-nodes */}
               <NodeBtn id={3} icon={Sparkles}
@@ -6591,10 +6609,6 @@ ${result}`;
                   <RequirementsChecklist requirements={requirements} onChange={saveRequirements}
                     onExtract={() => handleExtractRequirements()} loading={reqLoading === 'extract'} error={reqError}
                     canEdit={canEditReqs()} state={analysisState('requirements')} L={L} lang={lang} who={auth.user?.id ?? null} />
-                  <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
-                    loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
-                    who={{ id: auth.user?.id ?? null, name: auth.profile?.full_name ?? null }} links={qLinks}
-                    onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
                   {/* AI Request Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className={summaryCollapsed ? '' : 'mb-2'}>
@@ -6763,6 +6777,22 @@ ${result}`;
                 </div>
               );
             })()}
+
+            {/* ── Node 7: Questions for the customer (sub-item of the analysis) ── */}
+            {activeNode === 7 && (
+              <div className="space-y-4">
+                {analysisStrip()}
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-600 space-y-1">
+                  <div className="text-sm font-semibold text-gray-800">{L('Questions for the customer', 'Preguntas para el cliente')}</div>
+                  <p>{L('Contradictions, ambiguities and missing information found in the documents. Send the open ones to the customer: they get a link to answer without logging in, and the customer users of the case also see them in the app, in My reviews. Answers come back here automatically and are used when generating; open questions become stated assumptions in the spec.',
+                        'Contradicciones, ambigüedades e información faltante encontradas en los documentos. Envíe las abiertas al cliente: recibe un enlace para responder sin iniciar sesión, y los usuarios del cliente en el caso también las ven en la aplicación, en Mis revisiones. Las respuestas vuelven aquí solas y se usan al generar; las preguntas abiertas quedan como supuestos en la spec.')}</p>
+                </div>
+                  <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
+                    loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
+                    who={{ id: auth.user?.id ?? null, name: auth.profile?.full_name ?? null }} links={qLinks}
+                    onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
+              </div>
+            )}
 
             {/* ── Node 1: SAP Verification ── */}
             {activeNode === 1 && (

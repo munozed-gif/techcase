@@ -132,6 +132,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
     client: [
       { id: "dashboard",   Icon: LayoutDashboard, labelKey: "nav.dashboard" },
       { id: "cases",       Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "my-reviews",  Icon: ClipboardCheck,  labelKey: "nav.my_reviews" },
       { id: "projects",    Icon: Layers,          labelKey: "nav.projects" },
       { id: "kanban",      Icon: LayoutGrid,      labelKey: "nav.kanban" },
       { id: "arena",       Icon: Target,          labelKey: "nav.arena" },
@@ -156,6 +157,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
     final_user: [
       { id: "dashboard", Icon: LayoutDashboard, labelKey: "nav.dashboard" },
       { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "my-reviews", Icon: ClipboardCheck, labelKey: "nav.my_reviews" },
       { id: "kanban",    Icon: LayoutGrid,      labelKey: "nav.kanban" },
     ],
     internal_consultant: [
@@ -178,6 +180,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
     invited_client: [
       { id: "dashboard", Icon: LayoutDashboard, labelKey: "nav.dashboard" },
       { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "my-reviews", Icon: ClipboardCheck, labelKey: "nav.my_reviews" },
     ],
     dispatch: [
       { id: "dashboard",      Icon: LayoutDashboard, labelKey: "nav.dashboard" },
