@@ -1734,7 +1734,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   useEffect(() => {
     if (!project.created_by) { setProjectOwner(null); return; }
     let alive = true;
-    supabase.from("users").select("id, full_name, email, role").eq("id", project.created_by).maybeSingle()
+    supabase.from("users").select("id, full_name, email, role, avatar_url").eq("id", project.created_by).maybeSingle()
       .then(({ data }) => { if (alive) setProjectOwner(data ?? { id: project.created_by }); });
     return () => { alive = false; };
   }, [project.created_by]);
@@ -2487,10 +2487,13 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               <div className={`${oc} sm:col-span-2`}>
                 <CardHdr icon={<User size={13} />} label={lang === "es" ? "Propietario del proyecto" : "Project owner"} color="#0ea5e9" />
                 {project.created_by ? (
-                  <div className="flex items-center gap-3">
-                    <UserAvatar name={projectOwner?.full_name ?? projectOwner?.email ?? "?"} size={34} />
+                  // Click → the owner's full profile (any role: consultant, area leader, client…)
+                  <button type="button" title={lang === "es" ? "Ver perfil" : "View profile"}
+                    onClick={() => { try { window.dispatchEvent(new CustomEvent("nav-to-consultant-profile", { detail: { userId: project.created_by, projectId: project.id } })); } catch { /* ignore */ } }}
+                    className="w-full flex items-center gap-3 text-left rounded-xl -m-1 p-1 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors group">
+                    <PersonAvatar name={projectOwner?.full_name ?? projectOwner?.email ?? "?"} avatarUrl={projectOwner?.avatar_url} size={34} />
                     <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">
+                      <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-sky-700">
                         {projectOwner?.full_name ?? projectOwner?.email ?? (lang === "es" ? "Usuario" : "User")}
                         {project.created_by === auth.user?.id && <span className="ml-2 text-[10px] font-semibold text-sky-600 bg-sky-50 dark:bg-sky-900/30 rounded px-1.5 py-0.5">{lang === "es" ? "Tú" : "You"}</span>}
                       </div>
@@ -2500,7 +2503,8 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                           .filter(Boolean).join(" · ")}
                       </div>
                     </div>
-                  </div>
+                    <ChevronRight size={15} className="text-gray-300 group-hover:text-sky-600 flex-shrink-0" />
+                  </button>
                 ) : (
                   <p className="text-xs text-gray-400 italic">{lang === "es" ? "Creador no registrado" : "Creator not recorded"}</p>
                 )}

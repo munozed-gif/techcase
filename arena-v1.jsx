@@ -764,13 +764,14 @@ export default function App() {
     function onNavToConsultantProfile(e) {
       const userId = e.detail?.userId;
       if (!userId) return;
+      if (e.detail?.projectId) setPendingProjectId(e.detail.projectId);   // "Back" reopens that project
       setPendingUserId(userId);
       setPendingUserBackView(activeView ?? "settings");
       setActiveView("profile");
     }
     window.addEventListener("nav-to-consultant-profile", onNavToConsultantProfile);
     return () => window.removeEventListener("nav-to-consultant-profile", onNavToConsultantProfile);
-  }, []);
+  }, [activeView]);   // "Back" returns to the view the profile was opened from
 
   // Navigate from notification bell click
   useEffect(() => {
