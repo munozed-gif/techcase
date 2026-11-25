@@ -21,7 +21,7 @@ import {
 import { useCases, useApplications, useRatings } from "../hooks/useCaseHooks.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings, usePermissions } from "../hooks/useSystemSettings.jsx";
-import { pickPlanSpec, planObjects, alignWithObjects, planDesignHours, scaleDesign, planTestActivities, SPEC_NAMES } from "../lib/devPlanBase.js";
+import { pickPlanSpec, planObjects, alignWithObjects, planDesignHours, scaleDesign, planTestActivities, applySpecArena, SPEC_NAMES } from "../lib/devPlanBase.js";
 import { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, sendEmailToUser } from "../lib/utils.js";
 import { Badge, ROLE_LABELS, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Modal, Input, Textarea, Select } from "../components/ui.jsx";
@@ -2084,7 +2084,8 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
         : scaled;
       // Arena estimate next to the standard one (automation × seniority, see lib/estimation.js).
       const estCtx = await caseEstimationContext(caseData, cdSettings, { isStaff: auth.isAdmin || auth.isManager });
-      const parsedActivities = applyArenaEstimate(parsedStandard, estCtx);
+      // Arena hours written in the approved spec win over the formula, so the plan matches the document.
+      const parsedActivities = planPick?.cfg?.align_objects ? applySpecArena(applyArenaEstimate(parsedStandard, estCtx), planPick) : applyArenaEstimate(parsedStandard, estCtx);
       const estTot = estimateTotals(parsedActivities);
 
       console.log('[DevPlan] raw length:', jsonRaw.length, '| parsedActivities:', parsedActivities.length);

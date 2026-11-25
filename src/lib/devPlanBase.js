@@ -47,7 +47,9 @@ export function planObjects(pick, settings) {
     const override = pick.notes?.hoursOverrides?.[r.name]?.hours;
     const std = override !== undefined && override !== null && override !== '' ? Number(override)
       : Number.isFinite(r.statedHours) ? r.statedHours : r.std;
-    return { name: r.name, type: r.type, kind: r.kind, complexity: r.complexity, std, description: r.description ?? '' };
+    // Arena hours written in the spec too (only when the standard hours are the spec's own).
+    const arena = (override === undefined || override === null || override === '') && Number.isFinite(r.statedArena) ? r.statedArena : null;
+    return { name: r.name, type: r.type, kind: r.kind, complexity: r.complexity, std, arena, description: r.description ?? '' };
   });
 }
 
@@ -74,14 +76,14 @@ export function alignWithObjects(activities, objects, lang = 'es') {
     const o = objects.find((x, i) => !used.has(i) && x.name && hay.includes(norm(x.name).split(/[\s(]/)[0]));
     if (!o) return a;
     used.add(objects.indexOf(o));
-    return { ...a, est_hours: o.std, sap_object_type: KIND_TO_SAP_TYPE[o.kind] ?? a.sap_object_type, _specObject: o.name };
+    return { ...a, est_hours: o.std, sap_object_type: KIND_TO_SAP_TYPE[o.kind] ?? a.sap_object_type, _specObject: o.name, _specArena: o.arena };
   });
   objects.forEach((o, i) => {
     if (used.has(i) || !isCustomObject(o)) return;   // standard objects that are only read are not built
     out.push({
       title: `${es ? 'Desarrollar' : 'Build'} ${o.name}`.slice(0, 200),
       description: o.description || `${o.type}`, acceptance_criteria: es ? 'Objeto según la especificación aprobada; Code Inspector sin errores.' : 'Object as in the approved specification; Code Inspector without errors.',
-      est_hours: o.std, phase: 'development', sap_object_type: KIND_TO_SAP_TYPE[o.kind] ?? 'none', _specObject: o.name,
+      est_hours: o.std, phase: 'development', sap_object_type: KIND_TO_SAP_TYPE[o.kind] ?? 'none', _specObject: o.name, _specArena: o.arena,
       _selected: true, _type: activities[0]?._type ?? 'activity',
     });
   });
@@ -90,21 +92,21 @@ export function alignWithObjects(activities, objects, lang = 'es') {
 
 /** Standard hours of each phase of the spec's estimate table: { analysis, unit, uat } (null when absent). */
 export function planPhaseHours(pick) {
-  const out = { analysis: null, unit: null, uat: null };
+  const out = { analysis: null, unit: null, uat: null, arena: { analysis: null, unit: null, uat: null } };
   const lines = String(pick?.text ?? '').split('\n').filter(l => l.trim().startsWith('|'));
   const cellsOf = l => l.split('|').slice(1, -1).map(c => c.replace(/\*\*/g, '').trim());
   for (let i = 0; i < lines.length; i++) {
     const head = cellsOf(lines[i]);
     if (!head.some(c => /^(fase|phase)$/i.test(c))) continue;
     const hIx = head.findIndex(c => /^(horas( est[aá]ndar)?|hours|standard hours)$/i.test(c));
+    const aIx = head.findIndex(c => /arena/i.test(c));
     if (hIx < 0) continue;
+    const numAt = (r, ix) => { if (ix < 0) return null; const m = String(r[ix] ?? '').replace(',', '.').match(/\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; };
     for (const l of lines.slice(i + 1)) {
       const r = cellsOf(l);
-      const m = String(r[hIx] ?? '').replace(',', '.').match(/\d+(\.\d+)?/);
-      const h = m ? parseFloat(m[0]) : null;
-      if (/an[aá]lisis|analysis/i.test(r[0] ?? '')) out.analysis = h;
-      else if (/prueba.*unit|unit.*test/i.test(r[0] ?? '')) out.unit = h;
-      else if (/uat|aceptaci|acceptance/i.test(r[0] ?? '')) out.uat = h;
+      const k = /an[aá]lisis|analysis/i.test(r[0] ?? '') ? 'analysis' : /prueba.*unit|unit.*test/i.test(r[0] ?? '') ? 'unit' : /uat|aceptaci|acceptance/i.test(r[0] ?? '') ? 'uat' : null;
+      if (!k) continue;
+      out[k] = numAt(r, hIx); out.arena[k] = numAt(r, aIx);
     }
     break;
   }
@@ -116,8 +118,8 @@ export function planTestActivities(pick, lang = 'es', type = 'activity') {
   const es = lang === 'es';
   const ph = planPhaseHours(pick);
   const out = [];
-  if (ph.unit) out.push({ title: es ? 'Pruebas unitarias' : 'Unit testing', description: es ? 'Pruebas unitarias de los objetos desarrollados, según la estimación de la especificación aprobada.' : 'Unit tests of the developed objects, as in the approved specification estimate.', acceptance_criteria: es ? 'Pruebas unitarias ejecutadas sin errores; Code Inspector sin errores.' : 'Unit tests run without errors; Code Inspector without errors.', est_hours: ph.unit, phase: 'technical_test', sap_object_type: 'none', _selected: true, _type: type, _specPhase: 'unit' });
-  if (ph.uat) out.push({ title: es ? 'Soporte UAT' : 'UAT support', description: es ? 'Soporte a las pruebas de aceptación del usuario, según la estimación de la especificación aprobada.' : 'Support for user acceptance testing, as in the approved specification estimate.', acceptance_criteria: es ? 'Escenarios de prueba del cliente ejecutados y aprobados.' : 'Customer test scenarios run and approved.', est_hours: ph.uat, phase: 'user_test', sap_object_type: 'none', _selected: true, _type: type, _specPhase: 'uat' });
+  if (ph.unit) out.push({ title: es ? 'Pruebas unitarias' : 'Unit testing', description: es ? 'Pruebas unitarias de los objetos desarrollados, según la estimación de la especificación aprobada.' : 'Unit tests of the developed objects, as in the approved specification estimate.', acceptance_criteria: es ? 'Pruebas unitarias ejecutadas sin errores; Code Inspector sin errores.' : 'Unit tests run without errors; Code Inspector without errors.', est_hours: ph.unit, phase: 'technical_test', sap_object_type: 'none', _selected: true, _type: type, _specPhase: 'unit', _specArena: ph.arena.unit });
+  if (ph.uat) out.push({ title: es ? 'Soporte UAT' : 'UAT support', description: es ? 'Soporte a las pruebas de aceptación del usuario, según la estimación de la especificación aprobada.' : 'Support for user acceptance testing, as in the approved specification estimate.', acceptance_criteria: es ? 'Escenarios de prueba del cliente ejecutados y aprobados.' : 'Customer test scenarios run and approved.', est_hours: ph.uat, phase: 'user_test', sap_object_type: 'none', _selected: true, _type: type, _specPhase: 'uat', _specArena: ph.arena.uat });
   return out;
 }
 
@@ -155,5 +157,23 @@ export function scaleDesign(activities, hours) {
     left -= h;
     return { ...a, est_hours: h };
   });
+  return out;
+}
+
+/** After the Arena estimate: use the Arena hours written in the spec (objects, test phases) and make
+ *  the design activities add up to the spec's analysis & design Arena hours. */
+export function applySpecArena(activities, pick) {
+  const designArena = planPhaseHours(pick).arena.analysis;
+  let out = activities.map(a => (Number.isFinite(a._specArena) && a._specArena > 0 ? { ...a, est_hours: a._specArena } : a));
+  const design = out.filter(a => a.phase === 'design');
+  const sum = design.reduce((s, a) => s + (Number(a.est_hours) || 0), 0);
+  if (designArena && design.length && sum && Math.abs(sum - designArena) >= 0.5) {
+    const f = designArena / sum; let left = designArena;
+    out = out.map(a => {
+      if (a.phase !== 'design') return a;
+      const h = a === design[design.length - 1] ? Math.max(0.5, Math.round(left * 2) / 2) : Math.max(0.5, Math.round(a.est_hours * f * 2) / 2);
+      left -= h; return { ...a, est_hours: h };
+    });
+  }
   return out;
 }
