@@ -616,6 +616,21 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
     setBusy(null);
   }
 
+  // Administrators: back to draft to adjust and resend (proposal_reopen).
+  async function reopen() {
+    const warn = p.status === "accepted"
+      ? L("This proposal was ACCEPTED. Sending it back to draft does not undo what the acceptance did on the cases (budgets, approved specs). Continue?",
+          "Esta propuesta fue ACEPTADA. Volver a borrador no deshace lo que hizo la aceptación en los casos (presupuestos, specs aprobadas). ¿Continuar?")
+      : L("Send this proposal back to draft? The customer links stop working until you send it again.", "¿Volver esta propuesta a borrador? Los enlaces del cliente dejan de funcionar hasta que la envíes de nuevo.");
+    if (!window.confirm(warn)) return;
+    setBusy("reopen"); setError(null);
+    const { error: e } = await supabase.rpc("proposal_reopen", { p_id: p.id, p_note: null });
+    if (e) { setError(e.message); setBusy(null); return; }
+    const { data } = await supabase.from("project_proposals").select("*").eq("id", p.id).single();
+    if (data) { setP(data); onChange(data); }
+    setStep("send"); setBusy(null);
+  }
+
   async function newVersion() {
     setBusy("version"); setError(null);
     const { data, error: e } = await supabase.rpc("proposal_new_version", { p_id: p.id });
@@ -816,7 +831,8 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
       {/* Sent / answered */}
       {!isDraft && (
         <ProposalStatusView p={p} events={events} L={L} es={es} lang={lang} busy={busy}
-          onWithdraw={withdraw} onNewVersion={newVersion} />
+          onWithdraw={withdraw} onNewVersion={newVersion}
+          onReopen={auth.profile?.role === "admin" && !["draft", "superseded"].includes(p.status) ? reopen : null} />
       )}
 
       {/* Proposal document (collapsible) — in the document step it is already shown with its editor */}
@@ -1426,7 +1442,7 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
   );
 }
 
-function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVersion }) {
+function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVersion, onReopen }) {
   const [copied, setCopied] = useState(false);
   // Personal links (one per recipient): what each one got, and whether they opened it.
   const [links, setLinks] = useState([]);
@@ -1441,6 +1457,7 @@ function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVer
     created: L("Draft created", "Borrador creado"), sent: L("Sent", "Enviada"), viewed: L("Opened by the customer", "Abierta por el cliente"),
     accepted: L("Accepted", "Aceptada"), rejected: L("Rejected", "Rechazada"), changes_requested: L("Changes requested", "Cambios solicitados"),
     withdrawn: L("Withdrawn", "Retirada"), superseded: L("Replaced by a new version", "Reemplazada por una nueva versión"),
+    reopened: L("Back to draft", "Vuelta a borrador"),
   }[e] ?? e);
   const open = ["sent", "viewed", "changes_requested"].includes(p.status);
   return (
@@ -1508,6 +1525,12 @@ function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVer
               <a href={link} target="_blank" rel="noreferrer" className="text-gray-500 hover:text-blue-600"><ExternalLink size={15} /></a>
             </div>
           </div>
+        )}
+        {onReopen && (
+          <button onClick={onReopen} disabled={!!busy}
+            className="w-full inline-flex items-center justify-center gap-1.5 border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-sm font-semibold rounded-xl px-4 py-2 disabled:opacity-50">
+            {busy === "reopen" ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}{L("Back to draft", "Volver a borrador")}
+          </button>
         )}
         {open && (
           <div className="flex flex-col gap-2">
