@@ -1152,6 +1152,7 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
   const rec = p.recipients ?? [];
   const setRec = list => setP(prev => ({ ...prev, recipients: list }));
   const staleAttach = JSON.stringify((p.attachments ?? []).map(a => a.doc_id).sort()) !== JSON.stringify(attachments.map(a => a.doc_id).sort());
+  const [showAtt, setShowAtt] = useState(false);   // attachments collapsed by default
   return (
     <Card title={L("Attach & send", "Anexos y envío")}
       hint={L("The customer gets an email with a secure link: they can read the proposal, download the attachments and accept, ask for changes or reject it.",
@@ -1177,8 +1178,14 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
           <p className="text-sm text-gray-700 mt-4">{L("Total", "Total")}: <b>{fmtMoney(totals.total, p.currency, lang)}</b></p>
         </div>
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">{L("Attachments", "Anexos")}</p>
-          {attachments.length === 0
+          {/* Collapsible: the header shows how many files are attached */}
+          <button type="button" onClick={() => setShowAtt(o => !o)} className="w-full flex items-center justify-between gap-2 mb-2 text-left">
+            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+              {L("Attachments", "Anexos")} <span className="ml-1 normal-case font-semibold text-blue-700 bg-blue-50 rounded-full px-2 py-0.5">{attachments.length} {attachments.length === 1 ? L("file", "archivo") : L("files", "archivos")}</span>
+            </span>
+            <ChevronRight size={15} className={`text-gray-400 transition-transform ${showAtt ? "rotate-90" : ""}`} />
+          </button>
+          {!showAtt ? null : attachments.length === 0
             ? <p className="text-sm text-gray-400">{L("None. Tick “Attach” on case documents in step 2.", "Ninguno. Marca “Adjuntar” en documentos del caso en el paso 2.")}</p>
             : <div className="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2">{attachments.map(a => <AttachmentTile key={a.doc_id} a={a} />)}</div>}
           {staleAttach && <div className="mt-2"><Banner tone="amber">{L("Attachments changed since the document was built.", "Los anexos cambiaron desde que se armó el documento.")} <button onClick={onRebuild} className="underline font-semibold">{L("Rebuild document", "Reconstruir documento")}</button></Banner></div>}
