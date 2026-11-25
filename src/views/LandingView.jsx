@@ -1,5 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { AlertTriangle, BarChart3, Bot, Briefcase, Building2, CalendarCheck, Check, ClipboardList, FileText, Folder, Handshake, Inbox, KeyRound, Landmark, Link2, ListChecks, Lock, LockKeyhole, Map as MapIcon, MessageSquare, Microscope, Orbit, Package, PenLine, Play, Radar, Repeat, Rocket, Ruler, Search, SearchCheck, Send, Server, Settings, ShieldCheck, Target, Timer, Truck, User, UserCog, Users, Wrench, X, Zap } from "lucide-react";
+
+// Landing icons: lucide icons instead of emoji (emoji render differently on every device).
+const LANDING_ICONS = { "🔁": Repeat, "🏟": Landmark, "📁": Folder, "⏱": Timer, "📄": FileText, "🗺": MapIcon, "🤖": Bot, "📦": Package, "🔒": Lock, "⚡": Zap, "🔍": Search, "🛡": ShieldCheck, "✅": ListChecks, "💬": MessageSquare, "📐": Ruler, "✍": PenLine, "📊": BarChart3, "🗓": CalendarCheck, "🔗": Link2, "📥": Inbox, "🤝": Handshake, "👥": Users, "🌌": Orbit, "🎯": Target, "📡": Radar, "🔬": Microscope, "🚀": Rocket, "👔": UserCog, "🏢": Building2, "💼": Briefcase, "🗝": KeyRound, "👤": User, "📨": Send, "🔎": SearchCheck, "🔐": LockKeyhole, "🖥": Server, "🚚": Truck, "📝": ClipboardList, "⚙": Settings, "🔧": Wrench };
+function ico(e, size = 18) {
+  const I = LANDING_ICONS[String(e ?? "").replace(/\uFE0F/g, "")];
+  return I ? <I size={size} strokeWidth={1.9} /> : e;
+}
 
 // ─── Nova Logo Mark ─────────────────────────────────────────────────────────
 // Module-level injection so the keyframe is available even when LandingView isn't mounted
@@ -85,7 +93,7 @@ const LANDING_STRINGS = {
     hero_name:"Solutions Platform",
     hero_h1a:"Connect. Engage.", hero_h1b:"Deliver.",
     hero_sub:"Arena is the AI-powered SAP delivery platform — from structured case intake to AI-generated ABAP code written directly to your SAP system via ADT. Backed by an orbital consultant marketplace connecting clients with vetted SAP specialists.",
-    hero_trial:"Start free trial →", hero_demo:"▶ Watch demo",
+    hero_trial:"Start free trial →", hero_demo:"Watch demo",
     hero_trust:"From the customer's request to an approved spec, a quote that adds up and code in SAP",
     stats_cases:"Cases managed to date", stats_cos:"Companies onboarded", stats_sla:"% SLA compliance rate",
     feat_tag:"Platform Features",
@@ -280,7 +288,7 @@ const LANDING_STRINGS = {
     hero_name:"Plataforma de Soluciones",
     hero_h1a:"Conecta. Involucra.", hero_h1b:"Entrega.",
     hero_sub:"Arena es la plataforma de entrega SAP potenciada por IA — desde la apertura estructurada del caso hasta el código ABAP generado por IA y escrito directamente en tu sistema SAP vía ADT. Respaldada por un mercado orbital de consultores que conecta clientes con especialistas SAP verificados.",
-    hero_trial:"Iniciar prueba gratuita →", hero_demo:"▶ Ver demo",
+    hero_trial:"Iniciar prueba gratuita →", hero_demo:"Ver demo",
     hero_trust:"De la solicitud del cliente a una spec aprobada, una cotización que cuadra y código en SAP",
     stats_cases:"Casos gestionados hasta la fecha", stats_cos:"Empresas registradas", stats_sla:"% tasa de cumplimiento SLA",
     feat_tag:"Características de la Plataforma",
@@ -580,7 +588,7 @@ const CSS = `
 #arena-landing .hl-steps{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 28px;}
 #arena-landing .hl-step{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--border);border-radius:999px;font-size:.8rem;color:var(--ink);background:var(--surface);}
 #arena-landing .hl-step b{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:.7rem;display:inline-flex;align-items:center;justify-content:center;}
-#arena-landing .feat-icon{width:36px;height:36px;border-radius:8px;background:rgba(79,110,247,.1);display:flex;align-items:center;justify-content:center;margin-bottom:10px;font-size:1.1rem;}
+#arena-landing .feat-icon{color:var(--accent);width:36px;height:36px;border-radius:8px;background:rgba(79,110,247,.1);display:flex;align-items:center;justify-content:center;margin-bottom:10px;font-size:1.1rem;}
 #arena-landing .feat-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:1rem;margin-bottom:6px;color:var(--ink);}
 #arena-landing .feat-desc{font-size:.83rem;color:var(--muted);line-height:1.6;}
 @media(max-width:900px){#arena-landing .features-grid,#arena-landing .hl-grid4{grid-template-columns:1fr 1fr;}}
@@ -634,7 +642,7 @@ const CSS = `
 #arena-landing .roles-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
 #arena-landing .role-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;transition:transform .2s,box-shadow .2s;}
 #arena-landing .role-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.07);}
-#arena-landing .role-avatar{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:12px;}
+#arena-landing .role-avatar{color:var(--accent);width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:12px;}
 #arena-landing .role-name{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.9rem;margin-bottom:4px;color:var(--ink);}
 #arena-landing .role-desc{font-size:.78rem;color:var(--muted);line-height:1.5;}
 #arena-landing .role-perms{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px;}
@@ -692,7 +700,7 @@ const CSS = `
 #arena-landing .arena-bullets{display:flex;flex-direction:column;gap:14px;}
 #arena-landing .arena-bullet{display:flex;align-items:flex-start;gap:12px;padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;transition:border-color .2s;}
 #arena-landing .arena-bullet:hover{border-color:rgba(37,99,235,.35);}
-#arena-landing .arena-bullet-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+#arena-landing .arena-bullet-icon{color:#A5B4FC;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
 #arena-landing .arena-bullet-text strong{display:block;font-size:.88rem;font-weight:700;color:#fff;margin-bottom:3px;}
 #arena-landing .arena-bullet-text span{font-size:.78rem;color:rgba(255,255,255,.45);line-height:1.5;}
 #arena-landing .arena-visual{display:flex;align-items:center;justify-content:center;}
@@ -870,7 +878,7 @@ const CSS = `
 #arena-landing .ap-tree{display:flex;flex-direction:column;gap:7px;}
 #arena-landing .ap-tree-row{display:flex;align-items:center;gap:8px;opacity:0;transform:translateX(10px);transition:opacity .4s,transform .4s;}
 #arena-landing .ap-tree-row.show{opacity:1;transform:none;}
-#arena-landing .ap-tree-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+#arena-landing .ap-tree-icon{color:#C7D2FE;width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
 #arena-landing .ap-tree-name{font-size:11px;font-weight:600;color:#DCE8F4;}
 #arena-landing .ap-tree-sub{font-size:9px;color:#405870;}
 #arena-landing .ap-case-card{background:#132436;border:1px solid rgba(37,99,235,0.4);border-radius:10px;padding:11px;opacity:0;transform:translateY(6px);transition:opacity .4s .2s,transform .4s .2s;}
@@ -891,7 +899,7 @@ const CSS = `
 #arena-landing .ap-cta-grid{display:flex;gap:12px;width:100%;}
 #arena-landing .ap-cta-card{flex:1;background:#132436;border-radius:12px;padding:18px;text-align:center;border:1px solid rgba(100,160,220,0.12);}
 #arena-landing .ap-cta-card.blue{border-color:rgba(37,99,235,0.5);}
-#arena-landing .ap-cta-icon{font-size:22px;margin-bottom:7px;}
+#arena-landing .ap-cta-icon{color:#A5B4FC;font-size:22px;margin-bottom:7px;}
 #arena-landing .ap-cta-title{font-size:13px;font-weight:700;color:#DCE8F4;margin-bottom:4px;}
 #arena-landing .ap-cta-desc{font-size:10px;color:#7090B0;margin-bottom:11px;}
 #arena-landing .ap-cta-btn{font-size:11px;font-weight:700;padding:6px 14px;border-radius:7px;border:none;cursor:pointer;font-family:inherit;}
@@ -1060,7 +1068,7 @@ function ArenaPromoVideo({ tl }) {
 
   const drillRows=[
     {icon:'🏢',bg:'#1A2F44',                    name:'Meridian Holdings',       sub:tl('ap_drill_hub')},
-    {icon:'⚙️',bg:'rgba(37,99,235,0.15)',        name:tl('ap_drill_r1'),         sub:tl('ap_drill_r1s')},
+    {icon:'⚙',bg:'rgba(37,99,235,0.15)',        name:tl('ap_drill_r1'),         sub:tl('ap_drill_r1s')},
     {icon:'📦',bg:'rgba(245,158,11,0.15)',       name:tl('ap_drill_r2'),         sub:tl('ap_drill_r2s')},
     {icon:'🔧',bg:'rgba(167,139,250,0.15)',      name:tl('ap_drill_r3'),         sub:tl('ap_drill_r3s')},
   ];
@@ -1136,7 +1144,7 @@ function ArenaPromoVideo({ tl }) {
                   <div className="ap-tree">
                     {drillRows.map((r,i)=>(
                       <div key={i} className={`ap-tree-row${drillShow[i]?' show':''}`} style={{paddingLeft:i>0?14:0}}>
-                        <div className="ap-tree-icon" style={{background:r.bg}}>{r.icon}</div>
+                        <div className="ap-tree-icon" style={{background:r.bg}}>{ico(r.icon, 14)}</div>
                         <div><div className="ap-tree-name">{r.name}</div><div className="ap-tree-sub">{r.sub}</div></div>
                       </div>
                     ))}
@@ -1212,7 +1220,7 @@ function ArenaPromoVideo({ tl }) {
                   ].map((c,i)=>(
                     <div key={i} className={`ap-cta-card${c.primary?' blue':''}`}
                       style={{opacity:c.show?1:0,transform:c.show?'none':'translateY(8px)',transition:'opacity .4s,transform .4s'}}>
-                      <div className="ap-cta-icon">{c.icon}</div>
+                      <div className="ap-cta-icon">{ico(c.icon, 22)}</div>
                       <div className="ap-cta-title">{c.title}</div>
                       <div className="ap-cta-desc">{c.desc}</div>
                       <button className={`ap-cta-btn ${c.primary?'primary':'ghost'}`}>{c.btn}</button>
@@ -1410,7 +1418,7 @@ function ArenaPromoSection({ tl, lang, onSignIn, bullets }) {
           </div>
           <div className="arena-visual has-video">
             <div className="pv-wrap">
-              <div className={`pv-tag${reveal}`}>▶ {tl("pv_tag")}</div>
+              <div className={`pv-tag${reveal}`}><Play size={11} style={{verticalAlign:"-1px",marginRight:5}} />{tl("pv_tag")}</div>
               <div className="pv-frame" ref={smallRef}>
                 <img className="pv-video" src={`/media/arena-promo-end-${lang}.jpg`} alt={tl("pv_aria")} />
               </div>
@@ -1688,7 +1696,7 @@ export function LandingView({ onSignIn }) {
             {icons.map((ic, i) => (
               <div key={i} className="feat-card fade-in">
                 <div className="feat-body">
-                  <div className="feat-icon">{ic}</div>
+                  <div className="feat-icon">{ico(ic)}</div>
                   <div className="feat-title">{tl(`${p}${i + 1}t`)}</div>
                   <div className="feat-desc">{tl(`${p}${i + 1}d`)}</div>
                 </div>
@@ -1785,7 +1793,7 @@ export function LandingView({ onSignIn }) {
             <p className="hero-sub">{tl("hero_sub")}</p>
             <div className="hero-actions">
               <button className="btn-hero btn-hero-primary" onClick={onSignIn}>{tl("hero_trial")}</button>
-              <a href="#demo" className="btn-hero btn-hero-outline">{tl("hero_demo")}</a>
+              <a href="#demo" className="btn-hero btn-hero-outline"><Play size={14} style={{verticalAlign:"-2px",marginRight:6}} />{tl("hero_demo")}</a>
             </div>
             <div className="hero-trust">
               <div className="hero-trust-dots">
@@ -1888,7 +1896,7 @@ export function LandingView({ onSignIn }) {
                 </div>
               </div>
               <div className="feat-body">
-                <div className="feat-icon">🔁</div>
+                <div className="feat-icon">{ico("🔁")}</div>
                 <div className="feat-title">{tl("f1t")}</div>
                 <div className="feat-desc">{tl("f1d")}</div>
               </div>
@@ -1906,7 +1914,7 @@ export function LandingView({ onSignIn }) {
                 </div>
               </div>
               <div className="feat-body">
-                <div className="feat-icon">🏟</div>
+                <div className="feat-icon">{ico("🏟")}</div>
                 <div className="feat-title">{tl("f2t")}</div>
                 <div className="feat-desc">{tl("f2d")}</div>
               </div>
@@ -1927,7 +1935,7 @@ export function LandingView({ onSignIn }) {
                 </div>
               </div>
               <div className="feat-body">
-                <div className="feat-icon">📁</div>
+                <div className="feat-icon">{ico("📁")}</div>
                 <div className="feat-title">{tl("f3t")}</div>
                 <div className="feat-desc">{tl("f3d")}</div>
               </div>
@@ -1949,7 +1957,7 @@ export function LandingView({ onSignIn }) {
                 </div>
               </div>
               <div className="feat-body">
-                <div className="feat-icon">⏱</div>
+                <div className="feat-icon">{ico("⏱")}</div>
                 <div className="feat-title">{tl("f4t")}</div>
                 <div className="feat-desc">{tl("f4d")}</div>
               </div>
@@ -1969,7 +1977,7 @@ export function LandingView({ onSignIn }) {
                 </div>
               </div>
               <div className="feat-body">
-                <div className="feat-icon">📄</div>
+                <div className="feat-icon">{ico("📄")}</div>
                 <div className="feat-title">{tl("f5t")}</div>
                 <div className="feat-desc">{tl("f5d")}</div>
               </div>
@@ -1987,7 +1995,7 @@ export function LandingView({ onSignIn }) {
                 </div>
               </div>
               <div className="feat-body">
-                <div className="feat-icon">🗺</div>
+                <div className="feat-icon">{ico("🗺")}</div>
                 <div className="feat-title">{tl("f7t")}</div>
                 <div className="feat-desc">{tl("f7d")}</div>
               </div>
@@ -2004,7 +2012,7 @@ export function LandingView({ onSignIn }) {
                 </div>
               </div>
               <div className="feat-body">
-                <div className="feat-icon">🤖</div>
+                <div className="feat-icon">{ico("🤖")}</div>
                 <div className="feat-title">{tl("f8t")}</div>
                 <div className="feat-desc">{tl("f8d")}</div>
               </div>
@@ -2022,7 +2030,7 @@ export function LandingView({ onSignIn }) {
                 </div>
               </div>
               <div className="feat-body">
-                <div className="feat-icon">📦</div>
+                <div className="feat-icon">{ico("📦")}</div>
                 <div className="feat-title">{tl("f9t")}</div>
                 <div className="feat-desc">{tl("f9d")}</div>
               </div>
@@ -2030,7 +2038,7 @@ export function LandingView({ onSignIn }) {
             <div className="feat-card fade-in">
               <div className="feat-mockup">
                 <div style={{display:"flex",flexDirection:"column",gap:"5px"}}>
-                  {[{g:"→ In Analysis",s:"✓ Consultant assigned",c:"#6EE7B7",b:"rgba(16,185,129,.2)"},{g:"→ Testing",s:"⚠ Time not logged",c:"#FCD34D",b:"rgba(245,158,11,.2)"},{g:"Response time",label:"SLA status",s:"2h 14m left",c:"#A5B4FC",b:"rgba(79,110,247,.2)"}].map((r,i) => (
+                  {[{g:"→ In Analysis",s:"✓ Consultant assigned",c:"#6EE7B7",b:"rgba(16,185,129,.2)"},{g:"→ Testing",s:"! Time not logged",c:"#FCD34D",b:"rgba(245,158,11,.2)"},{g:"Response time",label:"SLA status",s:"2h 14m left",c:"#A5B4FC",b:"rgba(79,110,247,.2)"}].map((r,i) => (
                     <div key={i} style={{background:"#1a2237",borderRadius:"7px",padding:"8px 10px",border:`1px solid ${r.b}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <div><div style={{fontSize:".58rem",color:"rgba(255,255,255,.4)"}}>{r.label || "Transition gate"}</div><div style={{fontSize:".65rem",fontWeight:600,color:"#fff"}}>{r.g}</div></div>
                       <div style={{fontSize:".58rem",fontWeight:700,color:r.c}}>{r.s}</div>
@@ -2039,7 +2047,7 @@ export function LandingView({ onSignIn }) {
                 </div>
               </div>
               <div className="feat-body">
-                <div className="feat-icon">🔒</div>
+                <div className="feat-icon">{ico("🔒")}</div>
                 <div className="feat-title">{tl("f6t")}</div>
                 <div className="feat-desc">{tl("f6d")}</div>
               </div>
@@ -2056,7 +2064,7 @@ export function LandingView({ onSignIn }) {
                 </div>
               </div>
               <div className="feat-body">
-                <div className="feat-icon">⚡</div>
+                <div className="feat-icon">{ico("⚡")}</div>
                 <div className="feat-title">{tl("f10t")}</div>
                 <div className="feat-desc">{tl("f10d")}</div>
               </div>
@@ -2073,7 +2081,7 @@ export function LandingView({ onSignIn }) {
                 </div>
               </div>
               <div className="feat-body">
-                <div className="feat-icon">🔍</div>
+                <div className="feat-icon">{ico("🔍")}</div>
                 <div className="feat-title">{tl("f11t")}</div>
                 <div className="feat-desc">{tl("f11d")}</div>
               </div>
@@ -2083,8 +2091,8 @@ export function LandingView({ onSignIn }) {
       </section>
 
       {/* SPEC QUALITY · ESTIMATES · CUSTOMER PORTAL */}
-      {highlights("specs", "sq", ["📄", "🛡️", "✅", "💬", "📐", "✍️"], <div className="hl-steps">{tl("sq_steps").split("|").map((t, i) => <span key={i} className="hl-step"><b>{i + 1}</b>{t}</span>)}</div>)}
-      {highlights("estimates", "es", ["📊", "⚡", "🗓️"], null, true)}
+      {highlights("specs", "sq", ["📄", "🛡", "✅", "💬", "📐", "✍"], <div className="hl-steps">{tl("sq_steps").split("|").map((t, i) => <span key={i} className="hl-step"><b>{i + 1}</b>{t}</span>)}</div>)}
+      {highlights("estimates", "es", ["📊", "⚡", "🗓"], null, true)}
       {highlights("customers", "cx", ["🔗", "📥", "🤝", "👥"])}
 
       {/* ARENA SHOWCASE */}
@@ -2098,7 +2106,7 @@ export function LandingView({ onSignIn }) {
                 {icon:"📡",bg:"rgba(139,92,246,.12)",tk:"ab4t",dk:"ab4d"},
               ].map(b => (
                 <div key={b.tk} className="arena-bullet">
-                  <div className="arena-bullet-icon" style={{background:b.bg}}>{b.icon}</div>
+                  <div className="arena-bullet-icon" style={{background:b.bg}}>{ico(b.icon)}</div>
                   <div className="arena-bullet-text"><strong>{tl(b.tk)}</strong><span>{tl(b.dk)}</span></div>
                 </div>
               ))}
@@ -2119,7 +2127,7 @@ export function LandingView({ onSignIn }) {
                 {icon:"📡",bg:"rgba(139,92,246,.12)",tk:"ab4t",dk:"ab4d"},
               ].map(b => (
                 <div key={b.tk} className="arena-bullet">
-                  <div className="arena-bullet-icon" style={{background:b.bg}}>{b.icon}</div>
+                  <div className="arena-bullet-icon" style={{background:b.bg}}>{ico(b.icon)}</div>
                   <div className="arena-bullet-text"><strong>{tl(b.tk)}</strong><span>{tl(b.dk)}</span></div>
                 </div>
               ))}
@@ -2177,7 +2185,7 @@ export function LandingView({ onSignIn }) {
                 {icon:"🚀",bg:"rgba(139,92,246,.12)",tk:"mb4t",dk:"mb4d"},
               ].map(b => (
                 <div key={b.tk} className="arena-bullet">
-                  <div className="arena-bullet-icon" style={{background:b.bg}}>{b.icon}</div>
+                  <div className="arena-bullet-icon" style={{background:b.bg}}>{ico(b.icon)}</div>
                   <div className="arena-bullet-text"><strong>{tl(b.tk)}</strong><span>{tl(b.dk)}</span></div>
                 </div>
               ))}
@@ -2252,7 +2260,7 @@ export function LandingView({ onSignIn }) {
                       ? <div className="lc-gate-noop">{tl("lc_gate_noop")}</div>
                       : stage.gates.map((g, gi) => (
                           <div key={gi} className={`lc-gate lc-gate-${g.s}`}>
-                            <div className="lc-gate-icon">{g.s==="pass"?"✓":g.s==="warn"?"⚠":"✗"}</div>
+                            <div className="lc-gate-icon">{g.s==="pass"?<Check size={13} />:g.s==="warn"?<AlertTriangle size={13} />:<X size={13} />}</div>
                             <div className="lc-gate-label">{g.l}</div>
                           </div>
                         ))
@@ -2319,7 +2327,7 @@ export function LandingView({ onSignIn }) {
               {e:"🎯",nk:"r8n",dk:"r8d",pk:"r8p",bg:"rgba(236,72,153,.1)"},
             ].map(r => (
               <div key={r.nk} className="role-card fade-in">
-                <div className="role-avatar" style={{background:r.bg}}>{r.e}</div>
+                <div className="role-avatar" style={{background:r.bg}}>{ico(r.e, 22)}</div>
                 <div className="role-name">{tl(r.nk)}</div>
                 <div className="role-desc">{tl(r.dk)}</div>
                 <div className="role-perms">{tl(r.pk).map(p => <span key={p} className="role-perm">{p}</span>)}</div>
@@ -2333,7 +2341,7 @@ export function LandingView({ onSignIn }) {
       {highlights("partners", "pt", ["🏢", "🎯", "📨", "🔎"], null, true)}
 
       {/* SECURITY & SAP CONNECTIVITY */}
-      {highlights("security", "sc", ["🔐", "🖥️", "🚚", "📝"])}
+      {highlights("security", "sc", ["🔐", "🖥", "🚚", "📝"])}
 
       {/* ARENA PROMO */}
       <ArenaPromoVideo tl={tl} />
