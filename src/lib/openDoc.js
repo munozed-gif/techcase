@@ -7,7 +7,7 @@ const isHtmlName = name => /\.html?$/i.test(name ?? '');
 
 function writeHtml(win, html, print) {
   win.document.open();
-  win.document.write(html);
+  win.document.write(withHtmlLinks(html));
   win.document.close();
   if (print) setTimeout(() => { try { win.focus(); win.print(); } catch { /* ignore */ } }, 700);
 }
@@ -33,6 +33,31 @@ export function openHtml(html, { print = false, win = null } = {}) {
   // Popup blocked: fall back to a blob URL in the same tab.
   const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
   window.location.href = url;
+}
+
+// Inside a generated document (proposal, summary…) the links to attached .html files point at
+// Storage, which serves them as text. HTML_LINKS_SCRIPT makes such links open the rendered page; it is
+// added to documents opened in their own tab (openHtml). For documents shown in a sandboxed iframe
+// (no scripts), wireDocFrame attaches the same behaviour from outside: <iframe onLoad={wireDocFrame}>.
+const HTML_LINKS_SCRIPT = `<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href')||'';if(!/\\.html?(\\?|#|$)/i.test(h))return;e.preventDefault();var w=window.open('','_blank');fetch(h).then(function(r){return r.text()}).then(function(t){if(w){w.document.open();w.document.write(t);w.document.close()}else{location.href=h}}).catch(function(){if(w)w.location.href=h})});</script>`;
+export function withHtmlLinks(html) {
+  const s = String(html ?? "");
+  return s.includes("</body>") ? s.replace("</body>", HTML_LINKS_SCRIPT + "</body>") : s + HTML_LINKS_SCRIPT;
+}
+export function wireDocFrame(e) {
+  try {
+    const doc = e.currentTarget.contentDocument;
+    if (!doc || doc.__arenaLinks) return;
+    doc.__arenaLinks = true;
+    doc.addEventListener("click", ev => {
+      const a = ev.target?.closest?.("a[href]");
+      if (!a) return;
+      const href = a.getAttribute("href") || "";
+      if (!/\.html?(\?|#|$)/i.test(href)) return;
+      ev.preventDefault();
+      openDocument(href, a.textContent || href);
+    });
+  } catch { /* cross-origin frame: nothing to do */ }
 }
 
 /** onClick handler for <a href> links to documents. */

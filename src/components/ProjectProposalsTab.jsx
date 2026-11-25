@@ -9,7 +9,7 @@ import {
   RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock, Presentation, Printer, FileText, FileSpreadsheet, FileImage, ScrollText, User, Users,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { docLinkClick } from "../lib/openDoc.js";
+import { docLinkClick, wireDocFrame, withHtmlLinks } from "../lib/openDoc.js";
 import { useT } from "../i18n/index.jsx";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { callClaude, buildEmailHtml, sendEmail, logEvent } from "../lib/utils.js";
@@ -799,7 +799,7 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">{L("Preview", "Vista previa")}</p>
-                <iframe title="proposal" srcDoc={p.html ?? ""} className="w-full h-[560px] border border-gray-200 rounded-xl bg-white" sandbox="allow-same-origin allow-popups allow-modals" />
+                <iframe onLoad={wireDocFrame} title="proposal" srcDoc={p.html ?? ""} className="w-full h-[560px] border border-gray-200 rounded-xl bg-white" sandbox="allow-same-origin allow-popups allow-modals" />
               </div>
             </div>
           )}
@@ -876,7 +876,7 @@ function SummaryPanel({ p, L, busy, onGenerate, onSaveEdit, count }) {
         </div>
       )}
       {p.summary_html && (
-        <div className="rounded-xl border border-gray-200 overflow-hidden"><iframe title="summary" srcDoc={p.summary_html} className="w-full h-[420px] block bg-white" sandbox="allow-same-origin allow-popups allow-modals" /></div>
+        <div className="rounded-xl border border-gray-200 overflow-hidden"><iframe onLoad={wireDocFrame} title="summary" srcDoc={p.summary_html} className="w-full h-[420px] block bg-white" sandbox="allow-same-origin allow-popups allow-modals" /></div>
       )}
     </Card>
   );
@@ -916,7 +916,8 @@ function DeckPanel({ p, L, busy, onGenerate, html }) {
 
 function openHtml(html) {
   const w = window.open("", "_blank");
-  if (w) { w.document.open(); w.document.write(html); w.document.close(); }
+  // withHtmlLinks: links to attached .html files open the rendered page, not the source.
+  if (w) { w.document.open(); w.document.write(withHtmlLinks(html)); w.document.close(); }
 }
 
 function Card({ title, hint, children, Icon = null, collapsible = false, defaultOpen = false }) {
@@ -1045,7 +1046,7 @@ function DocPanel({ p, L }) {
         <button onClick={() => openHtml(p.html)} className="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><Eye size={14} />{L("Open / save as PDF", "Abrir / guardar PDF")}</button>
       </div>
       <div className="rounded-xl border border-gray-200 overflow-hidden bg-[#F6F7FB]">
-        <iframe title="proposal-preview" srcDoc={p.html} className="w-full h-[420px] sm:h-[520px] block bg-white" sandbox="allow-same-origin allow-popups allow-modals" />
+        <iframe onLoad={wireDocFrame} title="proposal-preview" srcDoc={p.html} className="w-full h-[420px] sm:h-[520px] block bg-white" sandbox="allow-same-origin allow-popups allow-modals" />
       </div>
     </Card>
   );
@@ -1446,7 +1447,7 @@ function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVer
     <div className="grid lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl overflow-hidden">
         {p.html
-          ? <iframe title="proposal" srcDoc={p.html} className="w-full h-[640px] bg-white" sandbox="allow-same-origin allow-popups allow-modals" />
+          ? <iframe onLoad={wireDocFrame} title="proposal" srcDoc={p.html} className="w-full h-[640px] bg-white" sandbox="allow-same-origin allow-popups allow-modals" />
           : <p className="p-6 text-sm text-gray-400">{L("No document.", "Sin documento.")}</p>}
       </div>
       <div className="space-y-4">
