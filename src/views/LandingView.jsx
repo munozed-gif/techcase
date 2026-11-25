@@ -137,7 +137,7 @@ const LANDING_STRINGS = {
     video_tag:"See it in action", video_h2:"Watch the platform in 3 minutes.",
     video_sub:"From ticket creation to resolution — see how Arena guides every stakeholder through a structured, governed process.",
     video_lbl:"Arena Solutions Platform Demo · 3:24",
-    pv_tag:"Watch the Arena · 0:33", pv_again:"Watch again", pv_skip:"Skip",
+    pv_tag:"Watch the Arena · 0:20", pv_again:"Watch again", pv_skip:"Skip",
     pv_aria:"Arena promo video: from the Roman Colosseum to the orbital Arena, where consultants compete for cases",
     pv_cta_trial:"Start free trial →", pv_cta_join:"Join the Arena as a consultant",
     testi_tag:"Customer Stories", testi_h2:"What teams are saying.",
@@ -332,7 +332,7 @@ const LANDING_STRINGS = {
     video_tag:"Míralo en acción", video_h2:"Mira la plataforma en 3 minutos.",
     video_sub:"Desde la creación del ticket hasta la resolución — ve cómo Arena guía a cada parte interesada a través de un proceso estructurado y gobernado.",
     video_lbl:"Demo de Arena Solutions Platform · 3:24",
-    pv_tag:"Mira la Arena · 0:33", pv_again:"Ver de nuevo", pv_skip:"Saltar",
+    pv_tag:"Mira la Arena · 0:20", pv_again:"Ver de nuevo", pv_skip:"Saltar",
     pv_aria:"Video promocional de Arena: del Coliseo romano a la Arena orbital, donde los consultores compiten por casos",
     pv_cta_trial:"Iniciar prueba gratuita →", pv_cta_join:"Únete a la Arena como consultor",
     testi_tag:"Historias de Clientes", testi_h2:"Lo que dicen los equipos.",
@@ -1324,12 +1324,12 @@ const LC_STAGES = [
 ];
 
 // ─── Arena promo video (Arena showcase section) ─────────────────────────────
-// Files live in /public/media: arena-promo-{en|es}.{webm,mp4}, arena-promo-end-{en|es}.jpg (last frame).
+// Files live in /public/media: arena-promo.{webm,mp4} (one video for both languages), arena-promo-end.jpg (last frame), arena-promo-poster.jpg.
 // The section opens with the heading and a full-width cinematic band that plays the promo
 // (muted, no controls) when it scrolls into view. When it ends, the band shrinks into the
 // small frame on the right and the description, bullets and buttons appear. "Watch again"
 // (under the frame) brings the band back and replays it with sound.
-const PV_END_AT = 31.6; // the video fades to black after this; stop on the end card instead
+const PV_END_AT = 19.9; // stop on the end card (the video is 20 s)
 
 function ArenaPromoSection({ tl, lang, onSignIn, bullets }) {
   const reduceMotion = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -1403,8 +1403,8 @@ function ArenaPromoSection({ tl, lang, onSignIn, bullets }) {
               poster="/media/arena-promo-poster.jpg" aria-label={tl("pv_aria")}
               onTimeUpdate={e => { if (e.currentTarget.currentTime >= PV_END_AT) finish(); }}
               onEnded={finish}>
-              <source src={`/media/arena-promo-${lang}.webm`} type="video/webm" />
-              <source src={`/media/arena-promo-${lang}.mp4`} type="video/mp4" />
+              <source src="/media/arena-promo.webm" type="video/webm" />
+              <source src="/media/arena-promo.mp4" type="video/mp4" />
             </video>
             <button type="button" className="pv-skip" onClick={finish}>{tl("pv_skip")} ✕</button>
           </div>
@@ -1421,7 +1421,7 @@ function ArenaPromoSection({ tl, lang, onSignIn, bullets }) {
             <div className="pv-wrap">
               <div className={`pv-tag${reveal}`}><Play size={11} style={{verticalAlign:"-1px",marginRight:5}} />{tl("pv_tag")}</div>
               <div className="pv-frame" ref={smallRef}>
-                <img className="pv-video" src={`/media/arena-promo-end-${lang}.jpg`} alt={tl("pv_aria")} />
+                <img className="pv-video" src="/media/arena-promo-end.jpg" alt={tl("pv_aria")} />
               </div>
               <div className={`pv-after${reveal}`}>
                 <button type="button" className="pv-again" onClick={watchAgain}>
