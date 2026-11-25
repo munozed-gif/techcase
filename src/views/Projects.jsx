@@ -1706,7 +1706,8 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const projPartnerCtx = usePartnerContext(auth.user?.id);
   const projPartner = project?.partner_id ? projPartnerCtx.partnerById(project.partner_id) : null;
   const projPartnerManage = !!projPartner && projPartner.status === "approved" && ["owner", "admin"].includes(projPartner.role);
-  // Proposals tab: Settings → Roles (manage_proposals / manage_own_project_proposals) or partner owners/admins.
+  // Proposals and Service tabs: Settings → Roles (manage_proposals = any project, manage_own_project_proposals =
+  // projects they created), the project's seller or the partner owner. The customer sees what was sent to them.
   const [canProposals, setCanProposals] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -2163,7 +2164,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "cases",        label: t("project.tab_cases"),         icon: FolderOpen,        count: projCases.length },
     { id: "documents",    label: t("project.tab_documents"),     icon: FileText,          count: null },
     ...((canProposals || isProjectCustomer) ? [{ id: "proposals", label: t("project.tab_proposals"), icon: FileSignature, count: null }] : []),
-    ...((canProposals || contractCount > 0) ? [{ id: "service", label: lang === "es" ? "Servicio" : "Service", icon: Gauge, count: contractCount || null }] : []),
+    ...((canProposals || (isProjectCustomer && contractCount > 0)) ? [{ id: "service", label: lang === "es" ? "Servicio" : "Service", icon: Gauge, count: contractCount || null }] : []),
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     ...(canEdit ? [{ id: "spec_gen",  label: "Spec Gen",                 icon: Sparkles,   count: null }] : []),
@@ -3287,7 +3288,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         )}
 
         {/* Proposals */}
-        {tab.id === "service" && (canProposals || contractCount > 0) && (
+        {tab.id === "service" && (canProposals || (isProjectCustomer && contractCount > 0)) && (
           <ProjectServiceTab project={project} canManage={canProposals} />
         )}
         {tab.id === "proposals" && !canProposals && isProjectCustomer && (
