@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FileSignature, Plus, ChevronLeft, ChevronRight, Check, Sparkles, Send, Copy, ExternalLink,
-  RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock,
+  RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock, Presentation, Printer,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { docLinkClick } from "../lib/openDoc.js";
@@ -18,6 +18,7 @@ import {
   PROPOSAL_STATUS_META, OPEN_PROPOSAL_STATUSES, DEFAULT_COMMERCIALS, computeTotals, investmentMarkdown,
   mergeInvestment, buildProposalHtml, htmlToText, caseHours, specHoursFromNotes,
 } from "../lib/proposals.js";
+import { deckPrompt, parseDeck, buildDeckHtml } from "../lib/proposalDeck.js";
 import { STATUS_LABEL_KEYS } from "../lib/uiUtils.jsx";
 import { resolveCatalog, computeServiceTotals, servicePlanMarkdown, slaMarkdown, premisesMarkdown, mergeServiceSections, termName } from "../lib/servicePlans.js";
 
@@ -72,7 +73,7 @@ export function ProjectProposalsTab({ project, auth }) {
         ids.length ? supabase.from("case_documents").select("id, case_id, file_name, file_url, file_type, notes, created_at").in("case_id", ids).order("created_at", { ascending: false }) : { data: [] },
         ids.length ? supabase.from("case_assignments").select("case_id, is_active").in("case_id", ids) : { data: [] },
         project.customer_id ? supabase.from("customers").select("id, name, contact_name, contact_email, currency").eq("id", project.customer_id).maybeSingle() : { data: null },
-        project.partner_id ? supabase.from("partners").select("id, name, service_plans").eq("id", project.partner_id).maybeSingle() : { data: null },
+        project.partner_id ? supabase.from("partners").select("id, name, service_plans, logo_url").eq("id", project.partner_id).maybeSingle() : { data: null },
       ]);
       const group = (rows) => (rows ?? []).reduce((m, r) => { (m[r.case_id] ??= []).push(r); return m; }, {});
       setProposals(props ?? []);
@@ -420,6 +421,44 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
     await save({ content_md: md, html, attachments, totals, valid_until: validUntil });
   }
 
+  // ── Presentation for the customer (the document's content as slides; numbers from the platform) ──
+  function deckHtml(slides) {
+    const dfmt = d => d ? new Date(d + (d.length === 10 ? "T12:00:00" : "")).toLocaleDateString(pes ? "es-MX" : "en-US", { year: "numeric", month: "long", day: "numeric" }) : "";
+    const invMd = isService ? servicePlanMarkdown(totals, catalog, lang) : investmentMarkdown(totals, commercials, lang);
+    const hrs = v => `${(Number(v) || 0).toLocaleString(pes ? "es" : "en-US", { maximumFractionDigits: 1 })} h`;
+    const figures = isService
+      ? [{ label: pes ? "Precio" : "Price", value: priceSummary() }]
+      : [
+          { label: "Total", value: fmtMoney(totals.total, p.currency, lang) },
+          { label: pes ? "Casos" : "Cases", value: String(propCases.length) },
+          { label: pes ? "Horas estimadas" : "Estimated hours", value: hrs(totals.basis === "standard" ? totals.hoursStandard : totals.hoursArena) },
+          ...(totals.savings > 0 ? [{ label: pes ? "Ahorro con Arena" : "Arena saving", value: fmtMoney(totals.savings, p.currency, lang) }] : []),
+        ];
+    return buildDeckHtml({
+      slides, lang, title: p.title, customer: customer?.name ?? project.stakeholder_name ?? "", project: project.name,
+      preparedBy: partner?.name ?? auth.profile?.full_name ?? "Arena", logoUrl: partner?.logo_url ?? null,
+      date: dfmt(new Date().toISOString().slice(0, 10)), validUntil: dfmt(p.valid_until), investmentMd: invMd, figures,
+      contact: auth.profile?.full_name ?? "",
+    });
+  }
+
+  async function generateDeck() {
+    setBusy("deck"); setError(null);
+    try {
+      if (!p.content_md) throw new Error(L("Generate the proposal document first.", "Genera primero el documento de la propuesta."));
+      const { system, user } = deckPrompt({ markdown: p.content_md, lang, title: p.title, customer: customer?.name ?? project.stakeholder_name, project: project.name, type: proposalType });
+      const resp = await callClaude({
+        system, messages: [{ role: "user", content: user }], max_tokens: 6000,
+        model: settings?.ai_model ?? "claude-haiku-5-5", feature: "proposal_deck", projectId: project.id, outputLang: p.language,
+      });
+      const text = typeof resp === "string" ? resp : (resp?.content ?? []).filter(b => b.type === "text").map(b => b.text).join("\n");
+      const slides = parseDeck(text);
+      await save({ deck: { slides, generated_at: new Date().toISOString(), doc_md_len: p.content_md.length } });
+      logEvent("proposal.deck_generated", { entityType: "project", entityId: project.id, entityName: p.title });
+    } catch (e) { setError(e.message?.includes("JSON") ? L("The AI answer could not be read. Try again.", "No se pudo leer la respuesta de la IA. Inténtalo de nuevo.") : e.message); }
+    setBusy(null);
+  }
+
   async function send() {
     setBusy("send"); setError(null);
     try {
@@ -663,12 +702,50 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
           onWithdraw={withdraw} onNewVersion={newVersion} />
       )}
 
+      {/* Presentation */}
+      {p.content_md && (!isDraft || step === "document" || step === "send") && (
+        <DeckPanel p={p} L={L} busy={busy === "deck"} onGenerate={generateDeck}
+          html={p.deck?.slides?.length ? deckHtml(p.deck.slides) : null} />
+      )}
+
       {isDraft && step !== "cases" && (
         <div className="text-right">
           <button onClick={withdraw} className="text-xs text-gray-400 hover:text-red-600 inline-flex items-center gap-1"><XCircle size={12} />{L("Discard draft", "Descartar borrador")}</button>
         </div>
       )}
     </div>
+  );
+}
+
+function DeckPanel({ p, L, busy, onGenerate, html }) {
+  const deck = p.deck;
+  const stale = deck?.doc_md_len != null && deck.doc_md_len !== (p.content_md ?? "").length;
+  const openDeck = print => {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.open(); w.document.write(html); w.document.close();
+    if (print) setTimeout(() => { try { w.focus(); w.print(); } catch { /* ignore */ } }, 900);
+  };
+  return (
+    <Card title={L("Presentation for the customer", "Presentación para el cliente")}
+      hint={L("Slides made from the proposal document to present it in a meeting. The investment slides use the same computed numbers as the document; the AI never writes prices or hours.",
+        "Diapositivas creadas a partir del documento de la propuesta para presentarla en una reunión. Las diapositivas de inversión usan los mismos importes calculados del documento; la IA nunca escribe precios ni horas.")}>
+      <div className="flex gap-2 flex-wrap mb-3">
+        <PrimaryBtn busy={busy} onClick={onGenerate}><Sparkles size={14} />{deck?.slides?.length ? L("Regenerate presentation", "Regenerar presentación") : L("Generate presentation", "Generar presentación")}</PrimaryBtn>
+        {html && <>
+          <button onClick={() => openDeck(false)} className="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><Presentation size={14} />{L("Present", "Presentar")}</button>
+          <button onClick={() => openDeck(true)} className="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><Printer size={14} />{L("Download PDF", "Descargar PDF")}</button>
+        </>}
+      </div>
+      {busy && <p className="text-sm text-gray-500 flex items-center gap-2"><Loader2 size={14} className="animate-spin" />{L("Turning the proposal into slides…", "Convirtiendo la propuesta en diapositivas…")}</p>}
+      {stale && !busy && <div className="mb-3"><Banner tone="amber">{L("The document changed after the presentation was made. Regenerate it so both say the same.", "El documento cambió después de crear la presentación. Regenérala para que ambos digan lo mismo.")}</Banner></div>}
+      {html && (
+        <>
+          <iframe title="presentation" srcDoc={html} className="w-full aspect-video border border-gray-200 rounded-xl bg-[#0B1220]" sandbox="allow-scripts" />
+          <p className="text-[11px] text-gray-400 mt-1">{L("click or use the arrows to move; in “Present”, F is full screen", "clic o flechas para avanzar; en “Presentar”, F es pantalla completa")}{deck.generated_at ? ` · ${new Date(deck.generated_at).toLocaleString()}` : ""}</p>
+        </>
+      )}
+    </Card>
   );
 }
 
