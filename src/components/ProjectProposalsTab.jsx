@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FileSignature, Plus, ChevronLeft, ChevronRight, Check, Sparkles, Send, Copy, ExternalLink,
-  RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock, Presentation, Printer, FileText, FileSpreadsheet, FileImage, ScrollText,
+  RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock, Presentation, Printer, FileText, FileSpreadsheet, FileImage, ScrollText, User, Users,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { docLinkClick } from "../lib/openDoc.js";
@@ -811,12 +811,6 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
       )}
 
       {/* 5 · Attach & send */}
-      {isDraft && step === "send" && (
-        <SendStep p={p} setP={setP} save={save} L={L} lang={lang} busy={busy} setError={setError}
-          attachments={attachmentsList()} totals={totals}
-          onRebuild={async () => { setBusy("rebuild"); try { await saveDocument(toMarkers(p.content_md)); } catch (e) { setError(e.message); } setBusy(null); }}
-          onBack={() => setStep("document")} onSend={send} onWithdraw={withdraw} onPreview={openCustomerPreview} />
-      )}
 
 
       {/* Sent / answered */}
@@ -826,6 +820,7 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
       )}
 
       {/* Proposal document (collapsible) — in the document step it is already shown with its editor */}
+      {isDraft && step === "send" && <RecipientsPanel p={p} setP={setP} L={L} attachments={attachmentsList()} onPreview={openCustomerPreview} />}
       {isDraft && step === "send" && <AttachmentsPanel attachments={attachmentsList()} L={L} />}
       {p.html && isDraft && step === "send" && <DocPanel p={p} L={L} />}
 
@@ -839,6 +834,14 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
       {p.content_md && (!isDraft || step === "document" || step === "send") && (
         <DeckPanel p={p} L={L} busy={busy === "deck"} onGenerate={generateDeck}
           html={p.deck?.slides?.length ? deckHtml(p.deck.slides) : null} />
+      )}
+
+      {/* 5 · Send (after the recipients and the documents) */}
+      {isDraft && step === "send" && (
+        <SendStep p={p} setP={setP} save={save} L={L} lang={lang} busy={busy} setError={setError}
+          attachments={attachmentsList()} totals={totals}
+          onRebuild={async () => { setBusy("rebuild"); try { await saveDocument(toMarkers(p.content_md)); } catch (e) { setError(e.message); } setBusy(null); }}
+          onBack={() => setStep("document")} onSend={send} onWithdraw={withdraw} onPreview={openCustomerPreview} />
       )}
 
       {isDraft && step !== "cases" && (
@@ -942,6 +945,59 @@ function Card({ title, hint, children, Icon = null, collapsible = false, default
       {hint && <p className="text-xs text-gray-500 mt-0.5 mb-4">{hint}</p>}
       {children}
     </div>
+  );
+}
+
+// Recipients, collapsible: one row per person with what they get and whether they can decide.
+function RecipientsPanel({ p, setP, L, attachments, onPreview }) {
+  const rec = p.recipients ?? [];
+  const setRec = list => setP(prev => ({ ...prev, recipients: list }));
+  const avail = { proposal: !!p.html, deck: !!p.deck?.slides?.length, summary: !!p.summary_html, attachments: attachments.length > 0 };
+  const DOC_LABEL = { proposal: L("Proposal", "Propuesta"), deck: L("Presentation", "Presentación"), summary: L("Attachments summary", "Resumen de anexos"), attachments: L("Attachments", "Anexos") };
+  const toggle = (i, key) => setRec(rec.map((x, j) => {
+    if (j !== i) return x;
+    const cur = recipientSettings(x, avail);
+    if (key === "can_decide") return { ...x, docs: cur.docs, can_decide: !cur.can_decide };
+    const docs = { ...cur.docs, [key]: !cur.docs[key] };
+    // Without the proposal (amounts) a recipient cannot decide.
+    return { ...x, docs, can_decide: key === "proposal" ? docs.proposal : cur.can_decide && docs.proposal };
+  }));
+  const n = rec.length;
+  return (
+    <Card collapsible defaultOpen={n === 0} Icon={Users} title={`${L("Recipients", "Destinatarios")} · ${n}`}
+      hint={L("Tick per person which documents they get and whether they can decide.", "Marca por persona qué documentos recibe y si puede decidir.")}>
+      <ul className="space-y-2">
+        {rec.map((r, i) => {
+          const st = recipientSettings(r, avail);
+          return (
+            <li key={i} className="flex items-start gap-3 rounded-xl border border-gray-200 p-2.5 min-w-0">
+              <span className="w-14 h-14 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center flex-shrink-0"><User size={20} /></span>
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0">
+                  <input value={r.name ?? ""} placeholder={L("Name", "Nombre")} onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="w-full sm:w-1/3 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+                  <input type="email" value={r.email ?? ""} placeholder="email@company.com" onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+                  <button title={L("Preview what this person sees", "Ver lo que verá esta persona")} onClick={() => onPreview(r)} className="text-gray-400 hover:text-blue-600 flex-shrink-0"><Eye size={16} /></button>
+                  <button title={L("Remove", "Quitar")} onClick={() => setRec(rec.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-600 flex-shrink-0"><XCircle size={16} /></button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {DOC_KEYS.map(k => (
+                    <label key={k} title={!avail[k] ? L("Not generated yet", "Aún no generado") : ""}
+                      className={`inline-flex items-center gap-1.5 text-xs rounded-lg border px-2 py-1 ${!avail[k] ? "opacity-40 cursor-not-allowed border-gray-200" : st.docs[k] ? "border-blue-300 bg-blue-50 text-blue-800 cursor-pointer" : "border-gray-200 text-gray-600 cursor-pointer"}`}>
+                      <input type="checkbox" className="w-3.5 h-3.5" disabled={!avail[k]} checked={st.docs[k]} onChange={() => toggle(i, k)} />{DOC_LABEL[k]}
+                    </label>
+                  ))}
+                  <label title={!st.docs.proposal ? L("Needs the proposal (with amounts)", "Necesita la propuesta (con montos)") : ""}
+                    className={`inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg border px-2 py-1 ${!st.docs.proposal ? "opacity-40 cursor-not-allowed border-gray-200" : st.can_decide ? "border-emerald-300 bg-emerald-50 text-emerald-800 cursor-pointer" : "border-gray-200 text-gray-600 cursor-pointer"}`}>
+                    <input type="checkbox" className="w-3.5 h-3.5" disabled={!st.docs.proposal} checked={st.can_decide} onChange={() => toggle(i, "can_decide")} />{L("Can decide", "Puede decidir")}
+                  </label>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <button onClick={() => setRec([...rec, { name: "", email: "" }])} className="mt-3 text-sm text-blue-600 font-semibold inline-flex items-center gap-1"><Plus size={13} />{L("Add recipient", "Agregar destinatario")}</button>
+    </Card>
   );
 }
 
@@ -1334,58 +1390,15 @@ export function recipientSettings(r, avail) {
 }
 
 function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals, onRebuild, onBack, onSend, onPreview }) {
-  const rec = p.recipients ?? [];
-  const setRec = list => setP(prev => ({ ...prev, recipients: list }));
   const staleAttach = JSON.stringify((p.attachments ?? []).map(a => a.doc_id).sort()) !== JSON.stringify(attachments.map(a => a.doc_id).sort());
-  const avail = { proposal: !!p.html, deck: !!p.deck?.slides?.length, summary: !!p.summary_html, attachments: attachments.length > 0 };
-  const DOC_LABEL = { proposal: L("Proposal", "Propuesta"), deck: L("Presentation", "Presentación"), summary: L("Attachments summary", "Resumen de anexos"), attachments: L("Attachments", "Anexos") };
-  const toggle = (i, key) => setRec(rec.map((x, j) => {
-    if (j !== i) return x;
-    const cur = recipientSettings(x, avail);
-    if (key === "can_decide") return { ...x, docs: cur.docs, can_decide: !cur.can_decide };
-    const docs = { ...cur.docs, [key]: !cur.docs[key] };
-    // Without the proposal (amounts) a recipient cannot decide.
-    return { ...x, docs, can_decide: key === "proposal" ? docs.proposal : cur.can_decide && docs.proposal };
-  }));
   return (
-    <Card title={L("Attach & send", "Anexos y envío")}
-      hint={L("The customer gets an email with a secure link: they can read the proposal, download the attachments and accept, ask for changes or reject it.",
-        "El cliente recibe un correo con un enlace seguro: puede leer la propuesta, descargar los anexos y aceptarla, pedir cambios o rechazarla.")}>
+    <Card title={L("Send", "Envío")}
+      hint={L("Each recipient gets an email with their personal link: they see the documents ticked for them and, if they can decide, accept, ask for changes or reject.",
+        "Cada destinatario recibe un correo con su enlace personal: ve los documentos marcados para él y, si puede decidir, acepta, pide cambios o rechaza.")}>
       {/* min-w-0 everywhere: long names / file names truncate instead of pushing the card wider on phones */}
       <div className="grid md:grid-cols-2 gap-5 min-w-0">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">{L("Recipients", "Destinatarios")}</p>
-          <div className="space-y-2">
-            {rec.map((r, i) => (
-              <div key={i} className="rounded-xl border border-gray-200 p-2.5 space-y-2 min-w-0">
-                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0">
-                  <input value={r.name ?? ""} placeholder={L("Name", "Nombre")} onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="w-full sm:w-1/3 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-                  <input type="email" value={r.email ?? ""} placeholder="email@company.com" onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-                  <button title={L("Preview what this person sees", "Ver lo que verá esta persona")} onClick={() => onPreview(r)} className="text-gray-400 hover:text-blue-600 flex-shrink-0"><Eye size={16} /></button>
-                  <button onClick={() => setRec(rec.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-600 flex-shrink-0"><XCircle size={16} /></button>
-                </div>
-                {/* What this recipient gets (cards enabled on their page) and whether they can decide */}
-                <div className="flex flex-wrap gap-1.5">
-                  {DOC_KEYS.map(k => {
-                    const st = recipientSettings(r, avail);
-                    return (
-                      <label key={k} title={!avail[k] ? L("Not generated yet", "Aún no generado") : ""}
-                        className={`inline-flex items-center gap-1.5 text-xs rounded-lg border px-2 py-1 ${!avail[k] ? "opacity-40 cursor-not-allowed border-gray-200" : st.docs[k] ? "border-blue-300 bg-blue-50 text-blue-800 cursor-pointer" : "border-gray-200 text-gray-600 cursor-pointer"}`}>
-                        <input type="checkbox" className="w-3.5 h-3.5" disabled={!avail[k]} checked={st.docs[k]} onChange={() => toggle(i, k)} />{DOC_LABEL[k]}
-                      </label>
-                    );
-                  })}
-                  {(() => { const st = recipientSettings(r, avail); return (
-                    <label title={!st.docs.proposal ? L("Needs the proposal (with amounts)", "Necesita la propuesta (con montos)") : ""}
-                      className={`inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg border px-2 py-1 ${!st.docs.proposal ? "opacity-40 cursor-not-allowed border-gray-200" : st.can_decide ? "border-emerald-300 bg-emerald-50 text-emerald-800 cursor-pointer" : "border-gray-200 text-gray-600 cursor-pointer"}`}>
-                      <input type="checkbox" className="w-3.5 h-3.5" disabled={!st.docs.proposal} checked={st.can_decide} onChange={() => toggle(i, "can_decide")} />{L("Can decide", "Puede decidir")}
-                    </label>); })()}
-                </div>
-              </div>
-            ))}
-            <button onClick={() => setRec([...rec, { name: "", email: "" }])} className="text-sm text-blue-600 font-semibold inline-flex items-center gap-1"><Plus size={13} />{L("Add recipient", "Agregar destinatario")}</button>
-          </div>
-          <label className="block mt-4">
+          <label className="block">
             <span className="text-xs font-medium text-gray-600">{L("Valid until", "Válida hasta")}</span>
             <input type="date" value={p.valid_until ?? ""} onChange={e => setP({ ...p, valid_until: e.target.value })} className="mt-1 block w-full min-w-0 max-w-full appearance-none bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm" style={{ minHeight: 40 }} />
           </label>
