@@ -389,7 +389,8 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
 
   const logo = (
     <div className="text-center mb-8">
-      <div className="inline-flex items-center justify-center mb-4">
+      {/* isolate: the mark's own z-indexes stay inside it, so it scrolls under the sticky top bar */}
+      <div className="inline-flex items-center justify-center mb-4" style={{ position: "relative", zIndex: 0, isolation: "isolate" }}>
         <NovaLandingMark size={176} />
       </div>
       <h1 className="text-2xl font-bold" style={{minHeight:'2rem'}}>
@@ -462,7 +463,7 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
 
   const NAV_CSS = `
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
-    .auth-nav{position:sticky;top:0;z-index:10;height:60px;padding:0 24px;
+    .auth-nav{position:sticky;top:0;z-index:50;height:60px;padding:0 24px;
       background:rgba(11,15,26,.95);backdrop-filter:blur(12px);
       border-bottom:1px solid rgba(255,255,255,.07);
       display:flex;align-items:center;justify-content:space-between;}
