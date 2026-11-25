@@ -793,6 +793,8 @@ function PartnerProfileTab({ partner, canManage, onChanged }) {
 
 function PartnerView({ auth, onNavigate }) {
   const ctx = usePartnerContext(auth.user?.id);
+  const { settings: _ss } = useSystemSettings() ?? {};
+  const partnerProgramOpen = !Array.isArray(_ss?.signup_roles_visible) || _ss.signup_roles_visible.includes("partner") || auth.isAdmin || auth.isManager;
   const [selectedId, setSelectedId] = useState(null);
   const [tab, setTab] = useState("customers");
   const [nonce, setNonce] = useState(0);
@@ -808,7 +810,9 @@ function PartnerView({ auth, onNavigate }) {
     return (
       <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Partner</h1>
-        <RequestPartnerCard auth={auth} previous={rejected} onDone={() => ctx.refresh()} />
+        {partnerProgramOpen
+          ? <RequestPartnerCard auth={auth} previous={rejected} onDone={() => ctx.refresh()} />
+          : <EmptyState Icon={Handshake} title="Partner program closed" subtitle="New partner requests are not open right now. Contact the platform administrator." />}
       </div>
     );
   }

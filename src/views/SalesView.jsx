@@ -13,6 +13,7 @@ import {
   STAGES, stageOf, NEED_TYPES, PAYERS, DELIVERY_MODES, lbl, money, errText, useMySeller,
 } from "../lib/sales.js";
 import { SolutionCard } from "../components/SolutionsEditor.jsx";
+import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 
 const inp = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-400";
 
@@ -26,8 +27,13 @@ export function BecomeSellerCard({ auth, lang, compact = false }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const { settings } = useSystemSettings() ?? {};
+  // Seller program switched off in Settings → Sign-up access: no new requests (existing sellers keep their status).
+  const signupRoles = settings?.signup_roles_visible;
+  const sellerOpen = !Array.isArray(signupRoles) || signupRoles.includes("seller");
   if (loading) return null;
   if (["client", "invited_client", "final_user", "key_user"].includes(auth.role)) return null;
+  if (!sellerOpen && !["approved", "pending"].includes(seller?.status)) return null;
 
   async function request() {
     setBusy(true); setError(null);
