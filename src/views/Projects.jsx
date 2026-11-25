@@ -2245,8 +2245,9 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4">
           {t("project.back")}
         </button>
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="flex items-center gap-3 min-w-0">
+        {/* wraps on phones: the actions go below the title instead of over it */}
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 mb-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1 basis-64">
             <div className="relative flex-shrink-0" style={{ width: 44, height: 44 }}>
               <ProjectAvatar project={project} size={44} />
               {canEdit && (
@@ -2265,13 +2266,13 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               )}
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-gray-900 leading-tight">{project.name}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 leading-tight break-words">{project.name}</h1>
               {(auth.isAdmin || auth.isManager) && project.client?.client_profiles?.company_name && (
                 <p className="text-sm text-gray-500 mt-0.5">{project.client.client_profiles.company_name}</p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[project.status] ?? "bg-gray-100 text-gray-600"}`}>
               {STATUS_LABEL_KEYS[project.status] ? t(STATUS_LABEL_KEYS[project.status]) : cap(fmt(project.status))}
             </span>
