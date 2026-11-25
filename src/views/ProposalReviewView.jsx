@@ -2,7 +2,7 @@
 // rejects it. No login needed: the secure link is the access (RPCs proposal_by_token /
 // proposal_decide). Approval sets each case's budget and returns the cases to Estimated.
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Clock, Download, FileText, Presentation, Maximize2, Loader2, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, XCircle } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Clock, Copy, Download, FileText, Presentation, Maximize2, Loader2, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, XCircle } from "lucide-react";
 import { docLinkClick, openHtml } from "../lib/openDoc.js";
 import { supabase } from "../lib/supabase.js";
 import { NovaLandingMark } from "./LandingView.jsx";
@@ -266,6 +266,52 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
           )}
         </aside>
       </div>
+    </div>
+  );
+}
+
+// ─── /proposal-preview/:id — the customer page with a draft's data, opened from the proposal editor ──
+// The editor saves the data in this browser's localStorage under PREVIEW_KEY(id); nothing is loaded
+// from the server, so the page works for drafts and the link is never opened for the customer.
+export const PREVIEW_KEY = id => `arena_proposal_preview_${id}`;
+
+export function ProposalPreviewPage({ id }) {
+  const read = () => { try { return JSON.parse(localStorage.getItem(PREVIEW_KEY(id)) ?? "null"); } catch { return null; } };
+  const [data, setData] = useState(read);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const onStorage = e => { if (e.key === PREVIEW_KEY(id)) setData(read()); };   // editor opened the preview again
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [id]);
+  const es = (data?.language ?? navigator.language ?? "").startsWith("es");
+  if (!data) {
+    return (
+      <div style={{ ...BG, alignItems: "center", justifyContent: "center" }} className="px-6 text-center">
+        <AlertCircle size={28} className="text-amber-400 mb-3" />
+        <p className="text-white font-semibold mb-1">{es ? "No hay vista previa" : "No preview"}</p>
+        <p className="text-gray-400 text-sm max-w-sm">{es ? "Abre la vista previa desde la propuesta (paso Anexos y envío → Ver como el cliente)." : "Open the preview from the proposal (Attach & send step → Preview customer view)."}</p>
+      </div>
+    );
+  }
+  const { _link, _draft, _at, ...preview } = data;
+  return (
+    <div style={{ background: "#0B0F1A", minHeight: "100dvh" }}>
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-white/10" style={{ background: "#111829" }}>
+        <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-md" style={{ background: "rgba(245,158,11,.15)", color: "#FCD34D" }}>{es ? "Vista del cliente · previsualización" : "Customer view · preview"}</span>
+        <span className="text-xs text-gray-400">
+          {_draft ? (es ? "El enlace se abre para el cliente cuando envíes la propuesta." : "The link opens for the customer once you send the proposal.") : (es ? "Esta es la página que tiene el cliente." : "This is the page the customer has.")}
+          {_at ? ` · ${new Date(_at).toLocaleTimeString()}` : ""}
+        </span>
+        {_link && (
+          <div className="flex items-center gap-1.5 flex-1 min-w-[14rem] md:max-w-md md:ml-auto">
+            <input readOnly value={_link} className="flex-1 min-w-0 text-xs rounded-lg px-2 py-1.5 bg-white/5 border border-white/10 text-gray-300" />
+            <button onClick={() => { navigator.clipboard?.writeText(_link); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+              className="text-gray-300 hover:text-white p-1.5" title={es ? "Copiar enlace" : "Copy link"}>{copied ? <Check size={15} /> : <Copy size={15} />}</button>
+          </div>
+        )}
+      </div>
+      <ProposalReviewView key={_at} preview={preview} token={null} />
     </div>
   );
 }

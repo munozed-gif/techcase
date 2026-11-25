@@ -143,7 +143,7 @@ import ProjectShareView from "./src/views/ProjectShareView.jsx";
 import ApprovalView from "./src/views/ApprovalView.jsx";
 import CustomerSpecReviewView from "./src/views/CustomerSpecReviewView.jsx";
 import HHInviteView from "./src/views/HHInviteView.jsx";
-import ProposalReviewView from "./src/views/ProposalReviewView.jsx";
+import ProposalReviewView, { ProposalPreviewPage } from "./src/views/ProposalReviewView.jsx";
 import CustomerQuestionsView from "./src/views/CustomerQuestionsView.jsx";
 import MyReviewsView from "./src/views/MyReviewsView.jsx";
 
@@ -712,6 +712,7 @@ const _reviewMatch = typeof window !== 'undefined' && window.location.pathname.m
 const _questionsMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/questions\/([^/?#]+)/);
 // Intercept /proposal/:token — customer proposal review link, no auth required
 const _proposalMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/proposal\/([^/?#]+)/);
+const _proposalPreviewMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/proposal-preview\/([^/?#]+)/);
 // Intercept /hh-invite/:token and /hh/:code — headhunter candidate invitation / personal link
 const _hhInviteMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/hh-invite\/([^/?#]+)/);
 const _hhRefMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/hh\/([^/?#]+)/);
@@ -866,6 +867,10 @@ export default function App() {
   // /proposal/:token — customer proposal (accept / ask for changes / reject), no login needed
   if (_proposalMatch) {
     return <ProposalReviewView token={_proposalMatch[1]} />;
+  }
+  // /proposal-preview/:id — consultant previews the customer page before sending (data from localStorage)
+  if (_proposalPreviewMatch) {
+    return <ProposalPreviewPage id={_proposalPreviewMatch[1]} />;
   }
 
   // /hh-invite/:token, /hh/:code — consultant accepts a headhunter's representation

@@ -19,7 +19,7 @@ import {
   mergeInvestment, buildProposalHtml, htmlToText, caseHours, specHoursFromNotes,
 } from "../lib/proposals.js";
 import { deckPrompt, parseDeck, buildDeckHtml } from "../lib/proposalDeck.js";
-import ProposalReviewView from "../views/ProposalReviewView.jsx";
+import { PREVIEW_KEY } from "../views/ProposalReviewView.jsx";
 import { STATUS_LABEL_KEYS } from "../lib/uiUtils.jsx";
 import { resolveCatalog, computeServiceTotals, servicePlanMarkdown, slaMarkdown, premisesMarkdown, mergeServiceSections, termName } from "../lib/servicePlans.js";
 
@@ -195,7 +195,6 @@ function ProposalEditor({ proposal, ctx, onBack, onChange, onOpen }) {
   // Hours: activity plan first; without a plan, the time estimate written in Spec C (or Spec A).
   const specHoursOf = id => specHoursFromNotes(specs[id]?.notes);
   const [events, setEvents] = useState([]);
-  const [customerPreview, setCustomerPreview] = useState(false);
   const isDraft = p.status === "draft";
   const lang = p.language || "en";
   const pes = lang === "es";
@@ -442,6 +441,23 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
       date: dfmt(new Date().toISOString().slice(0, 10)), validUntil: dfmt(validUntilOverride ?? p.valid_until), investmentMd: invMd, figures,
       contact: auth.profile?.full_name ?? "",
     });
+  }
+
+  // "Preview customer view": the draft's data goes to this browser's storage and a new tab shows the
+  // customer page with it (/proposal-preview/:id). The tab is opened first so popup blockers allow it.
+  function openCustomerPreview() {
+    const w = window.open("", "_blank");
+    const data = {
+      id: p.id, title: p.title, version: p.version, status: isDraft ? "sent" : p.status, language: p.language, currency: p.currency,
+      totals: p.totals ?? totals, valid_until: p.valid_until || null, sent_at: p.sent_at ?? null,
+      html: p.html, deck_html: p.deck?.slides?.length ? deckHtml(p.deck.slides) : null,
+      attachments: attachmentsList(), project_name: project.name, partner_name: partner?.name ?? null, customer_name: customer?.name ?? null,
+      _link: proposalLink(p.token), _draft: isDraft, _at: Date.now(),
+    };
+    try { localStorage.setItem(PREVIEW_KEY(p.id), JSON.stringify(data)); }
+    catch { setError(L("The browser did not allow the preview (storage full or blocked).", "El navegador no permitió la vista previa (almacenamiento lleno o bloqueado).")); w?.close(); return; }
+    const url = `${window.location.origin}/proposal-preview/${p.id}`;
+    if (w) w.location.href = url; else window.open(url, "_blank");
   }
 
   async function generateDeck() {
@@ -697,18 +713,9 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
         <SendStep p={p} setP={setP} save={save} L={L} lang={lang} busy={busy} setError={setError}
           attachments={attachmentsList()} totals={totals}
           onRebuild={async () => { setBusy("rebuild"); try { await saveDocument(toMarkers(p.content_md)); } catch (e) { setError(e.message); } setBusy(null); }}
-          onBack={() => setStep("document")} onSend={send} onWithdraw={withdraw} onPreview={() => setCustomerPreview(true)} />
+          onBack={() => setStep("document")} onSend={send} onWithdraw={withdraw} onPreview={openCustomerPreview} />
       )}
 
-      {customerPreview && (
-        <CustomerPreviewModal L={L} link={proposalLink(p.token)} isDraft={isDraft} onClose={() => setCustomerPreview(false)}
-          data={{
-            id: p.id, title: p.title, version: p.version, status: isDraft ? "sent" : p.status, language: p.language, currency: p.currency,
-            totals: p.totals ?? totals, valid_until: p.valid_until || null, sent_at: p.sent_at ?? null,
-            html: p.html, deck_html: p.deck?.slides?.length ? deckHtml(p.deck.slides) : null,
-            attachments: attachmentsList(), project_name: project.name, partner_name: partner?.name ?? null, customer_name: customer?.name ?? null,
-          }} />
-      )}
 
       {/* Sent / answered */}
       {!isDraft && (
@@ -727,34 +734,6 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
           <button onClick={withdraw} className="text-xs text-gray-400 hover:text-red-600 inline-flex items-center gap-1"><XCircle size={12} />{L("Discard draft", "Descartar borrador")}</button>
         </div>
       )}
-    </div>
-  );
-}
-
-// The page the customer will open from the email, shown with the draft's data before sending.
-function CustomerPreviewModal({ data, link, isDraft, L, onClose }) {
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    const k = e => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", k);
-    const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", k); document.body.style.overflow = prev; };
-  }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-[200] flex flex-col bg-[#0B0F1A]">
-      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-white/10" style={{ background: "#111829" }}>
-        <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-md" style={{ background: "rgba(245,158,11,.15)", color: "#FCD34D" }}>{L("Customer view · preview", "Vista del cliente · previsualización")}</span>
-        <span className="text-xs text-gray-400 hidden md:inline">{isDraft ? L("The link opens for the customer once you send the proposal.", "El enlace se abre para el cliente cuando envíes la propuesta.") : L("This is the page the customer has.", "Esta es la página que tiene el cliente.")}</span>
-        <div className="flex items-center gap-1.5 flex-1 min-w-[14rem] md:max-w-md md:ml-auto">
-          <input readOnly value={link} className="flex-1 min-w-0 text-xs rounded-lg px-2 py-1.5 bg-white/5 border border-white/10 text-gray-300" />
-          <button onClick={() => { navigator.clipboard?.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-            className="text-gray-300 hover:text-white p-1.5" title={L("Copy link", "Copiar enlace")}>{copied ? <Check size={15} /> : <Copy size={15} />}</button>
-        </div>
-        <button onClick={onClose} className="inline-flex items-center gap-1 text-sm font-semibold text-white bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5"><XCircle size={14} />{L("Close", "Cerrar")}</button>
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        <ProposalReviewView preview={data} token={null} />
-      </div>
     </div>
   );
 }
