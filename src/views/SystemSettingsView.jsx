@@ -1284,6 +1284,9 @@ function SettingsRolesTab({ ssCtx }) {
     { key: "final_user",          label: "Final User",          color: "border-teal-500 text-teal-600 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-300" },
     { key: "internal_consultant", label: "Internal Consultant", color: "border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 dark:text-indigo-300" },
     { key: "project_manager",     label: "Project Manager",     color: "border-rose-500 text-rose-600 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-300" },
+    // Programs: a consultant account plus a pending partner / seller request (approved by an admin).
+    { key: "partner",             label: "Partner",             color: "border-cyan-500 text-cyan-600 bg-cyan-50 dark:bg-cyan-500/10 dark:text-cyan-300" },
+    { key: "seller",              label: "Seller",              color: "border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-300" },
   ];
   const ALL_SIGNUP_KEYS = SIGNUP_ROLES.map(r => r.key);
   const visibleRoles = ssCtx.settings["signup_roles_visible"] ?? ALL_SIGNUP_KEYS;
@@ -1418,6 +1421,7 @@ function SettingsRolesTab({ ssCtx }) {
         </div>
         <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-3">
           {visibleRoles.length} of {SIGNUP_ROLES.length} roles active for sign-up
+          <p className="text-xs text-gray-400 mt-1">Partner and Seller create a consultant account plus a partner / seller request that an administrator approves (Approvals page).</p>
         </p>
       </div>
 

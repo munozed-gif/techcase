@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   BadgeCheck, Briefcase, Building2, Check, Crosshair, FolderKanban,
-  Globe, Handshake, Loader2, Mail, Send, Shield, UserCheck, UserCog,
+  Globe, Handshake, Loader2, Mail, Send, Shield, TrendingUp, UserCheck, UserCog,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -63,6 +63,9 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
   const [asPartner, setAsPartner]     = useState(false);
   const [partnerName, setPartnerName] = useState("");
   const [partnerKind, setPartnerKind] = useState("firm");
+  // "Seller" sign-up: a consultant account plus a seller request (seller_from_signup in the database).
+  const [asSeller, setAsSeller]       = useState(false);
+  const [sellerFocus, setSellerFocus] = useState("");
   const [skills, setSkills]           = useState("");
   const [yearsExp, setYearsExp]       = useState("");
   const [hourlyRate, setHourly]       = useState("");
@@ -200,14 +203,14 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
   }
 
   // ── Step 0: role chosen → decide OTP or skip ─────────────────
-  async function handleRoleSelect(r, { partner = false } = {}) {
+  async function handleRoleSelect(r, { partner = false, seller = false } = {}) {
     if (!email.trim()) { setError(t("auth.error_email_first")); return; }
     const suggestion = emailDomainSuggestion(email);
     if (suggestion && !resumeUser) {
       setError(`Check your email: did you mean ${suggestion}? Fix it above (or tap the suggestion) before continuing.`);
       return;
     }
-    setAsPartner(partner);
+    setAsPartner(partner); setAsSeller(seller);
     setError(""); setRole(r); setLoad(true);
     try {
       await checkEmailPreReg(email);
@@ -307,7 +310,7 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
     if (password.length < 6) { setError(t("auth.error_password_short")); return; }
     if (password !== confirmPass) { setError(t("auth.error_password_match")); return; }
     if (asPartner && !partnerName.trim()) { setError("Enter the name of your firm (or your own name if you work independently)."); return; }
-    if (role === "consultant" && !asPartner && !headline.trim()) { setError(t("auth.error_headline")); return; }
+    if (role === "consultant" && !asPartner && !asSeller && !headline.trim()) { setError(t("auth.error_headline")); return; }
     if (role === "client" && !companyName.trim()) { setError(t("auth.error_company")); return; }
     if (role === "key_user"            && requiresTeamFor("key_user")            && !keyUserCompany)                         { setError(t("auth.error_key_user"));  return; }
     if (role === "final_user"          && requiresTeamFor("final_user")          && !finalUserClient)                        { setError(t("auth.error_team_code")); return; }
@@ -316,7 +319,8 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
     setError(""); setLoad(true);
     // Read by the database (partner_from_signup_meta): creates the pending partner request.
     const partnerMeta = asPartner && role === "consultant"
-      ? { partner_request: { name: partnerName.trim(), kind: partnerKind } } : {};
+      ? { partner_request: { name: partnerName.trim(), kind: partnerKind } }
+      : asSeller && role === "consultant" ? { seller_request: { headline: sellerFocus.trim() } } : {};
     try {
       // Name, role and approval status are saved server-side by complete_signup,
       // which applies signup_flow_per_role / auto_approve_domains itself.
@@ -358,7 +362,7 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
       if (role === "consultant") {
         const skillsArr = skills.split(",").map(s => s.trim()).filter(Boolean);
         await supabase.from("consultant_profiles").upsert({
-          id: userId, headline: headline.trim() || (asPartner ? partnerName.trim() : ""), skills: skillsArr,
+          id: userId, headline: headline.trim() || (asPartner ? partnerName.trim() : asSeller ? sellerFocus.trim() : ""), skills: skillsArr,
           years_experience: yearsExp ? parseInt(yearsExp, 10) : null,
           hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
           expertise_level: expertiseLevel,
@@ -636,15 +640,19 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
                     { role: "client",     Icon: Building2, label: t("auth.build_client"),     desc: t("auth.tell_consultants") },
                     { role: "headhunter", Icon: Crosshair, label: t("auth.build_headhunter"), desc: t("auth.help_headhunter") },
                   ].filter(o => visibleSignup.includes(o.role));
-                  if (visibleSignup.includes("consultant") || visibleSignup.includes("partner")) {
+                  if (visibleSignup.includes("partner")) {
                     generalRoles.push({ role: "consultant", partner: true, Icon: Handshake, label: "Partner",
                       desc: "Consulting firm or independent consultant running your own customers and projects" });
+                  }
+                  if (visibleSignup.includes("seller")) {
+                    generalRoles.push({ role: "consultant", seller: true, Icon: TrendingUp, label: "Seller",
+                      desc: "Bring SAP opportunities, protect them and earn a commission on what is delivered" });
                   }
                   const isLinkedToTeam = !!(keyUserCompany || finalUserClient || internalConsultantClient || projectManagerClient);
                   return generalRoles.length > 0 ? (
                     <div className={`grid gap-3 ${generalRoles.length === 1 ? "grid-cols-1" : generalRoles.length === 2 || generalRoles.length === 4 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
                       {generalRoles.map(opt => (
-                        <button key={opt.role + (opt.partner ? "_partner" : "")} onClick={() => handleRoleSelect(opt.role, { partner: !!opt.partner })} disabled={loading || isLinkedToTeam}
+                        <button key={opt.role + (opt.partner ? "_partner" : opt.seller ? "_seller" : "")} onClick={() => handleRoleSelect(opt.role, { partner: !!opt.partner, seller: !!opt.seller })} disabled={loading || isLinkedToTeam}
                           className={`flex flex-col items-center gap-2 p-4 border-2 rounded-2xl transition-all text-center group
                             ${isLinkedToTeam
                               ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
@@ -765,6 +773,7 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-1">
                   {role === "consultant" && asPartner ? "Create your partner account"
+                    : role === "consultant" && asSeller ? "Create your seller account"
                     : role === "consultant" ? t("auth.build_consultant")
                     : role === "key_user" ? t("auth.build_key_user")
                     : role === "final_user" ? t("auth.role_final_user")
@@ -773,6 +782,8 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
                 <p className="text-sm text-gray-500 mb-5">
                   {role === "consultant" && asPartner
                     ? "Run your own customers, projects and cases. An administrator reviews your account and partner request together; you start on the Free plan."
+                    : role === "consultant" && asSeller
+                    ? "Register SAP opportunities, keep them protected in your name and earn your commission when they are delivered. An administrator reviews your account and seller request together."
                     : role === "consultant"
                     ? t("auth.help_clients")
                     : role === "key_user"
@@ -818,8 +829,15 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
                     onChange={e => setPartnerName(e.target.value)} placeholder={partnerKind === "firm" ? "e.g. Acme SAP Consulting" : "e.g. Jane Doe Consulting"} />
                 </>)}
 
+                {/* ── Seller fields ── */}
+                {role === "consultant" && asSeller && (<>
+                  <div className="border-t border-gray-100 my-4" />
+                  <Input label="Your sales focus (optional)" value={sellerFocus}
+                    onChange={e => setSellerFocus(e.target.value)} placeholder="e.g. SAP S/4HANA projects for manufacturing in LATAM" />
+                </>)}
+
                 {/* ── Consultant fields ── */}
-                {role === "consultant" && (<>
+                {role === "consultant" && !asSeller && (<>
                   <div className="border-t border-gray-100 my-4" />
                   <Input label={t("label.headline")} value={headline}
                     onChange={e => setHeadline(e.target.value)}
