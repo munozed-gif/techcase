@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Building2, Check, CheckCircle2, Clock, CreditCard, Crown, Handshake, Layers, Mail, Pencil,
-  Plus, RefreshCw, Rocket, Send, Server, Shield, ShieldAlert, UserPlus, Users, X, XCircle,
+  Plus, RefreshCw, Rocket, Send, Server, Shield, ShieldAlert, UserPlus, Users, X, XCircle, Camera, Trash2, IdCard,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { CountrySelect, EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
@@ -705,6 +705,92 @@ function PartnerDeliveriesTab({ auth, canManage, onNavigate }) {
   );
 }
 
+// ─── Profile: logo, name, website, country (owner / admin; plan, status and owner stay admin-only) ──
+function PartnerAvatar({ partner, size = 44 }) {
+  return partner?.logo_url
+    ? <img src={partner.logo_url} alt="" style={{ width: size, height: size }} className="rounded-xl object-cover bg-white border border-gray-200 flex-shrink-0" />
+    : <div style={{ width: size, height: size }} className="rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0"><Handshake size={Math.round(size / 2)} /></div>;
+}
+
+function PartnerProfileTab({ partner, canManage, onChanged }) {
+  const [form, setForm] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    supabase.from("partners").select("id, name, logo_url, website, country").eq("id", partner.id).maybeSingle()
+      .then(({ data, error }) => { if (error) setErr(error.message); setForm(data ?? { name: partner.name, logo_url: partner.logo_url ?? null, website: "", country: "" }); });
+  }, [partner.id]);
+
+  async function update(patch, what) {
+    setBusy(what); setErr(null); setMsg(null);
+    const { error } = await supabase.from("partners").update(patch).eq("id", partner.id);
+    setBusy(null);
+    if (error) { setErr(error.message); return false; }
+    setForm(f => ({ ...f, ...patch })); setMsg("Saved."); onChanged?.();
+    return true;
+  }
+
+  async function upload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setErr("Choose an image file (PNG, JPG, SVG or WebP)."); return; }
+    if (file.size > 2 * 1024 * 1024) { setErr("The image must be 2 MB or smaller."); return; }
+    setBusy("logo"); setErr(null); setMsg(null);
+    try {
+      const ext = (file.name.split(".").pop() || "png").toLowerCase();
+      const path = `partner-logos/${partner.id}-${Date.now()}.${ext}`;   // new name each time: no stale cached image
+      const { error: upErr } = await supabase.storage.from("project-avatars").upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from("project-avatars").getPublicUrl(path);
+      await update({ logo_url: publicUrl }, "logo");
+    } catch (ex) { setErr(`Upload failed: ${ex.message}`); setBusy(null); }
+  }
+
+  if (!form) return <Spinner />;
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-5 max-w-2xl">
+      <h3 className="font-semibold text-gray-900">Partner profile</h3>
+      <p className="text-xs text-gray-500 mt-0.5 mb-5">The logo and name appear in the Partner area and on your proposals and presentations to customers.</p>
+      {err && <Banner onClose={() => setErr(null)}>{err}</Banner>}
+      {msg && <Banner kind="success" onClose={() => setMsg(null)}>{msg}</Banner>}
+
+      <div className="flex items-center gap-4 mb-6">
+        <PartnerAvatar partner={form} size={80} />
+        {canManage ? (
+          <div className="flex flex-col gap-2">
+            <label className={`inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl px-3 py-2 cursor-pointer ${busy === "logo" ? "bg-gray-100 text-gray-400" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
+              {busy === "logo" ? <RefreshCw size={14} className="animate-spin" /> : <Camera size={14} />}
+              {form.logo_url ? "Change logo" : "Upload logo"}
+              <input type="file" accept="image/*" className="hidden" disabled={busy === "logo"} onChange={upload} />
+            </label>
+            {form.logo_url && (
+              <button onClick={() => update({ logo_url: null }, "logo")} disabled={!!busy} className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-red-600">
+                <Trash2 size={12} />Remove logo
+              </button>
+            )}
+            <span className="text-[11px] text-gray-400">Square image, PNG / JPG / SVG, up to 2 MB.</span>
+          </div>
+        ) : <p className="text-sm text-gray-500">Only the partner owner or an admin can change the profile.</p>}
+      </div>
+
+      <Input label="Name" value={form.name ?? ""} disabled={!canManage} onChange={e => setForm({ ...form, name: e.target.value })} />
+      <Input label="Website" placeholder="https://" value={form.website ?? ""} disabled={!canManage} onChange={e => setForm({ ...form, website: e.target.value })} />
+      <CountrySelect label="Country" value={form.country ?? ""} disabled={!canManage} onChange={v => setForm({ ...form, country: typeof v === "string" ? v : v?.target?.value ?? "" })} />
+      {canManage && (
+        <div className="flex justify-end mt-2">
+          <button disabled={!!busy || !form.name?.trim()} onClick={() => update({ name: form.name.trim(), website: form.website?.trim() || null, country: form.country || null }, "save")}
+            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl px-4 py-2 disabled:opacity-50">
+            {busy === "save" ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}Save profile
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PartnerView({ auth, onNavigate }) {
   const ctx = usePartnerContext(auth.user?.id);
   const [selectedId, setSelectedId] = useState(null);
@@ -730,6 +816,7 @@ function PartnerView({ auth, onNavigate }) {
   const canManage = partner.role === "owner" || partner.role === "admin" || auth.isAdmin || auth.isManager;
   const changed = () => { setNonce(n => n + 1); ctx.refresh(); };
   const TABS = [
+    { id: "profile",   label: "Profile",   Icon: IdCard },
     { id: "customers", label: "Customers", Icon: Building2 },
     { id: "projects",  label: "Projects",  Icon: Layers },
     { id: "members",   label: "Team",      Icon: Users },
@@ -743,7 +830,7 @@ function PartnerView({ auth, onNavigate }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center"><Handshake size={22} /></div>
+        <PartnerAvatar partner={partner} size={44} />
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-gray-900 truncate">{partner.name}</h1>
           <div className="flex items-center gap-2 mt-0.5">
@@ -768,6 +855,7 @@ function PartnerView({ auth, onNavigate }) {
           <UsageStrip limits={partner.limits} usage={usage} />
           <CardCarousel key={partner.id} storageKey="partner_area_slide" height={760} active={tab} onActiveChange={setTab}
             slides={TABS.map(({ id, label, Icon }) => ({ id, label, Icon, content: {
+              profile:       <PartnerProfileTab partner={partner} canManage={canManage} onChanged={changed} />,
               customers:     <CustomersTab partner={partner} canManage={canManage} onChanged={changed} auth={auth} />,
               projects:      <ProjectsTab partner={partner} onNavigate={onNavigate} />,
               members:       <MembersTab partner={partner} canManage={canManage} isOwner={partner.role === "owner"} myId={auth.user?.id} onChanged={changed} />,
