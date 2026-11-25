@@ -826,6 +826,7 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
       )}
 
       {/* Proposal document (collapsible) — in the document step it is already shown with its editor */}
+      {isDraft && step === "send" && <AttachmentsPanel attachments={attachmentsList()} L={L} />}
       {p.html && isDraft && step === "send" && <DocPanel p={p} L={L} />}
 
       {/* Attachments summary */}
@@ -941,6 +942,41 @@ function Card({ title, hint, children, Icon = null, collapsible = false, default
       {hint && <p className="text-xs text-gray-500 mt-0.5 mb-4">{hint}</p>}
       {children}
     </div>
+  );
+}
+
+// Attachments of the proposal, collapsible, as a list (icon box + full name + case), like the customer page.
+function AttachmentsPanel({ attachments, L }) {
+  const n = attachments.length;
+  return (
+    <Card collapsible Icon={Paperclip} title={`${L("Attachments", "Anexos")} · ${n} ${n === 1 ? L("file", "archivo") : L("files", "archivos")}`}
+      hint={L("Files attached to the proposal. Tick “Attach” on case documents in step 2 to change them.", "Archivos anexos a la propuesta. Para cambiarlos, marca “Adjuntar” en los documentos del caso en el paso 2.")}>
+      {n === 0 ? <p className="text-sm text-gray-400">{L("None.", "Ninguno.")}</p> : (
+        <ul className="space-y-2">
+          {attachments.map(a => {
+            const ext = (String(a.file_name ?? "").match(/\.([a-z0-9]{1,5})$/i)?.[1] ?? "").toLowerCase();
+            const name = String(a.file_name ?? "").replace(/\.[a-z0-9]{1,5}$/i, "").replace(/_+/g, " ").trim();
+            const Icon = ["xls", "xlsx", "csv"].includes(ext) ? FileSpreadsheet : ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext) ? FileImage : FileText;
+            return (
+              <li key={a.doc_id}>
+                <a href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer" title={a.file_name}
+                  className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 hover:border-blue-300 hover:bg-blue-50/40 transition min-w-0">
+                  <span className="w-14 h-14 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex flex-col items-center justify-center flex-shrink-0 gap-0.5">
+                    <Icon size={20} />
+                    {ext && <span className="text-[9px] font-semibold uppercase tracking-wide">{ext}</span>}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-gray-900 break-words">{name}</span>
+                    {a.case_title && <span className="block text-xs text-gray-500 mt-0.5 break-words">{L("Case", "Caso")}: {a.case_title}</span>}
+                  </span>
+                  <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-blue-600 flex-shrink-0 pr-1">{L("Open", "Abrir")}<ChevronRight size={13} /></span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
   );
 }
 
@@ -1287,30 +1323,6 @@ function CaseTermsStep({ p, setP, totals, propCases, cfg, L, lang, profileRate, 
 }
 function Row({ k, v }) { return <div className="flex justify-between gap-4"><span className="text-gray-500">{k}</span><span className="text-gray-900">{v}</span></div>; }
 
-// "SpecD_EspecCliente_AR_032_01_API_consulta.html" → "AR_032_01_API_c": the document's own name
-// (after the second "_"), without the extension, 15 characters at most.
-function shortDocName(name) {
-  const base = String(name ?? "").replace(/\.[a-z0-9]{1,5}$/i, "");
-  const parts = base.split("_");
-  const rest = parts.length > 2 ? parts.slice(2).join("_") : base;
-  return (rest || base).slice(0, 15);
-}
-
-function AttachmentTile({ a }) {
-  const ext = (String(a.file_name ?? "").match(/\.([a-z0-9]{1,5})$/i)?.[1] ?? "").toLowerCase();
-  const Icon = ["xls", "xlsx", "csv"].includes(ext) ? FileSpreadsheet : ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext) ? FileImage : FileText;
-  const tone = ext === "pdf" ? "text-red-500 bg-red-50" : ["xls", "xlsx", "csv"].includes(ext) ? "text-emerald-600 bg-emerald-50" : "text-blue-600 bg-blue-50";
-  return (
-    <a href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer"
-      title={`${a.file_name}${a.case_title ? ` — ${a.case_title}` : ""}`}
-      className="aspect-square min-w-0 flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm transition">
-      <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${tone}`}><Icon size={18} /></span>
-      <span className="w-full text-center text-[11px] leading-tight font-medium text-gray-700 break-all line-clamp-2">{shortDocName(a.file_name)}</span>
-      {ext && <span className="text-[9px] uppercase tracking-wide text-gray-400">{ext}</span>}
-    </a>
-  );
-}
-
 // What each recipient gets: four cards + "can decide". Missing settings default to everything that
 // exists; "can decide" defaults to whether they receive the proposal with the amounts.
 export const DOC_KEYS = ["proposal", "deck", "summary", "attachments"];
@@ -1325,7 +1337,6 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
   const rec = p.recipients ?? [];
   const setRec = list => setP(prev => ({ ...prev, recipients: list }));
   const staleAttach = JSON.stringify((p.attachments ?? []).map(a => a.doc_id).sort()) !== JSON.stringify(attachments.map(a => a.doc_id).sort());
-  const [showAtt, setShowAtt] = useState(false);   // attachments collapsed by default
   const avail = { proposal: !!p.html, deck: !!p.deck?.slides?.length, summary: !!p.summary_html, attachments: attachments.length > 0 };
   const DOC_LABEL = { proposal: L("Proposal", "Propuesta"), deck: L("Presentation", "Presentación"), summary: L("Attachments summary", "Resumen de anexos"), attachments: L("Attachments", "Anexos") };
   const toggle = (i, key) => setRec(rec.map((x, j) => {
@@ -1381,16 +1392,6 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
           <p className="text-sm text-gray-700 mt-4">{L("Total", "Total")}: <b>{fmtMoney(totals.total, p.currency, lang)}</b></p>
         </div>
         <div className="min-w-0">
-          {/* Collapsible: the header shows how many files are attached */}
-          <button type="button" onClick={() => setShowAtt(o => !o)} className="w-full flex items-center justify-between gap-2 mb-2 text-left">
-            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-              {L("Attachments", "Anexos")} <span className="ml-1 normal-case font-semibold text-blue-700 bg-blue-50 rounded-full px-2 py-0.5">{attachments.length} {attachments.length === 1 ? L("file", "archivo") : L("files", "archivos")}</span>
-            </span>
-            <ChevronRight size={15} className={`text-gray-400 transition-transform ${showAtt ? "rotate-90" : ""}`} />
-          </button>
-          {!showAtt ? null : attachments.length === 0
-            ? <p className="text-sm text-gray-400">{L("None. Tick “Attach” on case documents in step 2.", "Ninguno. Marca “Adjuntar” en documentos del caso en el paso 2.")}</p>
-            : <div className="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2">{attachments.map(a => <AttachmentTile key={a.doc_id} a={a} />)}</div>}
           {staleAttach && <div className="mt-2"><Banner tone="amber">{L("Attachments changed since the document was built.", "Los anexos cambiaron desde que se armó el documento.")} <button onClick={onRebuild} className="underline font-semibold">{L("Rebuild document", "Reconstruir documento")}</button></Banner></div>}
           <div className="mt-4 flex flex-wrap gap-2">
             <button onClick={() => onPreview(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-xl px-3 py-2"><ExternalLink size={14} />{L("Preview customer view", "Ver como el cliente")}</button>
