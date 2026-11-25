@@ -191,22 +191,30 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
             </div>
           ) : curView === "files" ? (
             <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)" }}>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-2">
+              {/* List: the square icon box + the full file name, its case and type */}
+              <ul className="space-y-2">
                 {data.attachments.map(a => {
                   const ext = (String(a.file_name ?? "").match(/\.([a-z0-9]{1,5})$/i)?.[1] ?? "").toLowerCase();
-                  const base = String(a.file_name ?? "").replace(/\.[a-z0-9]{1,5}$/i, ""); const parts = base.split("_");
-                  const short = (parts.length > 2 ? parts.slice(2).join("_") : base).slice(0, 15);
+                  const name = String(a.file_name ?? "").replace(/\.[a-z0-9]{1,5}$/i, "");
                   return (
-                    <a key={a.doc_id ?? a.file_name} href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer" title={a.file_name}
-                      className="aspect-square min-w-0 flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl hover:bg-white/10 transition"
-                      style={{ border: "1px solid rgba(255,255,255,.12)" }}>
-                      <span className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "rgba(79,110,247,.18)", color: "#A5B4FC" }}><FileText size={18} /></span>
-                      <span className="w-full text-center text-[11px] leading-tight font-medium text-gray-200 break-all line-clamp-2">{short}</span>
-                      {ext && <span className="text-[9px] uppercase tracking-wide text-gray-500">{ext}</span>}
-                    </a>
+                    <li key={a.doc_id ?? a.file_name}>
+                      <a href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer" title={a.file_name}
+                        className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-white/10 transition min-w-0"
+                        style={{ border: "1px solid rgba(255,255,255,.12)" }}>
+                        <span className="w-14 h-14 rounded-xl flex flex-col items-center justify-center flex-shrink-0 gap-0.5" style={{ background: "rgba(79,110,247,.18)", color: "#A5B4FC", border: "1px solid rgba(79,110,247,.3)" }}>
+                          <FileText size={20} />
+                          {ext && <span className="text-[9px] font-semibold uppercase tracking-wide">{ext}</span>}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-white break-words">{name.replace(/_+/g, " ").trim()}</span>
+                          {a.case_title && <span className="block text-xs text-gray-400 mt-0.5 break-words">{lang === "es" ? "Caso" : "Case"}: {a.case_title}</span>}
+                        </span>
+                        <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-blue-300 flex-shrink-0 pr-1">{lang === "es" ? "Abrir" : "Open"} →</span>
+                      </a>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </div>
           ) : (
             <div className="rounded-2xl overflow-hidden border border-white/10 bg-white min-h-[70vh]">
