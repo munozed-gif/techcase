@@ -120,7 +120,7 @@ export function buildDeckHtml({ slides, lang = "en", title, customer, project, p
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:#0B1220;font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--ink)}
 #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
-#deck{width:1280px;height:720px;position:relative;transform-origin:center center}
+#deck{width:1280px;height:720px;flex:none;position:relative;transform-origin:center center}
 .slide{position:absolute;inset:0;background:#fff;display:none;overflow:hidden;border-radius:6px}
 .slide.on{display:block}
 .inner{position:absolute;inset:64px 80px 56px}
@@ -174,12 +174,14 @@ p{font-size:18px;line-height:1.5;color:var(--muted)}
 <script>
 var S=[].slice.call(document.querySelectorAll('.slide')),i=0,deck=document.getElementById('deck');
 function show(n){i=Math.max(0,Math.min(S.length-1,n));S.forEach(function(s,k){s.classList.toggle('on',k===i)});document.getElementById('bar').style.width=((i+1)/S.length*100)+'%';try{history.replaceState(null,'','#'+(i+1))}catch(e){}}
-function fit(){var k=Math.min(innerWidth/1280,innerHeight/720)*0.96;deck.style.transform='scale('+k+')'}
+function fit(){var w=innerWidth||document.documentElement.clientWidth,h=innerHeight||document.documentElement.clientHeight;if(!w||!h)return;var k=Math.min(w/1280,h/720)*0.96;deck.style.transform='scale('+k+')'}
 function fs(){var d=document.documentElement;if(!document.fullscreenElement){(d.requestFullscreen||d.webkitRequestFullscreen||function(){}).call(d)}else{document.exitFullscreen&&document.exitFullscreen()}}
 addEventListener('resize',fit);
 addEventListener('keydown',function(e){if(['ArrowRight','PageDown',' ','Enter'].indexOf(e.key)>=0){e.preventDefault();show(i+1)}else if(['ArrowLeft','PageUp','Backspace'].indexOf(e.key)>=0){e.preventDefault();show(i-1)}else if(e.key==='Home')show(0);else if(e.key==='End')show(S.length-1);else if(e.key==='f'||e.key==='F')fs();else if(e.key==='p'||e.key==='P')window.print()});
 document.getElementById('stage').addEventListener('click',function(e){show(e.clientX>innerWidth/3?i+1:i-1)});
 var tx=null;addEventListener('touchstart',function(e){tx=e.touches[0].clientX},{passive:true});addEventListener('touchend',function(e){if(tx===null)return;var d=e.changedTouches[0].clientX-tx;if(Math.abs(d)>40)show(d<0?i+1:i-1);tx=null});
+var emb=false;try{emb=window.self!==window.top}catch(e){emb=true}if(emb){document.getElementById('tools').style.display='none';document.getElementById('help').style.display='none'}
+if(window.ResizeObserver)new ResizeObserver(fit).observe(document.documentElement);addEventListener('load',fit);setTimeout(fit,50);setTimeout(fit,400);
 fit();show((parseInt(location.hash.slice(1),10)||1)-1);
 </script></body></html>`;
 }

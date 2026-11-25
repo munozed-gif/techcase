@@ -2,7 +2,7 @@
 // rejects it. No login needed: the secure link is the access (RPCs proposal_by_token /
 // proposal_decide). Approval sets each case's budget and returns the cases to Estimated.
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Clock, Download, Loader2, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Download, FileText, Presentation, Maximize2, Loader2, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, XCircle } from "lucide-react";
 import { docLinkClick, openHtml } from "../lib/openDoc.js";
 import { supabase } from "../lib/supabase.js";
 import { NovaLandingMark } from "./LandingView.jsx";
@@ -57,6 +57,7 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
   const [option, setOption] = useState(null); // months of the chosen plan option
+  const [view, setView] = useState("doc");     // "doc" | "deck" (presentation)
 
   useEffect(() => {
     supabase.rpc("proposal_by_token", { p_token: token })
@@ -129,20 +130,45 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
       {Header}
       <div className="flex-1 w-full max-w-6xl mx-auto px-4 py-5 grid lg:grid-cols-[1fr_320px] gap-5">
         <div className="space-y-2">
-          {data.html && (
-            // The document's own print button cannot run inside the sandboxed frame: print from here.
-            <div className="flex justify-end">
-              <button onClick={() => openHtml(data.html, { print: true })}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-[#4F6EF7] hover:bg-[#3d5bea]">
-                <Download size={14} />{lang === "es" ? "Descargar PDF" : "Download PDF"}
-              </button>
+          {(data.html || data.deck_html) && (
+            // The documents' own buttons cannot run inside the sandboxed frame: print / present from here.
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {data.deck_html ? (
+                <div className="inline-flex rounded-lg p-0.5 bg-white/5 border border-white/10">
+                  {[["doc", FileText, lang === "es" ? "Documento" : "Document"], ["deck", Presentation, lang === "es" ? "Presentación" : "Presentation"]].map(([k, I, t]) => (
+                    <button key={k} onClick={() => setView(k)}
+                      style={view === k ? { background: "#4F6EF7", color: "#fff" } : { color: "#CBD5E1" }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold">
+                      <I size={14} />{t}
+                    </button>
+                  ))}
+                </div>
+              ) : <span />}
+              <div className="flex gap-2">
+                {view === "deck" && data.deck_html && (
+                  <button onClick={() => openHtml(data.deck_html)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white border border-white/20 hover:bg-white/10">
+                    <Maximize2 size={14} />{lang === "es" ? "Pantalla completa" : "Full screen"}
+                  </button>
+                )}
+                <button onClick={() => openHtml(view === "deck" && data.deck_html ? data.deck_html : data.html, { print: true })}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-[#4F6EF7] hover:bg-[#3d5bea]">
+                  <Download size={14} />{lang === "es" ? "Descargar PDF" : "Download PDF"}
+                </button>
+              </div>
             </div>
           )}
+          {view === "deck" && data.deck_html ? (
+            <div className="rounded-2xl overflow-hidden border border-white/10 bg-[#0B1220]">
+              <iframe key="deck" title="presentation" srcDoc={data.deck_html} className="w-full aspect-video block" sandbox="allow-scripts" />
+            </div>
+          ) : (
           <div className="rounded-2xl overflow-hidden border border-white/10 bg-white min-h-[70vh]">
             {data.html
-              ? <iframe title="proposal" srcDoc={data.html.replace("</head>", "<style>.print-btn{display:none!important}</style></head>")} className={`w-full ${embedded ? "h-[70vh]" : "h-[78vh]"} bg-white`} sandbox="allow-same-origin allow-popups allow-modals" />
+              ? <iframe key="doc" title="proposal" srcDoc={data.html.replace("</head>", "<style>.print-btn{display:none!important}</style></head>")} className={`w-full ${embedded ? "h-[70vh]" : "h-[78vh]"} bg-white`} sandbox="allow-same-origin allow-popups allow-modals" />
               : <p className="p-6 text-sm text-gray-500">—</p>}
           </div>
+          )}
         </div>
         <aside className="space-y-4">
           <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)" }}>

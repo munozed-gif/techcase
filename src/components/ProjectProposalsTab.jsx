@@ -422,7 +422,7 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
   }
 
   // ── Presentation for the customer (the document's content as slides; numbers from the platform) ──
-  function deckHtml(slides) {
+  function deckHtml(slides, validUntilOverride) {
     const dfmt = d => d ? new Date(d + (d.length === 10 ? "T12:00:00" : "")).toLocaleDateString(pes ? "es-MX" : "en-US", { year: "numeric", month: "long", day: "numeric" }) : "";
     const invMd = isService ? servicePlanMarkdown(totals, catalog, lang) : investmentMarkdown(totals, commercials, lang);
     const hrs = v => `${(Number(v) || 0).toLocaleString(pes ? "es" : "en-US", { maximumFractionDigits: 1 })} h`;
@@ -437,7 +437,7 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
     return buildDeckHtml({
       slides, lang, title: p.title, customer: customer?.name ?? project.stakeholder_name ?? "", project: project.name,
       preparedBy: partner?.name ?? auth.profile?.full_name ?? "Arena", logoUrl: partner?.logo_url ?? null,
-      date: dfmt(new Date().toISOString().slice(0, 10)), validUntil: dfmt(p.valid_until), investmentMd: invMd, figures,
+      date: dfmt(new Date().toISOString().slice(0, 10)), validUntil: dfmt(validUntilOverride ?? p.valid_until), investmentMd: invMd, figures,
       contact: auth.profile?.full_name ?? "",
     });
   }
@@ -453,7 +453,7 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
       });
       const text = typeof resp === "string" ? resp : (resp?.content ?? []).filter(b => b.type === "text").map(b => b.text).join("\n");
       const slides = parseDeck(text);
-      await save({ deck: { slides, generated_at: new Date().toISOString(), doc_md_len: p.content_md.length } });
+      await save({ deck: { slides, generated_at: new Date().toISOString(), doc_md_len: p.content_md.length }, deck_html: deckHtml(slides) });
       logEvent("proposal.deck_generated", { entityType: "project", entityId: project.id, entityName: p.title });
     } catch (e) { setError(e.message?.includes("JSON") ? L("The AI answer could not be read. Try again.", "No se pudo leer la respuesta de la IA. Inténtalo de nuevo.") : e.message); }
     setBusy(null);
@@ -465,7 +465,9 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
       const rec = (p.recipients ?? []).filter(r => /\S+@\S+\.\S+/.test(r.email ?? ""));
       if (!rec.length) throw new Error(L("Add at least one recipient email.", "Agrega al menos un correo de destinatario."));
       if (!p.html) throw new Error(L("Generate the document first.", "Primero genera el documento."));
-      const row = await save({ status: "sent", sent_at: new Date().toISOString() });
+      let row = await save({ status: "sent", sent_at: new Date().toISOString() });
+      // The customer sees the presentation from the same link (refreshed with the final validity date).
+      if (p.deck?.slides?.length) row = await save({ deck_html: deckHtml(p.deck.slides, row.valid_until) });
       await supabase.from("proposal_events").insert({ proposal_id: p.id, event: "sent", actor_id: auth.user?.id, actor_name: auth.profile?.full_name ?? null, note: rec.map(r => r.email).join(", ") });
       const link = proposalLink(row.token);
       const from = partner?.name ?? "Arena Solutions Platform";
@@ -728,8 +730,8 @@ function DeckPanel({ p, L, busy, onGenerate, html }) {
   };
   return (
     <Card title={L("Presentation for the customer", "Presentación para el cliente")}
-      hint={L("Slides made from the proposal document to present it in a meeting. The investment slides use the same computed numbers as the document; the AI never writes prices or hours.",
-        "Diapositivas creadas a partir del documento de la propuesta para presentarla en una reunión. Las diapositivas de inversión usan los mismos importes calculados del documento; la IA nunca escribe precios ni horas.")}>
+      hint={L("Slides made from the proposal document to present it in a meeting. The investment slides use the same computed numbers as the document; the AI never writes prices or hours. The customer also sees the presentation from the proposal link.",
+        "Diapositivas creadas a partir del documento de la propuesta para presentarla en una reunión. Las diapositivas de inversión usan los mismos importes calculados del documento; la IA nunca escribe precios ni horas. El cliente también ve la presentación desde el enlace de la propuesta.")}>
       <div className="flex gap-2 flex-wrap mb-3">
         <PrimaryBtn busy={busy} onClick={onGenerate}><Sparkles size={14} />{deck?.slides?.length ? L("Regenerate presentation", "Regenerar presentación") : L("Generate presentation", "Generar presentación")}</PrimaryBtn>
         {html && <>
