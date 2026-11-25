@@ -516,13 +516,14 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
   // Hours per case come from the platform (same basis as the proposal); no rates or amounts.
   async function saveSummary(md) {
     const hrs = v => `${(Number(v) || 0).toLocaleString(pes ? "es" : "en-US", { maximumFractionDigits: 1 })} h`;
-    const useStd = totals.basis === "standard";
     const lines = (totals.lines ?? []).filter(l => attachmentsList().some(a => a.case_id === l.id));
+    const sum = k => lines.reduce((s, l) => s + (Number(l[k]) || 0), 0);
+    // Both estimates, like the proposal's investment table (hours only, no rates or amounts).
     const hoursTable = lines.length ? [
       `## ${pes ? "Horas estimadas por caso" : "Estimated hours per case"}`,
-      `| ${pes ? "Caso" : "Case"} | ${pes ? "Horas estimadas" : "Estimated hours"} |`, "|---|---|",
-      ...lines.map(l => `| ${l.title} | ${hrs(useStd ? l.hoursStandard : l.hoursArena)} |`),
-      `| **Total** | **${hrs(lines.reduce((s, l) => s + (Number(useStd ? l.hoursStandard : l.hoursArena) || 0), 0))}** |`,
+      `| ${pes ? "Caso" : "Case"} | ${pes ? "Horas estándar" : "Standard hours"} | ${pes ? "Horas Arena" : "Arena hours"} |`, "|---|---|---|",
+      ...lines.map(l => `| ${l.title} | ${hrs(l.hoursStandard)} | ${hrs(l.hoursArena)} |`),
+      `| **Total** | **${hrs(sum("hoursStandard"))}** | **${hrs(sum("hoursArena"))}** |`,
     ].join("\n") : "";
     const full = hoursTable ? `${md}\n\n${hoursTable}` : md;
     const dfmt = d => new Date(d + "T12:00:00").toLocaleDateString(pes ? "es-MX" : "en-US", { year: "numeric", month: "long", day: "numeric" });
