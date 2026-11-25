@@ -1671,7 +1671,8 @@ function DemoCarousel({ tl }) {
 
 export function LandingView({ onSignIn }) {
   const [lang, setLang] = useState(() => {
-    try { const s = localStorage.getItem("tc_lang"); return s === "es" ? "es" : "en"; } catch { return "en"; }
+    // Spanish by default; English only when the visitor chose it with the EN switch.
+    try { const s = localStorage.getItem("tc_lang"); return s === "en" ? "en" : "es"; } catch { return "es"; }
   });
   const [pricingTab, setPricingTab] = useState("consultant");
   const [activeLcStage, setActiveLcStage] = useState(3);

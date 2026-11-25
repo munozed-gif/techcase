@@ -11,7 +11,8 @@ import { proposalMdToHtml } from "../lib/proposals.js";
 import { TERMS_DRAFT_ES, TERMS_DRAFT_EN, PRIVACY_DRAFT_ES, PRIVACY_DRAFT_EN } from "../lib/legalDrafts.js";
 
 export const LEGAL_PATHS = { terms: "/terminos", privacy: "/privacidad" };
-const docLang = () => ((navigator.language || "es").toLowerCase().startsWith("en") ? "en" : "es");
+// Same choice as the app (tc_lang); Spanish by default.
+const docLang = () => { try { return localStorage.getItem("tc_lang") === "en" ? "en" : "es"; } catch { return "es"; } };
 
 let _cache = null;
 export function useLegalCurrent() {

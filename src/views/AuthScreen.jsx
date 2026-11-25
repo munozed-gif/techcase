@@ -39,7 +39,7 @@ function emailDomainSuggestion(email) {
 // resumeUser: a signed-in account whose sign-up was never finished (no role chosen in the
 // profile step) — the screen opens on Sign up with that email, and skips the email code.
 function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const branding = usePlatformBranding();
   const [mode, setMode]         = useState(resumeUser ? "signup" : "signin");
   // Sign-in fields
@@ -505,9 +505,8 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
           })()}
         </button>
         <div className="auth-nav-links">
-          <a href="#" onClick={onBack}>Features</a>
-          <a href="#" onClick={onBack}>Lifecycle</a>
-          <a href="#" onClick={onBack}>Pricing</a>
+          <a href="#" onClick={onBack}>{lang === "en" ? "Features" : "Funcionalidades"}</a>
+          <a href="#" onClick={onBack}>{lang === "en" ? "Lifecycle" : "Ciclo de vida"}</a>
         </div>
       </nav>
 

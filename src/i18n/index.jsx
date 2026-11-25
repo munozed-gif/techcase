@@ -10,8 +10,9 @@ function LanguageProvider({ children, userId, initialLang }) {
     if (initialLang && TRANSLATIONS[initialLang]) return initialLang;
     try {
       const saved = localStorage.getItem("tc_lang");
-      return saved && TRANSLATIONS[saved] ? saved : "en";
-    } catch { return "en"; }
+      // Spanish is the default language; an explicit choice (EN/ES switch or profile) wins.
+      return saved && TRANSLATIONS[saved] ? saved : "es";
+    } catch { return "es"; }
   });
 
   // Apply profile language whenever it becomes available after mount
