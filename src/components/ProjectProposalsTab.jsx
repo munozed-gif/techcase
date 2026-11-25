@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FileSignature, Plus, ChevronLeft, ChevronRight, Check, Sparkles, Send, Copy, ExternalLink,
-  RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock, Presentation, Printer,
+  RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock, Presentation, Printer, FileText, FileSpreadsheet, FileImage,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { docLinkClick } from "../lib/openDoc.js";
@@ -1113,6 +1113,30 @@ function CaseTermsStep({ p, setP, totals, propCases, cfg, L, lang, profileRate, 
 }
 function Row({ k, v }) { return <div className="flex justify-between gap-4"><span className="text-gray-500">{k}</span><span className="text-gray-900">{v}</span></div>; }
 
+// "SpecD_EspecCliente_AR_032_01_API_consulta.html" → "AR_032_01_API_c": the document's own name
+// (after the second "_"), without the extension, 15 characters at most.
+function shortDocName(name) {
+  const base = String(name ?? "").replace(/\.[a-z0-9]{1,5}$/i, "");
+  const parts = base.split("_");
+  const rest = parts.length > 2 ? parts.slice(2).join("_") : base;
+  return (rest || base).slice(0, 15);
+}
+
+function AttachmentTile({ a }) {
+  const ext = (String(a.file_name ?? "").match(/\.([a-z0-9]{1,5})$/i)?.[1] ?? "").toLowerCase();
+  const Icon = ["xls", "xlsx", "csv"].includes(ext) ? FileSpreadsheet : ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext) ? FileImage : FileText;
+  const tone = ext === "pdf" ? "text-red-500 bg-red-50" : ["xls", "xlsx", "csv"].includes(ext) ? "text-emerald-600 bg-emerald-50" : "text-blue-600 bg-blue-50";
+  return (
+    <a href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer"
+      title={`${a.file_name}${a.case_title ? ` — ${a.case_title}` : ""}`}
+      className="aspect-square min-w-0 flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm transition">
+      <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${tone}`}><Icon size={18} /></span>
+      <span className="w-full text-center text-[11px] leading-tight font-medium text-gray-700 break-all line-clamp-2">{shortDocName(a.file_name)}</span>
+      {ext && <span className="text-[9px] uppercase tracking-wide text-gray-400">{ext}</span>}
+    </a>
+  );
+}
+
 function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals, onRebuild, onBack, onSend, onPreview }) {
   const rec = p.recipients ?? [];
   const setRec = list => setP(prev => ({ ...prev, recipients: list }));
@@ -1145,7 +1169,7 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">{L("Attachments", "Anexos")}</p>
           {attachments.length === 0
             ? <p className="text-sm text-gray-400">{L("None. Tick “Attach” on case documents in step 2.", "Ninguno. Marca “Adjuntar” en documentos del caso en el paso 2.")}</p>
-            : <ul className="space-y-1">{attachments.map(a => <li key={a.doc_id} className="text-sm flex items-center gap-2 min-w-0"><Paperclip size={12} className="text-gray-400 flex-shrink-0" /><a href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer" title={a.file_name} className="text-blue-600 truncate min-w-0">{a.file_name}</a><span className="text-xs text-gray-400 truncate hidden sm:inline">· {a.case_title}</span></li>)}</ul>}
+            : <div className="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2">{attachments.map(a => <AttachmentTile key={a.doc_id} a={a} />)}</div>}
           {staleAttach && <div className="mt-2"><Banner tone="amber">{L("Attachments changed since the document was built.", "Los anexos cambiaron desde que se armó el documento.")} <button onClick={onRebuild} className="underline font-semibold">{L("Rebuild document", "Reconstruir documento")}</button></Banner></div>}
           <div className="mt-4 flex flex-wrap gap-2">
             <button onClick={onPreview} className="inline-flex items-center gap-1.5 text-sm font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-xl px-3 py-2"><ExternalLink size={14} />{L("Preview customer view", "Ver como el cliente")}</button>
