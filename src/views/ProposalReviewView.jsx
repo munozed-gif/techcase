@@ -2,7 +2,7 @@
 // rejects it. No login needed: the secure link is the access (RPCs proposal_by_token /
 // proposal_decide). Approval sets each case's budget and returns the cases to Estimated.
 import { useEffect, useState } from "react";
-import { AlertCircle, Check, CheckCircle2, Clock, Copy, Download, FileText, Presentation, Maximize2, Loader2, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, XCircle } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Clock, Copy, Download, FileText, Presentation, Maximize2, Lock, ScrollText, Loader2, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, XCircle } from "lucide-react";
 import { docLinkClick, openHtml } from "../lib/openDoc.js";
 import { supabase } from "../lib/supabase.js";
 import { NovaLandingMark } from "./LandingView.jsx";
@@ -60,7 +60,7 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
   const [option, setOption] = useState(null); // months of the chosen plan option
-  const [view, setView] = useState("doc");     // "doc" | "deck" (presentation)
+  const [view, setView] = useState("proposal");   // "proposal" | "deck" | "summary" | "files"
 
   useEffect(() => {
     if (preview) { setData(preview); setLoading(false); return; }
@@ -81,7 +81,8 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
     if (decision === "accepted" && opts.length > 1 && !chosen) { setError(L.chooseReq); return; }
     if (decision === "accepted" && !window.confirm(L.confirmAccept)) return;
     setBusy(decision);
-    const { error: e } = await supabase.rpc("proposal_decide_v2", { p_token: token, p_decision: decision, p_name: name.trim(), p_note: note.trim() || null, p_option: decision === "accepted" ? (chosen ?? null) : null });
+    const args = { p_token: token, p_decision: decision, p_name: name.trim(), p_note: note.trim() || null, p_option: decision === "accepted" ? (chosen ?? null) : null };
+    const { error: e } = await supabase.rpc(data?.recipient ? "proposal_decide_link" : "proposal_decide_v2", args);
     if (e) { setError(e.message); setBusy(null); return; }
     const acceptedOption = decision === "accepted" ? opts.find(o => o.months === chosen) ?? null : null;
     setData(d => ({ ...d, status: decision, decided_by_name: name.trim(), decision_note: note.trim() || null, decided_at: new Date().toISOString(), accepted_option: acceptedOption }));
@@ -128,54 +129,96 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
   if (["withdrawn", "superseded"].includes(data.status)) return <Message icon={<Clock size={28} className="text-gray-400" />} color="bg-white/5 border border-white/10" title={L.closedT} msg={L.closedM} />;
 
   const decided = ["accepted", "changes_requested", "rejected"].includes(data.status);
+  // Cards of this link (a recipient link may include only some of them).
+  const avail = { proposal: !!data.html, deck: !!data.deck_html, summary: !!data.summary_html, files: (data.attachments ?? []).length > 0 };
+  const CARDS = [
+    { k: "proposal", I: FileText, t: lang === "es" ? "Propuesta" : "Proposal", sub: lang === "es" ? "Documento comercial" : "Commercial document" },
+    { k: "deck", I: Presentation, t: lang === "es" ? "Presentación" : "Presentation", sub: lang === "es" ? "Diapositivas" : "Slides" },
+    { k: "summary", I: ScrollText, t: lang === "es" ? "Resumen de anexos" : "Attachments summary", sub: lang === "es" ? "Resumen técnico" : "Technical summary" },
+    { k: "files", I: Paperclip, t: lang === "es" ? "Anexos" : "Attachments", sub: `${(data.attachments ?? []).length} ${lang === "es" ? "archivos" : "files"}` },
+  ];
+  const curView = avail[view] ? view : (CARDS.find(c => avail[c.k])?.k ?? null);
+  const canDecide = !data.recipient || data.recipient.can_decide;
   const expired = data.valid_until && new Date(data.valid_until + "T23:59:59") < new Date();
 
   return (
     <div style={PAGE}>
       {Header}
       <div className="flex-1 w-full max-w-6xl mx-auto px-4 py-5 grid lg:grid-cols-[1fr_320px] gap-5">
-        <div className="space-y-2">
-          {(data.html || data.deck_html) && (
-            // The documents' own buttons cannot run inside the sandboxed frame: print / present from here.
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              {data.deck_html ? (
-                <div className="inline-flex rounded-lg p-0.5 bg-white/5 border border-white/10">
-                  {[["doc", FileText, lang === "es" ? "Documento" : "Document"], ["deck", Presentation, lang === "es" ? "Presentación" : "Presentation"]].map(([k, I, t]) => (
-                    <button key={k} onClick={() => setView(k)}
-                      style={view === k ? { background: "#4F6EF7", color: "#fff" } : { color: "#CBD5E1" }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold">
-                      <I size={14} />{t}
-                    </button>
-                  ))}
-                </div>
-              ) : <span />}
-              <div className="flex gap-2">
-                {view === "deck" && data.deck_html && (
-                  <button onClick={() => openHtml(data.deck_html)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white border border-white/20 hover:bg-white/10">
-                    <Maximize2 size={14} />{lang === "es" ? "Pantalla completa" : "Full screen"}
-                  </button>
-                )}
-                <button onClick={() => openHtml(view === "deck" && data.deck_html ? data.deck_html : data.html, { print: true })}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-[#4F6EF7] hover:bg-[#3d5bea]">
-                  <Download size={14} />{lang === "es" ? "Descargar PDF" : "Download PDF"}
+        <div className="space-y-3 min-w-0">
+          {/* Four cards: enabled when this link includes them, locked otherwise */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {CARDS.map(c => {
+              const on = avail[c.k]; const active = curView === c.k;
+              return (
+                <button key={c.k} type="button" disabled={!on} onClick={() => setView(c.k)}
+                  className="rounded-xl px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed"
+                  style={{ background: active ? "rgba(79,110,247,.22)" : "rgba(255,255,255,.04)", border: `1px solid ${active ? "#4F6EF7" : "rgba(255,255,255,.1)"}`, opacity: on ? 1 : 0.4 }}>
+                  <span className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: on ? "rgba(79,110,247,.18)" : "rgba(255,255,255,.06)", color: on ? "#A5B4FC" : "#64748B" }}>
+                      {on ? <c.I size={16} /> : <Lock size={14} />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-white truncate">{c.t}</span>
+                      <span className="block text-[11px] text-gray-400 truncate">{on ? c.sub : (lang === "es" ? "No incluido" : "Not included")}</span>
+                    </span>
+                  </span>
                 </button>
-              </div>
+              );
+            })}
+          </div>
+
+          {curView && curView !== "files" && (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {curView === "deck" && (
+                <button onClick={() => openHtml(data.deck_html)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white border border-white/20 hover:bg-white/10">
+                  <Maximize2 size={14} />{lang === "es" ? "Pantalla completa" : "Full screen"}
+                </button>
+              )}
+              <button onClick={() => openHtml(curView === "deck" ? data.deck_html : curView === "summary" ? data.summary_html : data.html, { print: true })}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-[#4F6EF7] hover:bg-[#3d5bea]">
+                <Download size={14} />{lang === "es" ? "Descargar PDF" : "Download PDF"}
+              </button>
             </div>
           )}
-          {view === "deck" && data.deck_html ? (
+
+          {!curView ? (
+            <p className="rounded-2xl p-6 text-sm text-gray-400" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)" }}>{lang === "es" ? "No hay documentos disponibles en este enlace." : "There are no documents in this link."}</p>
+          ) : curView === "deck" ? (
             <div className="rounded-2xl overflow-hidden border border-white/10 bg-[#0B1220]">
               <iframe key="deck" title="presentation" srcDoc={data.deck_html} className="w-full aspect-video block" sandbox="allow-scripts" />
             </div>
+          ) : curView === "files" ? (
+            <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)" }}>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-2">
+                {data.attachments.map(a => {
+                  const ext = (String(a.file_name ?? "").match(/\.([a-z0-9]{1,5})$/i)?.[1] ?? "").toLowerCase();
+                  const base = String(a.file_name ?? "").replace(/\.[a-z0-9]{1,5}$/i, ""); const parts = base.split("_");
+                  const short = (parts.length > 2 ? parts.slice(2).join("_") : base).slice(0, 15);
+                  return (
+                    <a key={a.doc_id ?? a.file_name} href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer" title={a.file_name}
+                      className="aspect-square min-w-0 flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl hover:bg-white/10 transition"
+                      style={{ border: "1px solid rgba(255,255,255,.12)" }}>
+                      <span className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "rgba(79,110,247,.18)", color: "#A5B4FC" }}><FileText size={18} /></span>
+                      <span className="w-full text-center text-[11px] leading-tight font-medium text-gray-200 break-all line-clamp-2">{short}</span>
+                      {ext && <span className="text-[9px] uppercase tracking-wide text-gray-500">{ext}</span>}
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
           ) : (
-          <div className="rounded-2xl overflow-hidden border border-white/10 bg-white min-h-[70vh]">
-            {data.html
-              ? <iframe key="doc" title="proposal" srcDoc={data.html.replace("</head>", "<style>.print-btn{display:none!important}</style></head>")} className={`w-full ${embedded ? "h-[70vh]" : "h-[78vh]"} bg-white`} sandbox="allow-same-origin allow-popups allow-modals" />
-              : <p className="p-6 text-sm text-gray-500">—</p>}
-          </div>
+            <div className="rounded-2xl overflow-hidden border border-white/10 bg-white min-h-[70vh]">
+              <iframe key={curView} title={curView} srcDoc={(curView === "summary" ? data.summary_html : data.html).replace("</head>", "<style>.print-btn{display:none!important}</style></head>")} className={`w-full ${embedded ? "h-[70vh]" : "h-[78vh]"} bg-white`} sandbox="allow-same-origin allow-popups allow-modals" />
+            </div>
           )}
         </div>
         <aside className="space-y-4">
+          {data.recipient?.name && (
+            <p className="text-gray-400 text-xs px-1">{lang === "es" ? "Enlace de" : "Link for"} <span className="text-gray-200 font-semibold">{data.recipient.name}</span></p>
+          )}
+          {data.totals && (
           <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)" }}>
             {data.customer_name && <p className="text-gray-400 text-xs mb-1">{data.customer_name} · {data.project_name}</p>}
             {data.totals?.type === "plan" ? (
@@ -214,19 +257,6 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
             )}
             {data.valid_until && <p className={`text-xs mt-1 ${expired ? "text-red-400" : "text-gray-400"}`}>{L.validUntil} {new Date(data.valid_until + "T12:00:00").toLocaleDateString(lang === "es" ? "es" : "en-US", { year: "numeric", month: "long", day: "numeric" })}</p>}
           </div>
-
-          {(data.attachments ?? []).length > 0 && (
-            <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)" }}>
-              <p className="text-gray-300 text-xs font-semibold uppercase tracking-wide mb-2">{L.attachments}</p>
-              <ul className="space-y-1.5">
-                {data.attachments.map(a => (
-                  <li key={a.doc_id} className="text-sm flex items-center gap-2 min-w-0">
-                    <Paperclip size={12} className="text-gray-500 flex-shrink-0" />
-                    <a href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer" className="text-blue-300 hover:text-blue-200 truncate">{a.file_name}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
           )}
 
           {decided ? (
@@ -238,6 +268,10 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
               <p className="text-gray-400 text-xs mt-1 leading-relaxed">{data.status === "accepted" ? L.acceptedM : data.status === "rejected" ? L.rejectedM : L.changesM}</p>
               {data.decided_by_name && <p className="text-gray-500 text-xs mt-3">{L.by} {data.decided_by_name}{data.decided_at ? ` · ${new Date(data.decided_at).toLocaleDateString(lang === "es" ? "es" : "en-US")}` : ""}</p>}
               {data.decision_note && <p className="text-gray-300 text-xs mt-2 text-left whitespace-pre-wrap rounded-lg p-2" style={{ background: "rgba(255,255,255,.05)" }}>{data.decision_note}</p>}
+            </div>
+          ) : !canDecide ? (
+            <div className="rounded-2xl p-4 text-sm text-gray-300" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)" }}>
+              {lang === "es" ? "Este enlace es de consulta: la decisión sobre la propuesta la toma otra persona de su equipo." : "This link is for viewing: someone else in your team decides on the proposal."}
             </div>
           ) : expired ? (
             <div className="rounded-2xl p-4 text-sm text-red-300" style={{ background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.3)" }}>{L.expired}</div>

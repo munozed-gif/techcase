@@ -456,19 +456,88 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
 
   // "Preview customer view": the draft's data goes to this browser's storage and a new tab shows the
   // customer page with it (/proposal-preview/:id). The tab is opened first so popup blockers allow it.
-  function openCustomerPreview() {
+  // r = a recipient → exactly what that person will see (their cards, and whether they can decide).
+  function openCustomerPreview(r = null) {
     const w = window.open("", "_blank");
+    const avail = { proposal: !!p.html, deck: !!p.deck?.slides?.length, summary: !!p.summary_html, attachments: attachmentsList().length > 0 };
+    const st = r && r.email !== undefined ? recipientSettings(r, avail) : null;
+    const d = st?.docs ?? { proposal: true, deck: true, summary: true, attachments: true };
     const data = {
       id: p.id, title: p.title, version: p.version, status: isDraft ? "sent" : p.status, language: p.language, currency: p.currency,
-      totals: p.totals ?? totals, valid_until: p.valid_until || null, sent_at: p.sent_at ?? null,
-      html: p.html, deck_html: p.deck?.slides?.length ? deckHtml(p.deck.slides) : null,
-      attachments: attachmentsList(), project_name: project.name, partner_name: partner?.name ?? null, customer_name: customer?.name ?? null,
-      _link: proposalLink(p.token), _draft: isDraft, _at: Date.now(),
+      totals: d.proposal ? (p.totals ?? totals) : null, valid_until: p.valid_until || null, sent_at: p.sent_at ?? null,
+      html: d.proposal ? p.html : null, deck_html: d.deck && p.deck?.slides?.length ? deckHtml(p.deck.slides) : null,
+      summary_html: d.summary ? (p.summary_html ?? null) : null,
+      attachments: d.attachments ? attachmentsList() : [], docs: d,
+      recipient: st ? { name: r.name || r.email, can_decide: st.can_decide } : null,
+      project_name: project.name, partner_name: partner?.name ?? null, customer_name: customer?.name ?? null,
+      _link: st ? `${proposalLink("…")} (${L("personal link, created when sending", "enlace personal, se crea al enviar")})` : proposalLink(p.token), _draft: isDraft, _at: Date.now(),
     };
     try { localStorage.setItem(PREVIEW_KEY(p.id), JSON.stringify(data)); }
     catch { setError(L("The browser did not allow the preview (storage full or blocked).", "El navegador no permitió la vista previa (almacenamiento lleno o bloqueado).")); w?.close(); return; }
     const url = `${window.location.origin}/proposal-preview/${p.id}`;
     if (w) w.location.href = url; else window.open(url, "_blank");
+  }
+
+  // ── Attachments summary: one document (proposal style) summarizing every attached file, with the
+  // estimated hours per case (from the platform) and no rates or amounts.
+  async function generateSummary() {
+    setBusy("summary"); setError(null);
+    try {
+      const atts = attachmentsList();
+      if (!atts.length) throw new Error(L("There are no attachments to summarize. Tick “Attach” on case documents in step 2.", "No hay anexos para resumir. Marca “Adjuntar” en documentos del caso en el paso 2."));
+      const blocks = [];
+      for (const c of propCases) {
+        const mine = atts.filter(a => a.case_id === c.id);
+        if (!mine.length) continue;
+        const texts = [];
+        for (const a of mine) { const t = await docText(a); if (t) texts.push(`DOCUMENT "${a.file_name}":\n${clip(t, 7000)}`); }
+        if (texts.length) blocks.push(`### CASE: ${c.title}\n\n${texts.join("\n\n")}`);
+      }
+      const langName = pes ? "Spanish" : "English";
+      const H = pes ? ["Objetivo", "Alcance", "Qué se construye", "Integraciones", "Supuestos y puntos abiertos"]
+                    : ["Objective", "Scope", "What is built", "Integrations", "Assumptions and open points"];
+      const system = `You summarize the technical documents attached to a commercial proposal into ONE document for the customer. Write in ${langName}, clear and concise.
+Output GitHub-flavoured markdown only. Start with "## ${pes ? "Introducción" : "Introduction"}" (2-3 sentences: what this document contains). Then one "## " section per case, titled with the case name exactly as given, and inside it these "### " subsections when the material has them: ${H.join(", ")}.
+Use bullet points; under "${H[2]}" list the technical objects (programs, classes, tables, Fiori apps, services) with a short purpose each.
+Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours). Use only facts from the documents; do not invent. About 150-250 words per case.`;
+      const resp = await callClaude({
+        system, messages: [{ role: "user", content: `PROPOSAL: ${p.title}\nProject: ${project.name}\n\n${blocks.join("\n\n---\n\n")}` }], max_tokens: 8000,
+        model: settings?.ai_model ?? "claude-haiku-5-5", feature: "proposal_summary", projectId: project.id, outputLang: p.language,
+      });
+      const text = (typeof resp === "string" ? resp : (resp?.content ?? []).filter(b => b.type === "text").map(b => b.text).join("\n")).trim()
+        .replace(/^```(?:markdown|md)?\s*\n/i, "").replace(/\n```\s*$/, "").trim();
+      if (!text) throw new Error(L("The AI returned no text. Try again.", "La IA no devolvió texto. Inténtalo de nuevo."));
+      await saveSummary(text);
+      logEvent("proposal.summary_generated", { entityType: "project", entityId: project.id, entityName: p.title });
+    } catch (e) { setError(e.message); }
+    setBusy(null);
+  }
+
+  // Hours per case come from the platform (same basis as the proposal); no rates or amounts.
+  async function saveSummary(md) {
+    const hrs = v => `${(Number(v) || 0).toLocaleString(pes ? "es" : "en-US", { maximumFractionDigits: 1 })} h`;
+    const useStd = totals.basis === "standard";
+    const lines = (totals.lines ?? []).filter(l => attachmentsList().some(a => a.case_id === l.id));
+    const hoursTable = lines.length ? [
+      `## ${pes ? "Horas estimadas por caso" : "Estimated hours per case"}`,
+      `| ${pes ? "Caso" : "Case"} | ${pes ? "Horas estimadas" : "Estimated hours"} |`, "|---|---|",
+      ...lines.map(l => `| ${l.title} | ${hrs(useStd ? l.hoursStandard : l.hoursArena)} |`),
+      `| **Total** | **${hrs(lines.reduce((s, l) => s + (Number(useStd ? l.hoursStandard : l.hoursArena) || 0), 0))}** |`,
+    ].join("\n") : "";
+    const full = hoursTable ? `${md}\n\n${hoursTable}` : md;
+    const dfmt = d => new Date(d + "T12:00:00").toLocaleDateString(pes ? "es-MX" : "en-US", { year: "numeric", month: "long", day: "numeric" });
+    const html = buildProposalHtml({
+      lang, title: pes ? "Resumen técnico de los casos" : "Technical summary of the cases", subtitle: project.name,
+      eyebrow: `${partner?.name ?? "Arena"} · ${p.title}`,
+      meta: [
+        { label: pes ? "Cliente" : "Customer", value: customer?.name ?? project.stakeholder_name ?? "—" },
+        { label: pes ? "Casos" : "Cases", value: String(lines.length || propCases.length) },
+        { label: pes ? "Documentos" : "Documents", value: String(attachmentsList().length) },
+        { label: pes ? "Fecha" : "Date", value: dfmt(new Date().toISOString().slice(0, 10)) },
+      ],
+      markdown: full, attachments: [], preparedBy: partner?.name ?? auth.profile?.full_name ?? "", customerName: customer?.name ?? "",
+    });
+    await save({ summary_md: md, summary_html: html });
   }
 
   async function generateDeck() {
@@ -498,9 +567,29 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
       // The customer sees the presentation from the same link (refreshed with the final validity date).
       if (p.deck?.slides?.length) row = await save({ deck_html: deckHtml(p.deck.slides, row.valid_until) });
       await supabase.from("proposal_events").insert({ proposal_id: p.id, event: "sent", actor_id: auth.user?.id, actor_name: auth.profile?.full_name ?? null, note: rec.map(r => r.email).join(", ") });
-      const link = proposalLink(row.token);
+      // A personal link per recipient: their page shows only the cards ticked for them.
+      const avail = { proposal: !!p.html, deck: !!p.deck?.slides?.length, summary: !!p.summary_html, attachments: attachmentsList().length > 0 };
+      const withSettings = rec.map(r => ({ ...r, ...recipientSettings(r, avail) }));
+      const { data: links, error: le } = await supabase.rpc("proposal_set_recipient_links", { p_proposal: p.id, p_recipients: withSettings });
+      if (le) throw le;
+      const tokenOf = email => (links ?? []).find(x => x.email === String(email).trim().toLowerCase())?.token;
       const from = partner?.name ?? "Arena Solutions Platform";
-      for (const r of rec) {
+      for (const r of withSettings) {
+        const link = proposalLink(tokenOf(r.email) ?? row.token);
+        if (!r.docs.proposal) {
+          // Without the proposal: no price in the email; just what they can review.
+          const what = DOC_KEYS.filter(k => r.docs[k]).map(k => ({ deck: pes ? "la presentación" : "the presentation", summary: pes ? "el resumen técnico de los casos" : "the technical summary of the cases", attachments: pes ? "los documentos anexos" : "the attached documents" })[k]).filter(Boolean).join(", ");
+          const html = buildEmailHtml({
+            title: pes ? "Tienes documentos para revisar" : "You have documents to review",
+            preheader: p.title,
+            bodyHtml: pes
+              ? `<p>Hola ${r.name || ""},</p><p><strong>${from}</strong> compartió contigo ${what || "documentos"} de la propuesta <strong>${p.title}</strong> para el proyecto <strong>${project.name}</strong>.</p><p>Puedes revisarlos desde el enlace.</p>`
+              : `<p>Hello ${r.name || ""},</p><p><strong>${from}</strong> shared ${what || "documents"} of the proposal <strong>${p.title}</strong> for the project <strong>${project.name}</strong> with you.</p><p>You can review them from the link.</p>`,
+            ctaText: pes ? "Revisar documentos" : "Review documents", ctaUrl: link,
+          });
+          await sendEmail(r.email, `${p.title} — ${from}`, html);
+          continue;
+        }
         const html = buildEmailHtml({
           title: pes ? "Tienes una propuesta para revisar" : "You have a proposal to review",
           preheader: `${p.title} — ${priceSummary()}`,
@@ -508,6 +597,7 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
             ? `<p>Hola ${r.name || ""},</p><p><strong>${from}</strong> te envió la propuesta <strong>${p.title}</strong> para el proyecto <strong>${project.name}</strong>.</p><p>${isService ? "Precio" : "Total"}: <strong>${priceSummary()}</strong>${proposalType === "plan" ? " — elige el período al aceptar" : ""} · Válida hasta ${row.valid_until ?? "—"}</p><p>Puedes revisarla, descargar los anexos y aceptarla, pedir cambios o rechazarla desde el enlace.</p>`
             : `<p>Hello ${r.name || ""},</p><p><strong>${from}</strong> has sent you the proposal <strong>${p.title}</strong> for the project <strong>${project.name}</strong>.</p><p>${isService ? "Price" : "Total"}: <strong>${priceSummary()}</strong>${proposalType === "plan" ? " — choose the term when accepting" : ""} · Valid until ${row.valid_until ?? "—"}</p><p>From the link you can review it, download the attachments, and accept it, ask for changes or reject it.</p>`,
           ctaText: pes ? "Revisar propuesta" : "Review proposal", ctaUrl: link,
+          ...(r.can_decide ? {} : { footerNote: pes ? "Este enlace es de consulta: la decisión la toma otra persona de su equipo." : "This link is for viewing: someone else in your team makes the decision." }),
         });
         await sendEmail(r.email, `${p.title} — ${from}`, html);
       }
@@ -734,6 +824,12 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
           onWithdraw={withdraw} onNewVersion={newVersion} />
       )}
 
+      {/* Attachments summary */}
+      {p.content_md && (!isDraft || step === "document" || step === "send") && (
+        <SummaryPanel p={p} L={L} busy={busy === "summary"} onGenerate={generateSummary} count={attachmentsList().length}
+          onSaveEdit={async md => { setBusy("summary"); try { await saveSummary(md); } catch (e) { setError(e.message); } setBusy(null); }} />
+      )}
+
       {/* Presentation */}
       {p.content_md && (!isDraft || step === "document" || step === "send") && (
         <DeckPanel p={p} L={L} busy={busy === "deck"} onGenerate={generateDeck}
@@ -746,6 +842,35 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
         </div>
       )}
     </div>
+  );
+}
+
+function SummaryPanel({ p, L, busy, onGenerate, onSaveEdit, count }) {
+  const [edit, setEdit] = useState(false);
+  const [md, setMd] = useState(p.summary_md ?? "");
+  useEffect(() => { setMd(p.summary_md ?? ""); }, [p.summary_md]);
+  return (
+    <Card title={L("Attachments summary", "Resumen de anexos")}
+      hint={L("One document that summarizes the attached files, in the proposal's style, with the estimated hours per case — no rates or amounts. You choose per recipient whether they get it.",
+        "Un documento que resume los archivos anexos, con el estilo de la propuesta y las horas estimadas por caso — sin tarifas ni montos. Eliges por destinatario si lo recibe.")}>
+      <div className="flex gap-2 flex-wrap mb-3">
+        <PrimaryBtn busy={busy} disabled={!count} onClick={onGenerate}><Sparkles size={14} />{p.summary_html ? L("Regenerate summary", "Regenerar resumen") : L(`Generate summary (${count} files)`, `Generar resumen (${count} archivos)`)}</PrimaryBtn>
+        {p.summary_html && <>
+          <button onClick={() => openHtml(p.summary_html)} className="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><Eye size={14} />{L("Open / save as PDF", "Abrir / guardar PDF")}</button>
+          <button onClick={() => setEdit(e => !e)} className="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><FileText size={14} />{edit ? L("Close editor", "Cerrar editor") : L("Edit text", "Editar texto")}</button>
+        </>}
+      </div>
+      {busy && <p className="text-sm text-gray-500 flex items-center gap-2"><Loader2 size={14} className="animate-spin" />{L("Reading the attachments and writing the summary… this can take a minute.", "Leyendo los anexos y redactando el resumen… puede tardar un minuto.")}</p>}
+      {edit && (
+        <div className="mb-3">
+          <textarea value={md} onChange={e => setMd(e.target.value)} className="w-full h-[360px] font-mono text-xs border border-gray-200 rounded-xl p-3" />
+          <button onClick={() => onSaveEdit(md)} className="mt-2 text-sm font-semibold text-blue-600 inline-flex items-center gap-1.5"><RotateCcw size={13} />{L("Apply edits", "Aplicar cambios")}</button>
+        </div>
+      )}
+      {p.summary_html && (
+        <div className="rounded-xl border border-gray-200 overflow-hidden"><iframe title="summary" srcDoc={p.summary_html} className="w-full h-[420px] block bg-white" sandbox="allow-same-origin allow-popups allow-modals" /></div>
+      )}
+    </Card>
   );
 }
 
@@ -1148,11 +1273,31 @@ function AttachmentTile({ a }) {
   );
 }
 
+// What each recipient gets: four cards + "can decide". Missing settings default to everything that
+// exists; "can decide" defaults to whether they receive the proposal with the amounts.
+export const DOC_KEYS = ["proposal", "deck", "summary", "attachments"];
+export function recipientSettings(r, avail) {
+  const docs = {};
+  for (const k of DOC_KEYS) docs[k] = !!avail[k] && (r?.docs?.[k] ?? true);
+  const can_decide = r?.can_decide ?? docs.proposal;
+  return { docs, can_decide };
+}
+
 function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals, onRebuild, onBack, onSend, onPreview }) {
   const rec = p.recipients ?? [];
   const setRec = list => setP(prev => ({ ...prev, recipients: list }));
   const staleAttach = JSON.stringify((p.attachments ?? []).map(a => a.doc_id).sort()) !== JSON.stringify(attachments.map(a => a.doc_id).sort());
   const [showAtt, setShowAtt] = useState(false);   // attachments collapsed by default
+  const avail = { proposal: !!p.html, deck: !!p.deck?.slides?.length, summary: !!p.summary_html, attachments: attachments.length > 0 };
+  const DOC_LABEL = { proposal: L("Proposal", "Propuesta"), deck: L("Presentation", "Presentación"), summary: L("Attachments summary", "Resumen de anexos"), attachments: L("Attachments", "Anexos") };
+  const toggle = (i, key) => setRec(rec.map((x, j) => {
+    if (j !== i) return x;
+    const cur = recipientSettings(x, avail);
+    if (key === "can_decide") return { ...x, docs: cur.docs, can_decide: !cur.can_decide };
+    const docs = { ...cur.docs, [key]: !cur.docs[key] };
+    // Without the proposal (amounts) a recipient cannot decide.
+    return { ...x, docs, can_decide: key === "proposal" ? docs.proposal : cur.can_decide && docs.proposal };
+  }));
   return (
     <Card title={L("Attach & send", "Anexos y envío")}
       hint={L("The customer gets an email with a secure link: they can read the proposal, download the attachments and accept, ask for changes or reject it.",
@@ -1163,10 +1308,30 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">{L("Recipients", "Destinatarios")}</p>
           <div className="space-y-2">
             {rec.map((r, i) => (
-              <div key={i} className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0">
-                <input value={r.name ?? ""} placeholder={L("Name", "Nombre")} onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="w-full sm:w-1/3 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-                <input type="email" value={r.email ?? ""} placeholder="email@company.com" onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-                <button onClick={() => setRec(rec.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-600 flex-shrink-0"><XCircle size={16} /></button>
+              <div key={i} className="rounded-xl border border-gray-200 p-2.5 space-y-2 min-w-0">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0">
+                  <input value={r.name ?? ""} placeholder={L("Name", "Nombre")} onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="w-full sm:w-1/3 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+                  <input type="email" value={r.email ?? ""} placeholder="email@company.com" onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+                  <button title={L("Preview what this person sees", "Ver lo que verá esta persona")} onClick={() => onPreview(r)} className="text-gray-400 hover:text-blue-600 flex-shrink-0"><Eye size={16} /></button>
+                  <button onClick={() => setRec(rec.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-600 flex-shrink-0"><XCircle size={16} /></button>
+                </div>
+                {/* What this recipient gets (cards enabled on their page) and whether they can decide */}
+                <div className="flex flex-wrap gap-1.5">
+                  {DOC_KEYS.map(k => {
+                    const st = recipientSettings(r, avail);
+                    return (
+                      <label key={k} title={!avail[k] ? L("Not generated yet", "Aún no generado") : ""}
+                        className={`inline-flex items-center gap-1.5 text-xs rounded-lg border px-2 py-1 ${!avail[k] ? "opacity-40 cursor-not-allowed border-gray-200" : st.docs[k] ? "border-blue-300 bg-blue-50 text-blue-800 cursor-pointer" : "border-gray-200 text-gray-600 cursor-pointer"}`}>
+                        <input type="checkbox" className="w-3.5 h-3.5" disabled={!avail[k]} checked={st.docs[k]} onChange={() => toggle(i, k)} />{DOC_LABEL[k]}
+                      </label>
+                    );
+                  })}
+                  {(() => { const st = recipientSettings(r, avail); return (
+                    <label title={!st.docs.proposal ? L("Needs the proposal (with amounts)", "Necesita la propuesta (con montos)") : ""}
+                      className={`inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg border px-2 py-1 ${!st.docs.proposal ? "opacity-40 cursor-not-allowed border-gray-200" : st.can_decide ? "border-emerald-300 bg-emerald-50 text-emerald-800 cursor-pointer" : "border-gray-200 text-gray-600 cursor-pointer"}`}>
+                      <input type="checkbox" className="w-3.5 h-3.5" disabled={!st.docs.proposal} checked={st.can_decide} onChange={() => toggle(i, "can_decide")} />{L("Can decide", "Puede decidir")}
+                    </label>); })()}
+                </div>
               </div>
             ))}
             <button onClick={() => setRec([...rec, { name: "", email: "" }])} className="text-sm text-blue-600 font-semibold inline-flex items-center gap-1"><Plus size={13} />{L("Add recipient", "Agregar destinatario")}</button>
@@ -1190,7 +1355,7 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
             : <div className="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2">{attachments.map(a => <AttachmentTile key={a.doc_id} a={a} />)}</div>}
           {staleAttach && <div className="mt-2"><Banner tone="amber">{L("Attachments changed since the document was built.", "Los anexos cambiaron desde que se armó el documento.")} <button onClick={onRebuild} className="underline font-semibold">{L("Rebuild document", "Reconstruir documento")}</button></Banner></div>}
           <div className="mt-4 flex flex-wrap gap-2">
-            <button onClick={onPreview} className="inline-flex items-center gap-1.5 text-sm font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-xl px-3 py-2"><ExternalLink size={14} />{L("Preview customer view", "Ver como el cliente")}</button>
+            <button onClick={() => onPreview(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-xl px-3 py-2"><ExternalLink size={14} />{L("Preview customer view", "Ver como el cliente")}</button>
             <button onClick={() => openHtml(p.html)} className="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><Eye size={14} />{L("Preview / save as PDF", "Vista previa / guardar PDF")}</button>
           </div>
         </div>
@@ -1221,6 +1386,14 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
 
 function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVersion }) {
   const [copied, setCopied] = useState(false);
+  // Personal links (one per recipient): what each one got, and whether they opened it.
+  const [links, setLinks] = useState([]);
+  const [copiedTok, setCopiedTok] = useState(null);
+  useEffect(() => {
+    supabase.from("proposal_recipient_links").select("*").eq("proposal_id", p.id).eq("active", true).order("created_at")
+      .then(({ data }) => setLinks(data ?? []), () => {});
+  }, [p.id, p.status]);
+  const DOC_SHORT = { proposal: L("Proposal", "Propuesta"), deck: L("Presentation", "Presentación"), summary: L("Summary", "Resumen"), attachments: L("Attachments", "Anexos") };
   const link = proposalLink(p.token);
   const evLabel = e => ({
     created: L("Draft created", "Borrador creado"), sent: L("Sent", "Enviada"), viewed: L("Opened by the customer", "Abierta por el cliente"),
@@ -1259,7 +1432,32 @@ function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVer
             <Row k={L("Valid until", "Válida hasta")} v={p.valid_until ?? "—"} />
           </div>
         )}
-        {open && (
+        {links.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{L("Recipients", "Destinatarios")}</p>
+            {links.map(l => {
+              const url = proposalLink(l.token);
+              return (
+                <div key={l.id} className="rounded-lg border border-gray-100 p-2 space-y-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-gray-800 truncate">{l.name || l.email}</div>
+                      <div className="text-[11px] text-gray-400 truncate">{l.email}</div>
+                    </div>
+                    <button title={L("Copy link", "Copiar enlace")} onClick={() => { navigator.clipboard?.writeText(url); setCopiedTok(l.token); setTimeout(() => setCopiedTok(null), 1500); }} className="text-gray-400 hover:text-blue-600">{copiedTok === l.token ? <Check size={14} /> : <Copy size={14} />}</button>
+                    <a href={url} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-600"><ExternalLink size={14} /></a>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {Object.entries(DOC_SHORT).filter(([k]) => l.docs?.[k]).map(([k, t]) => <span key={k} className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">{t}</span>)}
+                    {l.can_decide && <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">{L("Can decide", "Puede decidir")}</span>}
+                  </div>
+                  <div className="text-[11px] text-gray-500">{l.views ? `${L("Opened", "Abierto")} ${l.views}× · ${L("last", "último")} ${new Date(l.last_viewed_at).toLocaleString()}` : L("Not opened yet", "Aún no lo abre")}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {open && links.length === 0 && (
           <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-2">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{L("Customer link", "Enlace del cliente")}</p>
             <div className="flex gap-2">
