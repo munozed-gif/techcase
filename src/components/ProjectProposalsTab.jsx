@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FileSignature, Plus, ChevronLeft, ChevronRight, Check, Sparkles, Send, Copy, ExternalLink,
-  RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock, Presentation, Printer, FileText, FileSpreadsheet, FileImage,
+  RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock, Presentation, Printer, FileText, FileSpreadsheet, FileImage, ScrollText,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { docLinkClick } from "../lib/openDoc.js";
@@ -824,6 +824,9 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
           onWithdraw={withdraw} onNewVersion={newVersion} />
       )}
 
+      {/* Proposal document (collapsible) — in the document step it is already shown with its editor */}
+      {p.html && isDraft && step === "send" && <DocPanel p={p} L={L} />}
+
       {/* Attachments summary */}
       {p.content_md && (!isDraft || step === "document" || step === "send") && (
         <SummaryPanel p={p} L={L} busy={busy === "summary"} onGenerate={generateSummary} count={attachmentsList().length}
@@ -850,7 +853,7 @@ function SummaryPanel({ p, L, busy, onGenerate, onSaveEdit, count }) {
   const [md, setMd] = useState(p.summary_md ?? "");
   useEffect(() => { setMd(p.summary_md ?? ""); }, [p.summary_md]);
   return (
-    <Card title={L("Attachments summary", "Resumen de anexos")}
+    <Card collapsible Icon={ScrollText} title={L("Attachments summary", "Resumen de anexos")}
       hint={L("One document that summarizes the attached files, in the proposal's style, with the estimated hours per case — no rates or amounts. You choose per recipient whether they get it.",
         "Un documento que resume los archivos anexos, con el estilo de la propuesta y las horas estimadas por caso — sin tarifas ni montos. Eliges por destinatario si lo recibe.")}>
       <div className="flex gap-2 flex-wrap mb-3">
@@ -884,7 +887,7 @@ function DeckPanel({ p, L, busy, onGenerate, html }) {
     if (print) setTimeout(() => { try { w.focus(); w.print(); } catch { /* ignore */ } }, 900);
   };
   return (
-    <Card title={L("Presentation for the customer", "Presentación para el cliente")}
+    <Card collapsible Icon={Presentation} title={L("Presentation for the customer", "Presentación para el cliente")}
       hint={L("Slides made from the proposal document to present it in a meeting. The investment slides use the same computed numbers as the document; the AI never writes prices or hours. The customer also sees the presentation from the proposal link.",
         "Diapositivas creadas a partir del documento de la propuesta para presentarla en una reunión. Las diapositivas de inversión usan los mismos importes calculados del documento; la IA nunca escribe precios ni horas. El cliente también ve la presentación desde el enlace de la propuesta.")}>
       <div className="flex gap-2 flex-wrap mb-3">
@@ -911,13 +914,47 @@ function openHtml(html) {
   if (w) { w.document.open(); w.document.write(html); w.document.close(); }
 }
 
-function Card({ title, hint, children }) {
+function Card({ title, hint, children, Icon = null, collapsible = false, defaultOpen = false }) {
+  const [open, setOpen] = useState(!collapsible || defaultOpen);
+  if (collapsible) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-2xl min-w-0">
+        {/* Closed: just the icon and the document name */}
+        <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-3 p-4 sm:px-5 text-left">
+          {Icon && <span className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0"><Icon size={18} /></span>}
+          <h4 className="font-semibold text-gray-900 flex-1 min-w-0 truncate">{title}</h4>
+          <ChevronRight size={16} className={`text-gray-400 flex-shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
+        </button>
+        {open && (
+          <div className="px-4 sm:px-5 pb-5 -mt-1">
+            {hint && <p className="text-xs text-gray-500 mb-4">{hint}</p>}
+            {children}
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 min-w-0">
       <h4 className="font-semibold text-gray-900">{title}</h4>
       {hint && <p className="text-xs text-gray-500 mt-0.5 mb-4">{hint}</p>}
       {children}
     </div>
+  );
+}
+
+// The proposal document itself (preview + open / save as PDF), collapsible like the other documents.
+function DocPanel({ p, L }) {
+  return (
+    <Card collapsible Icon={FileText} title={L("Proposal document", "Documento de la propuesta")}
+      hint={L("The commercial document with the amounts. Scroll inside to read it.", "El documento comercial con los montos. Desplázate dentro para leerlo.")}>
+      <div className="flex gap-2 flex-wrap mb-3">
+        <button onClick={() => openHtml(p.html)} className="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><Eye size={14} />{L("Open / save as PDF", "Abrir / guardar PDF")}</button>
+      </div>
+      <div className="rounded-xl border border-gray-200 overflow-hidden bg-[#F6F7FB]">
+        <iframe title="proposal-preview" srcDoc={p.html} className="w-full h-[420px] sm:h-[520px] block bg-white" sandbox="allow-same-origin allow-popups allow-modals" />
+      </div>
+    </Card>
   );
 }
 function Footer({ children }) {
@@ -1356,20 +1393,9 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
           {staleAttach && <div className="mt-2"><Banner tone="amber">{L("Attachments changed since the document was built.", "Los anexos cambiaron desde que se armó el documento.")} <button onClick={onRebuild} className="underline font-semibold">{L("Rebuild document", "Reconstruir documento")}</button></Banner></div>}
           <div className="mt-4 flex flex-wrap gap-2">
             <button onClick={() => onPreview(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-xl px-3 py-2"><ExternalLink size={14} />{L("Preview customer view", "Ver como el cliente")}</button>
-            <button onClick={() => openHtml(p.html)} className="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><Eye size={14} />{L("Preview / save as PDF", "Vista previa / guardar PDF")}</button>
           </div>
         </div>
       </div>
-      {/* Document preview, like the presentation card */}
-      {p.html && (
-        <div className="mt-5">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">{L("Proposal document", "Documento de la propuesta")}</p>
-          <div className="rounded-xl border border-gray-200 overflow-hidden bg-[#F6F7FB]">
-            <iframe title="proposal-preview" srcDoc={p.html} className="w-full h-[420px] sm:h-[520px] block bg-white" sandbox="allow-same-origin allow-popups allow-modals" />
-          </div>
-          <p className="text-[11px] text-gray-400 mt-1">{L("Scroll inside to read it; “Preview customer view” shows it exactly as the customer gets it.", "Desplázate dentro para leerlo; “Ver como el cliente” lo muestra exactamente como lo recibe el cliente.")}</p>
-        </div>
-      )}
       <Footer>
         <button onClick={onBack} className="text-sm text-gray-500">{L("Back", "Atrás")}</button>
         <div className="flex flex-wrap justify-end gap-2">
