@@ -777,7 +777,7 @@ function openHtml(html) {
 
 function Card({ title, hint, children }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5">
+    <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 min-w-0">
       <h4 className="font-semibold text-gray-900">{title}</h4>
       {hint && <p className="text-xs text-gray-500 mt-0.5 mb-4">{hint}</p>}
       {children}
@@ -785,7 +785,7 @@ function Card({ title, hint, children }) {
   );
 }
 function Footer({ children }) {
-  return <div className="flex items-center justify-between gap-3 mt-5 pt-4 border-t border-gray-100">{children}</div>;
+  return <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-4 border-t border-gray-100">{children}</div>;
 }
 function PrimaryBtn({ busy, disabled, onClick, children }) {
   return (
@@ -1121,30 +1121,31 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
     <Card title={L("Attach & send", "Anexos y envío")}
       hint={L("The customer gets an email with a secure link: they can read the proposal, download the attachments and accept, ask for changes or reject it.",
         "El cliente recibe un correo con un enlace seguro: puede leer la propuesta, descargar los anexos y aceptarla, pedir cambios o rechazarla.")}>
-      <div className="grid md:grid-cols-2 gap-5">
-        <div>
+      {/* min-w-0 everywhere: long names / file names truncate instead of pushing the card wider on phones */}
+      <div className="grid md:grid-cols-2 gap-5 min-w-0">
+        <div className="min-w-0">
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">{L("Recipients", "Destinatarios")}</p>
           <div className="space-y-2">
             {rec.map((r, i) => (
-              <div key={i} className="flex gap-2">
-                <input value={r.name ?? ""} placeholder={L("Name", "Nombre")} onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="w-1/3 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-                <input value={r.email ?? ""} placeholder="email@company.com" onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-                <button onClick={() => setRec(rec.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-600"><XCircle size={16} /></button>
+              <div key={i} className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0">
+                <input value={r.name ?? ""} placeholder={L("Name", "Nombre")} onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="w-full sm:w-1/3 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+                <input type="email" value={r.email ?? ""} placeholder="email@company.com" onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+                <button onClick={() => setRec(rec.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-600 flex-shrink-0"><XCircle size={16} /></button>
               </div>
             ))}
             <button onClick={() => setRec([...rec, { name: "", email: "" }])} className="text-sm text-blue-600 font-semibold inline-flex items-center gap-1"><Plus size={13} />{L("Add recipient", "Agregar destinatario")}</button>
           </div>
           <label className="block mt-4">
             <span className="text-xs font-medium text-gray-600">{L("Valid until", "Válida hasta")}</span>
-            <input type="date" value={p.valid_until ?? ""} onChange={e => setP({ ...p, valid_until: e.target.value })} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+            <input type="date" value={p.valid_until ?? ""} onChange={e => setP({ ...p, valid_until: e.target.value })} className="mt-1 block w-full min-w-0 max-w-full appearance-none bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm" style={{ minHeight: 40 }} />
           </label>
           <p className="text-sm text-gray-700 mt-4">{L("Total", "Total")}: <b>{fmtMoney(totals.total, p.currency, lang)}</b></p>
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">{L("Attachments", "Anexos")}</p>
           {attachments.length === 0
             ? <p className="text-sm text-gray-400">{L("None. Tick “Attach” on case documents in step 2.", "Ninguno. Marca “Adjuntar” en documentos del caso en el paso 2.")}</p>
-            : <ul className="space-y-1">{attachments.map(a => <li key={a.doc_id} className="text-sm flex items-center gap-2"><Paperclip size={12} className="text-gray-400" /><a href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer" className="text-blue-600 truncate">{a.file_name}</a><span className="text-xs text-gray-400 truncate">· {a.case_title}</span></li>)}</ul>}
+            : <ul className="space-y-1">{attachments.map(a => <li key={a.doc_id} className="text-sm flex items-center gap-2 min-w-0"><Paperclip size={12} className="text-gray-400 flex-shrink-0" /><a href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer" title={a.file_name} className="text-blue-600 truncate min-w-0">{a.file_name}</a><span className="text-xs text-gray-400 truncate hidden sm:inline">· {a.case_title}</span></li>)}</ul>}
           {staleAttach && <div className="mt-2"><Banner tone="amber">{L("Attachments changed since the document was built.", "Los anexos cambiaron desde que se armó el documento.")} <button onClick={onRebuild} className="underline font-semibold">{L("Rebuild document", "Reconstruir documento")}</button></Banner></div>}
           <div className="mt-4 flex flex-wrap gap-2">
             <button onClick={onPreview} className="inline-flex items-center gap-1.5 text-sm font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-xl px-3 py-2"><ExternalLink size={14} />{L("Preview customer view", "Ver como el cliente")}</button>
@@ -1152,9 +1153,19 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
           </div>
         </div>
       </div>
+      {/* Document preview, like the presentation card */}
+      {p.html && (
+        <div className="mt-5">
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">{L("Proposal document", "Documento de la propuesta")}</p>
+          <div className="rounded-xl border border-gray-200 overflow-hidden bg-[#F6F7FB]">
+            <iframe title="proposal-preview" srcDoc={p.html} className="w-full h-[420px] sm:h-[520px] block bg-white" sandbox="allow-same-origin allow-popups allow-modals" />
+          </div>
+          <p className="text-[11px] text-gray-400 mt-1">{L("Scroll inside to read it; “Preview customer view” shows it exactly as the customer gets it.", "Desplázate dentro para leerlo; “Ver como el cliente” lo muestra exactamente como lo recibe el cliente.")}</p>
+        </div>
+      )}
       <Footer>
         <button onClick={onBack} className="text-sm text-gray-500">{L("Back", "Atrás")}</button>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <button onClick={async () => { try { await save({ recipients: p.recipients, valid_until: p.valid_until || null }); } catch (e) { setError(e.message); } }}
             className="text-sm border border-gray-200 rounded-xl px-4 py-2 text-gray-700">{L("Save draft", "Guardar borrador")}</button>
           <PrimaryBtn busy={busy === "send"} onClick={async () => { try { await save({ recipients: p.recipients, valid_until: p.valid_until || null }); await onSend(); } catch (e) { setError(e.message); } }}>
