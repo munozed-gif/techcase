@@ -21,7 +21,7 @@ import {
 import { useCases, useApplications, useRatings } from "../hooks/useCaseHooks.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings, usePermissions } from "../hooks/useSystemSettings.jsx";
-import { pickPlanSpec, planObjects, alignWithObjects, planDesignHours, scaleDesign, SPEC_NAMES } from "../lib/devPlanBase.js";
+import { pickPlanSpec, planObjects, alignWithObjects, planDesignHours, scaleDesign, planTestActivities, SPEC_NAMES } from "../lib/devPlanBase.js";
 import { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, sendEmailToUser } from "../lib/utils.js";
 import { Badge, ROLE_LABELS, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Modal, Input, Textarea, Select } from "../components/ui.jsx";
@@ -55,6 +55,7 @@ import {
   ROLE_COLORS, APP_STATUS_COLORS, PROJECT_TYPES,
   SAP_AREAS, INDUSTRY_AREAS, LIFECYCLE_PRESETS,
   DEFAULT_ACTIVITY_PHASES, getLifecycleStages, GATE_CONDITIONS, withProposalStage,
+  gateTabs,
 } from "../lib/businessConstants.js";
 import { resolveGate, caseValidationScope } from "../lib/validationPolicies.js";
 import { applyArenaEstimate, arenaHours, estimateTotals, IMPL_MODE_LABEL, SENIORITY_LABEL, SENIORITY_LEVELS } from "../lib/estimation.js";
@@ -2076,7 +2077,11 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
       // Hours of the spec's objects (and any object the AI left out) — the plan matches the approved estimate.
       const aligned = specObjs.length ? alignWithObjects(parsedRaw, specObjs, planPick?.notes?.docLang || lang) : parsedRaw;
       // Design activities add up to the spec's "Analysis & design" hours.
-      const parsedStandard = planPick?.cfg?.align_objects ? scaleDesign(aligned, planDesignHours(planPick)) : aligned;
+      const scaled = planPick?.cfg?.align_objects ? scaleDesign(aligned, planDesignHours(planPick)) : aligned;
+      // Unit tests and UAT support from the spec's estimate, so the plan adds up to the spec's total.
+      const parsedStandard = planPick?.cfg?.include_tests
+        ? [...scaled, ...planTestActivities(planPick, planPick?.notes?.docLang || lang, outputMode === 'subcases' ? 'subcase' : 'activity')]
+        : scaled;
       // Arena estimate next to the standard one (automation × seniority, see lib/estimation.js).
       const estCtx = await caseEstimationContext(caseData, cdSettings, { isStaff: auth.isAdmin || auth.isManager });
       const parsedActivities = applyArenaEstimate(parsedStandard, estCtx);
@@ -2525,15 +2530,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
   }, [allActivitiesDone]);
 
   // Transition gate condition → the tab where it is resolved (status carousel: click a condition to go there).
-  const GATE_TAB = {
-    consultant_assigned: 'applications', spec_generated: 'spec', spec_approved: 'spec', asbuilt_spec_approved: 'spec',
-    sla_set: 'detail', project_linked: 'detail', budget_defined: 'detail', client_rating: 'detail', proposal_approved: 'detail',
-    milestones_defined: 'milestones', milestones_complete: 'milestones', time_logged: 'time', documents_attached: 'documents',
-    invoice_sent: 'costs', activities_created: 'activities', activities_complete: 'activities',
-    tech_test_activity_exists: 'activities', func_test_activity_exists: 'activities', user_test_activity_exists: 'activities',
-    tech_test_phase_complete: 'activities', func_test_phase_complete: 'activities', user_test_phase_complete: 'activities',
-    hh_assigned: 'hh_proposals', sap_objects_complete: 'implementation', qa_transport_completed: 'transport',
-  };
+  const GATE_TAB = gateTabs(ssCtxCD.settings);   // System settings → Lifecycle → Transition gates
   function goToGate(cond) {
     const tab = GATE_TAB[cond.key];
     if (!tab) return;
@@ -4763,7 +4760,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                         </button>
                       </div>
                       {/* Phase badge */}
-                      <span className={`flex-shrink-0 mt-0.5 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${item.phase === 'design' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <span className={`flex-shrink-0 mt-0.5 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${item.phase === 'design' ? 'bg-amber-100 text-amber-700' : /test/.test(item.phase ?? '') ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
                         {item.phase}
                       </span>
                       {/* Editable title */}

@@ -59,6 +59,8 @@ export function guessObjectType(activity) {
  */
 export function implModeFor(activity, { arenaAvailable, policyTypes }) {
   if (activity?.phase === 'design') return 'design';
+  // Testing and adjustment are done by hand (as in the spec's estimate): no automation factor.
+  if (/test|adjustment/.test(activity?.phase ?? '')) return 'manual';
   if (!arenaAvailable) return 'manual';
   const type = activity?.sap_object_type && activity.sap_object_type !== 'none'
     ? activity.sap_object_type : guessObjectType(activity);

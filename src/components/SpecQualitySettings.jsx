@@ -117,6 +117,10 @@ function DevPlanSettings({ ssCtx }) {
         <input type="checkbox" checked={draft.align_objects} onChange={e => setDraft(d => ({ ...d, align_objects: e.target.checked }))} className="mt-1 accent-blue-600" />
         <span>Una actividad de desarrollo por objeto técnico de la especificación, con sus horas calculadas <span className="block text-xs text-gray-500">El plan coincide con la estimación aprobada; los objetos Z que la IA omita se agregan. Las tablas y objetos estándar que solo se leen no son actividades.</span></span>
       </label>
+      <label className="flex items-start gap-2 text-sm text-gray-700">
+        <input type="checkbox" checked={draft.include_tests !== false} onChange={e => setDraft(d => ({ ...d, include_tests: e.target.checked }))} className="mt-1 accent-blue-600" />
+        <span>Incluir las pruebas unitarias y el soporte UAT de la estimación <span className="block text-xs text-gray-500">Se crean como actividades de Prueba técnica y Prueba de usuario con las horas de la especificación, para que el plan sume lo mismo que la estimación aprobada.</span></span>
+      </label>
       <div className="flex items-center justify-end gap-2">
         <button onClick={() => setDraft(JSON.parse(JSON.stringify(DEV_PLAN_DEFAULTS)))} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">Valores iniciales</button>
         <button onClick={save} disabled={!dirty || saving} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">{saving ? 'Guardando…' : done ? 'Guardado ✓' : 'Guardar'}</button>

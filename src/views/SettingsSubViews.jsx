@@ -9,7 +9,7 @@ import { logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Select, Textarea } from "../components/ui.jsx";
 import { PRIORITY_LABEL_KEYS, ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_PRIORITIES, SLA_UNIT_LABELS, SlaMatrixEditor, cap } from "../lib/uiUtils.jsx";
-import { LIFECYCLE_PRESETS, DEFAULT_ACTIVITY_PHASES, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES, GATE_CONDITIONS, getLifecycleStages } from "../lib/businessConstants.js";
+import { LIFECYCLE_PRESETS, DEFAULT_ACTIVITY_PHASES, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES, GATE_CONDITIONS, getLifecycleStages, gateTabs, CASE_TAB_OPTIONS } from "../lib/businessConstants.js";
 import { SLA_PRESETS } from "../components/CreateCaseWizard.jsx";
 
 function LifecycleSettingsView({ auth }) {
@@ -1103,6 +1103,50 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
 
 const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "internal_consultant", "project_manager"];
 
+// Where each gate condition leads when clicked in the case status carousel (one list for all stages).
+function GateTabsEditor({ settings, setSetting }) {
+  const saved = gateTabs(settings);
+  const [draft, setDraft] = useState(saved);
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState(null);   // 'saving' | 'saved'
+  useEffect(() => { setDraft(gateTabs(settings)); }, [JSON.stringify(settings?.gate_condition_tabs ?? {})]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  async function save() {
+    setState('saving');
+    await setSetting('gate_condition_tabs', draft);
+    setState('saved'); setTimeout(() => setState(null), 2000);
+  }
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-left">
+        <span>
+          <span className="block text-sm font-semibold text-gray-800">Ir a la pestaña</span>
+          <span className="block text-xs text-gray-500">Pestaña del caso que se abre al hacer clic en cada condición, en el carrusel de estados del caso.</span>
+        </span>
+        <ChevronDown size={16} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="p-4 space-y-2">
+          {GATE_CONDITIONS.map(c => (
+            <div key={c.key} className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="flex-1 min-w-[200px] text-gray-700">{c.label}</span>
+              <select value={draft[c.key] ?? ''} onChange={e => setDraft(d => ({ ...d, [c.key]: e.target.value }))}
+                className="px-2 py-1 border border-gray-200 rounded-lg text-sm bg-white min-w-[180px]">
+                <option value="">— Sin enlace —</option>
+                {CASE_TAB_OPTIONS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+              </select>
+            </div>
+          ))}
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setDraft(gateTabs({}))} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">Valores iniciales</button>
+            <button onClick={save} disabled={!dirty || state === 'saving'} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">{state === 'saving' ? 'Guardando…' : state === 'saved' ? 'Guardado ✓' : 'Guardar'}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TransitionGatesPanel({ auth }) {
   const { t } = useT();
   const { settings, setSetting } = useSystemSettings();
@@ -1378,6 +1422,7 @@ function TransitionGatesPanel({ auth }) {
           );
         })}
       </div>
+      <GateTabsEditor settings={settings} setSetting={setSetting} />
     </div>
   );
 }

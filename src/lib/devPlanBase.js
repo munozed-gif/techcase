@@ -6,7 +6,7 @@
 //   align_objects: one development activity per technical object, with the spec's calculated hours
 import { readObjects, computeEstimate } from './specHours.js';
 
-export const DEV_PLAN_DEFAULTS = { base: 'approved', fallback: ['c', 'a', 'b', 'd'], full_spec: true, align_objects: true };
+export const DEV_PLAN_DEFAULTS = { base: 'approved', fallback: ['c', 'a', 'b', 'd'], full_spec: true, align_objects: true, include_tests: true };
 export const SPEC_NAMES = {
   a: ['Spec A — custom development', 'Spec A — desarrollo a medida'],
   b: ['Spec B — standard SAP', 'Spec B — SAP estándar'],
@@ -85,6 +85,39 @@ export function alignWithObjects(activities, objects, lang = 'es') {
       _selected: true, _type: activities[0]?._type ?? 'activity',
     });
   });
+  return out;
+}
+
+/** Standard hours of each phase of the spec's estimate table: { analysis, unit, uat } (null when absent). */
+export function planPhaseHours(pick) {
+  const out = { analysis: null, unit: null, uat: null };
+  const lines = String(pick?.text ?? '').split('\n').filter(l => l.trim().startsWith('|'));
+  const cellsOf = l => l.split('|').slice(1, -1).map(c => c.replace(/\*\*/g, '').trim());
+  for (let i = 0; i < lines.length; i++) {
+    const head = cellsOf(lines[i]);
+    if (!head.some(c => /^(fase|phase)$/i.test(c))) continue;
+    const hIx = head.findIndex(c => /^(horas( est[aá]ndar)?|hours|standard hours)$/i.test(c));
+    if (hIx < 0) continue;
+    for (const l of lines.slice(i + 1)) {
+      const r = cellsOf(l);
+      const m = String(r[hIx] ?? '').replace(',', '.').match(/\d+(\.\d+)?/);
+      const h = m ? parseFloat(m[0]) : null;
+      if (/an[aá]lisis|analysis/i.test(r[0] ?? '')) out.analysis = h;
+      else if (/prueba.*unit|unit.*test/i.test(r[0] ?? '')) out.unit = h;
+      else if (/uat|aceptaci|acceptance/i.test(r[0] ?? '')) out.uat = h;
+    }
+    break;
+  }
+  return out;
+}
+
+/** Test activities from the spec's estimate: unit tests (Technical Test) and UAT support (User Test). */
+export function planTestActivities(pick, lang = 'es', type = 'activity') {
+  const es = lang === 'es';
+  const ph = planPhaseHours(pick);
+  const out = [];
+  if (ph.unit) out.push({ title: es ? 'Pruebas unitarias' : 'Unit testing', description: es ? 'Pruebas unitarias de los objetos desarrollados, según la estimación de la especificación aprobada.' : 'Unit tests of the developed objects, as in the approved specification estimate.', acceptance_criteria: es ? 'Pruebas unitarias ejecutadas sin errores; Code Inspector sin errores.' : 'Unit tests run without errors; Code Inspector without errors.', est_hours: ph.unit, phase: 'technical_test', sap_object_type: 'none', _selected: true, _type: type, _specPhase: 'unit' });
+  if (ph.uat) out.push({ title: es ? 'Soporte UAT' : 'UAT support', description: es ? 'Soporte a las pruebas de aceptación del usuario, según la estimación de la especificación aprobada.' : 'Support for user acceptance testing, as in the approved specification estimate.', acceptance_criteria: es ? 'Escenarios de prueba del cliente ejecutados y aprobados.' : 'Customer test scenarios run and approved.', est_hours: ph.uat, phase: 'user_test', sap_object_type: 'none', _selected: true, _type: type, _specPhase: 'uat' });
   return out;
 }
 

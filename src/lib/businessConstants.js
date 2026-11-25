@@ -237,6 +237,24 @@ function getLifecycleStages(lifecycle, templates, fallbackPreset = "standard") {
 }
 
 // ── Transition gate condition definitions ──────────────────────
+// Transition gate condition → case tab where it is resolved (status carousel links). Editable in
+// System settings → Lifecycle → Transition gates ("gate_condition_tabs"); '' = not clickable.
+const DEFAULT_GATE_TABS = {
+  consultant_assigned: 'applications', spec_generated: 'spec', spec_approved: 'spec', asbuilt_spec_approved: 'spec',
+  sla_set: 'detail', project_linked: 'detail', budget_defined: 'detail', client_rating: 'detail', proposal_approved: 'detail',
+  milestones_defined: 'milestones', milestones_complete: 'milestones', time_logged: 'time', documents_attached: 'documents',
+  invoice_sent: 'costs', activities_created: 'activities', activities_complete: 'activities',
+  tech_test_activity_exists: 'activities', func_test_activity_exists: 'activities', user_test_activity_exists: 'activities',
+  tech_test_phase_complete: 'activities', func_test_phase_complete: 'activities', user_test_phase_complete: 'activities',
+  hh_assigned: 'hh_proposals', sap_objects_complete: 'implementation', qa_transport_completed: 'transport',
+};
+const CASE_TAB_OPTIONS = [
+  ['detail', 'Detalle'], ['activities', 'Actividades'], ['milestones', 'Hitos'], ['comments', 'Comentarios'], ['subcases', 'Sub-casos'],
+  ['documents', 'Documentos'], ['time', 'Tiempo'], ['applications', 'Postulantes'], ['hh_proposals', 'Propuestas HH'], ['lifecycle', 'Ciclo de vida'],
+  ['spec', 'Especificación'], ['implementation', 'Implementación SAP'], ['transport', 'Transportes'], ['costs', 'Costos'], ['audit_log', 'Auditoría'],
+];
+const gateTabs = settings => ({ ...DEFAULT_GATE_TABS, ...(settings?.gate_condition_tabs ?? {}) });
+
 const GATE_CONDITIONS = [
   {
     key: "proposal_approved",
@@ -540,6 +558,9 @@ export {
   getLifecycleStages,
   DEFAULT_PLAN_PRICES,
   GATE_CONDITIONS,
+  DEFAULT_GATE_TABS,
+  CASE_TAB_OPTIONS,
+  gateTabs,
   DEFAULT_MIGRATION_CONFIG,
   PROPOSAL_PENDING_STAGE,
   withProposalStage,
