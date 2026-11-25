@@ -2524,6 +2524,29 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
     prevAllDoneRef.current = allActivitiesDone;
   }, [allActivitiesDone]);
 
+  // Transition gate condition → the tab where it is resolved (status carousel: click a condition to go there).
+  const GATE_TAB = {
+    consultant_assigned: 'applications', spec_generated: 'spec', spec_approved: 'spec', asbuilt_spec_approved: 'spec',
+    sla_set: 'detail', project_linked: 'detail', budget_defined: 'detail', client_rating: 'detail', proposal_approved: 'detail',
+    milestones_defined: 'milestones', milestones_complete: 'milestones', time_logged: 'time', documents_attached: 'documents',
+    invoice_sent: 'costs', activities_created: 'activities', activities_complete: 'activities',
+    tech_test_activity_exists: 'activities', func_test_activity_exists: 'activities', user_test_activity_exists: 'activities',
+    tech_test_phase_complete: 'activities', func_test_phase_complete: 'activities', user_test_phase_complete: 'activities',
+    hh_assigned: 'hh_proposals', sap_objects_complete: 'implementation', qa_transport_completed: 'transport',
+  };
+  function goToGate(cond) {
+    const tab = GATE_TAB[cond.key];
+    if (!tab) return;
+    setActiveTab(tab);   // the section carousel follows activeTab
+    requestAnimationFrame(() => carouselRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    // Activities not created yet: open the development plan generator when it can be generated.
+    const canPlan = (auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.can_add_activities;
+    if (cond.key === 'activities_created' && !cond.passed && canPlan && caseSpec?.status === 'approved' && perms.can('generate_dev_plan')) {
+      setPendingDevPlanIsRegen(false);
+      setTimeout(() => setShowDevPlanModal(true), 350);
+    }
+  }
+
   const sysLcDefault = ssCtxCD.settings?.["default_lifecycle_config"];
   const caseOverrideAllowed = !caseData.client_id ? true : (clientLifecycle?.allow_case_override ?? sysLcDefault?.case?.allow_override ?? true);
   const caseVisibility = visCfg.getCaseVisibility(caseData.id, caseData.client_id);
@@ -3011,12 +3034,15 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                               const textColor = isPassed ? "var(--t-text2)" : isBlock ? "#F87171" : "#FB923C";
                               const IconEl = isPassed ? CheckCircle2 : isBlock ? XCircle : AlertTriangle;
                               return (
-                                <div key={cond.key} style={{ display: "flex", alignItems: "center", gap: 8, background: bg, border: `1px solid ${border}`, borderRadius: 8, padding: "6px 10px", opacity: !isActive ? 0.6 : 1 }}>
+                                <button type="button" key={cond.key} onClick={() => goToGate(cond)} disabled={!GATE_TAB[cond.key]}
+                                  title={GATE_TAB[cond.key] ? (lang === 'es' ? 'Ir a la pestaña donde se resuelve' : 'Go to the tab where this is done') : undefined}
+                                  style={{ display: "flex", alignItems: "center", gap: 8, background: bg, border: `1px solid ${border}`, borderRadius: 8, padding: "6px 10px", opacity: !isActive ? 0.6 : 1, textAlign: "left", width: "100%", cursor: GATE_TAB[cond.key] ? "pointer" : "default" }}>
                                   <IconEl size={13} style={{ color: iconColor, flexShrink: 0 }} />
-                                  <span style={{ fontSize: 11.5, lineHeight: 1.4, color: textColor, fontWeight: isPassed ? 400 : 500 }}>
+                                  <span style={{ fontSize: 11.5, lineHeight: 1.4, color: textColor, fontWeight: isPassed ? 400 : 500, flex: 1 }}>
                                     {cond.label}
                                   </span>
-                                </div>
+                                  {GATE_TAB[cond.key] && <ChevronRight size={12} style={{ color: iconColor, flexShrink: 0, opacity: 0.7 }} />}
+                                </button>
                               );
                             })}
                           </div>
