@@ -86,7 +86,7 @@ const LANDING_STRINGS = {
     hero_h1a:"Connect. Engage.", hero_h1b:"Deliver.",
     hero_sub:"Arena is the AI-powered SAP delivery platform — from structured case intake to AI-generated ABAP code written directly to your SAP system via ADT. Backed by an orbital consultant marketplace connecting clients with vetted SAP specialists.",
     hero_trial:"Start free trial →", hero_demo:"▶ Watch demo",
-    hero_trust:"1,200+ consultants matched across 340+ companies",
+    hero_trust:"From the customer's request to an approved spec, a quote that adds up and code in SAP",
     stats_cases:"Cases managed to date", stats_cos:"Companies onboarded", stats_sla:"% SLA compliance rate",
     feat_tag:"Platform Features",
     feat_h2a:"Everything a consulting team needs.", feat_h2b:"Nothing it doesn't.",
@@ -155,7 +155,7 @@ const LANDING_STRINGS = {
     btn_start:"Get started free", btn_trial:"Start free trial", btn_contact:"Contact sales", btn_upgrade:"Upgrade to Pro",
     cta_tag:"Get started today",
     cta_h2:"Ready to transform your SAP support operation?",
-    cta_p:"14-day free trial. No credit card. Full platform access from day one.",
+    cta_p:"Create your account and take your first case from request to approved spec.",
     trusted_by:"Trusted by",
     footer_tagline:"The operating system for SAP consulting teams. Structured support, every stage governed, every role in sync.",
     f_product:"Product", f_company:"Company", f_legal:"Legal",
@@ -164,6 +164,41 @@ const LANDING_STRINGS = {
     f_privacy:"Privacy Policy", f_terms:"Terms of Service", f_security:"Security",
     copy1:"© 2026 Arena Solutions Platform. All rights reserved.",
     copy2:"Built for SAP consulting teams worldwide.",
+
+    // ── Platform highlights (spec quality, estimates, customer portal, partners, security) ──
+    nav_specs:"Specs", nav_partners:"Partners",
+    sq_tag:"AI Functional Specs", sq_h2:"Specs you can send to the customer with confidence.",
+    sq_sub:"Every specification is checked against what the customer actually asked for — before anyone presses send.",
+    sq1t:"Reads everything the customer sent", sq1d:"Word, PDF, spreadsheets and the screenshots inside them: test data, field values and SAP screens become facts, not guesses.",
+    sq2t:"Case checks before analysis", sq2d:"Documents from another case, missing project or duplicate cases are caught before a single prompt runs.",
+    sq3t:"Requirements traceability", sq3d:"Every customer requirement is listed and checked in the spec. Coverage below 100% blocks sending unless each gap is accepted with a reason.",
+    sq4t:"Questions answered online", sq4d:"Contradictions and missing information become questions the customer answers by link or in the app — the answers flow back into the spec.",
+    sq5t:"Project rules applied", sq5d:"Clean Core, a Fiori app for every Z table, authorization objects, naming conventions: each project's mandatory rules go into every spec and are checked.",
+    sq6t:"Sign-off, then review", sq6d:"The consultant signs off, the customer reviews online, and regenerations that drop content are flagged before approval.",
+    sq_steps:"Case checks|Analysis|Requirements|Customer questions|Specifications|Sign-off",
+    es_tag:"Estimates", es_h2:"Estimates that add up.",
+    es_sub:"Hours come from a standard catalog by object type and complexity — not from the AI's imagination.",
+    es1t:"Standard hours catalog", es1d:"Every technical object is priced from the same catalog, editable per platform, so two similar requirements get the same estimate.",
+    es2t:"Arena hours vs standard", es2d:"Next to the standard effort, Arena shows the hours with automated generation and the consultant's seniority — the saving is visible line by line.",
+    es3t:"The plan matches the quote", es3d:"The development plan is built from the approved spec: one activity per object, with the same hours, plus unit tests and UAT support.",
+    cx_tag:"Customer Experience", cx_h2:"Your customer stays in the loop — without the email chain.",
+    cx_sub:"Customers get their own portal to review, answer and approve.",
+    cx1t:"Spec review link", cx1d:"Customers read every specification and the interactive screen prototype, then approve or request changes online.",
+    cx2t:"My reviews", cx2d:"Questions, specs and approvals waiting for the customer in one place inside the app.",
+    cx3t:"Proposals accepted online", cx3d:"Send a proposal with its specs attached; the customer chooses the plan option and accepts with a click — the contract follows.",
+    cx4t:"Customer team access", cx4d:"Invite key users, project managers and final users, each with exactly the right view.",
+    pt_tag:"Partners & Sellers", pt_h2:"Grow with a partner and sales network.",
+    pt_sub:"Bring your consulting firm, your sellers and your recruiters into the same platform.",
+    pt1t:"Partner workspace", pt1d:"Consulting firms run their own projects, customers, catalog of service plans and branding inside Arena.",
+    pt2t:"Protected opportunities", pt2d:"Sellers register opportunities that stay theirs, follow them through the pipeline and earn their commission on delivery.",
+    pt3t:"Delivery bids", pt3d:"Partners and consultant teams bid to deliver sold projects; the seller awards the best offer.",
+    pt4t:"Headhunter program", pt4d:"Recruiters invite consultants, present candidates and receive their placement fee when a candidate is accepted.",
+    sc_tag:"Security & SAP Connectivity", sc_h2:"Built for real SAP landscapes.",
+    sc_sub:"Enterprise controls without slowing the team down.",
+    sc1t:"Per-project VPN", sc1d:"Each project connects to its own SAP systems through its own VPN profile; credentials stay on the server.",
+    sc2t:"Live SAP system reading", sc2d:"Specs and code are generated against the customer's real system version and existing objects.",
+    sc3t:"Governed transports", sc3d:"Transport requests are approved before release and tracked per case and environment.",
+    sc4t:"Audit and session control", sc4d:"Full audit trail, login history, automatic logout after inactivity and role-based permissions everywhere.",
     // Demo carousel
     dc_s0_tag:"Command center", dc_s0_h:"Your full pipeline, live",
     dc_s0_p:"From open cases to assigned specialists — every SAP engagement tracked in one place, with real-time status.",
@@ -246,7 +281,7 @@ const LANDING_STRINGS = {
     hero_h1a:"Conecta. Involucra.", hero_h1b:"Entrega.",
     hero_sub:"Arena es la plataforma de entrega SAP potenciada por IA — desde la apertura estructurada del caso hasta el código ABAP generado por IA y escrito directamente en tu sistema SAP vía ADT. Respaldada por un mercado orbital de consultores que conecta clientes con especialistas SAP verificados.",
     hero_trial:"Iniciar prueba gratuita →", hero_demo:"▶ Ver demo",
-    hero_trust:"Más de 1,200 consultores asignados en más de 340 empresas",
+    hero_trust:"De la solicitud del cliente a una spec aprobada, una cotización que cuadra y código en SAP",
     stats_cases:"Casos gestionados hasta la fecha", stats_cos:"Empresas registradas", stats_sla:"% tasa de cumplimiento SLA",
     feat_tag:"Características de la Plataforma",
     feat_h2a:"Todo lo que un equipo de consultoría necesita.", feat_h2b:"Nada más.",
@@ -312,7 +347,7 @@ const LANDING_STRINGS = {
     btn_start:"Comenzar gratis", btn_trial:"Iniciar prueba gratuita", btn_contact:"Contactar ventas", btn_upgrade:"Mejorar a Pro",
     cta_tag:"Comienza hoy",
     cta_h2:"¿Listo para transformar tu operación de soporte SAP?",
-    cta_p:"14 días de prueba gratuita. Sin tarjeta de crédito. Acceso completo desde el primer día.",
+    cta_p:"Cree su cuenta y lleve su primer caso de la solicitud a la spec aprobada.",
     trusted_by:"Con la confianza de",
     footer_tagline:"El sistema operativo para equipos de consultoría SAP. Soporte estructurado, cada etapa gobernada, cada rol sincronizado.",
     f_product:"Producto", f_company:"Empresa", f_legal:"Legal",
@@ -321,6 +356,41 @@ const LANDING_STRINGS = {
     f_privacy:"Política de Privacidad", f_terms:"Términos de Servicio", f_security:"Seguridad",
     copy1:"© 2026 Arena Solutions Platform. Todos los derechos reservados.",
     copy2:"Construido para equipos de consultoría SAP en todo el mundo.",
+
+    // ── Platform highlights ──
+    nav_specs:"Especificaciones", nav_partners:"Partners",
+    sq_tag:"Especificaciones funcionales con IA", sq_h2:"Especificaciones que puede enviar al cliente con confianza.",
+    sq_sub:"Cada especificación se verifica contra lo que el cliente pidió realmente — antes de enviarla.",
+    sq1t:"Lee todo lo que envió el cliente", sq1d:"Word, PDF, planillas y las capturas que contienen: datos de prueba, valores y pantallas SAP se toman como hechos, no como suposiciones.",
+    sq2t:"Revisión del caso antes del análisis", sq2d:"Documentos de otro caso, casos sin proyecto o duplicados se detectan antes de llamar a la IA.",
+    sq3t:"Trazabilidad de requerimientos", sq3d:"Cada requerimiento del cliente se lista y se verifica en la spec. Con menos del 100% de cobertura no se envía, salvo que cada brecha se acepte con un motivo.",
+    sq4t:"Preguntas respondidas en línea", sq4d:"Las contradicciones e información faltante se convierten en preguntas que el cliente responde por enlace o en la aplicación — las respuestas vuelven a la spec.",
+    sq5t:"Reglas del proyecto aplicadas", sq5d:"Clean Core, app Fiori para cada tabla Z, objetos de autorización, nomenclatura: las reglas obligatorias de cada proyecto se aplican y se verifican en cada spec.",
+    sq6t:"Firma y luego revisión", sq6d:"El consultor firma, el cliente revisa en línea, y las regeneraciones que pierden contenido se señalan antes de aprobar.",
+    sq_steps:"Revisión del caso|Análisis|Requerimientos|Preguntas al cliente|Especificaciones|Firma",
+    es_tag:"Estimaciones", es_h2:"Estimaciones que cuadran.",
+    es_sub:"Las horas salen de un catálogo estándar por tipo de objeto y complejidad — no de la imaginación de la IA.",
+    es1t:"Catálogo de horas estándar", es1d:"Cada objeto técnico se valora con el mismo catálogo, configurable en la plataforma: dos requerimientos similares reciben la misma estimación.",
+    es2t:"Horas Arena frente a estándar", es2d:"Junto al esfuerzo estándar, Arena muestra las horas con generación automatizada y la seniority del consultor — el ahorro se ve línea por línea.",
+    es3t:"El plan coincide con la cotización", es3d:"El plan de desarrollo se construye desde la spec aprobada: una actividad por objeto, con las mismas horas, más pruebas unitarias y soporte UAT.",
+    cx_tag:"Experiencia del cliente", cx_h2:"Su cliente participa — sin cadenas de correos.",
+    cx_sub:"El cliente tiene su propio portal para revisar, responder y aprobar.",
+    cx1t:"Enlace de revisión de specs", cx1d:"El cliente lee cada especificación y el prototipo interactivo de pantalla, y aprueba o pide cambios en línea.",
+    cx2t:"Mis revisiones", cx2d:"Preguntas, especificaciones y aprobaciones pendientes del cliente, en un solo lugar dentro de la aplicación.",
+    cx3t:"Propuestas aceptadas en línea", cx3d:"Envíe la propuesta con sus specs adjuntas; el cliente elige la opción del plan y acepta con un clic — el contrato se genera solo.",
+    cx4t:"Acceso del equipo del cliente", cx4d:"Invite usuarios clave, jefes de proyecto y usuarios finales, cada uno con la vista exacta que necesita.",
+    pt_tag:"Partners y vendedores", pt_h2:"Crezca con una red de partners y ventas.",
+    pt_sub:"Traiga a su consultora, sus vendedores y sus reclutadores a la misma plataforma.",
+    pt1t:"Espacio del partner", pt1d:"Las consultoras gestionan sus propios proyectos, clientes, catálogo de planes de servicio y marca dentro de Arena.",
+    pt2t:"Oportunidades protegidas", pt2d:"Los vendedores registran oportunidades que quedan a su nombre, las siguen en el pipeline y cobran su comisión con la entrega.",
+    pt3t:"Ofertas de entrega", pt3d:"Partners y equipos de consultores ofertan para entregar los proyectos vendidos; el vendedor adjudica la mejor oferta.",
+    pt4t:"Programa de headhunters", pt4d:"Los reclutadores invitan consultores, presentan candidatos y reciben su comisión cuando un candidato es aceptado.",
+    sc_tag:"Seguridad y conectividad SAP", sc_h2:"Hecho para landscapes SAP reales.",
+    sc_sub:"Controles empresariales sin frenar al equipo.",
+    sc1t:"VPN por proyecto", sc1d:"Cada proyecto se conecta a sus propios sistemas SAP con su propio perfil de VPN; las credenciales quedan en el servidor.",
+    sc2t:"Lectura del sistema SAP en vivo", sc2d:"Specs y código se generan contra la versión real del sistema del cliente y sus objetos existentes.",
+    sc3t:"Transportes gobernados", sc3d:"Las órdenes de transporte se aprueban antes de liberarse y se siguen por caso y ambiente.",
+    sc4t:"Auditoría y control de sesión", sc4d:"Auditoría completa, historial de accesos, cierre de sesión por inactividad y permisos por rol en todo.",
     // Demo carousel
     dc_s0_tag:"Centro de mando", dc_s0_h:"Todo tu pipeline, en vivo",
     dc_s0_p:"Desde casos abiertos hasta especialistas asignados — cada compromiso SAP rastreado en un solo lugar, con estado en tiempo real.",
@@ -505,11 +575,16 @@ const CSS = `
 #arena-landing .feat-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.08);}
 #arena-landing .feat-mockup{background:#0f1624;padding:16px;border-bottom:1px solid rgba(255,255,255,.06);min-height:130px;}
 #arena-landing .feat-body{padding:18px;}
+#arena-landing .hl-alt{background:var(--surface2,rgba(79,110,247,.03));}
+#arena-landing .hl-grid4{grid-template-columns:repeat(4,1fr);}
+#arena-landing .hl-steps{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 28px;}
+#arena-landing .hl-step{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--border);border-radius:999px;font-size:.8rem;color:var(--ink);background:var(--surface);}
+#arena-landing .hl-step b{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:.7rem;display:inline-flex;align-items:center;justify-content:center;}
 #arena-landing .feat-icon{width:36px;height:36px;border-radius:8px;background:rgba(79,110,247,.1);display:flex;align-items:center;justify-content:center;margin-bottom:10px;font-size:1.1rem;}
 #arena-landing .feat-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:1rem;margin-bottom:6px;color:var(--ink);}
 #arena-landing .feat-desc{font-size:.83rem;color:var(--muted);line-height:1.6;}
-@media(max-width:900px){#arena-landing .features-grid{grid-template-columns:1fr 1fr;}}
-@media(max-width:600px){#arena-landing .features-grid{grid-template-columns:1fr;}}
+@media(max-width:900px){#arena-landing .features-grid,#arena-landing .hl-grid4{grid-template-columns:1fr 1fr;}}
+@media(max-width:600px){#arena-landing .features-grid,#arena-landing .hl-grid4{grid-template-columns:1fr;}}
 
 #arena-landing .lifecycle-section{background:#0B0F1A;padding:96px 24px;position:relative;overflow:hidden;}
 #arena-landing .lifecycle-section::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(79,110,247,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,.04) 1px,transparent 1px);background-size:48px 48px;}
@@ -1600,6 +1675,30 @@ export function LandingView({ onSignIn }) {
   const showTestimonials = landingSettings["show_testimonials"]     ?? true;
   const showPromoVideo   = landingSettings["show_promo_video"]      ?? true;
   function tl(k) { return LANDING_STRINGS[lang]?.[k] ?? LANDING_STRINGS.en[k] ?? k; }
+  // Platform highlight sections (no figures, no customer names).
+  function highlights(id, p, icons, extra = null, alt = false) {
+    return (
+      <section className={`section${alt ? " hl-alt" : ""}`} id={id}>
+        <div className="section-inner">
+          <div className="section-tag">{tl(`${p}_tag`)}</div>
+          <h2>{tl(`${p}_h2`)}</h2>
+          <p className="section-sub">{tl(`${p}_sub`)}</p>
+          {extra}
+          <div className={`features-grid${icons.length === 4 ? " hl-grid4" : ""}`}>
+            {icons.map((ic, i) => (
+              <div key={i} className="feat-card fade-in">
+                <div className="feat-body">
+                  <div className="feat-icon">{ic}</div>
+                  <div className="feat-title">{tl(`${p}${i + 1}t`)}</div>
+                  <div className="feat-desc">{tl(`${p}${i + 1}d`)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
   function toggleLang() {
     const next = lang === "en" ? "es" : "en";
     setLang(next);
@@ -1660,8 +1759,10 @@ export function LandingView({ onSignIn }) {
         <div className="nav-links">
           <a href="#arena">{tl("nav_arena")}</a>
           <a href="#features">{tl("nav_features")}</a>
+          <a href="#specs">{tl("nav_specs")}</a>
           <a href="#lifecycle">{tl("nav_lifecycle")}</a>
           <a href="#roles">{tl("nav_roles")}</a>
+          <a href="#partners">{tl("nav_partners")}</a>
           {showPricing && <a href="#pricing">{tl("nav_pricing")}</a>}
         </div>
         <div className="nav-cta">
@@ -1981,6 +2082,11 @@ export function LandingView({ onSignIn }) {
         </div>
       </section>
 
+      {/* SPEC QUALITY · ESTIMATES · CUSTOMER PORTAL */}
+      {highlights("specs", "sq", ["📄", "🛡️", "✅", "💬", "📐", "✍️"], <div className="hl-steps">{tl("sq_steps").split("|").map((t, i) => <span key={i} className="hl-step"><b>{i + 1}</b>{t}</span>)}</div>)}
+      {highlights("estimates", "es", ["📊", "⚡", "🗓️"], null, true)}
+      {highlights("customers", "cx", ["🔗", "📥", "🤝", "👥"])}
+
       {/* ARENA SHOWCASE */}
       {showPromoVideo ? (
         <ArenaPromoSection tl={tl} lang={lang} onSignIn={onSignIn} bullets={
@@ -2222,6 +2328,12 @@ export function LandingView({ onSignIn }) {
           </div>
         </div>
       </section>
+
+      {/* PARTNERS & SELLERS */}
+      {highlights("partners", "pt", ["🏢", "🎯", "📨", "🔎"], null, true)}
+
+      {/* SECURITY & SAP CONNECTIVITY */}
+      {highlights("security", "sc", ["🔐", "🖥️", "🚚", "📝"])}
 
       {/* ARENA PROMO */}
       <ArenaPromoVideo tl={tl} />
