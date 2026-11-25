@@ -9,6 +9,7 @@ import {
   RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { docLinkClick } from "../lib/openDoc.js";
 import { useT } from "../i18n/index.jsx";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { callClaude, buildEmailHtml, sendEmail, logEvent } from "../lib/utils.js";
@@ -1045,7 +1046,7 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">{L("Attachments", "Anexos")}</p>
           {attachments.length === 0
             ? <p className="text-sm text-gray-400">{L("None. Tick “Attach” on case documents in step 2.", "Ninguno. Marca “Adjuntar” en documentos del caso en el paso 2.")}</p>
-            : <ul className="space-y-1">{attachments.map(a => <li key={a.doc_id} className="text-sm flex items-center gap-2"><Paperclip size={12} className="text-gray-400" /><a href={a.file_url} target="_blank" rel="noreferrer" className="text-blue-600 truncate">{a.file_name}</a><span className="text-xs text-gray-400 truncate">· {a.case_title}</span></li>)}</ul>}
+            : <ul className="space-y-1">{attachments.map(a => <li key={a.doc_id} className="text-sm flex items-center gap-2"><Paperclip size={12} className="text-gray-400" /><a href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer" className="text-blue-600 truncate">{a.file_name}</a><span className="text-xs text-gray-400 truncate">· {a.case_title}</span></li>)}</ul>}
           {staleAttach && <div className="mt-2"><Banner tone="amber">{L("Attachments changed since the document was built.", "Los anexos cambiaron desde que se armó el documento.")} <button onClick={onRebuild} className="underline font-semibold">{L("Rebuild document", "Reconstruir documento")}</button></Banner></div>}
           <button onClick={() => openHtml(p.html)} className="mt-4 inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><Eye size={14} />{L("Preview / save as PDF", "Vista previa / guardar PDF")}</button>
         </div>

@@ -18,6 +18,7 @@ import {
   UserCheck, Users, Wand2, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { docLinkClick } from "../lib/openDoc.js";
 import { bridgeAuthHeaders, resolveVmUrl } from "../lib/bridgeAuth.js";
 import { caseEstimationContext } from "../lib/estimationContext.js";
 import { SENIORITY_LABEL } from "../lib/estimation.js";
@@ -5231,7 +5232,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <p className="text-xs font-semibold text-blue-700 mb-2">{t("spec.wiz_docs_lbl")}</p>
               <div className="flex flex-col gap-1">
                 {documents.map(doc => (
-                  <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                  <a key={doc.id} href={doc.file_url} onClick={docLinkClick(doc.file_url, doc.file_name)} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 hover:underline">
                     <Paperclip className="w-3 h-3 flex-shrink-0" />
                     <span>{doc.file_name}</span>

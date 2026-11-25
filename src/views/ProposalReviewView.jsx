@@ -2,7 +2,8 @@
 // rejects it. No login needed: the secure link is the access (RPCs proposal_by_token /
 // proposal_decide). Approval sets each case's budget and returns the cases to Estimated.
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Clock, Loader2, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Download, Loader2, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, XCircle } from "lucide-react";
+import { docLinkClick, openHtml } from "../lib/openDoc.js";
 import { supabase } from "../lib/supabase.js";
 import { NovaLandingMark } from "./LandingView.jsx";
 import { fmtMoney } from "../lib/costs.js";
@@ -127,10 +128,21 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
     <div style={PAGE}>
       {Header}
       <div className="flex-1 w-full max-w-6xl mx-auto px-4 py-5 grid lg:grid-cols-[1fr_320px] gap-5">
-        <div className="rounded-2xl overflow-hidden border border-white/10 bg-white min-h-[70vh]">
-          {data.html
-            ? <iframe title="proposal" srcDoc={data.html} className={`w-full ${embedded ? "h-[70vh]" : "h-[78vh]"} bg-white`} sandbox="allow-same-origin allow-popups allow-modals" />
-            : <p className="p-6 text-sm text-gray-500">—</p>}
+        <div className="space-y-2">
+          {data.html && (
+            // The document's own print button cannot run inside the sandboxed frame: print from here.
+            <div className="flex justify-end">
+              <button onClick={() => openHtml(data.html, { print: true })}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-[#4F6EF7] hover:bg-[#3d5bea]">
+                <Download size={14} />{lang === "es" ? "Descargar PDF" : "Download PDF"}
+              </button>
+            </div>
+          )}
+          <div className="rounded-2xl overflow-hidden border border-white/10 bg-white min-h-[70vh]">
+            {data.html
+              ? <iframe title="proposal" srcDoc={data.html.replace("</head>", "<style>.print-btn{display:none!important}</style></head>")} className={`w-full ${embedded ? "h-[70vh]" : "h-[78vh]"} bg-white`} sandbox="allow-same-origin allow-popups allow-modals" />
+              : <p className="p-6 text-sm text-gray-500">—</p>}
+          </div>
         </div>
         <aside className="space-y-4">
           <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)" }}>
@@ -179,7 +191,7 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
                 {data.attachments.map(a => (
                   <li key={a.doc_id} className="text-sm flex items-center gap-2 min-w-0">
                     <Paperclip size={12} className="text-gray-500 flex-shrink-0" />
-                    <a href={a.file_url} target="_blank" rel="noreferrer" className="text-blue-300 hover:text-blue-200 truncate">{a.file_name}</a>
+                    <a href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer" className="text-blue-300 hover:text-blue-200 truncate">{a.file_name}</a>
                   </li>
                 ))}
               </ul>
