@@ -115,15 +115,14 @@ export function buildDeckHtml({ slides, lang = "en", title, customer, project, p
   const T = es
     ? { inv: "Inversión", invK: "Inversión", thanks: "Gracias", next: "Siguiente paso", valid: "Propuesta válida hasta", for: "Propuesta para", by: "Preparada por", help: "← → para avanzar · F pantalla completa · P imprimir / PDF", full: "Pantalla completa" }
     : { inv: "Investment", invK: "Investment", thanks: "Thank you", next: "Next step", valid: "Proposal valid until", for: "Proposal for", by: "Prepared by", help: "← → to move · F full screen · P print / PDF", full: "Full screen" };
-  const partnerMark = cls => logoUrl
-    ? `<img class="${cls}" src="${esc(logoUrl)}" alt="${esc(preparedBy || "")}">`
-    : `<span class="${cls} pname">${esc(preparedBy || "")}</span>`;
+  // Partner logo (as uploaded, transparent background) followed by the partner name.
+  const partnerMark = cls => `<span class="partner ${cls}">${logoUrl ? `<img class="plogo" src="${esc(logoUrl)}" alt="">` : ""}${preparedBy ? `<span class="pname">${esc(preparedBy)}</span>` : ""}</span>`;
   const arena = (size, uid) => `<span class="arena-brand">${novaMarkSvg(size, uid)}<span class="aw"><b>Arena</b> Solutions Platform</span></span>`;
   let u = 0;
-  const chrome = () => `<div class="chrome">${arena(34, `c${u++}`)}${partnerMark("plogo")}</div>`;
-  const coverBrands = () => `<div class="brands">${arena(52, `v${u++}`)}${logoUrl || preparedBy ? `<span class="x">×</span>${partnerMark("plogo big")}` : ""}</div>`;
+  const chrome = () => `<div class="chrome">${arena(34, `c${u++}`)}${partnerMark("")}</div>`;
+  const coverBrands = () => `<div class="brands">${arena(52, `v${u++}`)}${logoUrl || preparedBy ? `<span class="x">×</span>${partnerMark("big")}` : ""}</div>`;
   const out = [];
-  out.push(`<section class="slide cover"><div class="glow"></div><div class="grid"></div><div class="orbit-deco">${novaMarkSvg(520, "deco1")}</div><div class="inner">${coverBrands()}<div class="kicker">${esc(T.for)} ${esc(customer || "")}</div><h1>${esc(title)}</h1><p class="sub">${esc(project || "")}</p><div class="cover-meta"><span>${esc(T.by)}: <b>${esc(preparedBy || "")}</b></span>${date ? `<span>${esc(date)}</span>` : ""}</div></div></section>`);
+  out.push(`<section class="slide cover"><div class="glow"></div><div class="grid"></div><div class="orbit-deco">${novaMarkSvg(520, "deco1")}</div><div class="inner">${coverBrands()}<div class="kicker">${esc(T.for)} ${esc(customer || "")}</div><h1>${esc(title)}</h1><p class="sub">${esc(project || "")}</p><div class="cover-meta"><span class="by">${esc(T.by)}: ${partnerMark("inline")}</span>${date ? `<span>${esc(date)}</span>` : ""}</div></div></section>`);
   let n = 2;
   for (const s of slides) out.push(slideHtml(s, n++, chrome()));
   const chunks = investmentChunks(investmentMd);
@@ -146,10 +145,12 @@ html,body{height:100%;background:#0B0F1A;font-family:'Inter',system-ui,sans-seri
 .slide{position:absolute;inset:0;background:var(--base);display:none;overflow:hidden;border-radius:6px}
 .slide.on{display:block}
 .inner{position:absolute;inset:112px 80px 64px}
-.chrome{position:absolute;top:0;left:0;right:0;height:72px;padding:0 48px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:#fff}
+.chrome{position:absolute;top:0;left:0;right:0;height:72px;padding:0 48px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#0B0F1A 0%,#111829 50%,#0D1630 100%);border-bottom:1px solid rgba(79,110,247,.35)}
+.chrome .aw{color:rgba(255,255,255,.6)}
 .arena-brand{display:inline-flex;align-items:center;gap:10px}
 .aw{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:600;color:var(--muted);letter-spacing:-.01em}.aw b{color:var(--accent);font-weight:800;font-size:18px;margin-right:2px}
-.plogo{max-height:36px;max-width:180px;object-fit:contain}.plogo.pname{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:15px;color:var(--ink)}
+.partner{display:inline-flex;align-items:center;gap:10px}.plogo{height:36px;max-width:150px;object-fit:contain;display:block}
+.pname{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:16px;color:#fff;letter-spacing:-.01em}
 .kicker{font-family:'Inter',sans-serif;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
 h1{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:64px;line-height:1.08;letter-spacing:-.04em}
 h2{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:42px;line-height:1.12;letter-spacing:-.035em;color:var(--ink);margin-bottom:12px}
@@ -165,7 +166,8 @@ p{font-size:18px;line-height:1.55;color:var(--muted)}
 .brands{position:absolute;top:0;left:0;display:flex;align-items:center;gap:18px}
 .cover .aw{color:rgba(255,255,255,.55);font-size:17px}.cover .aw b{font-size:22px}
 .brands .x{color:rgba(255,255,255,.35);font-size:22px}
-.plogo.big{max-height:52px;max-width:220px;background:#fff;border-radius:10px;padding:6px 12px}.cover .plogo.pname{background:none;padding:0;color:#fff;font-size:20px}
+.partner.big .plogo{height:52px;max-width:200px}.partner.big .pname{font-size:20px}
+.by{display:inline-flex;align-items:center;gap:8px}.partner.inline{gap:8px}.partner.inline .plogo{height:26px;max-width:110px}.partner.inline .pname{font-size:15px}
 .cover .kicker{color:#A5B4FC}.cover h1{color:#fff;max-width:980px}
 .cover .sub{color:rgba(255,255,255,.6);font-size:22px;margin-top:14px}
 .cover-meta{display:flex;gap:28px;margin-top:40px;font-size:15px;color:rgba(255,255,255,.55)}.cover-meta b{color:#fff;font-weight:600}
@@ -196,7 +198,7 @@ p{font-size:18px;line-height:1.55;color:var(--muted)}
 .md td{padding:7px 12px;border-bottom:1px solid var(--border);color:var(--ink)}.md tr:last-child td{border-bottom:0}
 #bar{position:fixed;left:0;bottom:0;height:3px;background:var(--accent);transition:width .25s}
 #help{position:fixed;right:14px;bottom:10px;font:12px 'Inter',sans-serif;color:rgba(255,255,255,.45)}
-#tools{position:fixed;top:12px;right:12px;display:flex;gap:6px}#tools button{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:6px 10px;font:600 13px 'Inter',sans-serif;cursor:pointer}
+#tools{position:fixed;bottom:8px;left:12px;display:flex;gap:6px;opacity:.35;transition:opacity .2s;z-index:5}#tools:hover{opacity:1}#tools button{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:6px 10px;font:600 13px 'Inter',sans-serif;cursor:pointer}
 @media print{@page{size:1280px 720px;margin:0}html,body{background:#fff}#stage{position:static;display:block}#deck{transform:none!important;width:auto;height:auto}
 .slide{display:block!important;position:relative;width:1280px;height:720px;border-radius:0;page-break-after:always;break-after:page;-webkit-print-color-adjust:exact;print-color-adjust:exact}#bar,#help,#tools{display:none}}
 </style></head><body>
