@@ -1,11 +1,12 @@
 // Settings → Spec quality: the standard hours catalog used to calculate spec estimates and the
 // projects' mandatory rules applied to every generated spec.
 import { useState, useEffect } from "react";
-import { Clock, ShieldCheck } from "lucide-react";
+import { Clock, ShieldCheck, ListTodo } from "lucide-react";
 import { CardCarousel } from "./CardCarousel.jsx";
 import { DEFAULT_SPEC_HOURS, specHoursSettings } from "../lib/specHours.js";
 import { KIND_LABEL } from "../lib/specDiff.js";
 import { ProjectRulesEditor } from "./ProjectRulesEditor.jsx";
+import { DEV_PLAN_DEFAULTS, SPEC_NAMES, devPlanSettings } from "../lib/devPlanBase.js";
 
 const KIND_ORDER = ['table', 'ddic', 'message', 'class', 'enhancement', 'function', 'program', 'report', 'service', 'fiori', 'integration', 'form', 'auth', 'config', 'transaction', 'other'];
 
@@ -71,11 +72,65 @@ function HoursCatalog({ ssCtx }) {
   );
 }
 
+// Which spec the development plan (case → Activities → Generate plan) is built from.
+function DevPlanSettings({ ssCtx }) {
+  const saved = devPlanSettings(ssCtx.settings);
+  const [draft, setDraft] = useState(saved);
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  useEffect(() => { setDraft(devPlanSettings(ssCtx.settings)); }, [ssCtx.settings?.dev_plan_settings]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  async function save() {
+    setSaving(true);
+    await ssCtx.setSetting('dev_plan_settings', draft);
+    setSaving(false); setDone(true); setTimeout(() => setDone(false), 2000);
+  }
+  const keys = ['c', 'a', 'b', 'd'];
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-base font-bold text-gray-900 mb-1">Plan de desarrollo</h2>
+        <p className="text-sm text-gray-500">Especificación desde la que se genera el plan de actividades del caso (pestaña Actividades → Generar plan de desarrollo).</p>
+      </div>
+      <label className="block text-xs font-semibold text-gray-700">Especificación base
+        <select value={draft.base} onChange={e => setDraft(d => ({ ...d, base: e.target.value }))}
+          className="mt-1 block w-full max-w-md px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+          <option value="approved">La especificación aprobada (la firmada y enviada al cliente; normalmente la Spec C)</option>
+          {keys.map(k => <option key={k} value={k}>{SPEC_NAMES[k][1]}</option>)}
+        </select>
+      </label>
+      <label className="block text-xs font-semibold text-gray-700">Si no existe, usar en este orden
+        <div className="mt-1 flex flex-wrap gap-2">
+          {draft.fallback.map((k, i) => (
+            <span key={k} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 text-xs bg-white">
+              {i + 1}. Spec {k.toUpperCase()}
+              {i > 0 && <button onClick={() => setDraft(d => { const f = [...d.fallback]; [f[i - 1], f[i]] = [f[i], f[i - 1]]; return { ...d, fallback: f }; })} className="text-gray-400 hover:text-gray-700" title="Subir">↑</button>}
+            </span>
+          ))}
+        </div>
+      </label>
+      <label className="flex items-start gap-2 text-sm text-gray-700">
+        <input type="checkbox" checked={draft.full_spec} onChange={e => setDraft(d => ({ ...d, full_spec: e.target.checked }))} className="mt-1 accent-blue-600" />
+        <span>Enviar la especificación completa a la IA <span className="block text-xs text-gray-500">Si se desactiva, solo se envían los primeros 4.000 caracteres (sin la tabla de objetos ni la estimación).</span></span>
+      </label>
+      <label className="flex items-start gap-2 text-sm text-gray-700">
+        <input type="checkbox" checked={draft.align_objects} onChange={e => setDraft(d => ({ ...d, align_objects: e.target.checked }))} className="mt-1 accent-blue-600" />
+        <span>Una actividad de desarrollo por objeto técnico de la especificación, con sus horas calculadas <span className="block text-xs text-gray-500">El plan coincide con la estimación aprobada; los objetos Z que la IA omita se agregan. Las tablas y objetos estándar que solo se leen no son actividades.</span></span>
+      </label>
+      <div className="flex items-center justify-end gap-2">
+        <button onClick={() => setDraft(JSON.parse(JSON.stringify(DEV_PLAN_DEFAULTS)))} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">Valores iniciales</button>
+        <button onClick={save} disabled={!dirty || saving} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">{saving ? 'Guardando…' : done ? 'Guardado ✓' : 'Guardar'}</button>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsSpecQualityTab({ ssCtx }) {
   return (
     <CardCarousel storageKey="settings_spec_quality_slide" slides={[
       { id: 'rules', label: 'Reglas obligatorias del proyecto', Icon: ShieldCheck, content: <ProjectRulesEditor ssCtx={ssCtx} /> },
       { id: 'hours', label: 'Catálogo de horas', Icon: Clock, content: <HoursCatalog ssCtx={ssCtx} /> },
+      { id: 'devplan', label: 'Plan de desarrollo', Icon: ListTodo, content: <DevPlanSettings ssCtx={ssCtx} /> },
     ]} />
   );
 }

@@ -21,6 +21,7 @@ import {
 import { useCases, useApplications, useRatings } from "../hooks/useCaseHooks.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings, usePermissions } from "../hooks/useSystemSettings.jsx";
+import { pickPlanSpec, planObjects, alignWithObjects, SPEC_NAMES } from "../lib/devPlanBase.js";
 import { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, sendEmailToUser } from "../lib/utils.js";
 import { Badge, ROLE_LABELS, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Modal, Input, Textarea, Select } from "../components/ui.jsx";
@@ -2006,15 +2007,23 @@ canvas{display:block;width:100%}
     }
     setGeneratingDevPlan(true);
     try {
-      const specContent = caseSpec?.content ?? '';
+      // Base spec from System settings → Spec quality → Development plan (default: the approved one, Spec C).
+      const planPick = pickPlanSpec(caseSpec, cdSettings);
+      const specContent = planPick?.text ?? '';
+      const specObjs = planPick?.cfg?.align_objects ? planObjects(planPick, cdSettings) : [];
+      const specLabel = planPick?.key ? (SPEC_NAMES[planPick.key]?.[0] ?? `Spec ${planPick.key.toUpperCase()}`) : 'Specification';
       const contextStr = await buildDevPlanContext();
+      const objectsBlock = specObjs.length ? `
+
+TECHNICAL OBJECTS OF THE SPECIFICATION (with the platform's calculated standard hours). Create ONE development activity per object to build or modify, naming the object in the title and using exactly these hours as est_hours. Standard SAP tables or objects that are only read are not separate activities:
+${specObjs.map(o => `- ${o.name} (${o.type || o.kind}, ${o.complexity}): ${o.std} h${o.description ? ` — ${o.description}` : ''}`).join('\n')}` : '';
       const ctx = `Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
 SAP Module: ${caseData.area_sap ?? 'N/A'}
 Industry: ${caseData.area_industry ?? 'N/A'}${contextStr}
 
-Approved Functional Specification:
-${specContent ? specContent.slice(0, 4000) : '(Spec content not available — use the case description to infer scope)'}`;
+Approved Functional Specification (${specLabel}):
+${specContent || '(Spec content not available — use the case description to infer scope)'}${objectsBlock}`;
 
       // ── Call 1: JSON activities only ──────────────────────────────
       const jsonRaw = await callClaude({ feature: 'dev_plan', 
@@ -2063,7 +2072,9 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
       // Attempt parse: direct → strip accidental fences → brute-force object extraction
       const stripped = jsonRaw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
       const objMatch = (jsonRaw.match(/\{[\s\S]*\}/) ?? [])[0] ?? '{}';
-      const parsedStandard = tryParse(jsonRaw) ?? tryParse(stripped) ?? tryParse(objMatch) ?? [];
+      const parsedRaw = tryParse(jsonRaw) ?? tryParse(stripped) ?? tryParse(objMatch) ?? [];
+      // Hours of the spec's objects (and any object the AI left out) — the plan matches the approved estimate.
+      const parsedStandard = specObjs.length ? alignWithObjects(parsedRaw, specObjs, planPick?.notes?.docLang || lang) : parsedRaw;
       // Arena estimate next to the standard one (automation × seniority, see lib/estimation.js).
       const estCtx = await caseEstimationContext(caseData, cdSettings, { isStaff: auth.isAdmin || auth.isManager });
       const parsedActivities = applyArenaEstimate(parsedStandard, estCtx);

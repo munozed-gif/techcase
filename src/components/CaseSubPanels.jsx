@@ -1909,7 +1909,7 @@ ${md}`;
   }
   const signoffValid = () => !!signoff?.at && signoff.specHash === specsHash();
   async function handleSignoff(on) {
-    const next = on ? { by: auth.user?.id ?? null, name: auth.profile?.full_name ?? null, at: new Date().toISOString(), specHash: specsHash(),
+    const next = on ? { by: auth.user?.id ?? null, name: auth.profile?.full_name ?? null, at: new Date().toISOString(), specHash: specsHash(), specKey: gateSpecKey(),
       conditions: signoffConditions().map(c => ({ key: c.key, ok: c.ok, detail: c.detail })) } : null;
     setSignoff(next);
     try { await saveAiNotesPatch({ signoff: next }); } catch (_) {}
@@ -4897,6 +4897,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
     setApproving(true);
     try {
       await saveSpec({ status: 'approved', approved_by: auth.user?.id, approved_at: new Date().toISOString(), rejected_reason: null });
+      // Which spec was approved (the development plan is built from it — System settings → Spec quality).
+      if (gateSpecKey()) saveAiNotesPatch({ approvedSpec: gateSpecKey() }).catch(() => {});
       await supabase.from('cases').update({ status: 'estimated' }).eq('id', caseData.id);
       logEvent('spec.approved', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, oldValue: { status: 'ai' }, newValue: { status: 'estimated' } });
       await refetch();
