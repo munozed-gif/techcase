@@ -195,13 +195,15 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
   };
 
   let items = navItems[role] ?? [];
-  // Partner area: consultants can ask for a partner account; anyone already in a partner sees it.
+  // Partner area: partner owners see it; consultants can open it to ask for their own partner account.
   const PARTNER_NAV = { id: "partner", Icon: Handshake, labelKey: "nav.partner" };
   // Partner program switched off in Settings → Sign-up access: only existing partner members see the area.
   const _signupRoles = ssCtx?.settings?.signup_roles_visible;
   const partnerProgramOpen = !Array.isArray(_signupRoles) || _signupRoles.includes("partner") || ['admin', 'manager'].includes(role);
   if (!items.some(i => i.id === "partner")
-      && ((['consultant', 'internal_consultant', 'project_manager'].includes(role) && partnerProgramOpen) || partnerCtx.partners.some(p => p.status !== 'rejected'))) {
+      && ((['consultant', 'internal_consultant', 'project_manager'].includes(role) && partnerProgramOpen)
+          // Partner area = the owner's profile and settings: team members of a partner do not see it.
+          || partnerCtx.partners.some(p => p.status !== 'rejected' && p.role === 'owner'))) {
     const at = items.findIndex(i => i.id === "projects");
     items = at >= 0 ? [...items.slice(0, at + 1), PARTNER_NAV, ...items.slice(at + 1)] : [...items, PARTNER_NAV];
   }

@@ -802,13 +802,16 @@ function PartnerView({ auth, onNavigate }) {
   const [tab, setTab] = useState("profile");
   const [nonce, setNonce] = useState(0);
 
-  const visible = ctx.partners.filter(p => p.status !== "rejected");
+  // Only partners the user owns: team members work in the partner's projects but never see its
+  // profile and settings here (a member can still ask for a partner of their own).
+  const owned = ctx.partners.filter(p => p.role === "owner");
+  const visible = owned.filter(p => p.status !== "rejected");
   const partner = visible.find(p => p.id === selectedId) ?? visible.find(p => p.status === "approved") ?? visible[0] ?? null;
   const usage = usePartnerUsage(partner?.status === "approved" ? partner.id : null, nonce);
 
   if (ctx.loading) return <Spinner />;
 
-  const rejected = ctx.partners.find(p => p.status === "rejected");
+  const rejected = owned.find(p => p.status === "rejected");
   if (!partner) {
     return (
       <div>
