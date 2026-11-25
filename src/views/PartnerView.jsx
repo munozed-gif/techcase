@@ -744,7 +744,7 @@ function PartnerProfileTab({ partner, canManage, onChanged }) {
   const [err, setErr] = useState(null);
 
   useEffect(() => {
-    supabase.from("partners").select("id, name, logo_url, website, country").eq("id", partner.id).maybeSingle()
+    supabase.from("partners").select("id, name, logo_url, website, country, about, specialties").eq("id", partner.id).maybeSingle()
       .then(({ data, error }) => { if (error) setErr(error.message); setForm(data ?? { name: partner.name, logo_url: partner.logo_url ?? null, website: "", country: "" }); });
   }, [partner.id]);
 
@@ -804,9 +804,21 @@ function PartnerProfileTab({ partner, canManage, onChanged }) {
       <Input label="Name" value={form.name ?? ""} disabled={!canManage} onChange={e => setForm({ ...form, name: e.target.value })} />
       <Input label="Website" placeholder="https://" value={form.website ?? ""} disabled={!canManage} onChange={e => setForm({ ...form, website: e.target.value })} />
       <CountrySelect label="Country" value={form.country ?? ""} disabled={!canManage} onChange={v => setForm({ ...form, country: typeof v === "string" ? v : v?.target?.value ?? "" })} />
+      {/* Shown on the "Who we are" slide of proposal presentations */}
+      <Textarea label="About us (shown in proposal presentations)" rows={4} maxLength={600} disabled={!canManage}
+        value={form.about ?? ""} onChange={e => setForm({ ...form, about: e.target.value })}
+        placeholder="Who you are, what you do and how you work — 2 or 3 sentences." />
+      <p className="text-[11px] text-gray-400 -mt-3 mb-4 text-right">{(form.about ?? "").length}/600</p>
+      <Input label="Specialties (comma separated)" disabled={!canManage}
+        value={form._spec ?? (form.specialties ?? []).join(", ")} onChange={e => setForm({ ...form, _spec: e.target.value })}
+        placeholder="e.g. SAP FI/CO, FSCM, MM, TM, ABAP Cloud, Fiori, Integrations" />
       {canManage && (
         <div className="flex justify-end mt-2">
-          <button disabled={!!busy || !form.name?.trim()} onClick={() => update({ name: form.name.trim(), website: form.website?.trim() || null, country: form.country || null }, "save")}
+          <button disabled={!!busy || !form.name?.trim()} onClick={() => update({
+              name: form.name.trim(), website: form.website?.trim() || null, country: form.country || null,
+              about: form.about?.trim() || null,
+              specialties: (form._spec ?? (form.specialties ?? []).join(",")).split(",").map(x => x.trim()).filter(Boolean).slice(0, 12),
+            }, "save")}
             className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl px-4 py-2 disabled:opacity-50">
             {busy === "save" ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}Save profile
           </button>

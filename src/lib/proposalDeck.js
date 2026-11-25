@@ -23,6 +23,55 @@ ${dot(0, 54, 13, "#2563EB")}${dot(195, 54, 10, "#60A5FA")}${dot(100, 74, 11, "#3
 </svg>`;
 }
 
+const svgIc = d => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const WHY_ICONS = {
+  check: svgIc('<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'),
+  chart: svgIc('<path d="M3 3v18h18"/><path d="M7 15l4-4 4 4 5-6"/>'),
+  eye: svgIc('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
+  users: svgIc('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>'),
+  shield: svgIc('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+  code: svgIc('<path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/>'),
+};
+
+/** "Who we are" (from the partner profile) and "Why work with us" (what the platform does — fixed text,
+ *  no invented figures; the only number is the proposal's own Arena vs standard hours). */
+export function introSlides({ lang = "en", partner = {}, facts = [], saving = null }) {
+  const es = lang === "es";
+  const country = partner.country ? (() => { try { return new Intl.DisplayNames([es ? "es" : "en"], { type: "region" }).of(partner.country); } catch { return partner.country; } })() : "";
+  const web = [String(partner.website ?? "").replace(/^https?:\/\//, "").replace(/\/$/, ""), country].filter(Boolean).join(" · ");
+  const about = {
+    layout: "about", kicker: es ? "Quiénes somos" : "Who we are", title: partner.name || "",
+    name: partner.name || "", logo: partner.logo_url || null, lead: partner.about || "",
+    tags: (partner.specialties ?? []).slice(0, 10), web,
+    facts: [...facts, { value: "Arena", label: es ? "cómo entregamos" : "how we deliver" }].slice(0, 4),
+  };
+  const why = {
+    layout: "why", kicker: es ? "Por qué trabajar con nosotros" : "Why work with us",
+    title: es ? "Una entrega SAP transparente, de principio a fin" : "Transparent SAP delivery, end to end",
+    lead: es ? "Trabajamos sobre Arena Solutions Platform: usted ve, aprueba y controla cada paso." : "We work on Arena Solutions Platform: you see, approve and control every step.",
+    items: es ? [
+      { icon: "check", title: "Specs verificadas", text: "Cada requerimiento suyo se rastrea en la especificación; las dudas se le preguntan en línea antes de construir." },
+      { icon: "chart", title: "Estimaciones que cuadran", text: "Horas de un catálogo estándar por objeto; el plan de trabajo coincide con la cotización, línea por línea." },
+      { icon: "eye", title: "Su portal de cliente", text: "Revisa especificaciones, prototipos y propuestas, y aprueba en línea — sin cadenas de correos." },
+      { icon: "users", title: "Avance visible", text: "Estado de cada caso, fases con controles de calidad y SLA visibles en todo momento." },
+      { icon: "shield", title: "Conexión SAP segura", text: "VPN por proyecto, credenciales en el servidor, transportes aprobados antes de liberarse y auditoría completa." },
+      { icon: "code", title: "Entrega asistida por IA", text: "Código generado contra su sistema real, con estándares Clean Core y revisión del consultor." },
+    ] : [
+      { icon: "check", title: "Verified specs", text: "Every requirement you sent is traced in the specification; open points are asked online before building." },
+      { icon: "chart", title: "Estimates that add up", text: "Hours from a standard catalog per object; the work plan matches the quote, line by line." },
+      { icon: "eye", title: "Your customer portal", text: "Review specifications, prototypes and proposals, and approve online — no email chains." },
+      { icon: "users", title: "Visible progress", text: "Status of every case, phases with quality gates and SLA visible at any time." },
+      { icon: "shield", title: "Secure SAP connection", text: "Per-project VPN, credentials kept on the server, transports approved before release and a full audit trail." },
+      { icon: "code", title: "AI-assisted delivery", text: "Code generated against your real system, following Clean Core standards and reviewed by the consultant." },
+    ],
+    foot: saving && saving.std > 0 && saving.arena > 0 && saving.std > saving.arena
+      ? (es ? `En esta propuesta, la entrega con Arena estima **${saving.diff} menos** que el esfuerzo estándar (${saving.arenaTxt} frente a ${saving.stdTxt}).`
+            : `In this proposal, delivery with Arena is estimated at **${saving.diff} less** than the standard effort (${saving.arenaTxt} vs ${saving.stdTxt}).`)
+      : "",
+  };
+  return [about, why];
+}
+
 const LAYOUTS = ["statement", "bullets", "cards", "steps", "timeline", "two_columns"];
 
 /** System + user prompt that turns the proposal document (markdown) into slide JSON. */
@@ -91,6 +140,15 @@ function slideHtml(s, i, chrome = "") {
   const items = s.items ?? [];
   const head = `${s.kicker ? `<div class="kicker">${esc(s.kicker)}</div>` : ""}<h2>${esc(s.title)}</h2>${s.lead ? `<p class="lead">${fmt(s.lead)}</p>` : ""}`;
   let body = "";
+  if (s.layout === "about") {
+    const facts = (s.facts ?? []).map(f => `<div class="ab-fact"><div class="ab-fv">${esc(f.value)}</div><div class="ab-fl">${esc(f.label)}</div></div>`).join("");
+    return `<section class="slide">${chrome}<div class="inner ab"><div class="ab-left"><div class="kicker">${esc(s.kicker)}</div><h2>${esc(s.title)}</h2>${s.lead ? `<p class="lead">${fmt(s.lead)}</p>` : ""}
+      ${(s.tags ?? []).length ? `<div class="ab-tags">${s.tags.map(t => `<span>${esc(t)}</span>`).join("")}</div>` : ""}${s.web ? `<p class="ab-web">${esc(s.web)}</p>` : ""}</div>
+      <div class="ab-right">${s.logo || s.name ? `<div class="ab-logo">${s.logo ? `<img src="${esc(s.logo)}" alt="">` : ""}<span>${esc(s.name)}</span></div>` : ""}${facts ? `<div class="ab-facts">${facts}</div>` : ""}</div></div><div class="pg">${i}</div></section>`;
+  }
+  if (s.layout === "why") {
+    return `<section class="slide why">${chrome}<div class="inner">${head}<div class="why-grid">${items.map(it => `<div class="why-card"><div class="why-ic">${WHY_ICONS[it.icon] ?? ""}</div><h3>${esc(it.title)}</h3><p>${fmt(it.text)}</p></div>`).join("")}</div>${s.foot ? `<div class="why-foot">${fmt(s.foot)}</div>` : ""}</div><div class="pg">${i}</div></section>`;
+  }
   if (s.layout === "statement") {
     return `<section class="slide statement">${chrome}<div class="inner">${s.kicker ? `<div class="kicker">${esc(s.kicker)}</div>` : ""}<h2>${esc(s.title)}</h2>${s.lead ? `<p class="big">${fmt(s.lead)}</p>` : ""}${items.length ? `<ul class="bul">${items.map(it => `<li>${fmt(it.text || it.title)}</li>`).join("")}</ul>` : ""}</div><div class="pg">${i}</div></section>`;
   }
@@ -110,7 +168,7 @@ function slideHtml(s, i, chrome = "") {
  * slides: from parseDeck · investmentMd: the platform's investment markdown (never AI)
  * figures: [{label, value}] key numbers for the cover of the investment section
  */
-export function buildDeckHtml({ slides, lang = "en", title, customer, project, preparedBy, logoUrl, date, validUntil, investmentMd, figures = [], contact }) {
+export function buildDeckHtml({ slides, intro = [], lang = "en", title, customer, project, preparedBy, logoUrl, date, validUntil, investmentMd, figures = [], contact }) {
   const es = lang === "es";
   const T = es
     ? { inv: "Inversión", invK: "Inversión", thanks: "Gracias", next: "Siguiente paso", valid: "Propuesta válida hasta", for: "Propuesta para", by: "Preparada por", help: "← → para avanzar · F pantalla completa · P imprimir / PDF", full: "Pantalla completa" }
@@ -124,7 +182,7 @@ export function buildDeckHtml({ slides, lang = "en", title, customer, project, p
   const out = [];
   out.push(`<section class="slide cover"><div class="glow"></div><div class="grid"></div><div class="orbit-deco">${novaMarkSvg(520, "deco1")}</div><div class="inner">${coverBrands()}<div class="kicker">${esc(T.for)} ${esc(customer || "")}</div><h1>${esc(title)}</h1><p class="sub">${esc(project || "")}</p><div class="cover-meta"><span class="by">${esc(T.by)}: ${partnerMark("inline")}</span>${date ? `<span>${esc(date)}</span>` : ""}</div></div></section>`);
   let n = 2;
-  for (const s of slides) out.push(slideHtml(s, n++, chrome()));
+  for (const s of [...intro, ...slides]) out.push(slideHtml(s, n++, chrome()));
   const chunks = investmentChunks(investmentMd);
   chunks.forEach((c, k) => {
     const figs = k === 0 && figures.length ? `<div class="figs">${figures.map(f => `<div class="fig"><div class="fv">${esc(f.value)}</div><div class="fl">${esc(f.label)}</div></div>`).join("")}</div>` : "";
@@ -188,6 +246,18 @@ p{font-size:18px;line-height:1.55;color:var(--muted)}
 .tl{display:flex;flex-direction:column;gap:12px;margin-top:8px;position:relative}.tl-row{display:grid;grid-template-columns:200px 16px 1fr;gap:20px;align-items:center;background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 20px}
 .tl-when{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:17px;color:var(--accent)}.tl-bar{width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 5px rgba(79,110,247,.15)}
 .tl-what{font-size:17px;color:var(--ink)}
+.ab{display:grid;grid-template-columns:1.35fr 1fr;gap:48px;align-items:center}
+.ab-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}.ab-tags span{font-size:14px;font-weight:600;color:var(--accent);background:rgba(79,110,247,.1);border-radius:999px;padding:6px 12px}
+.ab-web{margin-top:18px;font-size:15px;color:var(--muted)}
+.ab-right{background:linear-gradient(135deg,#0B0F1A,#0D1630);border-radius:20px;padding:28px;color:#fff;display:flex;flex-direction:column;gap:22px}
+.ab-logo{display:flex;align-items:center;gap:14px}.ab-logo img{height:56px;max-width:180px;object-fit:contain}.ab-logo span{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:22px}
+.ab-facts{display:grid;grid-template-columns:1fr 1fr;gap:12px}.ab-fact{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 14px}
+.ab-fv{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:20px}.ab-fl{font-size:12px;color:#A5B4FC;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.why-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:4px}
+.why-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px}.why-card h3{font-size:16px;margin:8px 0 4px}.why-card p{font-size:13.5px;line-height:1.45}
+.why-ic{width:36px;height:36px;border-radius:10px;background:rgba(79,110,247,.1);color:var(--accent);display:flex;align-items:center;justify-content:center}
+.why-foot{margin-top:14px;font-size:14px;color:var(--muted)}.why-foot strong{color:var(--ink)}
+.why .lead{margin-bottom:16px}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px}.col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:24px}.col .bul li{font-size:17px}
 .figs{display:flex;gap:14px;margin:4px 0 18px}.fig{flex:1;background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 18px}
 .fv{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.03em;color:var(--ink)}.fl{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}

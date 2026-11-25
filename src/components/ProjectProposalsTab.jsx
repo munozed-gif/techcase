@@ -18,7 +18,7 @@ import {
   PROPOSAL_STATUS_META, OPEN_PROPOSAL_STATUSES, DEFAULT_COMMERCIALS, computeTotals, investmentMarkdown,
   mergeInvestment, buildProposalHtml, htmlToText, caseHours, specHoursFromNotes,
 } from "../lib/proposals.js";
-import { deckPrompt, parseDeck, buildDeckHtml } from "../lib/proposalDeck.js";
+import { deckPrompt, parseDeck, buildDeckHtml, introSlides } from "../lib/proposalDeck.js";
 import { PREVIEW_KEY } from "../views/ProposalReviewView.jsx";
 import { STATUS_LABEL_KEYS } from "../lib/uiUtils.jsx";
 import { resolveCatalog, computeServiceTotals, servicePlanMarkdown, slaMarkdown, premisesMarkdown, mergeServiceSections, termName } from "../lib/servicePlans.js";
@@ -74,7 +74,7 @@ export function ProjectProposalsTab({ project, auth }) {
         ids.length ? supabase.from("case_documents").select("id, case_id, file_name, file_url, file_type, notes, created_at").in("case_id", ids).order("created_at", { ascending: false }) : { data: [] },
         ids.length ? supabase.from("case_assignments").select("case_id, is_active").in("case_id", ids) : { data: [] },
         project.customer_id ? supabase.from("customers").select("id, name, contact_name, contact_email, currency").eq("id", project.customer_id).maybeSingle() : { data: null },
-        project.partner_id ? supabase.from("partners").select("id, name, service_plans, logo_url").eq("id", project.partner_id).maybeSingle() : { data: null },
+        project.partner_id ? supabase.from("partners").select("id, name, service_plans, logo_url, website, country, about, specialties").eq("id", project.partner_id).maybeSingle() : { data: null },
       ]);
       const group = (rows) => (rows ?? []).reduce((m, r) => { (m[r.case_id] ??= []).push(r); return m; }, {});
       setProposals(props ?? []);
@@ -435,8 +435,19 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
           { label: pes ? "Horas estimadas" : "Estimated hours", value: hrs(totals.basis === "standard" ? totals.hoursStandard : totals.hoursArena) },
           ...(totals.savings > 0 ? [{ label: pes ? "Ahorro con Arena" : "Arena saving", value: fmtMoney(totals.savings, p.currency, lang) }] : []),
         ];
+    // "Who we are" (partner profile) and "Why work with us" right after the cover.
+    const hoursUsed = totals.basis === "standard" ? totals.hoursStandard : totals.hoursArena;
+    const intro = introSlides({
+      lang,
+      partner: partner ?? { name: "Arena Solutions Platform" },
+      facts: isService ? [] : [
+        { value: String(propCases.length), label: pes ? "casos en esta propuesta" : "cases in this proposal" },
+        { value: hrs(hoursUsed), label: pes ? "horas estimadas" : "estimated hours" },
+      ],
+      saving: isService ? null : { std: totals.hoursStandard, arena: totals.hoursArena, stdTxt: hrs(totals.hoursStandard), arenaTxt: hrs(totals.hoursArena), diff: hrs(totals.hoursStandard - totals.hoursArena) },
+    });
     return buildDeckHtml({
-      slides, lang, title: p.title, customer: customer?.name ?? project.stakeholder_name ?? "", project: project.name,
+      slides, intro, lang, title: p.title, customer: customer?.name ?? project.stakeholder_name ?? "", project: project.name,
       preparedBy: partner?.name ?? auth.profile?.full_name ?? "Arena", logoUrl: partner?.logo_url ?? null,
       date: dfmt(new Date().toISOString().slice(0, 10)), validUntil: dfmt(validUntilOverride ?? p.valid_until), investmentMd: invMd, figures,
       contact: auth.profile?.full_name ?? "",
