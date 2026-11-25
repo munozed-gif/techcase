@@ -49,7 +49,9 @@ const BG = {
 };
 
 // embedded: shown inside the platform (project → Proposals tab for the customer) instead of a full page.
-export default function ProposalReviewView({ token, embedded = false, defaultName = "", onBack, onDecided }) {
+// preview: the proposal data (same shape as proposal_by_token) shown to the consultant before sending —
+// nothing is loaded or recorded, and the decision buttons do nothing.
+export default function ProposalReviewView({ token, embedded = false, defaultName = "", onBack, onDecided, preview = null }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState(defaultName ?? "");
@@ -60,15 +62,17 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
   const [view, setView] = useState("doc");     // "doc" | "deck" (presentation)
 
   useEffect(() => {
+    if (preview) { setData(preview); setLoading(false); return; }
     supabase.rpc("proposal_by_token", { p_token: token })
       .then(({ data: d, error: e }) => { if (e) setError(e.message); setData(d ?? null); setLoading(false); });
-  }, [token]);
+  }, [token, preview]);
 
   const lang = data?.language === "es" ? "es" : "en";
   const L = T[lang];
 
   async function decide(decision) {
     setError(null);
+    if (preview) { setError(lang === "es" ? "Vista previa: el cliente usará estos botones para responder. Aquí no hacen nada." : "Preview: the customer will use these buttons to answer. They do nothing here."); return; }
     if (!name.trim()) { setError(L.name); return; }
     if (decision !== "accepted" && !note.trim()) { setError(L.commentReq); return; }
     const opts = data?.totals?.type === "plan" ? (data.totals.options ?? []) : [];

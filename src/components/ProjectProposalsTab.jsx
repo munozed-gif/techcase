@@ -19,6 +19,7 @@ import {
   mergeInvestment, buildProposalHtml, htmlToText, caseHours, specHoursFromNotes,
 } from "../lib/proposals.js";
 import { deckPrompt, parseDeck, buildDeckHtml } from "../lib/proposalDeck.js";
+import ProposalReviewView from "../views/ProposalReviewView.jsx";
 import { STATUS_LABEL_KEYS } from "../lib/uiUtils.jsx";
 import { resolveCatalog, computeServiceTotals, servicePlanMarkdown, slaMarkdown, premisesMarkdown, mergeServiceSections, termName } from "../lib/servicePlans.js";
 
@@ -194,6 +195,7 @@ function ProposalEditor({ proposal, ctx, onBack, onChange, onOpen }) {
   // Hours: activity plan first; without a plan, the time estimate written in Spec C (or Spec A).
   const specHoursOf = id => specHoursFromNotes(specs[id]?.notes);
   const [events, setEvents] = useState([]);
+  const [customerPreview, setCustomerPreview] = useState(false);
   const isDraft = p.status === "draft";
   const lang = p.language || "en";
   const pes = lang === "es";
@@ -695,7 +697,17 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
         <SendStep p={p} setP={setP} save={save} L={L} lang={lang} busy={busy} setError={setError}
           attachments={attachmentsList()} totals={totals}
           onRebuild={async () => { setBusy("rebuild"); try { await saveDocument(toMarkers(p.content_md)); } catch (e) { setError(e.message); } setBusy(null); }}
-          onBack={() => setStep("document")} onSend={send} onWithdraw={withdraw} />
+          onBack={() => setStep("document")} onSend={send} onWithdraw={withdraw} onPreview={() => setCustomerPreview(true)} />
+      )}
+
+      {customerPreview && (
+        <CustomerPreviewModal L={L} link={proposalLink(p.token)} isDraft={isDraft} onClose={() => setCustomerPreview(false)}
+          data={{
+            id: p.id, title: p.title, version: p.version, status: isDraft ? "sent" : p.status, language: p.language, currency: p.currency,
+            totals: p.totals ?? totals, valid_until: p.valid_until || null, sent_at: p.sent_at ?? null,
+            html: p.html, deck_html: p.deck?.slides?.length ? deckHtml(p.deck.slides) : null,
+            attachments: attachmentsList(), project_name: project.name, partner_name: partner?.name ?? null, customer_name: customer?.name ?? null,
+          }} />
       )}
 
       {/* Sent / answered */}
@@ -715,6 +727,34 @@ ${commercials.notes ? `Additional notes from the consultant: ${clip(commercials.
           <button onClick={withdraw} className="text-xs text-gray-400 hover:text-red-600 inline-flex items-center gap-1"><XCircle size={12} />{L("Discard draft", "Descartar borrador")}</button>
         </div>
       )}
+    </div>
+  );
+}
+
+// The page the customer will open from the email, shown with the draft's data before sending.
+function CustomerPreviewModal({ data, link, isDraft, L, onClose }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const k = e => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", k);
+    const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", k); document.body.style.overflow = prev; };
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[200] flex flex-col bg-[#0B0F1A]">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-white/10" style={{ background: "#111829" }}>
+        <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-md" style={{ background: "rgba(245,158,11,.15)", color: "#FCD34D" }}>{L("Customer view · preview", "Vista del cliente · previsualización")}</span>
+        <span className="text-xs text-gray-400 hidden md:inline">{isDraft ? L("The link opens for the customer once you send the proposal.", "El enlace se abre para el cliente cuando envíes la propuesta.") : L("This is the page the customer has.", "Esta es la página que tiene el cliente.")}</span>
+        <div className="flex items-center gap-1.5 flex-1 min-w-[14rem] md:max-w-md md:ml-auto">
+          <input readOnly value={link} className="flex-1 min-w-0 text-xs rounded-lg px-2 py-1.5 bg-white/5 border border-white/10 text-gray-300" />
+          <button onClick={() => { navigator.clipboard?.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+            className="text-gray-300 hover:text-white p-1.5" title={L("Copy link", "Copiar enlace")}>{copied ? <Check size={15} /> : <Copy size={15} />}</button>
+        </div>
+        <button onClick={onClose} className="inline-flex items-center gap-1 text-sm font-semibold text-white bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5"><XCircle size={14} />{L("Close", "Cerrar")}</button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <ProposalReviewView preview={data} token={null} />
+      </div>
     </div>
   );
 }
@@ -1094,7 +1134,7 @@ function CaseTermsStep({ p, setP, totals, propCases, cfg, L, lang, profileRate, 
 }
 function Row({ k, v }) { return <div className="flex justify-between gap-4"><span className="text-gray-500">{k}</span><span className="text-gray-900">{v}</span></div>; }
 
-function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals, onRebuild, onBack, onSend }) {
+function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals, onRebuild, onBack, onSend, onPreview }) {
   const rec = p.recipients ?? [];
   const setRec = list => setP(prev => ({ ...prev, recipients: list }));
   const staleAttach = JSON.stringify((p.attachments ?? []).map(a => a.doc_id).sort()) !== JSON.stringify(attachments.map(a => a.doc_id).sort());
@@ -1127,7 +1167,10 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
             ? <p className="text-sm text-gray-400">{L("None. Tick “Attach” on case documents in step 2.", "Ninguno. Marca “Adjuntar” en documentos del caso en el paso 2.")}</p>
             : <ul className="space-y-1">{attachments.map(a => <li key={a.doc_id} className="text-sm flex items-center gap-2"><Paperclip size={12} className="text-gray-400" /><a href={a.file_url} onClick={docLinkClick(a.file_url, a.file_name)} target="_blank" rel="noreferrer" className="text-blue-600 truncate">{a.file_name}</a><span className="text-xs text-gray-400 truncate">· {a.case_title}</span></li>)}</ul>}
           {staleAttach && <div className="mt-2"><Banner tone="amber">{L("Attachments changed since the document was built.", "Los anexos cambiaron desde que se armó el documento.")} <button onClick={onRebuild} className="underline font-semibold">{L("Rebuild document", "Reconstruir documento")}</button></Banner></div>}
-          <button onClick={() => openHtml(p.html)} className="mt-4 inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><Eye size={14} />{L("Preview / save as PDF", "Vista previa / guardar PDF")}</button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={onPreview} className="inline-flex items-center gap-1.5 text-sm font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-xl px-3 py-2"><ExternalLink size={14} />{L("Preview customer view", "Ver como el cliente")}</button>
+            <button onClick={() => openHtml(p.html)} className="inline-flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-700"><Eye size={14} />{L("Preview / save as PDF", "Vista previa / guardar PDF")}</button>
+          </div>
         </div>
       </div>
       <Footer>
