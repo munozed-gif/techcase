@@ -373,25 +373,28 @@ function CustomersTab({ partner, canManage, onChanged, auth }) {
       {!active.length && <EmptyState Icon={Building2} title="No customers yet" subtitle="Add the companies you work for, then create their projects." />}
       {active.map(c => (
         <div key={c.id} className="bg-white rounded-2xl border border-gray-200">
-          <div className="flex items-center gap-3 px-5 py-4">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><Building2 size={18} /></div>
-            <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-4">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center flex-shrink-0"><Building2 size={18} /></div>
+            {/* the name keeps at least 10rem; on a phone the actions wrap to the next line */}
+            <div className="flex-1 min-w-[10rem]">
               <div className="font-semibold text-gray-900 truncate">{c.name}</div>
               <div className="text-xs text-gray-500 truncate">
                 {[c.industry, c.country, c.contact_name, `${projectsBy[c.id] ?? 0} project(s)`].filter(Boolean).join(" · ")}
               </div>
             </div>
+            <div className="flex flex-wrap items-center gap-3">
             <button onClick={() => setOpenId(openId === c.id ? null : c.id)} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
               <Users size={13} />Users
             </button>
             <button onClick={() => setSapFor(c)} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
-              <Server size={13} />SAP systems
+              <Server size={13} /><span className="whitespace-nowrap">SAP systems</span>
             </button>
             <button onClick={() => setSlaFor(c)} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
               <Shield size={13} />SLA{c.sla ? " ★" : ""}
             </button>
             {canManage && <button onClick={() => setEditing(c)} className="p-1.5 text-gray-400 hover:text-gray-700"><Pencil size={14} /></button>}
             {canManage && <button onClick={() => setArchived(c, true)} className="text-xs text-gray-400 hover:text-red-600">Archive</button>}
+            </div>
           </div>
           {openId === c.id && (
             <div className="px-5 pb-4 border-t border-gray-100 pt-3">
@@ -796,7 +799,7 @@ function PartnerView({ auth, onNavigate }) {
   const { settings: _ss } = useSystemSettings() ?? {};
   const partnerProgramOpen = !Array.isArray(_ss?.signup_roles_visible) || _ss.signup_roles_visible.includes("partner") || auth.isAdmin || auth.isManager;
   const [selectedId, setSelectedId] = useState(null);
-  const [tab, setTab] = useState("customers");
+  const [tab, setTab] = useState("profile");
   const [nonce, setNonce] = useState(0);
 
   const visible = ctx.partners.filter(p => p.status !== "rejected");
