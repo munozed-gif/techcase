@@ -120,7 +120,7 @@ export function buildDeckHtml({ slides, lang = "en", title, customer, project, p
   const arena = (size, uid) => `<span class="arena-brand">${novaMarkSvg(size, uid)}<span class="aw"><b>Arena</b> Solutions Platform</span></span>`;
   let u = 0;
   const chrome = () => `<div class="chrome">${arena(34, `c${u++}`)}${partnerMark("")}</div>`;
-  const coverBrands = () => `<div class="brands">${arena(52, `v${u++}`)}${logoUrl || preparedBy ? `<span class="x">×</span>${partnerMark("big")}` : ""}</div>`;
+  const coverBrands = () => `<div class="brands">${arena(52, `v${u++}`)}${logoUrl || preparedBy ? `<span class="sep"></span>${partnerMark("big")}` : ""}</div>`;
   const out = [];
   out.push(`<section class="slide cover"><div class="glow"></div><div class="grid"></div><div class="orbit-deco">${novaMarkSvg(520, "deco1")}</div><div class="inner">${coverBrands()}<div class="kicker">${esc(T.for)} ${esc(customer || "")}</div><h1>${esc(title)}</h1><p class="sub">${esc(project || "")}</p><div class="cover-meta"><span class="by">${esc(T.by)}: ${partnerMark("inline")}</span>${date ? `<span>${esc(date)}</span>` : ""}</div></div></section>`);
   let n = 2;
@@ -165,7 +165,7 @@ p{font-size:18px;line-height:1.55;color:var(--muted)}
 .cover .inner{inset:64px 80px 64px;display:flex;flex-direction:column;justify-content:center}
 .brands{position:absolute;top:0;left:0;display:flex;align-items:center;gap:18px}
 .cover .aw{color:rgba(255,255,255,.55);font-size:17px}.cover .aw b{font-size:22px}
-.brands .x{color:rgba(255,255,255,.35);font-size:22px}
+.brands{gap:24px}.brands .sep{width:1px;height:36px;background:rgba(255,255,255,.18)}
 .partner.big .plogo{height:52px;max-width:200px}.partner.big .pname{font-size:20px}
 .by{display:inline-flex;align-items:center;gap:8px}.partner.inline{gap:8px}.partner.inline .plogo{height:26px;max-width:110px}.partner.inline .pname{font-size:15px}
 .cover .kicker{color:#A5B4FC}.cover h1{color:#fff;max-width:980px}
