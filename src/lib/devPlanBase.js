@@ -41,7 +41,14 @@ export function planObjects(pick, settings) {
   const { objects } = readObjects(pick.text);
   if (!objects.length) return [];
   const est = computeEstimate(objects, { settings, scenarios: pick.notes?.scenarioCount ?? 0, overrides: pick.notes?.hoursOverrides ?? {} });
-  return est.rows.map(r => ({ name: r.name, type: r.type, kind: r.kind, complexity: r.complexity, std: r.std, description: r.description ?? '' }));
+  // The plan matches the approved document: hours written in the spec win (a consultant override
+  // still applies); the catalog is used only when the spec states no hours for the object.
+  return est.rows.map(r => {
+    const override = pick.notes?.hoursOverrides?.[r.name]?.hours;
+    const std = override !== undefined && override !== null && override !== '' ? Number(override)
+      : Number.isFinite(r.statedHours) ? r.statedHours : r.std;
+    return { name: r.name, type: r.type, kind: r.kind, complexity: r.complexity, std, description: r.description ?? '' };
+  });
 }
 
 // Object kind (spec hours catalog) → sap_object_type of the activities.
@@ -77,6 +84,43 @@ export function alignWithObjects(activities, objects, lang = 'es') {
       est_hours: o.std, phase: 'development', sap_object_type: KIND_TO_SAP_TYPE[o.kind] ?? 'none', _specObject: o.name,
       _selected: true, _type: activities[0]?._type ?? 'activity',
     });
+  });
+  return out;
+}
+
+/** Standard hours of the "Analysis & design" phase in the spec's estimate table (null if absent). */
+export function planDesignHours(pick) {
+  const lines = String(pick?.text ?? '').split('\n').filter(l => l.trim().startsWith('|'));
+  const cellsOf = l => l.split('|').slice(1, -1).map(c => c.replace(/\*\*/g, '').trim());
+  for (let i = 0; i < lines.length; i++) {
+    const head = cellsOf(lines[i]);
+    if (!head.some(c => /^(fase|phase)$/i.test(c))) continue;
+    const hIx = head.findIndex(c => /^(horas( est[aá]ndar)?|hours|standard hours)$/i.test(c));
+    if (hIx < 0) continue;
+    for (const l of lines.slice(i + 1)) {
+      const r = cellsOf(l);
+      if (/an[aá]lisis|analysis/i.test(r[0] ?? '')) {
+        const m = String(r[hIx] ?? '').replace(',', '.').match(/\d+(\.\d+)?/);
+        return m ? parseFloat(m[0]) : null;
+      }
+    }
+  }
+  return null;
+}
+
+/** Scale the design activities so they add up to the spec's analysis & design hours (0.5 h steps). */
+export function scaleDesign(activities, hours) {
+  const design = activities.filter(a => a.phase === 'design');
+  const sum = design.reduce((s, a) => s + (Number(a.est_hours) || 0), 0);
+  if (!design.length || !hours || !sum) return activities;
+  const f = hours / sum;
+  let left = hours;
+  const out = activities.map(a => {
+    if (a.phase !== 'design') return a;
+    const isLast = a === design[design.length - 1];
+    const h = isLast ? Math.max(0.5, Math.round(left * 2) / 2) : Math.max(0.5, Math.round((Number(a.est_hours) || 0) * f * 2) / 2);
+    left -= h;
+    return { ...a, est_hours: h };
   });
   return out;
 }

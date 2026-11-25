@@ -75,12 +75,15 @@ export function readObjects(md) {
   if (!head) return { objects: [], start, tableFrom: -1, tableTo: -1 };
   const ix = re => head.findIndex(c => re.test(c));
   const nameIx = ix(/^(objeto|object)$/i), typeIx = ix(/^(tipo|type)$/i), cxIx = ix(/complej|complex/i), descIx = ix(/descrip/i);
+  // Standard hours written in the table (older specs, or the platform's own column) — never the Arena column.
+  const hoursIx = ix(/^(horas( est[aá]ndar)?|hours|standard hours|horas std\.?)$/i);
+  const num = v => { const m = String(v ?? '').replace(',', '.').match(/\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; };
   const objects = rows
     .filter(r => r !== head && !r.every(c => /^:?-{2,}:?$|^$/.test(c)))
     .filter(r => !/subtotal|^total$/i.test(r.join(' ')) && (r[nameIx] ?? '').length > 1)
     .map(r => {
       const name = r[nameIx], type = typeIx >= 0 ? r[typeIx] : '', description = descIx >= 0 ? r[descIx] : '';
-      return { name, type, description, complexity: normalizeComplexity(cxIx >= 0 ? r[cxIx] : ''),
+      return { name, type, description, complexity: normalizeComplexity(cxIx >= 0 ? r[cxIx] : ''), statedHours: hoursIx >= 0 ? num(r[hoursIx]) : null,
         kind: kindOf(`${type} ${name} ${description}`, type), rule: /regla del proyecto|project rule/i.test(`${type} ${description}`) };
     });
   return { objects, start, tableFrom: from, tableTo: i };

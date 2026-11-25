@@ -21,7 +21,7 @@ import {
 import { useCases, useApplications, useRatings } from "../hooks/useCaseHooks.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings, usePermissions } from "../hooks/useSystemSettings.jsx";
-import { pickPlanSpec, planObjects, alignWithObjects, SPEC_NAMES } from "../lib/devPlanBase.js";
+import { pickPlanSpec, planObjects, alignWithObjects, planDesignHours, scaleDesign, SPEC_NAMES } from "../lib/devPlanBase.js";
 import { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, sendEmailToUser } from "../lib/utils.js";
 import { Badge, ROLE_LABELS, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Modal, Input, Textarea, Select } from "../components/ui.jsx";
@@ -2074,7 +2074,9 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
       const objMatch = (jsonRaw.match(/\{[\s\S]*\}/) ?? [])[0] ?? '{}';
       const parsedRaw = tryParse(jsonRaw) ?? tryParse(stripped) ?? tryParse(objMatch) ?? [];
       // Hours of the spec's objects (and any object the AI left out) — the plan matches the approved estimate.
-      const parsedStandard = specObjs.length ? alignWithObjects(parsedRaw, specObjs, planPick?.notes?.docLang || lang) : parsedRaw;
+      const aligned = specObjs.length ? alignWithObjects(parsedRaw, specObjs, planPick?.notes?.docLang || lang) : parsedRaw;
+      // Design activities add up to the spec's "Analysis & design" hours.
+      const parsedStandard = planPick?.cfg?.align_objects ? scaleDesign(aligned, planDesignHours(planPick)) : aligned;
       // Arena estimate next to the standard one (automation × seniority, see lib/estimation.js).
       const estCtx = await caseEstimationContext(caseData, cdSettings, { isStaff: auth.isAdmin || auth.isManager });
       const parsedActivities = applyArenaEstimate(parsedStandard, estCtx);
