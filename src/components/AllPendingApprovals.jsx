@@ -2,7 +2,7 @@
 // team and case invitations, sign-ups, applications, proposals, customer reviews, transports —
 // from admin_pending_approvals() (other users' rows are not readable from the browser).
 import { useState, useEffect, useMemo } from "react";
-import { Inbox, RefreshCw, Users, Mail, Briefcase, FileCheck2, HelpCircle, FileText, Truck, UserPlus, Handshake, Store, ClipboardCheck, Clock } from "lucide-react";
+import { Inbox, RefreshCw, Users, Mail, Briefcase, FileCheck2, HelpCircle, FileText, Truck, UserPlus, Handshake, Store, ClipboardCheck, Clock, Zap } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 
 const KINDS = {
@@ -21,6 +21,7 @@ const KINDS = {
   proposal:           { label: 'Proposal sent',            Icon: FileText,       who: 'Customer decides' },
   blueprint_approval: { label: 'Blueprint approval',       Icon: ClipboardCheck, who: 'Reviewer approves' },
   transport:          { label: 'Transport approval',       Icon: Truck,          who: 'Approver' },
+  plan_upgrade:       { label: 'Plan upgrade request',     Icon: Zap,            who: 'Platform approves' },
 };
 
 // What an admin can do on behalf of the person: [approve label | null, reject label]. A null approve
@@ -32,7 +33,7 @@ const ACTIONS = {
   application: ['Accept', 'Reject'], hh_proposal: ['Accept', 'Reject'], delivery_bid: ['Accept / award', 'Decline'],
   spec_review: ['Approve on behalf of the customer', 'Request changes'], spec_questions: [null, 'Revoke link'],
   proposal: ['Accept on behalf of the customer', 'Reject'], blueprint_approval: ['Approve all objects', 'Reject all objects'],
-  transport: ['Approve', 'Reject'],
+  transport: ['Approve', 'Reject'], plan_upgrade: ['Approve and activate the plan', 'Reject'],
 };
 const NOTE_REQUIRED = new Set(['spec_review', 'proposal']);
 
@@ -55,7 +56,9 @@ export function AllPendingApprovals() {
 
   async function decide(r, approve) {
     setBusy(true); setDone(null);
-    const { data, error: e } = await supabase.rpc('admin_decide_approval', { p_kind: r.kind, p_id: r.id, p_approve: approve, p_note: note.trim() || null });
+    const { data, error: e } = r.kind === 'plan_upgrade'
+      ? await supabase.rpc('plan_request_decide', { p_id: r.id, p_approve: approve, p_note: note.trim() || null })
+      : await supabase.rpc('admin_decide_approval', { p_kind: r.kind, p_id: r.id, p_approve: approve, p_note: note.trim() || null });
     setBusy(false);
     if (e) { setDone({ err: true, text: e.message }); return; }
     setDone({ err: false, text: `${KINDS[r.kind]?.label ?? r.kind} — ${r.title || r.approver}: ${data?.result ?? 'done'}.` });
@@ -65,9 +68,12 @@ export function AllPendingApprovals() {
 
   async function load() {
     setError(null);
-    const { data, error: e } = await supabase.rpc('admin_pending_approvals');
+    const [{ data, error: e }, plans] = await Promise.all([
+      supabase.rpc('admin_pending_approvals'),
+      supabase.rpc('plan_requests_pending'),       // plan upgrades asked without online payments
+    ]);
     if (e) { setError(e.message); setRows([]); return; }
-    setRows(data ?? []);
+    setRows([...(data ?? []), ...(plans.data ?? [])]);
   }
   useEffect(() => { load(); }, []);
 

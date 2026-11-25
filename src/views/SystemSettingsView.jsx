@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Component } from "react";
+import { PAYMENT_PROVIDERS, paymentGateway } from "../lib/payments.js";
 import {
   Activity, AlertCircle, AlertTriangle, BadgeCheck, BarChart2, Briefcase,
   Building2, Calendar, CalendarDays, CalendarRange, Check, CheckCircle2,
@@ -248,10 +249,19 @@ function NovaSettingsLogo({ size = 80 }) {
 function UpgradeModal({ onClose, title, message, roleType, planKey, auth }) {
   const planCfg = usePlanConfig();
   const [loading, setLoading] = useState(false);
+  // Without online payments (Settings → Pricing → Payments) the upgrade is a request an admin approves.
+  const online = planCfg.payOnline(roleType, planKey);
+  const [note, setNote] = useState('');
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState(null);
 
   async function handleUpgrade() {
-    setLoading(true);
-    await planCfg.startCheckout(auth.user.id, auth.user.email, roleType, planKey);
+    setLoading(true); setErr(null);
+    if (online) await planCfg.startCheckout(auth.user.id, auth.user.email, roleType, planKey);
+    else {
+      try { await planCfg.requestUpgrade(roleType, planKey, { note: note.trim() || null }); setSent(true); }
+      catch (e) { setErr(e.message); }
+    }
     setLoading(false);
   }
 
@@ -279,12 +289,23 @@ function UpgradeModal({ onClose, title, message, roleType, planKey, auth }) {
             <p className="text-xl font-bold text-purple-900">${priceCfg.amount}<span className="text-sm font-normal text-purple-500">/mo</span></p>
           </div>
         )}
+        {!online && !sent && (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500">An administrator reviews your request and activates the plan. You will get a notification.</p>
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Message for the administrator (optional)"
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+          </div>
+        )}
+        {sent && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">Request sent. An administrator will review it and you will get a notification.</p>}
+        {err && <p className="text-sm text-red-600">{err}</p>}
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors">Maybe later</button>
-          <button onClick={handleUpgrade} disabled={loading}
-            className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-xl transition-colors">
-            {loading ? 'Loading…' : 'Upgrade now'}
-          </button>
+          <button onClick={onClose} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors">{sent ? 'Close' : 'Maybe later'}</button>
+          {!sent && (
+            <button onClick={handleUpgrade} disabled={loading}
+              className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-xl transition-colors">
+              {loading ? (online ? 'Loading…' : 'Sending…') : online ? 'Upgrade now' : 'Request upgrade'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -4725,6 +4746,62 @@ function SettingsPlansTab({ ssCtx, auth }) {
 }
 
 
+// Payments on / off and the gateway. Off (or the gateway not set up): every "Upgrade" button sends a
+// request that an administrator approves on the Approvals page — no checkout is shown.
+function PaymentGatewayCard({ ssCtx, stripeReady }) {
+  const g = paymentGateway(ssCtx.settings);
+  const [saving, setSaving] = useState(false);
+  async function save(patch) {
+    setSaving(true);
+    await ssCtx.setSetting('payment_gateway', { ...g, ...patch });
+    setSaving(false);
+  }
+  const prov = PAYMENT_PROVIDERS.find(p => p.id === g.provider) ?? PAYMENT_PROVIDERS[0];
+  const live = g.enabled && prov.integrated && (prov.id !== 'stripe' || stripeReady);
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="font-semibold text-gray-900">Online payments</h3>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {live ? `Upgrades are paid online with ${prov.name}.`
+              : 'Off: the upgrade buttons send a request and an administrator approves it on the Approvals page. No checkout is shown.'}
+          </p>
+        </div>
+        <button onClick={() => save({ enabled: !g.enabled })} disabled={saving} role="switch" aria-checked={g.enabled}
+          className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${g.enabled ? 'bg-green-500' : 'bg-gray-300'}`}>
+          <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${g.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment gateway</p>
+        <div className="grid sm:grid-cols-2 gap-2">
+          {PAYMENT_PROVIDERS.map(p => {
+            const on = g.provider === p.id;
+            return (
+              <button key={p.id} type="button" disabled={!p.integrated || saving} onClick={() => save({ provider: p.id })}
+                className={`text-left rounded-xl border-2 px-3 py-2.5 transition-colors ${on ? 'border-blue-500 bg-blue-50' : 'border-gray-200'} ${p.integrated ? 'hover:border-blue-300' : 'opacity-60 cursor-not-allowed'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-sm text-gray-900">{p.name}</span>
+                  {p.integrated
+                    ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Integrated</span>
+                    : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Not integrated yet</span>}
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">{p.note}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {g.enabled && prov.id === 'stripe' && !stripeReady && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+          Payments are on, but Stripe is not set up yet (no products). Until you create the Stripe products below, upgrades keep working as requests.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function SettingsPricingTab({ ssCtx, auth }) {
   const savedPrices  = { ...DEFAULT_PLAN_PRICES, ...(ssCtx.settings['plan_prices'] ?? {}) };
   const savedPriceIds = ssCtx.settings['stripe_price_ids'] ?? {};
@@ -4784,6 +4861,8 @@ function SettingsPricingTab({ ssCtx, auth }) {
           )}
         </div>
       </div>
+
+      <PaymentGatewayCard ssCtx={ssCtx} stripeReady={stripeReady} />
 
       {/* Price table */}
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">

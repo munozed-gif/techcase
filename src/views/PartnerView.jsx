@@ -596,7 +596,25 @@ function PlanTab({ partner, auth, canManage }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const proPrice = (ss.settings?.plan_prices ?? {}).partner_pro?.amount ?? partnerPlans.pro?.price ?? null;
+  // Online checkout only when Settings → Pricing → Payments is on and set up; otherwise a request
+  // the platform administrator approves.
+  const online = planCfg.payOnline("partner", "pro");
   const priceId = (ss.settings?.stripe_price_ids ?? {}).partner_pro;
+  const [pendingReq, setPendingReq] = useState(null);
+  const [sentMsg, setSentMsg] = useState(null);
+  useEffect(() => {
+    supabase.from("plan_requests").select("id, created_at").eq("partner_id", partner.id).eq("status", "pending").maybeSingle()
+      .then(({ data }) => setPendingReq(data ?? null), () => {});
+  }, [partner.id]);
+
+  async function requestPro() {
+    setBusy(true); setError(null);
+    try {
+      const id = await planCfg.requestUpgrade("partner", "pro", { partnerId: partner.id });
+      setPendingReq({ id }); setSentMsg("Request sent. The platform administrator will review it and you will get a notification.");
+    } catch (e) { setError(e.message); }
+    setBusy(false);
+  }
 
   async function upgrade() {
     setBusy(true); setError(null);
@@ -639,12 +657,16 @@ function PlanTab({ partner, auth, canManage }) {
                   </li>
                 ))}
               </ul>
-              {key === "pro" && partner.plan !== "pro" && canManage && (
-                priceId
+              {key === "pro" && partner.plan !== "pro" && partner.role === "owner" && (
+                online
                   ? <button onClick={upgrade} disabled={busy} className="mt-4 w-full inline-flex justify-center items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl px-4 py-2.5 text-sm disabled:opacity-50">
                       <Rocket size={15} />{busy ? "Opening checkout…" : "Upgrade to Pro"}
                     </button>
-                  : <p className="mt-4 text-xs text-gray-500">To upgrade, contact the platform administrator.</p>
+                  : pendingReq
+                    ? <p className="mt-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{sentMsg ?? "Upgrade requested — waiting for the platform administrator."}</p>
+                    : <button onClick={requestPro} disabled={busy} className="mt-4 w-full inline-flex justify-center items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl px-4 py-2.5 text-sm disabled:opacity-50">
+                        <Rocket size={15} />{busy ? "Sending…" : "Request upgrade to Pro"}
+                      </button>
               )}
             </div>
           );

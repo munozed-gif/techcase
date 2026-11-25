@@ -2,6 +2,7 @@ import { useState, useEffect, useContext, createContext } from "react";
 import { supabase } from "../lib/supabase.js";
 import { ROLE_PERMISSIONS_DEFAULTS, WIZARD_MODE_DEFAULTS } from "../lib/constants.js";
 import { DEFAULT_PLAN_CONFIG, DEFAULT_PLAN_PRICES, ARENA_LOGO_URI } from "../lib/businessConstants.js";
+import { canPayOnline } from "../lib/payments.js";
 
 // ============================================================
 // SYSTEM SETTINGS (context-based — single Supabase query app-wide)
@@ -68,7 +69,15 @@ function usePlanConfig() {
     }
   }
 
-  return { config, userPlans, getUserPlan, getPlanLimits, setUserPlan, startCheckout, prices, priceIds };
+  // Online payment possible for this plan? Otherwise the upgrade buttons send a request (admin approves).
+  const payOnline = (roleType, planKey) => canPayOnline(ssCtx.settings, `${roleType}_${planKey}`);
+  async function requestUpgrade(roleType, planKey, { partnerId = null, note = null } = {}) {
+    const { data, error } = await supabase.rpc('plan_request_create', { p_role_type: roleType, p_plan_key: planKey, p_partner: partnerId, p_note: note });
+    if (error) throw error;
+    return data;
+  }
+
+  return { config, userPlans, getUserPlan, getPlanLimits, setUserPlan, startCheckout, prices, priceIds, payOnline, requestUpgrade };
 }
 
 function useVisibilitySettings() {

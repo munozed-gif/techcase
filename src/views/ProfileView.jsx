@@ -41,7 +41,16 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
     useConsultantProfile(auth.user?.id, realProfileId);
   const { ratings, avgRating } = useRatings(auth.user?.id);
   const { teams, pendingInvites, createTeam, inviteMember, respondToInvite, removeMember, leaveTeam, deleteTeam } = useConsultantTeams(auth.user?.id);
-  const { startCheckout, priceIds } = usePlanConfig();
+  const { startCheckout, payOnline, requestUpgrade, prices: planPrices } = usePlanConfig();
+  // AI Pro without online payments: a request the administrator approves (plan_requests).
+  const aiProOnline = payOnline('user', 'ai_pro');
+  const [aiProRequest, setAiProRequest] = useState(null);   // pending request row, if any
+  const [aiProMsg, setAiProMsg] = useState(null);
+  useEffect(() => {
+    if (!auth.user?.id) return;
+    supabase.from('plan_requests').select('id, status, created_at').eq('user_id', auth.user.id).eq('plan_key', 'ai_pro').eq('status', 'pending').maybeSingle()
+      .then(({ data }) => setAiProRequest(data ?? null), () => {});
+  }, [auth.user?.id]);
   const { settings: sysSettings } = useSystemSettings();
   const visCfg = useVisibilitySettings();
   const FREE_LIMIT = sysSettings['ai_free_monthly_limit'] ?? 10;
@@ -1473,7 +1482,7 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                   >
                     <Zap size={15} className="text-violet-600 dark:text-violet-400 shrink-0" />
                     <span className="font-semibold text-sm text-violet-800 dark:text-violet-200">{t("profile.ai_pro_title")}</span>
-                    <span className="ml-auto text-sm font-bold text-violet-700 dark:text-violet-300 mr-2">$19/mo</span>
+                    <span className="ml-auto text-sm font-bold text-violet-700 dark:text-violet-300 mr-2">${planPrices?.user_ai_pro?.amount ?? 19}/mo</span>
                     {aiProExpanded
                       ? <ChevronUp size={15} className="text-violet-600 dark:text-violet-400 shrink-0" />
                       : <ChevronDown size={15} className="text-violet-600 dark:text-violet-400 shrink-0" />}
@@ -1498,15 +1507,30 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
                   )}
 
                   <div className="px-5 pb-5">
-                    <button
-                      onClick={() => {
-                        if (!priceIds['user_ai_pro']) { alert('AI Pro is not yet configured. Contact your admin.'); return; }
-                        startCheckout(auth.user.id, auth.user.email, 'user', 'ai_pro');
-                      }}
-                      className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors"
-                    >
-                      {t("profile.ai_upgrade_btn")}
-                    </button>
+                    {aiProOnline ? (
+                      <button
+                        onClick={() => startCheckout(auth.user.id, auth.user.email, 'user', 'ai_pro')}
+                        className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                      >
+                        {t("profile.ai_upgrade_btn")}
+                      </button>
+                    ) : aiProRequest ? (
+                      <p className="text-sm text-violet-200 bg-violet-500/15 border border-violet-500/30 rounded-xl px-3 py-2.5 text-center">
+                        {lang === 'es' ? 'Solicitud enviada — un administrador la revisará.' : 'Request sent — an administrator will review it.'}
+                      </p>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          setAiProMsg(null);
+                          try { const id = await requestUpgrade('user', 'ai_pro'); setAiProRequest({ id, status: 'pending' }); }
+                          catch (e) { setAiProMsg(e.message); }
+                        }}
+                        className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                      >
+                        {lang === 'es' ? 'Solicitar AI Pro' : 'Request AI Pro'}
+                      </button>
+                    )}
+                    {aiProMsg && <p className="text-xs text-red-400 mt-2">{aiProMsg}</p>}
                   </div>
                 </div>
               )}
