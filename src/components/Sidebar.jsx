@@ -190,6 +190,9 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
     area_leader: [
       { id: "dashboard",    Icon: LayoutDashboard, labelKey: "nav.dashboard" },
       { id: "leader-cases", Icon: FolderOpen,      labelKey: "nav.leader_cases" },
+      // The cases and projects they created or that are shared with them (before becoming area leader too).
+      { id: "my-cases",     Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "projects",     Icon: Layers,          labelKey: "nav.projects" },
       { id: "spec-review",  Icon: ClipboardCheck,  labelKey: "nav.spec_review" },
     ],
   };
