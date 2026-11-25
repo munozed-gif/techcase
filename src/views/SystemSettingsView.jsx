@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, Component } from "react";
 import { PAYMENT_PROVIDERS, paymentGateway } from "../lib/payments.js";
+import { LegalSettings } from "../components/Legal.jsx";
+import { ScrollText } from "lucide-react";
 import {
   Activity, AlertCircle, AlertTriangle, BadgeCheck, BarChart2, Briefcase,
   Building2, Calendar, CalendarDays, CalendarRange, Check, CheckCircle2,
@@ -6320,6 +6322,7 @@ function SystemSettingsView({ auth, onNavigate }) {
     { id: "headhunter",  label: "Headhunter",       Icon: Crosshair },
     { id: "sales",       label: "Sales",            Icon: TrendingUp },
     { id: "platform",    label: "Platform",         Icon: Sparkles },
+    { id: "legal",       label: "Legal",            Icon: ScrollText },
     { id: "audit",       label: "Audit Events",     Icon: ClipboardList },
   ];
 
@@ -6357,6 +6360,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       {activeTab === "sap_policy"  && <div className="p-6"><SapMcpPolicyPanel auth={auth} /></div>}
       {activeTab === "sap_vm"      && <div className="p-6"><SettingsSapVmTab ssCtx={ssCtx} /></div>}
       {activeTab === "area_leaders" && <SettingsAreaLeadersTab ssCtx={ssCtx} />}
+      {activeTab === "legal" && <LegalSettings isAdmin={auth?.profile?.role === "admin"} />}
       {activeTab === "headhunter"  && <SettingsHeadhunterTab ssCtx={ssCtx} />}
       {activeTab === "sales"       && <SettingsSalesTab ssCtx={ssCtx} auth={auth} />}
       {activeTab === "platform"    && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}

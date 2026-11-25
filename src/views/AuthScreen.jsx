@@ -10,6 +10,7 @@ import { Input } from "../components/ui.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
 import { NovaLandingMark } from "./LandingView.jsx";
+import { useLegalCurrent, LegalCheckbox } from "../components/Legal.jsx";
 import { isRememberedDevice, setRememberDevice, peekSignOutReason, clearSignOutReason } from "../lib/sessionSecurity.js";
 
 // AuthScreen — sign-in, sign-up wizard, password reset
@@ -65,6 +66,10 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
   const [partnerKind, setPartnerKind] = useState("firm");
   // "Seller" sign-up: a consultant account plus a seller request (seller_from_signup in the database).
   const [asSeller, setAsSeller]       = useState(false);
+  // Terms of use / privacy: required at sign-up once an administrator has published them.
+  const legalCur = useLegalCurrent();
+  const legalRequired = !!(legalCur?.terms || legalCur?.privacy);
+  const [legalOk, setLegalOk] = useState(false);
   const [sellerFocus, setSellerFocus] = useState("");
   const [skills, setSkills]           = useState("");
   const [yearsExp, setYearsExp]       = useState("");
@@ -309,6 +314,7 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
     if (!name.trim()) { setError(t("auth.error_name")); return; }
     if (password.length < 6) { setError(t("auth.error_password_short")); return; }
     if (password !== confirmPass) { setError(t("auth.error_password_match")); return; }
+    if (legalRequired && !legalOk) { setError("Please accept the Terms of use and the Privacy policy to create your account."); return; }
     if (asPartner && !partnerName.trim()) { setError("Enter the name of your firm (or your own name if you work independently)."); return; }
     if (role === "consultant" && !asPartner && !asSeller && !headline.trim()) { setError(t("auth.error_headline")); return; }
     if (role === "client" && !companyName.trim()) { setError(t("auth.error_company")); return; }
@@ -321,6 +327,8 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
     const partnerMeta = asPartner && role === "consultant"
       ? { partner_request: { name: partnerName.trim(), kind: partnerKind } }
       : asSeller && role === "consultant" ? { seller_request: { headline: sellerFocus.trim() } } : {};
+    // Recorded by the database (legal_from_signup) with the versions shown on this screen.
+    if (legalRequired) partnerMeta.legal_accept = { terms: legalCur?.terms?.version ?? null, privacy: legalCur?.privacy?.version ?? null, ua: navigator.userAgent.slice(0, 200) };
     try {
       // Name, role and approval status are saved server-side by complete_signup,
       // which applies signup_flow_per_role / auto_approve_domains itself.
@@ -897,7 +905,8 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
                     </p>
                   </div>
                 )}
-                <button onClick={createAccount} disabled={loading}
+                {legalRequired && <LegalCheckbox checked={legalOk} onChange={setLegalOk} />}
+                <button onClick={createAccount} disabled={loading || (legalRequired && !legalOk)}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
                   {loading ? t("auth.creating") : t("action.create_account")}
                 </button>

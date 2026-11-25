@@ -144,6 +144,9 @@ import ApprovalView from "./src/views/ApprovalView.jsx";
 import CustomerSpecReviewView from "./src/views/CustomerSpecReviewView.jsx";
 import HHInviteView from "./src/views/HHInviteView.jsx";
 import ProposalReviewView, { ProposalPreviewPage } from "./src/views/ProposalReviewView.jsx";
+import { LegalPage, LegalGate, LegalFooter } from "./src/components/Legal.jsx";
+// Customer link pages: © and links to the terms under the page.
+const withLegal = node => <div style={{ background: "#0B0F1A" }}>{node}<LegalFooter /></div>;
 import CustomerQuestionsView from "./src/views/CustomerQuestionsView.jsx";
 import MyReviewsView from "./src/views/MyReviewsView.jsx";
 
@@ -713,6 +716,8 @@ const _questionsMatch = typeof window !== 'undefined' && window.location.pathnam
 // Intercept /proposal/:token — customer proposal review link, no auth required
 const _proposalMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/proposal\/([^/?#]+)/);
 const _proposalPreviewMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/proposal-preview\/([^/?#]+)/);
+// /terminos (/terms) and /privacidad (/privacy) — public legal pages
+const _legalMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/(terminos|terms|privacidad|privacy)\/?$/);
 // Intercept /hh-invite/:token and /hh/:code — headhunter candidate invitation / personal link
 const _hhInviteMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/hh-invite\/([^/?#]+)/);
 const _hhRefMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/hh\/([^/?#]+)/);
@@ -857,20 +862,23 @@ export default function App() {
 
   // /review/:token — customer-facing spec review link, no login needed
   if (_reviewMatch) {
-    return <CustomerSpecReviewView token={_reviewMatch[1]} />;
+    return withLegal(<CustomerSpecReviewView token={_reviewMatch[1]} />);
   }
 
   // /questions/:token — customer answers the case's open questions, no login needed
   if (_questionsMatch) {
-    return <CustomerQuestionsView token={_questionsMatch[1]} />;
+    return withLegal(<CustomerQuestionsView token={_questionsMatch[1]} />);
   }
   // /proposal/:token — customer proposal (accept / ask for changes / reject), no login needed
   if (_proposalMatch) {
-    return <ProposalReviewView token={_proposalMatch[1]} />;
+    return withLegal(<ProposalReviewView token={_proposalMatch[1]} />);
   }
   // /proposal-preview/:id — consultant previews the customer page before sending (data from localStorage)
   if (_proposalPreviewMatch) {
     return <ProposalPreviewPage id={_proposalPreviewMatch[1]} />;
+  }
+  if (_legalMatch) {
+    return <LegalPage kind={["terminos", "terms"].includes(_legalMatch[1]) ? "terms" : "privacy"} />;
   }
 
   // /hh-invite/:token, /hh/:code — consultant accepts a headhunter's representation
@@ -1119,6 +1127,8 @@ export default function App() {
       <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
         <StartDateMonitor auth={auth} />
         <IdleGuard role={auth.role} onSignOut={handleSignOut} />
+        {/* Terms of use: blocks the app until the current published version is accepted */}
+        <LegalGate auth={auth}>{null}</LegalGate>
         <div className="min-h-screen bg-[#EAF4FD]">
           <Sidebar
             role={auth.role}
