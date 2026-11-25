@@ -29,7 +29,7 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   edit_lifecycle:             { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   export_pdf_docs:            { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:false, internal_consultant:true,  project_manager:true  },
   manage_proposals:           { admin:true,  manager:false,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
-  manage_own_project_proposals: { admin:true, manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
+  manage_own_project_proposals: { admin:true, manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true, area_leader:true },
   upload_project_docs:        { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   run_sap_implementation:     { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   edit_sap_setup:             { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
