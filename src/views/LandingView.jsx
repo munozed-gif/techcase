@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { Tm } from "../components/BrandMark.jsx";
 import { AlertTriangle, BarChart3, Bot, Briefcase, Building2, CalendarCheck, Check, ClipboardList, FileText, Folder, Handshake, Inbox, KeyRound, Landmark, Link2, ListChecks, Lock, LockKeyhole, Map as MapIcon, MessageSquare, Microscope, Orbit, Package, PenLine, Play, Radar, Repeat, Rocket, Ruler, Search, SearchCheck, Send, Server, Settings, ShieldCheck, Target, Timer, Truck, User, UserCog, Users, Wrench, X, Zap } from "lucide-react";
 
 // Landing icons: lucide icons instead of emoji (emoji render differently on every device).
@@ -170,7 +171,7 @@ const LANDING_STRINGS = {
     f_arena:"Arena Marketplace", f_features:"Features", f_lifecycle:"Lifecycle Engine", f_roles:"Roles", f_pricing:"Pricing",
     f_about:"About", f_blog:"Blog", f_careers:"Careers", f_contact:"Contact",
     f_privacy:"Privacy Policy", f_terms:"Terms of Service", f_security:"Security",
-    copy1:"© 2026 Eduardo Muñoz · Solution Factory C.A. · Solution Factory LLC — Arena Solutions Platform. All rights reserved.",
+    copy1:"© 2026 Eduardo Muñoz · Solution Factory C.A. · Solution Factory LLC — Arena Solutions Platform™. All rights reserved.",
     copy2:"Built for SAP consulting teams worldwide.",
 
     // ── Platform highlights (spec quality, estimates, customer portal, partners, security) ──
@@ -285,7 +286,7 @@ const LANDING_STRINGS = {
     nav_roles:"Roles", nav_pricing:"Precios", nav_signin:"Iniciar sesión", nav_start:"Comenzar →",
     lang_btn:"EN",
     hero_badge:"Arena · Mercado de Consultores · 2026",
-    hero_name:"Plataforma de Soluciones",
+    hero_name:"Solutions Platform",
     hero_h1a:"Conecta. Involucra.", hero_h1b:"Entrega.",
     hero_sub:"Arena es la plataforma de entrega SAP potenciada por IA — desde la apertura estructurada del caso hasta el código ABAP generado por IA y escrito directamente en tu sistema SAP vía ADT. Respaldada por un mercado orbital de consultores que conecta clientes con especialistas SAP verificados.",
     hero_trial:"Iniciar prueba gratuita →", hero_demo:"Ver demo",
@@ -362,7 +363,7 @@ const LANDING_STRINGS = {
     f_arena:"Mercado Arena", f_features:"Características", f_lifecycle:"Motor de Ciclo de Vida", f_roles:"Roles", f_pricing:"Precios",
     f_about:"Nosotros", f_blog:"Blog", f_careers:"Empleos", f_contact:"Contacto",
     f_privacy:"Política de Privacidad", f_terms:"Términos de Servicio", f_security:"Seguridad",
-    copy1:"© 2026 Eduardo Muñoz · Solution Factory C.A. · Solution Factory LLC — Arena Solutions Platform. Todos los derechos reservados.",
+    copy1:"© 2026 Eduardo Muñoz · Solution Factory C.A. · Solution Factory LLC — Arena Solutions Platform™. Todos los derechos reservados.",
     copy2:"Construido para equipos de consultoría SAP en todo el mundo.",
 
     // ── Platform highlights ──
@@ -1763,7 +1764,7 @@ export function LandingView({ onSignIn }) {
         <div className="nav-logo">
           <NovaLandingMark size={32} />
           <span className="logo-arena">Arena</span>
-          <span className="logo-rest">{tl("hero_name")}</span>
+          <span className="logo-rest">Solutions Platform<Tm /></span>
         </div>
         <div className="nav-links">
           <a href="#arena">{tl("nav_arena")}</a>

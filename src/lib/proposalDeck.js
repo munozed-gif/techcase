@@ -3,6 +3,7 @@
 // investment slides (numbers computed by the platform, same as the document) and the closing slide
 // are added here. buildDeckHtml returns a self-contained 16:9 presentation: arrows / click / swipe
 // to move, F for full screen, and Print → one slide per PDF page.
+import { BRAND_MARK_HTML } from "./brand.js";
 import { proposalMdToHtml } from "./proposals.js";
 
 const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -175,7 +176,7 @@ export function buildDeckHtml({ slides, intro = [], lang = "en", title, customer
     : { inv: "Investment", invK: "Investment", thanks: "Thank you", next: "Next step", valid: "Proposal valid until", for: "Proposal for", by: "Prepared by", help: "← → to move · F full screen · P print / PDF", full: "Full screen" };
   // Partner logo (as uploaded, transparent background) followed by the partner name.
   const partnerMark = cls => `<span class="partner ${cls}">${logoUrl ? `<img class="plogo" src="${esc(logoUrl)}" alt="">` : ""}${preparedBy ? `<span class="pname">${esc(preparedBy)}</span>` : ""}</span>`;
-  const arena = (size, uid) => `<span class="arena-brand">${novaMarkSvg(size, uid)}<span class="aw"><b>Arena</b> Solutions Platform</span></span>`;
+  const arena = (size, uid) => `<span class="arena-brand">${novaMarkSvg(size, uid)}<span class="aw"><b>Arena</b> Solutions Platform${BRAND_MARK_HTML}</span></span>`;
   let u = 0;
   const chrome = () => `<div class="chrome">${arena(34, `c${u++}`)}${partnerMark("")}</div>`;
   const coverBrands = () => `<div class="brands">${arena(52, `v${u++}`)}${logoUrl || preparedBy ? `<span class="sep"></span>${partnerMark("big")}` : ""}</div>`;

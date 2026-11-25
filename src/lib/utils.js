@@ -1,3 +1,4 @@
+import { BRAND_MARK_HTML } from "./brand.js";
 import { supabase } from "./supabase.js";
 
 // ── Notification helpers ─────────────────────────────────────
@@ -72,7 +73,7 @@ ${preheaderHtml}
       <tr><td align="center">
         <div style="display:inline-block">
           <span style="font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:26px;font-weight:800;color:#4F6EF7;letter-spacing:-0.04em">Arena</span>
-          <span style="font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:14px;font-weight:600;color:#94a3b8;letter-spacing:0.01em;margin-left:6px;vertical-align:middle">Solutions Platform</span>
+          <span style="font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:14px;font-weight:600;color:#94a3b8;letter-spacing:0.01em;margin-left:6px;vertical-align:middle">Solutions Platform${BRAND_MARK_HTML}</span>
         </div>
       </td></tr>
     </table>

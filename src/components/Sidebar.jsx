@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
 import { usePlatformBranding, useVisibilitySettings, useSystemSettings, usePlanConfig } from "../hooks/useSystemSettings.jsx";
+import { Tm } from "./BrandMark.jsx";
 import { ROLE_TO_PLAN_TYPE } from "../lib/businessConstants.js";
 import { NotificationBell } from "./NotificationBell.jsx";
 import { usePartnerContext } from "../hooks/usePartnerContext.js";
@@ -267,8 +268,8 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
             {(() => {
               const parts = branding.platformName.split(' ');
               return parts.length > 1
-                ? <><span style={{color:'#4F6EF7'}}>{parts[0]}</span> <span className="text-white">{parts.slice(1).join(' ')}</span></>
-                : <span style={{color:'#4F6EF7'}}>{branding.platformName}</span>;
+                ? <><span style={{color:'#4F6EF7'}}>{parts[0]}</span> <span className="text-white">{parts.slice(1).join(' ')}<Tm /></span></>
+                : <span style={{color:'#4F6EF7'}}>{branding.platformName}<Tm /></span>;
             })()}
           </div>
           <div className="text-xs text-blue-300">

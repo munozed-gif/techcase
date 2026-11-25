@@ -145,6 +145,7 @@ import CustomerSpecReviewView from "./src/views/CustomerSpecReviewView.jsx";
 import HHInviteView from "./src/views/HHInviteView.jsx";
 import ProposalReviewView, { ProposalPreviewPage } from "./src/views/ProposalReviewView.jsx";
 import { LegalPage, LegalGate, LegalFooter } from "./src/components/Legal.jsx";
+import { Tm } from "./src/components/BrandMark.jsx";
 // Customer link pages: © and links to the terms under the page.
 const withLegal = node => <div style={{ background: "#0B0F1A" }}>{node}<LegalFooter /></div>;
 import CustomerQuestionsView from "./src/views/CustomerQuestionsView.jsx";
@@ -637,7 +638,7 @@ function SetNewPasswordScreen({ onDone }) {
       <nav className="snp-nav">
         <NovaLandingMark size={32} />
         <span className="snp-nav-arena">Arena</span>
-        <span className="snp-nav-rest">Solutions Platform</span>
+        <span className="snp-nav-rest">Solutions Platform<Tm /></span>
       </nav>
 
       {/* Centered content */}
@@ -650,7 +651,7 @@ function SetNewPasswordScreen({ onDone }) {
               <NovaLandingMark size={176} />
             </div>
             <h1 style={{ margin:"0 0 4px", fontSize:24, fontWeight:800, color:"#f1f5f9", letterSpacing:"-0.02em" }}>
-              <span style={{ color:"#4F6EF7" }}>Arena</span> Solutions Platform
+              <span style={{ color:"#4F6EF7" }}>Arena</span> Solutions Platform<Tm />
             </h1>
             <p style={{ margin:0, color:"#4F6EF7", fontSize:14 }}>Consultant Case Management</p>
           </div>

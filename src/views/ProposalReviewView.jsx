@@ -6,6 +6,7 @@ import { AlertCircle, Check, CheckCircle2, Clock, Copy, Download, FileText, Pres
 import { docLinkClick, openHtml } from "../lib/openDoc.js";
 import { supabase } from "../lib/supabase.js";
 import { NovaLandingMark } from "./LandingView.jsx";
+import { Tm } from "../components/BrandMark.jsx";
 import { fmtMoney } from "../lib/costs.js";
 import { termName } from "../lib/servicePlans.js";
 
@@ -96,7 +97,7 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
         {embedded && onBack && <button onClick={onBack} className="text-gray-400 hover:text-white text-sm mr-1">←</button>}
         <NovaLandingMark size={30} />
         <span className="font-bold text-sm" style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", letterSpacing: "-.03em" }}>
-          <span style={{ color: "#4F6EF7" }}>Arena</span> <span style={{ color: "rgba(255,255,255,.85)" }}>Solutions Platform</span>
+          <span style={{ color: "#4F6EF7" }}>Arena</span> <span style={{ color: "rgba(255,255,255,.85)" }}>Solutions Platform<Tm /></span>
         </span>
       </div>
       {data && (

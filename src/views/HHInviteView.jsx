@@ -1,6 +1,7 @@
 // /hh-invite/:token — a headhunter's e-mail invitation (the account must use the invited e-mail)
 // /hh/:code         — a headhunter's personal link
 // The consultant reads who invites them, signs up or logs in here, and accepts or declines.
+import { Tm } from "../components/BrandMark.jsx";
 import { useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, Crosshair, Loader2, LogOut, XCircle } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -117,7 +118,7 @@ export default function HHInviteView({ token, code }) {
     <header className="px-4 py-3 flex items-center gap-2.5" style={{ borderBottom: "1px solid rgba(139,92,246,.2)" }}>
       <NovaLandingMark size={30} />
       <span className="font-bold text-sm" style={{ fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
-        <span style={{ color: "#4F6EF7" }}>Arena</span> <span style={{ color: "rgba(255,255,255,.85)" }}>Solutions Platform</span>
+        <span style={{ color: "#4F6EF7" }}>Arena</span> <span style={{ color: "rgba(255,255,255,.85)" }}>Solutions Platform<Tm /></span>
       </span>
     </header>
   );

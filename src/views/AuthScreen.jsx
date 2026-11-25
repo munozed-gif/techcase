@@ -10,6 +10,7 @@ import { Input } from "../components/ui.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
 import { NovaLandingMark } from "./LandingView.jsx";
+import { Tm } from "../components/BrandMark.jsx";
 import { useLegalCurrent, LegalCheckbox } from "../components/Legal.jsx";
 import { isRememberedDevice, setRememberDevice, peekSignOutReason, clearSignOutReason } from "../lib/sessionSecurity.js";
 
@@ -405,8 +406,8 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
         {!branding.loading && (() => {
           const parts = branding.platformName.split(' ');
           return parts.length > 1
-            ? <><span style={{color:'#4F6EF7'}}>{parts[0]}</span> <span className="text-white">{parts.slice(1).join(' ')}</span></>
-            : <span style={{color:'#4F6EF7'}}>{branding.platformName}</span>;
+            ? <><span style={{color:'#4F6EF7'}}>{parts[0]}</span> <span className="text-white">{parts.slice(1).join(' ')}<Tm /></span></>
+            : <span style={{color:'#4F6EF7'}}>{branding.platformName}<Tm /></span>;
         })()}
       </h1>
       <p className="text-blue-400 mt-1 text-sm" style={{minHeight:'1.25rem'}}>{!branding.loading && branding.tagline}</p>
@@ -500,8 +501,8 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
           {(() => {
             const parts = branding.platformName.split(' ');
             return parts.length > 1
-              ? <><span className="auth-nav-arena">{parts[0]}</span><span className="auth-nav-rest">{parts.slice(1).join(' ')}</span></>
-              : <span className="auth-nav-arena">{branding.platformName}</span>;
+              ? <><span className="auth-nav-arena">{parts[0]}</span><span className="auth-nav-rest">{parts.slice(1).join(' ')}<Tm /></span></>
+              : <span className="auth-nav-arena">{branding.platformName}<Tm /></span>;
           })()}
         </button>
         <div className="auth-nav-links">

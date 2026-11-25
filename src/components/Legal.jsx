@@ -9,6 +9,7 @@ import { Loader2, ScrollText, ShieldCheck, Download, Check } from "lucide-react"
 import { supabase } from "../lib/supabase.js";
 import { proposalMdToHtml } from "../lib/proposals.js";
 import { TERMS_DRAFT_ES, TERMS_DRAFT_EN, PRIVACY_DRAFT_ES, PRIVACY_DRAFT_EN } from "../lib/legalDrafts.js";
+import { Tm } from "./BrandMark.jsx";
 
 export const LEGAL_PATHS = { terms: "/terminos", privacy: "/privacidad" };
 // Same choice as the app (tc_lang); Spanish by default.
@@ -48,7 +49,7 @@ export function LegalPage({ kind }) {
     <div style={{ minHeight: "100dvh", background: "#F8FAFF" }}>
       <header className="flex items-center justify-between px-5 py-3" style={{ background: "#0B0F1A" }}>
         <a href="/" className="font-bold text-sm" style={{ fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
-          <span style={{ color: "#4F6EF7" }}>Arena</span> <span className="text-white/85">Solutions Platform</span>
+          <span style={{ color: "#4F6EF7" }}>Arena</span> <span className="text-white/85">Solutions Platform<Tm /></span>
         </a>
         <div className="flex items-center gap-3 text-xs">
           <a href={LEGAL_PATHS[other]} className="text-gray-300 hover:text-white">{other === "terms" ? L("Términos de uso", "Terms of use") : L("Política de privacidad", "Privacy policy")}</a>
@@ -73,7 +74,7 @@ export function LegalFooter({ light = false, className = "" }) {
   const year = new Date().getFullYear();
   return (
     <div className={`text-center text-[11px] py-4 px-4 ${light ? "text-gray-400" : "text-gray-500"} ${className}`}>
-      © {year} Eduardo Muñoz · Solution Factory C.A. · Solution Factory LLC — Arena Solutions Platform. {es ? "Todos los derechos reservados." : "All rights reserved."}{" "}
+      © {year} Eduardo Muñoz · Solution Factory C.A. · Solution Factory LLC — Arena Solutions Platform<Tm />. {es ? "Todos los derechos reservados." : "All rights reserved."}{" "}
       <a href={LEGAL_PATHS.terms} target="_blank" rel="noreferrer" className="underline hover:text-blue-500">{es ? "Términos de uso" : "Terms of use"}</a>{" · "}
       <a href={LEGAL_PATHS.privacy} target="_blank" rel="noreferrer" className="underline hover:text-blue-500">{es ? "Privacidad" : "Privacy"}</a>
     </div>

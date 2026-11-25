@@ -2,6 +2,7 @@
 // The numbers (hours, rates, amounts, totals) are always computed here, never by the AI;
 // the AI only writes the narrative around them. The document uses the same look as the
 // case specification documents.
+import { BRAND_MARK_HTML } from "./brand.js";
 import { fromUsd, fmtMoney } from "./costs.js";
 
 export const PROPOSAL_STATUS_META = {
@@ -271,7 +272,7 @@ tr:last-child td{border-bottom:none;background:#F1F4FA}
       <div class="eyebrow">${esc(eyebrow)}</div>
       <h1>${esc(title)}<br><em>${esc(subtitle)}</em></h1>
     </div>
-    <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0"><svg width="36" height="36" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="og" cx="36%" cy="33%" r="78%"><stop offset="0%" stop-color="#4F6EF7"/><stop offset="100%" stop-color="#0D1F3C"/></radialGradient></defs><circle cx="40" cy="40" r="39" fill="none" stroke="#4F6EF7" stroke-opacity="0.18" stroke-width="1"/><circle cx="40" cy="40" r="28" fill="none" stroke="#4F6EF7" stroke-opacity="0.35" stroke-width="1"/><circle cx="40" cy="40" r="13" fill="url(#og)"/><text x="40" y="46" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="16" fill="#fff">A</text><circle cx="40" cy="1.5" r="3" fill="#4F6EF7"/><circle cx="13" cy="64" r="2.2" fill="#818cf8" opacity="0.8"/><circle cx="68" cy="18" r="2.5" fill="#6366f1"/></svg><div style="line-height:1.25"><div style="font-size:0.6rem;font-weight:700;color:rgba(255,255,255,0.8);white-space:nowrap"><span style="color:#7B9BFF">Arena</span> Solutions Platform</div><div style="font-size:0.5rem;color:#93C5FD;letter-spacing:0.06em;white-space:nowrap">${es ? "Propuesta comercial" : "Commercial proposal"}</div></div></div>
+    <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0"><svg width="36" height="36" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="og" cx="36%" cy="33%" r="78%"><stop offset="0%" stop-color="#4F6EF7"/><stop offset="100%" stop-color="#0D1F3C"/></radialGradient></defs><circle cx="40" cy="40" r="39" fill="none" stroke="#4F6EF7" stroke-opacity="0.18" stroke-width="1"/><circle cx="40" cy="40" r="28" fill="none" stroke="#4F6EF7" stroke-opacity="0.35" stroke-width="1"/><circle cx="40" cy="40" r="13" fill="url(#og)"/><text x="40" y="46" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="16" fill="#fff">A</text><circle cx="40" cy="1.5" r="3" fill="#4F6EF7"/><circle cx="13" cy="64" r="2.2" fill="#818cf8" opacity="0.8"/><circle cx="68" cy="18" r="2.5" fill="#6366f1"/></svg><div style="line-height:1.25"><div style="font-size:0.6rem;font-weight:700;color:rgba(255,255,255,0.8);white-space:nowrap"><span style="color:#7B9BFF">Arena</span> Solutions Platform${BRAND_MARK_HTML}</div><div style="font-size:0.5rem;color:#93C5FD;letter-spacing:0.06em;white-space:nowrap">${es ? "Propuesta comercial" : "Commercial proposal"}</div></div></div>
   </div>
   <div class="meta-row">${metaHtml}</div>
 </header>
