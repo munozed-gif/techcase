@@ -171,7 +171,7 @@ const LANDING_STRINGS = {
     f_arena:"Arena Marketplace", f_features:"Features", f_lifecycle:"Lifecycle Engine", f_roles:"Roles", f_pricing:"Pricing",
     f_about:"About", f_blog:"Blog", f_careers:"Careers", f_contact:"Contact",
     f_privacy:"Privacy Policy", f_terms:"Terms of Service", f_security:"Security",
-    copy1:"© 2026 Eduardo Muñoz · Solution Factory C.A. · Solution Factory LLC — Arena Solutions Platform™. All rights reserved.",
+    copy1:"© 2026 Solution Factory LLC — Arena Solutions Platform™. All rights reserved.",
     copy2:"Built for SAP consulting teams worldwide.",
 
     // ── Platform highlights (spec quality, estimates, customer portal, partners, security) ──
@@ -363,7 +363,7 @@ const LANDING_STRINGS = {
     f_arena:"Mercado Arena", f_features:"Características", f_lifecycle:"Motor de Ciclo de Vida", f_roles:"Roles", f_pricing:"Precios",
     f_about:"Nosotros", f_blog:"Blog", f_careers:"Empleos", f_contact:"Contacto",
     f_privacy:"Política de Privacidad", f_terms:"Términos de Servicio", f_security:"Seguridad",
-    copy1:"© 2026 Eduardo Muñoz · Solution Factory C.A. · Solution Factory LLC — Arena Solutions Platform™. Todos los derechos reservados.",
+    copy1:"© 2026 Solution Factory LLC — Arena Solutions Platform™. Todos los derechos reservados.",
     copy2:"Construido para equipos de consultoría SAP en todo el mundo.",
 
     // ── Platform highlights ──

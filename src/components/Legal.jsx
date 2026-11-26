@@ -74,7 +74,7 @@ export function LegalFooter({ light = false, className = "" }) {
   const year = new Date().getFullYear();
   return (
     <div className={`text-center text-[11px] py-4 px-4 ${light ? "text-gray-400" : "text-gray-500"} ${className}`}>
-      © {year} Eduardo Muñoz · Solution Factory C.A. · Solution Factory LLC — Arena Solutions Platform<Tm />. {es ? "Todos los derechos reservados." : "All rights reserved."}{" "}
+      © {year} Solution Factory LLC — Arena Solutions Platform<Tm />. {es ? "Todos los derechos reservados." : "All rights reserved."}{" "}
       <a href={LEGAL_PATHS.terms} target="_blank" rel="noreferrer" className="underline hover:text-blue-500">{es ? "Términos de uso" : "Terms of use"}</a>{" · "}
       <a href={LEGAL_PATHS.privacy} target="_blank" rel="noreferrer" className="underline hover:text-blue-500">{es ? "Privacidad" : "Privacy"}</a>
     </div>
