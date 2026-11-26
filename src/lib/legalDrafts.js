@@ -3,9 +3,9 @@
 // To be reviewed by a lawyer before publishing. Texts in [brackets] must be completed.
 
 export const LEGAL_OWNER = {
-  owner: "Eduardo Muñoz",
-  companies: "Solution Factory C.A. (Venezuela) y Solution Factory LLC (Estados Unidos)",
-  companiesEn: "Solution Factory C.A. (Venezuela) and Solution Factory LLC (United States)",
+  owner: "Solution Factory LLC",
+  companies: "Solution Factory LLC (Estados Unidos)",
+  companiesEn: "Solution Factory LLC (United States)",
   platform: "Arena Solutions Platform",
 };
 
@@ -14,13 +14,13 @@ export const TERMS_DRAFT_ES = `# Términos de uso de Arena Solutions Platform
 **Última actualización:** [fecha de publicación]
 
 ## 1. Quiénes somos
-Arena Solutions Platform (la "Plataforma") es propiedad de **Eduardo Muñoz** y es operada por **Solution Factory C.A.** (Venezuela) y **Solution Factory LLC** (Estados Unidos) (en conjunto, "Solution Factory", "nosotros"). Contacto: [correo de contacto].
+Arena Solutions Platform (la "Plataforma") es operada por **Solution Factory LLC** (Estados Unidos) ("Solution Factory", "nosotros"). Contacto: [correo de contacto].
 
 ## 2. Aceptación
 Al crear una cuenta, iniciar sesión o usar la Plataforma, usted acepta estos Términos y la Política de privacidad. Si usa la Plataforma en nombre de una empresa, declara tener autoridad para aceptarlos en su nombre. Si no está de acuerdo, no use la Plataforma.
 
 ## 3. Propiedad intelectual de la Plataforma
-La Plataforma y todos sus elementos — software, código fuente y objeto, diseño, interfaces, bases de datos, plantillas, catálogos de horas, metodologías, flujos de trabajo, instrucciones y configuraciones de inteligencia artificial, documentación, marcas, nombres y logotipos (incluidos "Arena Solutions Platform" y "Solution Factory") — son propiedad exclusiva de Eduardo Muñoz y/o Solution Factory, y están protegidos por las leyes de propiedad intelectual. **El uso de la Plataforma no le transfiere ningún derecho de propiedad sobre ella.** Todos los derechos no otorgados expresamente quedan reservados.
+La Plataforma y todos sus elementos — software, código fuente y objeto, diseño, interfaces, bases de datos, plantillas, catálogos de horas, metodologías, flujos de trabajo, instrucciones y configuraciones de inteligencia artificial, documentación, marcas, nombres y logotipos (incluidos "Arena Solutions Platform" y "Solution Factory") — son propiedad exclusiva de Solution Factory LLC, y están protegidos por las leyes de propiedad intelectual. **El uso de la Plataforma no le transfiere ningún derecho de propiedad sobre ella.** Todos los derechos no otorgados expresamente quedan reservados.
 
 ## 4. Licencia de uso
 Le otorgamos una licencia limitada, personal, no exclusiva, intransferible, no sublicenciable y revocable para usar la Plataforma únicamente para los fines de los proyectos y casos en los que participa, mientras su cuenta esté activa.
@@ -55,7 +55,7 @@ Podemos suspender o cerrar una cuenta que incumpla estos Términos o ponga en ri
 La Plataforma se ofrece "tal como está". En la medida que permita la ley, no respondemos por daños indirectos, lucro cesante o pérdida de datos, y nuestra responsabilidad total se limita a lo pagado por usted en los [12] meses anteriores al reclamo.
 
 ## 12. Ley aplicable
-[Ley aplicable y tribunales competentes — a definir con su abogado: República Bolivariana de Venezuela para clientes de Solution Factory C.A.; Estado de [estado], EE. UU., para clientes de Solution Factory LLC.]
+[Ley aplicable y tribunales competentes — a definir con su abogado: Estado de [estado], EE. UU.]
 
 ## 13. Contacto
 [correo de contacto] · www.solutionfactoryca.com
@@ -66,13 +66,13 @@ export const TERMS_DRAFT_EN = `# Arena Solutions Platform — Terms of use
 **Last updated:** [publication date]
 
 ## 1. Who we are
-Arena Solutions Platform (the "Platform") is owned by **Eduardo Muñoz** and operated by **Solution Factory C.A.** (Venezuela) and **Solution Factory LLC** (United States) (together, "Solution Factory", "we"). Contact: [contact email].
+Arena Solutions Platform (the "Platform") is operated by **Solution Factory LLC** (United States) ("Solution Factory", "we"). Contact: [contact email].
 
 ## 2. Acceptance
 By creating an account, signing in or using the Platform you accept these Terms and the Privacy policy. If you use the Platform on behalf of a company, you represent that you are authorized to accept them for it. If you do not agree, do not use the Platform.
 
 ## 3. Intellectual property of the Platform
-The Platform and all of its elements — software, source and object code, design, interfaces, databases, templates, hours catalogs, methodologies, workflows, artificial-intelligence instructions and settings, documentation, trademarks, names and logos (including "Arena Solutions Platform" and "Solution Factory") — are the exclusive property of Eduardo Muñoz and/or Solution Factory and are protected by intellectual-property laws. **Using the Platform does not transfer any ownership right to you.** All rights not expressly granted are reserved.
+The Platform and all of its elements — software, source and object code, design, interfaces, databases, templates, hours catalogs, methodologies, workflows, artificial-intelligence instructions and settings, documentation, trademarks, names and logos (including "Arena Solutions Platform" and "Solution Factory") — are the exclusive property of Solution Factory LLC and are protected by intellectual-property laws. **Using the Platform does not transfer any ownership right to you.** All rights not expressly granted are reserved.
 
 ## 4. License
 We grant you a limited, personal, non-exclusive, non-transferable, non-sublicensable and revocable license to use the Platform only for the projects and cases you take part in, while your account is active.
@@ -107,7 +107,7 @@ We may suspend or close an account that breaches these Terms or puts the Platfor
 The Platform is provided "as is". To the extent permitted by law, we are not liable for indirect damages, lost profits or data loss, and our total liability is limited to the amounts you paid in the [12] months before the claim.
 
 ## 12. Governing law
-[Governing law and competent courts — to be defined with your lawyer: Bolivarian Republic of Venezuela for customers of Solution Factory C.A.; State of [state], USA, for customers of Solution Factory LLC.]
+[Governing law and competent courts — to be defined with your lawyer: State of [state], USA.]
 
 ## 13. Contact
 [contact email] · www.solutionfactoryca.com
@@ -117,7 +117,7 @@ export const PRIVACY_DRAFT_ES = `# Política de privacidad
 
 **Última actualización:** [fecha de publicación]
 
-**Responsables:** Solution Factory C.A. (Venezuela) y Solution Factory LLC (Estados Unidos), operadores de Arena Solutions Platform. Contacto: [correo de contacto].
+**Responsable:** Solution Factory LLC (Estados Unidos), operador de Arena Solutions Platform. Contacto: [correo de contacto].
 
 ## Qué datos tratamos
 - **Cuenta:** nombre, correo, empresa, rol, foto (opcional).
@@ -147,7 +147,7 @@ export const PRIVACY_DRAFT_EN = `# Privacy policy
 
 **Last updated:** [publication date]
 
-**Controllers:** Solution Factory C.A. (Venezuela) and Solution Factory LLC (United States), operators of Arena Solutions Platform. Contact: [contact email].
+**Controller:** Solution Factory LLC (United States), operator of Arena Solutions Platform. Contact: [contact email].
 
 ## Data we process
 - **Account:** name, email, company, role, photo (optional).
