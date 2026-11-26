@@ -1811,7 +1811,8 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
   const sapProjectLiveCheck = settings['sap_project_live_check'] ?? {};
   const projectLiveCheck = sapProjectLiveCheck[projectId] ?? null;
   async function saveProjectLiveCheck(val) {
-    await ssCtx.setSetting('sap_project_live_check', { ...sapProjectLiveCheck, [projectId]: val });
+    try { await ssCtx.setSapProjectSetting('sap_project_live_check', projectId, val); }
+    catch (e) { alert(e.message); }
   }
 
   // Check if client permits project-level override
@@ -1823,10 +1824,8 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
   const sapProjectAllowCaseOverride = settings['sap_project_allow_case_override'] ?? {};
   const projectAllowsCaseOverride = sapProjectAllowCaseOverride[projectId] !== false;
   async function toggleProjectAllowCaseOverride() {
-    await ssCtx.setSetting('sap_project_allow_case_override', {
-      ...sapProjectAllowCaseOverride,
-      [projectId]: !projectAllowsCaseOverride,
-    });
+    try { await ssCtx.setSapProjectSetting('sap_project_allow_case_override', projectId, !projectAllowsCaseOverride); }
+    catch (e) { alert(e.message); }
   }
 
   const canEdit = usePermissions(auth).can('edit_sap_setup');

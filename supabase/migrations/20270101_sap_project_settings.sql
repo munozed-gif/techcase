@@ -6,7 +6,8 @@
 CREATE OR REPLACE FUNCTION public.set_sap_project_setting(p_key text, p_project uuid, p_value jsonb)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  IF p_key NOT IN ('sap_project_env', 'sap_project_envs', 'sap_project_env_overrides') THEN
+  IF p_key NOT IN ('sap_project_env', 'sap_project_envs', 'sap_project_env_overrides',
+                   'sap_project_live_check', 'sap_project_allow_case_override') THEN
     RAISE EXCEPTION 'Unknown project SAP setting %', p_key USING ERRCODE = '22023';
   END IF;
   IF p_project IS NULL OR NOT (coalesce(public.get_my_role(), '') IN ('admin', 'manager')
