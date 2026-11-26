@@ -925,7 +925,7 @@ const SAP_ENV_TYPE_META = {
 };
 
 function SapIntegrationPanel({ clientId, auth, editable = null }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const ssCtx = useSystemSettings();
   const allConfigs = ssCtx.settings['sap_integration'] ?? {};
   const clientRaw = allConfigs[clientId] ?? {};
@@ -966,6 +966,16 @@ function SapIntegrationPanel({ clientId, auth, editable = null }) {
     catch (e) { setSaving(false); alert(e.message); return; }
     setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  }
+
+  // Copy of an environment (e.g. same system, another client): every setting except the password,
+  // which is kept server-side per environment and must be entered again. Saved with "Save".
+  function copyEnvironment(env) {
+    const { password, has_password, ...rest } = env ?? {};
+    const copy = { ...rest, id: crypto.randomUUID(), name: `${env.name || 'Environment'} (${lang === 'es' ? 'copia' : 'copy'})`, password: '' };
+    const i = environments.findIndex(e => e.id === env.id);
+    setEnvironments([...environments.slice(0, i + 1), copy, ...environments.slice(i + 1)]);
+    setExpandedId(copy.id);
   }
 
   function addEnvironment() {
@@ -1150,11 +1160,15 @@ function SapIntegrationPanel({ clientId, auth, editable = null }) {
                   {env.host && <span className="text-xs text-gray-400 truncate hidden sm:block max-w-[180px]">{env.host}</span>}
                   {testStatus === 'ok'   && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
                   {testStatus === 'fail' && <XCircle size={13} className="text-red-600 dark:text-red-400 flex-shrink-0" />}
-                  {canEdit && (
+                  {canEdit && (<>
+                    <button onClick={e => { e.stopPropagation(); copyEnvironment(env); }} title={lang === 'es' ? 'Copiar ambiente (sin la contraseña)' : 'Copy environment (without the password)'}
+                      className="text-xs text-gray-500 hover:text-blue-600 flex-shrink-0 ml-1 px-2 py-1 rounded hover:bg-blue-50 inline-flex items-center gap-1">
+                      <Copy size={12} />{lang === 'es' ? 'Copiar' : 'Copy'}
+                    </button>
                     <button onClick={e => { e.stopPropagation(); deleteEnv(env.id); }}
                       className="text-xs text-red-600 dark:text-red-400 hover:text-red-600 flex-shrink-0 ml-1 px-2 py-1 rounded hover:bg-red-50">
                       {t('sap.delete_env')}
-                    </button>
+                    </button></>
                   )}
                 </div>
 
@@ -3686,7 +3700,7 @@ function VpnStatusBanner({ linkedConn, isVpn, mcpUrl, env }) {
 // PROJECT-OWNED SAP PANEL (no client linked)
 // ============================================================
 function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const ssCtx = useSystemSettings();
   const allConfigs = ssCtx.settings['sap_integration'] ?? {};
   const storageKey = `proj_${projectId}`;
@@ -3728,6 +3742,16 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
 
   async function handleSelectDefault(envId) {
     await ssCtx.setSetting('sap_project_env', { ...sapProjectEnv, [projectId]: envId || null });
+  }
+
+  // Copy of an environment (e.g. same system, another client): every setting except the password,
+  // which is kept server-side per environment and must be entered again. Saved with "Save".
+  function copyEnvironment(env) {
+    const { password, has_password, ...rest } = env ?? {};
+    const copy = { ...rest, id: crypto.randomUUID(), name: `${env.name || 'Environment'} (${lang === 'es' ? 'copia' : 'copy'})`, password: '' };
+    const i = environments.findIndex(e => e.id === env.id);
+    setEnvironments([...environments.slice(0, i + 1), copy, ...environments.slice(i + 1)]);
+    setExpandedId(copy.id);
   }
 
   function addEnvironment() {
@@ -3914,11 +3938,15 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                         Set default
                       </button>
                     )}
-                    {canEdit && (
+                    {canEdit && (<>
+                      <button onClick={e => { e.stopPropagation(); copyEnvironment(env); }} title={lang === 'es' ? 'Copiar ambiente (sin la contraseña)' : 'Copy environment (without the password)'}
+                        className="text-xs text-gray-500 hover:text-blue-600 flex-shrink-0 ml-1 px-2 py-1 rounded hover:bg-blue-50 inline-flex items-center gap-1">
+                        <Copy size={12} />{lang === 'es' ? 'Copiar' : 'Copy'}
+                      </button>
                       <button onClick={e => { e.stopPropagation(); deleteEnv(env.id); }}
                         className="text-xs text-red-600 dark:text-red-400 hover:text-red-600 flex-shrink-0 ml-1 px-2 py-1 rounded hover:bg-red-50">
                         {t('sap.delete_env')}
-                      </button>
+                      </button></>
                     )}
                   </div>
 
