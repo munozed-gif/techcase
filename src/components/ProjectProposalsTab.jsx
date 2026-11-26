@@ -196,6 +196,10 @@ function ProposalEditor({ proposal, ctx, onBack, onChange, onOpen }) {
   // Hours: activity plan first; without a plan, the time estimate written in Spec C (or Spec A).
   const specHoursOf = id => specHoursFromNotes(specs[id]?.notes);
   const [events, setEvents] = useState([]);
+  // Bumped after sending / resending (and when the window gets focus) so the status view reloads
+  // the recipient links, opens and history without leaving the proposal.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = () => setRefreshKey(k => k + 1);
   const isDraft = p.status === "draft";
   const lang = p.language || "en";
   const pes = lang === "es";
@@ -203,7 +207,12 @@ function ProposalEditor({ proposal, ctx, onBack, onChange, onOpen }) {
   useEffect(() => {
     supabase.from("proposal_events").select("*").eq("proposal_id", p.id).order("created_at")
       .then(({ data }) => setEvents(data ?? []));
-  }, [p.id, p.status]);
+    // A sent proposal can change on the customer's side (viewed, decided): reload it on refresh.
+    if (refreshKey && p.status !== "draft") {
+      supabase.from("project_proposals").select("*").eq("id", p.id).single()
+        .then(({ data }) => { if (data && (data.status !== p.status || data.decided_at !== p.decided_at || data.viewed_at !== p.viewed_at)) { setP(data); onChange(data); } }, () => {});
+    }
+  }, [p.id, p.status, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save(patch) {
     const { data, error: e } = await supabase.from("project_proposals").update(patch).eq("id", p.id).select().single();
@@ -594,6 +603,7 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
     const r = { name: l.name, email: l.email, docs: l.docs ?? {}, can_decide: l.can_decide };
     await emailRecipient(r, l.token, p);
     await supabase.from("proposal_events").insert({ proposal_id: p.id, event: "resent", actor_id: auth.user?.id, actor_name: auth.profile?.full_name ?? null, note: l.email });
+    refresh();
   }
 
   async function send() {
@@ -619,6 +629,7 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
       for (const r of withSettings.filter(x => x.send !== false)) await emailRecipient(r, tokenOf(r.email) ?? row.token, row);
       logEvent("proposal.sent", { entityType: "project", entityId: project.id, entityName: p.title, metadata: { recipients: targets.map(r => r.email) } });
       setStep("view");
+      refresh();
     } catch (e) { setError(e.message); }
     setBusy(null);
   }
@@ -846,7 +857,7 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
       {/* Sent / answered */}
       {!isDraft && (
         <ProposalStatusView p={p} events={events} L={L} es={es} lang={lang} busy={busy}
-          onWithdraw={withdraw} onNewVersion={newVersion} onResend={resendTo}
+          onWithdraw={withdraw} onNewVersion={newVersion} onResend={resendTo} refreshKey={refreshKey} onRefresh={refresh}
           onReopen={auth.profile?.role === "admin" && !["draft", "superseded"].includes(p.status) ? reopen : null} />
       )}
 
@@ -1469,7 +1480,7 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
   );
 }
 
-function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVersion, onReopen, onResend }) {
+function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVersion, onReopen, onResend, refreshKey = 0, onRefresh }) {
   const [copied, setCopied] = useState(false);
   // Personal links (one per recipient): what each one got, and whether they opened it.
   const [links, setLinks] = useState([]);
@@ -1485,11 +1496,19 @@ function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVer
       const { data: vs } = await supabase.from("proposal_link_views").select("link_id, viewed_at, kind, user_agent").in("link_id", ids).order("viewed_at");
       const by = {}; (vs ?? []).forEach(v => { (by[v.link_id] ||= []).push(v); }); setViews(by);
     }, () => {});
-  useEffect(() => { loadLinks(); }, [p.id, p.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadLinks(); }, [p.id, p.status, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Latest opens without leaving: on coming back to the tab, and every 30 s while it is visible.
+  useEffect(() => {
+    if (!onRefresh) return;
+    const onFocus = () => onRefresh();
+    const timer = setInterval(() => { if (document.visibilityState === "visible") onRefresh(); }, 30000);
+    window.addEventListener("focus", onFocus);
+    return () => { window.removeEventListener("focus", onFocus); clearInterval(timer); };
+  }, [p.id]); // eslint-disable-line react-hooks/exhaustive-deps
   async function resend(l) {
     if (!window.confirm(L(`Send the email with the personal link to ${l.email} again?`, `¿Enviar de nuevo el correo con el enlace personal a ${l.email}?`))) return;
     setResending(l.id);
-    try { await onResend(l); setResent(r => ({ ...r, [l.id]: true })); await loadLinks(); }
+    try { await onResend(l); setResent(r => ({ ...r, [l.id]: true })); }
     catch (e) { alert(e.message); }
     setResending(null);
   }
@@ -1502,7 +1521,7 @@ function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVer
     const unconf = vs.filter(v => v.kind === "unconfirmed").length;
     // Opens recorded before this tracking existed have no detail rows.
     const legacy = Math.max(0, (l.views ?? 0) - vs.length);
-    return { human, bot, unconf, legacy, scannerLikely: human === 0 && (bot + unconf + legacy) > 0 };
+    return { human, bot, unconf, legacy, scannerLikely: human === 0 && (bot + unconf) > 0 };
   }
   const DOC_SHORT = { proposal: L("Proposal", "Propuesta"), deck: L("Presentation", "Presentación"), summary: L("Summary", "Resumen"), attachments: L("Attachments", "Anexos") };
   const link = proposalLink(p.token);
