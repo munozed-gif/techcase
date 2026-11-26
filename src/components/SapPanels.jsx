@@ -1772,10 +1772,10 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
 
   async function saveAssignment(newActiveId, newAssignedIds) {
     setSaving(true);
-    await Promise.all([
-      ssCtx.setSetting('sap_project_env',  { ...sapProjectEnv,  [projectId]: newActiveId }),
-      ssCtx.setSetting('sap_project_envs', { ...sapProjectEnvs, [projectId]: newAssignedIds }),
-    ]);
+    try {
+      await ssCtx.setSapProjectSetting('sap_project_env', projectId, newActiveId || null);
+      await ssCtx.setSapProjectSetting('sap_project_envs', projectId, newAssignedIds ?? []);
+    } catch (e) { setSaving(false); alert(e.message); return; }
     setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -1796,16 +1796,15 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
   }
 
   async function saveEnvOverride(envId, overrideFields) {
-    await ssCtx.setSetting('sap_project_env_overrides', {
-      ...sapProjectOverrides,
-      [projectId]: { ...projectOverrides, [envId]: overrideFields }
-    });
+    try { await ssCtx.setSapProjectSetting('sap_project_env_overrides', projectId, { ...projectOverrides, [envId]: overrideFields }); }
+    catch (e) { alert(e.message); }
   }
 
   async function clearEnvOverride(envId) {
     const updated = { ...projectOverrides };
     delete updated[envId];
-    await ssCtx.setSetting('sap_project_env_overrides', { ...sapProjectOverrides, [projectId]: updated });
+    try { await ssCtx.setSapProjectSetting('sap_project_env_overrides', projectId, updated); }
+    catch (e) { alert(e.message); }
   }
 
   // Project-level live check override: null = inherit from client/global, true = on, false = off
@@ -3742,7 +3741,8 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
   }
 
   async function handleSelectDefault(envId) {
-    await ssCtx.setSetting('sap_project_env', { ...sapProjectEnv, [projectId]: envId || null });
+    try { await ssCtx.setSapProjectSetting('sap_project_env', projectId, envId || null); }
+    catch (e) { alert(e.message); }
   }
 
   // Copy of an environment (e.g. same system, another client): every setting except the password,

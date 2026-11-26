@@ -209,6 +209,18 @@ function SystemSettingsProvider({ children }) {
 
   // SAP setup of one customer ("<customerId>") or project ("proj_<id>"): saved through
   // set_sap_integration_entry, which checks who may manage it and the partner plan's limits.
+  // One project's entry of sap_project_env / sap_project_envs / sap_project_env_overrides, saved
+  // through set_sap_project_setting (same permission as the project's SAP environments).
+  async function setSapProjectSetting(key, projectId, value) {
+    const { error } = await supabase.rpc("set_sap_project_setting", { p_key: key, p_project: projectId, p_value: value ?? null });
+    if (error) throw error;
+    setSettings(prev => {
+      const cur = { ...(prev[key] ?? {}) };
+      if (value == null) delete cur[projectId]; else cur[projectId] = value;
+      return { ...prev, [key]: cur };
+    });
+  }
+
   async function setSapIntegrationEntry(scope, value) {
     const { error } = await supabase.rpc("set_sap_integration_entry", { p_scope: String(scope), p_value: value ?? {} });
     if (error) throw error;
@@ -227,7 +239,7 @@ function SystemSettingsProvider({ children }) {
   }
 
   return (
-    <SystemSettingsContext.Provider value={{ settings, loading, dbError, setSetting, setSettingEntry, setSapIntegrationEntry, setValidationOverride, reload: load }}>
+    <SystemSettingsContext.Provider value={{ settings, loading, dbError, setSetting, setSettingEntry, setSapIntegrationEntry, setSapProjectSetting, setValidationOverride, reload: load }}>
       {children}
     </SystemSettingsContext.Provider>
   );
@@ -237,7 +249,7 @@ function useSystemSettings() {
   const ctx = useContext(SystemSettingsContext);
   if (!ctx) {
     // Fallback for components rendered outside the provider (e.g. AuthScreen)
-    return { settings: {}, loading: false, dbError: null, setSetting: async () => {}, setSettingEntry: async () => {}, setSapIntegrationEntry: async () => {}, setValidationOverride: async () => {}, reload: async () => {} };
+    return { settings: {}, loading: false, dbError: null, setSetting: async () => {}, setSettingEntry: async () => {}, setSapIntegrationEntry: async () => {}, setSapProjectSetting: async () => {}, setValidationOverride: async () => {}, reload: async () => {} };
   }
   return ctx;
 }
