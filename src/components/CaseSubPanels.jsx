@@ -1,4 +1,4 @@
-import { isVideoDoc, videoAnalysisName } from "../lib/videoAnalysis.js";
+import { isVideoDoc, videoAnalysisName, isTranscriptDoc, transcriptToText } from "../lib/videoAnalysis.js";
 import { Menu as _LMenu, X as _LX } from "lucide-react";
 import { AlertTriangle as _LAlertTriangle } from "lucide-react";
 import { Ico } from "./Ico.jsx";
@@ -1397,6 +1397,19 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       const isExtractable = isText || isHtml || ['docx', 'doc', 'xlsx', 'xls'].includes(ext);
       const label = `[Document: ${doc.file_name}]`;
 
+      if (isTranscriptDoc(doc)) {
+        // Meeting transcript (Teams / Zoom subtitles): read as "[mm:ss] Speaker: text".
+        try {
+          if (budget <= 2000) { blocks.push({ type: 'text', text: `[Attached transcript: ${doc.file_name} — not included: the text budget for this request is used up. It exists; do not report its content as missing.]` }); continue; }
+          let txt = transcriptToText(await (await fetch(doc.file_url)).text());
+          const cap = Math.min(DOC_CHARS_PER_FILE, budget);
+          if (txt.length > cap) txt = `${txt.slice(0, cap)}\n[... transcript truncated at ${cap} characters]`;
+          blocks.push({ type: 'text', text: `[Meeting transcript: ${doc.file_name} — automatic speech-to-text of a recorded session, so names and technical terms can be misspelled. Lines are "[time] Speaker: text". Use what the participants say as requirements context and cite it as "sesión ${doc.file_name}, mm:ss".]\n${txt}` });
+          budget -= txt.length;
+          if (langSample.length < 20000) langSample += `\n${txt.slice(0, 8000)}`;
+        } catch (_) { blocks.push({ type: 'text', text: `[Attached transcript: ${doc.file_name} — could not be loaded]` }); }
+        continue;
+      }
       if (isVideoDoc(doc)) {
         const analyzed = docs.some(d => d.file_name === videoAnalysisName(doc.file_name));
         blocks.push({ type: 'text', text: analyzed

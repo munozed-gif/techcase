@@ -156,3 +156,34 @@ export async function analyzeVideoToDocument({ src, fileName, addDocument, conte
   await addDocument(file, `[Requirements] ${lang === 'es' ? `Análisis por IA del video "${fileName}" (${frames.length} fotogramas, ${fmtTime(duration)})` : `AI analysis of the video "${fileName}" (${frames.length} frames, ${fmtTime(duration)})`}`);
   return { duration, frames: frames.length };
 }
+
+// ── Meeting transcripts (Teams / Zoom / YouTube subtitles: .vtt, .srt) ──────────────────────────
+export const TRANSCRIPT_EXTS = ['vtt', 'srt'];
+export const isTranscriptDoc = d => TRANSCRIPT_EXTS.includes((d?.file_name ?? '').toLowerCase().split('.').pop());
+
+/** "[mm:ss] Speaker: text" lines, consecutive cues of one speaker merged (much shorter than the raw file). */
+export function transcriptToText(raw) {
+  const lines = String(raw ?? '').replace(/\r/g, '').split('\n');
+  const out = [];
+  let cur = null;
+  const toSec = s => { const m = s.trim().replace(',', '.').split(':').map(Number); return m.length === 3 ? m[0] * 3600 + m[1] * 60 + m[2] : m[0] * 60 + m[1]; };
+  const fmt = s => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = Math.floor(s % 60); return `${h ? `${h}:` : ''}${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}`; };
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^\s*([\d:.,]+)\s*-->\s*[\d:.,]+/);
+    if (!m) continue;
+    const t = toSec(m[1]);
+    const body = [];
+    for (i++; i < lines.length && lines[i].trim() !== ''; i++) body.push(lines[i].trim());
+    let text = body.join(' ');
+    let speaker = '';
+    const v = text.match(/<v\s+([^>]+)>/);
+    if (v) speaker = v[1].trim();
+    text = text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    if (!speaker) { const s = text.match(/^([A-ZÁÉÍÓÚÑ][^:]{1,40}):\s+(.*)$/); if (s) { speaker = s[1]; text = s[2]; } }
+    if (!text) continue;
+    if (cur && cur.speaker === speaker && t - cur.end < 30) { cur.text += ` ${text}`; cur.end = t; }
+    else { if (cur) out.push(cur); cur = { t, end: t, speaker, text }; }
+  }
+  if (cur) out.push(cur);
+  return out.map(c => `[${fmt(c.t)}] ${c.speaker ? `${c.speaker}: ` : ''}${c.text}`).join('\n');
+}
