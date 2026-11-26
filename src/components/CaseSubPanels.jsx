@@ -6560,7 +6560,8 @@ For each object, use the available SAP tools to check whether it exists in the s
 
 CLEAN CORE — release state. For every existing STANDARD object the solution would call, extend or read (classes, interfaces, BAdIs / enhancement spots, CDS views, function modules, tables, structures; not Z/Y objects), read its API release state with a read-only query, e.g. runQuery with
   SELECT OBJECT_TYPE, OBJECT_KEY, COMPATIBILITY_CONTRACT, RELEASE_STATE FROM ARS_W_API_STATE WHERE OBJECT_KEY = '<NAME>'
-(or tableContents on ARS_W_API_STATE). Contract C1 = use in ABAP Cloud / key-user extensibility, C0 = extend, C2 = remote API. No row means "not released". If the table cannot be read, write "not verifiable" — never guess a release state.
+(or tableContents on ARS_W_API_STATE). Contract C1 = use in ABAP Cloud / key-user extensibility, C0 = extend, C2 = remote API.
+FIRST make sure the source works: query it once for objects that are released in every S/4HANA system (e.g. OBJECT_KEY = 'CL_ABAP_CONTEXT_INFO' or 'XCO_CP' or 'I_PRODUCT', or SELECT a few rows with RELEASE_STATE = 'RELEASED'). Only if that control returns rows does "no row" for an object mean "Not released". If the control returns nothing, or the table cannot be read, the release state is "not verifiable" for every object — say so in one line under the table and never write "Not released" in that case. Never guess a release state.
 
 EXISTING EXTENSIONS — previous work. Look for extensions already made in this area (they may be the starting point of the requirement):
 - custom fields and extension objects: searchObject for YY1_* and ZZ1_* (data elements, append structures, CDS extensions) and keep only the ones related to the objects of this requirement;
