@@ -8,7 +8,7 @@ import {
   FileSignature, Plus, ChevronLeft, ChevronRight, Check, Sparkles, Send, Copy, ExternalLink,
   RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock, Presentation, Printer, FileText, FileSpreadsheet, FileImage, ScrollText, User, Users,
 } from "lucide-react";
-import { Send as _LSend, ShieldAlert as _LShieldAlert, UserCheck as _LUserCheck } from "lucide-react";
+import { Send as _LSend, ShieldAlert as _LShieldAlert, UserCheck as _LUserCheck, CheckSquare as _LCheckSquare, Square as _LSquare } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { docLinkClick, wireDocFrame, withHtmlLinks, fixDocLinks } from "../lib/openDoc.js";
 import { useT } from "../i18n/index.jsx";
@@ -601,19 +601,23 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
     try {
       const rec = (p.recipients ?? []).filter(r => /\S+@\S+\.\S+/.test(r.email ?? ""));
       if (!rec.length) throw new Error(L("Add at least one recipient email.", "Agrega al menos un correo de destinatario."));
+      // Only the ticked recipients get the email now; everyone keeps an active personal link
+      // (it can be sent later with "Resend email").
+      const targets = rec.filter(r => r.send !== false);
+      if (!targets.length) throw new Error(L("Tick at least one recipient to send the email to.", "Marca al menos un destinatario para enviarle el correo."));
       if (!p.html) throw new Error(L("Generate the document first.", "Primero genera el documento."));
       let row = await save({ status: "sent", sent_at: new Date().toISOString() });
       // The customer sees the presentation from the same link (refreshed with the final validity date).
       if (p.deck?.slides?.length) row = await save({ deck_html: deckHtml(p.deck.slides, row.valid_until) });
-      await supabase.from("proposal_events").insert({ proposal_id: p.id, event: "sent", actor_id: auth.user?.id, actor_name: auth.profile?.full_name ?? null, note: rec.map(r => r.email).join(", ") });
+      await supabase.from("proposal_events").insert({ proposal_id: p.id, event: "sent", actor_id: auth.user?.id, actor_name: auth.profile?.full_name ?? null, note: targets.map(r => r.email).join(", ") });
       // A personal link per recipient: their page shows only the cards ticked for them.
       const avail = { proposal: !!p.html, deck: !!p.deck?.slides?.length, summary: !!p.summary_html, attachments: attachmentsList().length > 0 };
       const withSettings = rec.map(r => ({ ...r, ...recipientSettings(r, avail) }));
       const { data: links, error: le } = await supabase.rpc("proposal_set_recipient_links", { p_proposal: p.id, p_recipients: withSettings });
       if (le) throw le;
       const tokenOf = email => (links ?? []).find(x => x.email === String(email).trim().toLowerCase())?.token;
-      for (const r of withSettings) await emailRecipient(r, tokenOf(r.email) ?? row.token, row);
-      logEvent("proposal.sent", { entityType: "project", entityId: project.id, entityName: p.title, metadata: { recipients: rec.map(r => r.email) } });
+      for (const r of withSettings.filter(x => x.send !== false)) await emailRecipient(r, tokenOf(r.email) ?? row.token, row);
+      logEvent("proposal.sent", { entityType: "project", entityId: project.id, entityName: p.title, metadata: { recipients: targets.map(r => r.email) } });
       setStep("view");
     } catch (e) { setError(e.message); }
     setBusy(null);
@@ -991,15 +995,26 @@ function RecipientsPanel({ p, setP, L, attachments, onPreview }) {
     return { ...x, docs, can_decide: key === "proposal" ? docs.proposal : cur.can_decide && docs.proposal };
   }));
   const n = rec.length;
+  const nSend = rec.filter(r => r.send !== false).length;
   return (
-    <Card collapsible defaultOpen={n === 0} Icon={Users} title={`${L("Recipients", "Destinatarios")} · ${n}`}
-      hint={L("Tick per person which documents they get and whether they can decide.", "Marca por persona qué documentos recibe y si puede decidir.")}>
+    <Card collapsible defaultOpen={n === 0} Icon={Users} title={`${L("Recipients", "Destinatarios")} · ${nSend === n ? n : `${nSend}/${n}`}`}
+      hint={L("Tick who gets the email now, which documents each person gets and whether they can decide.", "Marca a quién se le envía el correo ahora, qué documentos recibe cada persona y si puede decidir.")}>
       <ul className="space-y-2">
         {rec.map((r, i) => {
           const st = recipientSettings(r, avail);
           return (
             <li key={i} className="flex items-start gap-3 rounded-xl border border-gray-200 p-2.5 min-w-0">
-              <span className="w-14 h-14 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center flex-shrink-0"><User size={20} /></span>
+              {(() => {
+                const on = r.send !== false;
+                return (
+                  <button type="button" role="checkbox" aria-checked={on} onClick={() => setRec(rec.map((x, j) => (j === i ? { ...x, send: !on } : x)))}
+                    title={on ? L("Will get the email — click to skip", "Recibirá el correo — clic para no enviarle") : L("Will not get the email — click to send", "No recibirá el correo — clic para enviarle")}
+                    className={`w-14 h-14 rounded-xl border flex flex-col items-center justify-center flex-shrink-0 gap-0.5 transition ${on ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-50 border-gray-200 text-gray-400 hover:border-blue-300"}`}>
+                    {on ? <_LCheckSquare size={18} /> : <_LSquare size={18} />}
+                    <span className="text-[9px] font-semibold uppercase tracking-wide">{L("Send", "Enviar")}</span>
+                  </button>
+                );
+              })()}
               <div className="flex-1 min-w-0 space-y-2">
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0">
                   <input value={r.name ?? ""} placeholder={L("Name", "Nombre")} onChange={e => setRec(rec.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className="w-full sm:w-1/3 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
@@ -1445,7 +1460,8 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
           <button onClick={async () => { try { await save({ recipients: p.recipients, valid_until: p.valid_until || null }); } catch (e) { setError(e.message); } }}
             className="text-sm border border-gray-200 rounded-xl px-4 py-2 text-gray-700">{L("Save draft", "Guardar borrador")}</button>
           <PrimaryBtn busy={busy === "send"} onClick={async () => { try { await save({ recipients: p.recipients, valid_until: p.valid_until || null }); await onSend(); } catch (e) { setError(e.message); } }}>
-            <Send size={14} />{L("Send to customer", "Enviar al cliente")}
+            <Send size={14} />{(() => { const all = (p.recipients ?? []).length, k = (p.recipients ?? []).filter(r => r.send !== false).length;
+              return k < all ? L(`Send to ${k} of ${all}`, `Enviar a ${k} de ${all}`) : L("Send to customer", "Enviar al cliente"); })()}
           </PrimaryBtn>
         </div>
       </Footer>
