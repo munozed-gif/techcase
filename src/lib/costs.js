@@ -69,13 +69,13 @@ export function fmtMoney(v, currency = 'USD', lang = 'en', digits = 2) {
 
 export const AI_FEATURE_LABEL = {
   en: {
-    context_analyze: 'Compiled context — Analyze', sap_live_check: 'Live SAP object check', sap_coverage: 'SAP standard coverage', spec_requirements: 'Requirements checklist', spec_coverage: 'Requirements coverage check', spec_questions: 'Questions for the customer',
+    context_analyze: 'Compiled context — Analyze', sap_live_check: 'Live SAP object check', sap_coverage: 'SAP standard coverage', spec_requirements: 'Requirements checklist', spec_coverage: 'Requirements coverage check', video_analysis: 'Video analysis', spec_questions: 'Questions for the customer',
     proposal_validation: 'Proposal validation', spec: 'Specifications (A–D)', spec_wizard: 'Spec wizard', prototype: 'Interactive prototype',
     dev_plan: 'Activity plan', activities_ai: 'Activities (AI)', user_manual: 'User manual', blueprint: 'SAP blueprint',
     sap_implementation: 'SAP implementation', sap_diagnostics: 'SAP diagnostics', proposal: 'Customer proposal', case_ai: 'Case (other)', other: 'Other',
   },
   es: {
-    context_analyze: 'Contexto compilado — Analizar', sap_live_check: 'Verificación de objetos SAP en vivo', sap_coverage: 'Cobertura SAP estándar', spec_requirements: 'Checklist de requerimientos', spec_coverage: 'Verificación de cobertura de requerimientos', spec_questions: 'Preguntas para el cliente',
+    context_analyze: 'Contexto compilado — Analizar', sap_live_check: 'Verificación de objetos SAP en vivo', sap_coverage: 'Cobertura SAP estándar', spec_requirements: 'Checklist de requerimientos', spec_coverage: 'Verificación de cobertura de requerimientos', video_analysis: 'Análisis de video', spec_questions: 'Preguntas para el cliente',
     proposal_validation: 'Validación de la propuesta', spec: 'Especificaciones (A–D)', spec_wizard: 'Asistente de spec', prototype: 'Prototipo interactivo',
     dev_plan: 'Plan de actividades', activities_ai: 'Actividades (IA)', user_manual: 'Manual de usuario', blueprint: 'Blueprint SAP',
     sap_implementation: 'Implementación SAP', sap_diagnostics: 'Diagnóstico SAP', proposal: 'Propuesta al cliente', case_ai: 'Caso (otros)', other: 'Otros',

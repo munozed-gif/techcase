@@ -1,3 +1,5 @@
+import { isVideoDoc, isVideoFile, VIDEO_MAX_BYTES, VIDEO_EXTS, videoAnalysisName, analyzeVideoToDocument } from "../lib/videoAnalysis.js";
+import { Film as _LFilm, Sparkles as _LSparkles } from "lucide-react";
 import { PauseCircle as _LPauseCircle } from "lucide-react";
 import { Lock as _LLock } from "lucide-react";
 import { AlertTriangle as _LAlertTriangle } from "lucide-react";
@@ -151,7 +153,7 @@ function DocSectionHeader({ Icon, iconClass, label, count, accent, children }) {
     </div>
   );
 }
-function DocRow({ doc, auth, deleteDocument, canDeleteDoc, openDocInNewTab, t, onDownloadPdf, canDownloadPdf }) {
+function DocRow({ doc, auth, deleteDocument, canDeleteDoc, openDocInNewTab, t, onDownloadPdf, canDownloadPdf, videoCtl }) {
   const isHtml = doc.file_name?.toLowerCase().endsWith('.html') || (doc.file_type ?? '').includes('html');
   const icon = doc.file_type?.includes("pdf")
     ? <FileText className="w-4 h-4 text-red-600 dark:text-red-400" />
@@ -159,6 +161,8 @@ function DocRow({ doc, auth, deleteDocument, canDeleteDoc, openDocInNewTab, t, o
     ? <FileImage className="w-4 h-4 text-blue-600 dark:text-blue-400" />
     : isHtml
     ? <FileText className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+    : isVideoDoc(doc)
+    ? <_LFilm className="w-4 h-4 text-blue-600 dark:text-blue-400" />
     : <Paperclip className="w-4 h-4 text-gray-400" />;
   return (
     <div className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
@@ -173,7 +177,15 @@ function DocRow({ doc, auth, deleteDocument, canDeleteDoc, openDocInNewTab, t, o
         {doc.notes && (
           <p className="text-xs text-gray-500 mt-0.5">{doc.notes.replace(/^\[[^\]]+\]\s*/, '')}</p>
         )}
+        {videoCtl?.status && <p className={`text-xs mt-0.5 ${videoCtl.error ? 'text-red-600' : 'text-blue-600'}`}>{videoCtl.status}</p>}
       </div>
+      {videoCtl?.onAnalyze && (
+        <button onClick={videoCtl.onAnalyze} disabled={videoCtl.busy}
+          title={videoCtl.done ? videoCtl.redoTitle : videoCtl.title}
+          className="text-xs text-blue-700 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50 flex-shrink-0 whitespace-nowrap inline-flex items-center gap-1 disabled:opacity-50">
+          <_LSparkles className={`w-3.5 h-3.5 ${videoCtl.busy ? 'animate-pulse' : ''}`} />{videoCtl.busy ? videoCtl.busyLabel : videoCtl.done ? videoCtl.redoLabel : videoCtl.label}
+        </button>
+      )}
       {isHtml && canDownloadPdf && onDownloadPdf && (
         <button onClick={() => onDownloadPdf(doc)}
           className="text-xs text-violet-600 hover:text-violet-800 px-2 py-1 rounded border border-violet-200 hover:bg-violet-50 flex-shrink-0 whitespace-nowrap">
@@ -346,6 +358,7 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [showDocForm, setShowDocForm]   = useState(false);
   const [pendingDocFile, setPendingDocFile] = useState(null);
+  const [videoJobs, setVideoJobs] = useState({});   // { [docId | fileName]: { busy, status, error } }
   // V9 Time entry state
   const [showTimeForm, setShowTimeForm] = useState(false);
   const [timeForm, setTimeForm]         = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true, activity_id: "" });
@@ -868,16 +881,60 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
     }
   }
 
+  // Video → frames → AI description saved as a document of the case (src/lib/videoAnalysis.js).
+  const LV = (en, es) => (lang === 'es' ? es : en);
+  async function runVideoAnalysis(key, src, fileName, notes) {
+    const setJob = v => setVideoJobs(p => ({ ...p, [key]: v }));
+    setJob({ busy: true, status: LV('Taking frames from the video…', 'Tomando fotogramas del video…') });
+    try {
+      const r = await analyzeVideoToDocument({
+        src, fileName, addDocument, model: analysisModel, lang, caseId: caseData.id,
+        context: { caseTitle: caseData.title, caseDescription: caseData.description, notes },
+        onProgress: p => setJob({ busy: true, status: p.phase === 'frames'
+          ? LV(`Taking frames from the video… ${Math.round((p.done / p.total) * 100)}%`, `Tomando fotogramas del video… ${Math.round((p.done / p.total) * 100)}%`)
+          : LV(`AI is describing the video… part ${Math.min(p.done + 1, p.total)} of ${p.total}`, `La IA está describiendo el video… parte ${Math.min(p.done + 1, p.total)} de ${p.total}`) }),
+      });
+      setJob({ busy: false, status: LV(`Analyzed: ${r.frames} frames. The description was saved as "${videoAnalysisName(fileName)}" and is used by the analysis and the coverage check.`,
+        `Analizado: ${r.frames} fotogramas. La descripción se guardó como "${videoAnalysisName(fileName)}" y la usan el análisis y la verificación de cobertura.`) });
+    } catch (e) {
+      setJob({ busy: false, error: true, status: LV(`The video could not be analyzed: ${e.message}`, `No se pudo analizar el video: ${e.message}`) });
+    }
+  }
+  function videoCtlFor(doc) {
+    if (!isVideoDoc(doc)) return null;
+    const job = videoJobs[doc.id] ?? videoJobs[doc.file_name];
+    const done = (documents ?? []).some(d => d.file_name === videoAnalysisName(doc.file_name));
+    return {
+      ...job, done,
+      onAnalyze: stageRules.can_upload_docs ? () => {
+        if (done && !window.confirm(LV('This video was already analyzed. Analyze it again? A new description document is added.', 'Este video ya fue analizado. ¿Analizarlo de nuevo? Se agrega un nuevo documento de descripción.'))) return;
+        runVideoAnalysis(doc.id, doc.file_url, doc.file_name, (doc.notes ?? '').replace(/^\[[^\]]+\]\s*/, ''));
+      } : null,
+      label: LV('Analyze with AI', 'Analizar con IA'), redoLabel: LV('Analyze again', 'Analizar de nuevo'), busyLabel: LV('Analyzing…', 'Analizando…'),
+      title: LV('The AI looks at frames of the video and writes what it shows, with timestamps', 'La IA revisa fotogramas del video y escribe lo que muestra, con el minuto'),
+      redoTitle: LV('Analyze the video again', 'Analizar el video de nuevo'),
+    };
+  }
+
   async function handleDocUpload() {
     if (!pendingDocFile) return;
+    const video = isVideoFile(pendingDocFile);
+    if (video && pendingDocFile.size > VIDEO_MAX_BYTES) { alert(LV('The video is larger than 200 MB. Trim it or lower its resolution and try again.', 'El video pesa más de 200 MB. Recórtelo o baje su resolución e inténtelo de nuevo.')); return; }
     setUploadingDoc(true);
     try {
       const catLabels = { requirements: "Requirements", deliverable: "Deliverable", reference: "Reference", other: "Other" };
       const tag = catLabels[docCategory] ?? "Other";
       const fullNotes = docNotes.trim() ? `[${tag}] ${docNotes.trim()}` : `[${tag}]`;
-      await addDocument(pendingDocFile, fullNotes);
+      const file = pendingDocFile, note = docNotes.trim();
+      await addDocument(file, fullNotes);
       setPendingDocFile(null); setDocNotes(""); setDocCategory("requirements"); setShowDocForm(false);
-    } catch (e) { alert(e.message); }
+      // Videos are analyzed right away from the local file (no second download).
+      if (video) runVideoAnalysis(file.name, file, file.name, note);
+    } catch (e) {
+      alert(/exceeded the maximum allowed size|Payload too large|413/i.test(e.message ?? '')
+        ? LV('The file is larger than the storage upload limit. Trim the video or lower its resolution and try again.', 'El archivo supera el límite de subida del almacenamiento. Recorte el video o baje su resolución e inténtelo de nuevo.')
+        : e.message);
+    }
     setUploadingDoc(false);
   }
 
@@ -4418,6 +4475,11 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                       <input ref={docFileRef} type="file"
                         onChange={e => setPendingDocFile(e.target.files?.[0] ?? null)}
                         className="block w-full text-sm text-gray-500 file:mr-3 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                      {pendingDocFile && isVideoFile(pendingDocFile) && (
+                        <p className="mt-1 text-[11px] text-blue-700 flex items-start gap-1"><_LFilm className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+                          {LV('Video (max. 200 MB): after uploading, the AI looks at frames of it and saves a description with timestamps as a document of the case. The audio is not analyzed. Keep this tab open while it runs.',
+                              'Video (máx. 200 MB): al subirlo, la IA revisa fotogramas y guarda una descripción con el minuto de cada paso como documento del caso. El audio no se analiza. Mantenga esta pestaña abierta mientras termina.')}</p>
+                      )}
                     </div>
                   </div>
                   <div>
@@ -4454,7 +4516,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                       return (
                         <div key={cat}>
                           <div className="text-xs text-gray-400 font-medium mb-1 pl-1">{label}</div>
-                          <div className="space-y-1.5">{catDocs.map(doc => <DocRow key={doc.id} doc={doc} auth={auth} deleteDocument={deleteDocument} canDeleteDoc={canDeleteDoc} openDocInNewTab={openDocInNewTab} t={t} />)}</div>
+                          <div className="space-y-1.5">{catDocs.map(doc => <DocRow key={doc.id} doc={doc} auth={auth} deleteDocument={deleteDocument} canDeleteDoc={canDeleteDoc} openDocInNewTab={openDocInNewTab} t={t} videoCtl={videoCtlFor(doc)} />)}</div>
                         </div>
                       );
                     })}

@@ -1,3 +1,4 @@
+import { isVideoDoc, videoAnalysisName } from "../lib/videoAnalysis.js";
 import { Menu as _LMenu, X as _LX } from "lucide-react";
 import { AlertTriangle as _LAlertTriangle } from "lucide-react";
 import { Ico } from "./Ico.jsx";
@@ -1396,6 +1397,13 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       const isExtractable = isText || isHtml || ['docx', 'doc', 'xlsx', 'xls'].includes(ext);
       const label = `[Document: ${doc.file_name}]`;
 
+      if (isVideoDoc(doc)) {
+        const analyzed = docs.some(d => d.file_name === videoAnalysisName(doc.file_name));
+        blocks.push({ type: 'text', text: analyzed
+          ? `[Attached video: ${doc.file_name} — its content is in the document "${videoAnalysisName(doc.file_name)}" (AI description of its frames, with [mm:ss] timestamps). Cite it as "video ${doc.file_name}, mm:ss".]`
+          : `[Attached video: ${doc.file_name} — not analyzed yet (Documents → "Analyze with AI"). It exists; do not report its content as missing.]` });
+        continue;
+      }
       if (!isPdf && !isExtractable && !imageType) {
         blocks.push({ type: 'text', text: `[Attached file: ${doc.file_name} — format not extractable as text]` });
         continue;
