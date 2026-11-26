@@ -25,7 +25,7 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
   const askable = askableQuestions(list);
   const byArea = Q_AREAS.map(a => ({ area: a, n: askable.filter(q => areaOf(q) === a).length, total: liveQuestions(list).filter(q => areaOf(q) === a).length })).filter(x => x.total > 0);
   const AREA_CLS = { functional: 'bg-blue-50 text-blue-700 border-blue-200', abap: 'bg-violet-50 text-violet-700 border-violet-200', basis: 'bg-slate-100 text-slate-700 border-slate-300',
-    security: 'bg-red-50 text-red-700 border-red-200', integration: 'bg-cyan-50 text-cyan-700 border-cyan-200', data: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    security: 'bg-red-50 text-red-700 border-red-200', integration: 'bg-teal-50 text-teal-700 border-teal-200', data: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     testing: 'bg-amber-50 text-amber-700 border-amber-200', management: 'bg-gray-100 text-gray-700 border-gray-300' };
   const shown = areaFilter ? list.filter(q => areaOf(q) === areaFilter) : list;
 
