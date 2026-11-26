@@ -7231,7 +7231,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   }
   const enrichedSapConfig = enrichWithVpn(sapConfig);
   async function saveCaseEnv(envId) {
-    await ssCtx.setSetting('sap_case_env', { ...sapCaseEnvMap, [caseData.id]: envId || null });
+    await ssCtx.setSettingEntry('sap_case_env', caseData.id, envId || null);
   }
 
   // ── Object / activity state ─────────────────────────────

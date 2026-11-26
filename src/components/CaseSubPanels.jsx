@@ -1301,6 +1301,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [sapConnInfo, setSapConnInfo]     = useState(null);
   const [sapConnLoading, setSapConnLoading] = useState(false);
   const [sapConnCfg, setSapConnCfg]       = useState(null); // full config incl. password, for test
+  // Environments this case can use and which one it uses: its own choice (sap_case_env) or the project default.
+  const [sapEnvChoice, setSapEnvChoice]   = useState(null); // { envs, caseEnvId, projectEnvId, activeId }
+  const [sapEnvSaving, setSapEnvSaving]   = useState(false);
   const [sapConnTest, setSapConnTest]     = useState(null); // null | 'testing' | { ok, info?, error?, message? }
 
   // Project docs + ABAP standards — fetched for display in Node 0
@@ -3484,8 +3487,20 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     setAdditionalCtxSaving(false);
   }
 
-  async function loadSapConnInfo() {
-    if (sapConnLoading) return;
+  // This case's SAP environment (empty = the project default). Saved per case, so consultants of
+  // the same project can check their cases against different environments / clients.
+  async function changeCaseSapEnv(envId) {
+    setSapEnvSaving(true);
+    try {
+      await ssCtx.setSettingEntry('sap_case_env', caseData.id, envId || null);
+      setSapConnTest(null); setSapConnInfo(null); setSapConnCfg(null);
+      setSapEnvSaving(false);
+      await loadSapConnInfo(true);
+    } catch (e) { setSapEnvSaving(false); alert(e.message); }
+  }
+
+  async function loadSapConnInfo(force = false) {
+    if (sapConnLoading && !force) return;
     setSapConnLoading(true);
     try {
       const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
@@ -3514,6 +3529,12 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       const sapCfg = selectedEnvId
         ? (allEnvs.find(e => e.id === selectedEnvId) ?? allEnvs[0] ?? null)
         : (allEnvs[0] ?? null);
+      setSapEnvChoice({
+        envs: allEnvs.map(e => ({ id: e.id, name: e.name || e.label || e.host, client: e.client, envType: e.envType })),
+        caseEnvId: (sapCaseEnvRow?.value ?? {})[caseData.id] ?? null,
+        projectEnvId: (sapProjEnvRow?.value ?? {})[caseData.project_id] ?? null,
+        activeId: sapCfg?.id ?? null,
+      });
 
       if (!sapCfg?.host) { setSapConnInfo({ notFound: true }); return; }
       let vpnUrl = sapCfg.proxyUrl?.trim() || null;
@@ -5629,7 +5650,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   : sapConnLoading ? t("spec.checking")
                   : sapConnInfo?.notFound ? t("spec.sap_conn_not_cfg")
                   : sapConnInfo?.error ? t("spec.sap_conn_not_cfg")
-                  : sapConnInfo ? (sapConnInfo.host ?? t("spec.pending"))
+                  : sapConnInfo ? ([sapConnInfo.envName, sapConnInfo.client ? `${L('client', 'mandante')} ${sapConnInfo.client}` : null].filter(Boolean).join(' · ') || sapConnInfo.host || t("spec.pending"))
                   : t("spec.pending")}
                 status={!effectiveBaseCheck && caseLiveCheck !== true ? 'skipped'
                   : sapConnLoading ? 'running'
@@ -5640,7 +5661,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 canClick={true}
                 onClick={() => {
                   setActiveNode(5);
-                  if (liveCheckEnabled && !sapConnInfo && !sapConnLoading) loadSapConnInfo();
+                  if ((liveCheckEnabled || !sapEnvChoice) && !sapConnInfo && !sapConnLoading) loadSapConnInfo();
                 }}
               />
 
@@ -5776,6 +5797,28 @@ Respond with ONLY a valid JSON object, no markdown fences:
             {/* ── Node 5: Live SAP Connection ── */}
             {activeNode === 5 && (
               <div className="space-y-3">
+                {sapEnvChoice?.envs?.length > 1 && (() => {
+                  const envLabel = e => `${e.name}${e.client ? ` · ${L('client', 'mandante')} ${e.client}` : ''}`;
+                  const projDefault = sapEnvChoice.envs.find(e => e.id === sapEnvChoice.projectEnvId) ?? sapEnvChoice.envs[0];
+                  const canChange = !specApproved || auth.isAdmin;
+                  return (
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-3 space-y-1.5">
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">{L('SAP environment of this case', 'Ambiente SAP de este caso')}</label>
+                      <div className="flex items-center gap-2">
+                        <select value={sapEnvChoice.caseEnvId ?? ''} disabled={!canChange || sapEnvSaving || sapConnLoading}
+                          onChange={e => changeCaseSapEnv(e.target.value)}
+                          className="flex-1 text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 disabled:opacity-60">
+                          <option value="">{L('Project default', 'Predeterminado del proyecto')}{projDefault ? ` — ${envLabel(projDefault)}` : ''}</option>
+                          {sapEnvChoice.envs.map(e => <option key={e.id} value={e.id}>{envLabel(e)}</option>)}
+                        </select>
+                        {(sapEnvSaving || sapConnLoading) && <Spinner />}
+                      </div>
+                      <p className="text-[11px] text-gray-500">{sapEnvChoice.caseEnvId
+                        ? L('This case uses its own environment; the other cases of the project keep theirs.', 'Este caso usa su propio ambiente; los demás casos del proyecto mantienen el suyo.')
+                        : L('This case follows the project default. Choose another environment to use it only for this case (analysis, live check, generation).', 'Este caso sigue el predeterminado del proyecto. Elija otro ambiente para usarlo solo en este caso (análisis, verificación en vivo, generación).')}</p>
+                    </div>
+                  );
+                })()}
                 {(effectiveBaseCheck || caseLiveCheck === true) && (
                   <div className="border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-transparent rounded-xl p-3 flex items-start gap-2">
                     <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />

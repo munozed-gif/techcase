@@ -320,10 +320,11 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   // Priority: client-linked envs → project-owned envs (when no client)
   const ssCtxCD = useSystemSettings();
   const _sapAllConfigs  = cdSettings['sap_integration'] ?? {};
-  const _sapClientData  = (caseData.customer_id ?? caseData.client_id)
-    ? (_sapAllConfigs[caseData.customer_id ?? caseData.client_id] ?? _sapAllConfigs[`proj_${caseData.project_id}`] ?? {})
-    : (_sapAllConfigs[`proj_${caseData.project_id}`] ?? {});
-  const _sapEnvs        = _sapClientData.environments ?? (_sapClientData.host ? [_sapClientData] : []);
+  // Same chain as the specification and generation: the project's own environments first, then the
+  // customer's (or the legacy client account's).
+  const _sapEnvsOf      = e => (e?.environments ?? (e?.host ? [e] : []));
+  const _sapProjEnvs    = caseData.project_id ? _sapEnvsOf(_sapAllConfigs[`proj_${caseData.project_id}`]) : [];
+  const _sapEnvs        = _sapProjEnvs.length ? _sapProjEnvs : _sapEnvsOf(_sapAllConfigs[caseData.customer_id ?? caseData.client_id] ?? _sapAllConfigs[caseData.client_id]);
   const _sapCaseEnvMap  = cdSettings['sap_case_env'] ?? {};
   const _sapCaseEnvId   = _sapCaseEnvMap[caseData.id]
                        ?? (cdSettings['sap_project_env'] ?? {})[caseData.project_id]
@@ -334,7 +335,8 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   const [showSapEnvPicker, setShowSapEnvPicker] = useState(false);
 
   async function _saveCaseEnv(envId) {
-    await ssCtxCD.setSetting('sap_case_env', { ..._sapCaseEnvMap, [caseData.id]: envId || null });
+    try { await ssCtxCD.setSettingEntry('sap_case_env', caseData.id, envId || null); }
+    catch (e) { alert(e.message); }
     setShowSapEnvPicker(false);
   }
 
@@ -2840,7 +2842,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                               <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide border-b border-gray-100 mb-1">SAP Environment</div>
                               {_sapEnvs.map(env => {
                                 const em = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
-                                const isActive = env.id === (_sapCaseEnvMap[caseData.id] ?? _sapEnvs[0]?.id);
+                                const isActive = env.id === _activeSapEnv?.id;
                                 return (
                                   <button key={env.id}
                                     onClick={() => _saveCaseEnv(env.id)}
