@@ -68,6 +68,23 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
       .then(({ data: d, error: e }) => { if (e) setError(e.message); setData(d ?? null); setLoading(false); });
   }, [token, preview]);
 
+  // A personal link counts as read by a person only after a real interaction (scroll, click, key,
+  // touch, or a click inside a document frame). Mail security scanners load the page but don't.
+  useEffect(() => {
+    if (preview || !data?.view_id || !token) return;
+    let done = false;
+    const evs = ["pointerdown", "keydown", "wheel", "touchstart", "scroll"];
+    const mark = () => {
+      if (done) return; done = true; cleanup();
+      supabase.rpc("proposal_view_human", { p_token: token, p_view: data.view_id }).then(() => {}, () => {});
+    };
+    const onBlur = () => { if (document.activeElement?.tagName === "IFRAME") mark(); };
+    const cleanup = () => { evs.forEach(e => window.removeEventListener(e, mark, true)); window.removeEventListener("blur", onBlur); };
+    evs.forEach(e => window.addEventListener(e, mark, { capture: true, passive: true }));
+    window.addEventListener("blur", onBlur);
+    return cleanup;
+  }, [data?.view_id, token, preview]);
+
   const lang = data?.language === "es" ? "es" : "en";
   const L = T[lang];
 

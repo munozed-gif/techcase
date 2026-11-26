@@ -8,6 +8,7 @@ import {
   FileSignature, Plus, ChevronLeft, ChevronRight, Check, Sparkles, Send, Copy, ExternalLink,
   RotateCcw, XCircle, Loader2, AlertTriangle, Paperclip, Eye, GitBranch, Clock, Presentation, Printer, FileText, FileSpreadsheet, FileImage, ScrollText, User, Users,
 } from "lucide-react";
+import { Send as _LSend, ShieldAlert as _LShieldAlert, UserCheck as _LUserCheck } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { docLinkClick, wireDocFrame, withHtmlLinks, fixDocLinks } from "../lib/openDoc.js";
 import { useT } from "../i18n/index.jsx";
@@ -558,6 +559,43 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
     setBusy(null);
   }
 
+  // The email with one recipient's personal link (first send and "Resend email").
+  async function emailRecipient(r, token, row) {
+    const from = partner?.name ?? "Arena Solutions Platform";
+    const link = proposalLink(token);
+    if (!r.docs.proposal) {
+      // Without the proposal: no price in the email; just what they can review.
+      const what = DOC_KEYS.filter(k => r.docs[k]).map(k => ({ deck: pes ? "la presentación" : "the presentation", summary: pes ? "el resumen técnico de los casos" : "the technical summary of the cases", attachments: pes ? "los documentos anexos" : "the attached documents" })[k]).filter(Boolean).join(", ");
+      const html = buildEmailHtml({
+        title: pes ? "Tienes documentos para revisar" : "You have documents to review",
+        preheader: p.title,
+        bodyHtml: pes
+          ? `<p>Hola ${r.name || ""},</p><p><strong>${from}</strong> compartió contigo ${what || "documentos"} de la propuesta <strong>${p.title}</strong> para el proyecto <strong>${project.name}</strong>.</p><p>Puedes revisarlos desde el enlace.</p>`
+          : `<p>Hello ${r.name || ""},</p><p><strong>${from}</strong> shared ${what || "documents"} of the proposal <strong>${p.title}</strong> for the project <strong>${project.name}</strong> with you.</p><p>You can review them from the link.</p>`,
+        ctaText: pes ? "Revisar documentos" : "Review documents", ctaUrl: link,
+      });
+      await sendEmail(r.email, `${p.title} — ${from}`, html);
+      await supabase.rpc("proposal_link_email_sent", { p_proposal: p.id, p_email: r.email }).then(() => {}, () => {});
+      return;
+    }
+    const html = buildEmailHtml({
+      title: pes ? "Tienes una propuesta para revisar" : "You have a proposal to review",
+      preheader: `${p.title} — ${priceSummary()}`,
+      bodyHtml: pes
+        ? `<p>Hola ${r.name || ""},</p><p><strong>${from}</strong> te envió la propuesta <strong>${p.title}</strong> para el proyecto <strong>${project.name}</strong>.</p><p>${isService ? "Precio" : "Total"}: <strong>${priceSummary()}</strong>${proposalType === "plan" ? " — elige el período al aceptar" : ""} · Válida hasta ${row.valid_until ?? "—"}</p><p>Puedes revisarla, descargar los anexos y aceptarla, pedir cambios o rechazarla desde el enlace.</p>`
+        : `<p>Hello ${r.name || ""},</p><p><strong>${from}</strong> has sent you the proposal <strong>${p.title}</strong> for the project <strong>${project.name}</strong>.</p><p>${isService ? "Price" : "Total"}: <strong>${priceSummary()}</strong>${proposalType === "plan" ? " — choose the term when accepting" : ""} · Valid until ${row.valid_until ?? "—"}</p><p>From the link you can review it, download the attachments, and accept it, ask for changes or reject it.</p>`,
+      ctaText: pes ? "Revisar propuesta" : "Review proposal", ctaUrl: link,
+      ...(r.can_decide ? {} : { footerNote: pes ? "Este enlace es de consulta: la decisión la toma otra persona de su equipo." : "This link is for viewing: someone else in your team makes the decision." }),
+    });
+    await sendEmail(r.email, `${p.title} — ${from}`, html);
+    await supabase.rpc("proposal_link_email_sent", { p_proposal: p.id, p_email: r.email }).then(() => {}, () => {});
+  }
+  async function resendTo(l) {
+    const r = { name: l.name, email: l.email, docs: l.docs ?? {}, can_decide: l.can_decide };
+    await emailRecipient(r, l.token, p);
+    await supabase.from("proposal_events").insert({ proposal_id: p.id, event: "resent", actor_id: auth.user?.id, actor_name: auth.profile?.full_name ?? null, note: l.email });
+  }
+
   async function send() {
     setBusy("send"); setError(null);
     try {
@@ -574,34 +612,7 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
       const { data: links, error: le } = await supabase.rpc("proposal_set_recipient_links", { p_proposal: p.id, p_recipients: withSettings });
       if (le) throw le;
       const tokenOf = email => (links ?? []).find(x => x.email === String(email).trim().toLowerCase())?.token;
-      const from = partner?.name ?? "Arena Solutions Platform";
-      for (const r of withSettings) {
-        const link = proposalLink(tokenOf(r.email) ?? row.token);
-        if (!r.docs.proposal) {
-          // Without the proposal: no price in the email; just what they can review.
-          const what = DOC_KEYS.filter(k => r.docs[k]).map(k => ({ deck: pes ? "la presentación" : "the presentation", summary: pes ? "el resumen técnico de los casos" : "the technical summary of the cases", attachments: pes ? "los documentos anexos" : "the attached documents" })[k]).filter(Boolean).join(", ");
-          const html = buildEmailHtml({
-            title: pes ? "Tienes documentos para revisar" : "You have documents to review",
-            preheader: p.title,
-            bodyHtml: pes
-              ? `<p>Hola ${r.name || ""},</p><p><strong>${from}</strong> compartió contigo ${what || "documentos"} de la propuesta <strong>${p.title}</strong> para el proyecto <strong>${project.name}</strong>.</p><p>Puedes revisarlos desde el enlace.</p>`
-              : `<p>Hello ${r.name || ""},</p><p><strong>${from}</strong> shared ${what || "documents"} of the proposal <strong>${p.title}</strong> for the project <strong>${project.name}</strong> with you.</p><p>You can review them from the link.</p>`,
-            ctaText: pes ? "Revisar documentos" : "Review documents", ctaUrl: link,
-          });
-          await sendEmail(r.email, `${p.title} — ${from}`, html);
-          continue;
-        }
-        const html = buildEmailHtml({
-          title: pes ? "Tienes una propuesta para revisar" : "You have a proposal to review",
-          preheader: `${p.title} — ${priceSummary()}`,
-          bodyHtml: pes
-            ? `<p>Hola ${r.name || ""},</p><p><strong>${from}</strong> te envió la propuesta <strong>${p.title}</strong> para el proyecto <strong>${project.name}</strong>.</p><p>${isService ? "Precio" : "Total"}: <strong>${priceSummary()}</strong>${proposalType === "plan" ? " — elige el período al aceptar" : ""} · Válida hasta ${row.valid_until ?? "—"}</p><p>Puedes revisarla, descargar los anexos y aceptarla, pedir cambios o rechazarla desde el enlace.</p>`
-            : `<p>Hello ${r.name || ""},</p><p><strong>${from}</strong> has sent you the proposal <strong>${p.title}</strong> for the project <strong>${project.name}</strong>.</p><p>${isService ? "Price" : "Total"}: <strong>${priceSummary()}</strong>${proposalType === "plan" ? " — choose the term when accepting" : ""} · Valid until ${row.valid_until ?? "—"}</p><p>From the link you can review it, download the attachments, and accept it, ask for changes or reject it.</p>`,
-          ctaText: pes ? "Revisar propuesta" : "Review proposal", ctaUrl: link,
-          ...(r.can_decide ? {} : { footerNote: pes ? "Este enlace es de consulta: la decisión la toma otra persona de su equipo." : "This link is for viewing: someone else in your team makes the decision." }),
-        });
-        await sendEmail(r.email, `${p.title} — ${from}`, html);
-      }
+      for (const r of withSettings) await emailRecipient(r, tokenOf(r.email) ?? row.token, row);
       logEvent("proposal.sent", { entityType: "project", entityId: project.id, entityName: p.title, metadata: { recipients: rec.map(r => r.email) } });
       setStep("view");
     } catch (e) { setError(e.message); }
@@ -831,7 +842,7 @@ Rules: NEVER write prices, rates, amounts or hours (the platform adds the hours)
       {/* Sent / answered */}
       {!isDraft && (
         <ProposalStatusView p={p} events={events} L={L} es={es} lang={lang} busy={busy}
-          onWithdraw={withdraw} onNewVersion={newVersion}
+          onWithdraw={withdraw} onNewVersion={newVersion} onResend={resendTo}
           onReopen={auth.profile?.role === "admin" && !["draft", "superseded"].includes(p.status) ? reopen : null} />
       )}
 
@@ -1442,22 +1453,48 @@ function SendStep({ p, setP, save, L, lang, busy, setError, attachments, totals,
   );
 }
 
-function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVersion, onReopen }) {
+function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVersion, onReopen, onResend }) {
   const [copied, setCopied] = useState(false);
   // Personal links (one per recipient): what each one got, and whether they opened it.
   const [links, setLinks] = useState([]);
   const [copiedTok, setCopiedTok] = useState(null);
-  useEffect(() => {
-    supabase.from("proposal_recipient_links").select("*").eq("proposal_id", p.id).eq("active", true).order("created_at")
-      .then(({ data }) => setLinks(data ?? []), () => {});
-  }, [p.id, p.status]);
+  const [views, setViews] = useState({});        // link_id → [{ viewed_at, kind, user_agent }]
+  const [resending, setResending] = useState(null);
+  const [resent, setResent] = useState({});
+  const loadLinks = () => supabase.from("proposal_recipient_links").select("*").eq("proposal_id", p.id).eq("active", true).order("created_at")
+    .then(async ({ data }) => {
+      setLinks(data ?? []);
+      const ids = (data ?? []).map(l => l.id);
+      if (!ids.length) return;
+      const { data: vs } = await supabase.from("proposal_link_views").select("link_id, viewed_at, kind, user_agent").in("link_id", ids).order("viewed_at");
+      const by = {}; (vs ?? []).forEach(v => { (by[v.link_id] ||= []).push(v); }); setViews(by);
+    }, () => {});
+  useEffect(() => { loadLinks(); }, [p.id, p.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function resend(l) {
+    if (!window.confirm(L(`Send the email with the personal link to ${l.email} again?`, `¿Enviar de nuevo el correo con el enlace personal a ${l.email}?`))) return;
+    setResending(l.id);
+    try { await onResend(l); setResent(r => ({ ...r, [l.id]: true })); await loadLinks(); }
+    catch (e) { alert(e.message); }
+    setResending(null);
+  }
+  // Opens of one link: by a person (interacted with the page), automatic (known scanner / preview
+  // browser), or not confirmed (loaded but nobody touched it — often a mail security scanner).
+  function openStats(l) {
+    const vs = views[l.id] ?? [];
+    const human = vs.filter(v => v.kind === "human").length;
+    const bot = vs.filter(v => v.kind === "bot").length;
+    const unconf = vs.filter(v => v.kind === "unconfirmed").length;
+    // Opens recorded before this tracking existed have no detail rows.
+    const legacy = Math.max(0, (l.views ?? 0) - vs.length);
+    return { human, bot, unconf, legacy, scannerLikely: human === 0 && (bot + unconf + legacy) > 0 };
+  }
   const DOC_SHORT = { proposal: L("Proposal", "Propuesta"), deck: L("Presentation", "Presentación"), summary: L("Summary", "Resumen"), attachments: L("Attachments", "Anexos") };
   const link = proposalLink(p.token);
   const evLabel = e => ({
-    created: L("Draft created", "Borrador creado"), sent: L("Sent", "Enviada"), viewed: L("Opened by the customer", "Abierta por el cliente"),
+    created: L("Draft created", "Borrador creado"), sent: L("Sent", "Enviada"), viewed: L("Read by the customer", "Leída por el cliente"),
     accepted: L("Accepted", "Aceptada"), rejected: L("Rejected", "Rechazada"), changes_requested: L("Changes requested", "Cambios solicitados"),
     withdrawn: L("Withdrawn", "Retirada"), superseded: L("Replaced by a new version", "Reemplazada por una nueva versión"),
-    reopened: L("Back to draft", "Vuelta a borrador"),
+    reopened: L("Back to draft", "Vuelta a borrador"), resent: L("Email resent", "Correo reenviado"),
   }[e] ?? e);
   const open = ["sent", "viewed", "changes_requested"].includes(p.status);
   return (
@@ -1510,7 +1547,40 @@ function ProposalStatusView({ p, events, L, es, lang, busy, onWithdraw, onNewVer
                     {Object.entries(DOC_SHORT).filter(([k]) => l.docs?.[k]).map(([k, t]) => <span key={k} className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">{t}</span>)}
                     {l.can_decide && <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold">{L("Can decide", "Puede decidir")}</span>}
                   </div>
-                  <div className="text-[11px] text-gray-500">{l.views ? `${L("Opened", "Abierto")} ${l.views}× · ${L("last", "último")} ${new Date(l.last_viewed_at).toLocaleString()}` : L("Not opened yet", "Aún no lo abre")}</div>
+                  {(() => {
+                    const st = openStats(l);
+                    return (
+                      <div className="text-[11px] text-gray-500 space-y-0.5">
+                        {!l.views ? <div>{L("Not opened yet", "Aún no lo abre")}</div> : (
+                          <>
+                            {st.human > 0 && <div className="flex items-center gap-1 text-emerald-700"><_LUserCheck size={12} />{L(`Read by a person ${st.human}× · last`, `Leído por una persona ${st.human}× · último`)} {new Date(l.last_human_at).toLocaleString()}</div>}
+                            {(st.bot + st.unconf + st.legacy) > 0 && (
+                              <div>{L("Other opens", "Otras aperturas")}: {st.bot + st.unconf + st.legacy}× ({[
+                                st.bot ? L(`${st.bot} automatic`, `${st.bot} automáticas`) : null,
+                                st.unconf ? L(`${st.unconf} without interaction`, `${st.unconf} sin interacción`) : null,
+                                st.legacy ? L(`${st.legacy} before tracking`, `${st.legacy} sin detalle`) : null,
+                              ].filter(Boolean).join(", ")}) · {L("last", "último")} {new Date(l.last_viewed_at).toLocaleString()}</div>
+                            )}
+                            {st.scannerLikely && (
+                              <div className="flex items-start gap-1 text-amber-700"><_LShieldAlert size={12} className="flex-shrink-0 mt-px" />
+                                {L("No confirmed reading by a person: the opens may come from a mail security scanner. If they say they did not get the email, check their spam / quarantine or resend it.",
+                                   "Sin lectura confirmada por una persona: las aperturas pueden ser de un escáner de seguridad del correo. Si dicen que no les llegó, que revisen spam / cuarentena, o reenvíalo.")}</div>
+                            )}
+                          </>
+                        )}
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <span className="text-gray-400">{l.emails_sent ? L(`Emails sent: ${l.emails_sent} · last ${new Date(l.last_email_at).toLocaleString()}`, `Correos enviados: ${l.emails_sent} · último ${new Date(l.last_email_at).toLocaleString()}`) : ""}</span>
+                          {open && onResend && (
+                            <button onClick={() => resend(l)} disabled={resending === l.id}
+                              className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-gray-200 text-gray-600 hover:text-blue-700 hover:border-blue-200 disabled:opacity-50">
+                              {resending === l.id ? <Loader2 size={11} className="animate-spin" /> : resent[l.id] ? <Check size={11} /> : <_LSend size={11} />}
+                              {resent[l.id] ? L("Sent", "Enviado") : L("Resend email", "Reenviar correo")}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
