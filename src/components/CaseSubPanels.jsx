@@ -1673,12 +1673,31 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   }
 
   // Findings of the coverage check and the proposal validation, for the spec prompts.
+  // The live SAP check (end of the analysis summary) is what the customer's system really has:
+  // existing extensions, objects that do not exist, Clean Core release states. Sent as its own
+  // block that overrides the documents, so a spec never proposes to build what already exists or
+  // to use an object the system does not have.
+  function liveSapFindingsBlock(summary = requestSummary) {
+    const txt = String(summary ?? '');
+    const tbl = txt.search(/\|\s*Object\s*\|\s*Type\s*\|\s*Status/i);
+    if (tbl < 0) return '';
+    const head = txt.lastIndexOf('\n## ', tbl);
+    const section = txt.slice(head >= 0 ? head + 1 : tbl).trim();
+    if (!section) return '';
+    return `\n\nLIVE SAP SYSTEM FINDINGS — verified with read-only tools in the customer's SAP system during the analysis. They are FACTS about the system and OVERRIDE the customer documents and any earlier assumption:
+- Build on the existing extensions listed here (custom fields, appends, Z objects): do not propose to create again something that already exists; name the real objects.
+- Do not design around objects marked "Not found": say the document's proposal does not exist in the system and use the existing alternative (or keep it as an open point).
+- Respect the Clean Core states: prefer released (C0/C1) and key-user options; an object marked "Not released" may only be used as a documented, encapsulated classic exception, and the spec must say so.
+- Cite this check as "verificación en el sistema" when you use it.
+${sanitizeForJson(section)}`;
+  }
   function analysisFindingsBlock(sc = sapCheck, pc = proposalCheck) {
     const parts = [];
     if (sc?.gaps?.length) parts.push(`Standard SAP coverage (${sc.coverage ?? '—'}) — gaps that need development:\n${sc.gaps.map(g => `- ${g}`).join('\n')}${sc.recommendation ? `\nRecommendation: ${sc.recommendation}` : ''}`);
     if (pc?.concerns?.length) parts.push(`Proposal validation (score ${pc.score ?? '—'}/10) — concerns:\n${pc.concerns.map(c => `- ${c}`).join('\n')}${pc.recommendation ? `\nRecommendation: ${pc.recommendation}` : ''}`);
-    if (!parts.length) return '';
-    return `\n\nANALYSIS FINDINGS — address every point in the specification. When a point cannot be resolved from the customer's documents, list it in Assumptions / Next Steps as an open question for the customer (do not silently drop it):\n${parts.join('\n\n')}`;
+    const live = liveSapFindingsBlock();
+    if (!parts.length) return live;
+    return live + `\n\nANALYSIS FINDINGS — address every point in the specification. When a point cannot be resolved from the customer's documents, list it in Assumptions / Next Steps as an open question for the customer (do not silently drop it):\n${parts.join('\n\n')}`;
   }
 
   // ── Requirement traceability (src/lib/requirements.js) ──────
