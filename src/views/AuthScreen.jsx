@@ -4,6 +4,7 @@ import {
   Globe, Handshake, Loader2, Mail, Send, Shield, TrendingUp, UserCheck, UserCog,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { trackLanding } from "../lib/landingTrack.js";
 import { useT } from "../i18n/index.jsx";
 import { usePlatformBranding, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { Input } from "../components/ui.jsx";
@@ -340,6 +341,7 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
         await supabase.auth.updateUser({ password, data: { full_name: name.trim(), role, ...partnerMeta } });
         const { data: { user } } = await supabase.auth.getUser();
         userId = user.id; userEmail = user.email;
+        trackLanding("signup", { role: asPartner ? "partner" : asSeller ? "seller" : role });
       } else {
         // Admin-approval path: sign up with email+password directly
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
@@ -356,6 +358,7 @@ function AuthScreen({ onAuth, onBack, resumeUser = null, onSignOut = null }) {
         }
         if (!signUpData.user) { setError("Registration failed — please try again."); setLoad(false); return; }
         userId = signUpData.user.id; userEmail = signUpData.user.email;
+        trackLanding("signup", { role: asPartner ? "partner" : asSeller ? "seller" : role });
         // The sign-up trigger has already created a pending users row from the
         // full_name/role metadata above, so the admin approval tab can see them
         // even while email confirmation is outstanding.

@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import "./index.css";
 import App from "../arena-v1.jsx";
+import { Analytics } from "@vercel/analytics/react";
 
 // Service worker (auto update). Besides the check at load, look for a new version whenever the
 // user comes back to the tab (at most every 10 minutes), so a tab or installed app left open
@@ -23,5 +24,7 @@ registerSW({
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <App />
+    {/* Vercel Web Analytics (Vercel → project → Analytics): visits, countries, referrers, devices. */}
+    <Analytics />
   </StrictMode>
 );

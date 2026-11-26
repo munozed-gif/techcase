@@ -1,3 +1,4 @@
+import { trackLanding, ctaClick } from "../lib/landingTrack.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { Tm } from "../components/BrandMark.jsx";
@@ -1362,15 +1363,17 @@ function ArenaPromoSection({ tl, lang, onSignIn, bullets }) {
     return () => io.disconnect();
   }, [phase]);
 
-  function finish() {
+  const played = useRef(false);
+  function finish(reachedEnd = false) {
     if (ending.current) return;
     ending.current = true;
+    if (reachedEnd) trackLanding("video_complete", { sound: withSound.current ? "on" : "off" });
     videoRef.current?.pause();
     fromRect.current = frameRef.current?.getBoundingClientRect() ?? null;
     setAnimate(true);
     setPhase("done");
   }
-  function watchAgain() { withSound.current = true; setPhase("band"); }
+  function watchAgain() { withSound.current = true; played.current = false; setPhase("band"); }
 
   // Shrink: start the small frame where the band was, then let it glide into place.
   useLayoutEffect(() => {
@@ -1401,12 +1404,13 @@ function ArenaPromoSection({ tl, lang, onSignIn, bullets }) {
           <div className="pv-band-frame" ref={frameRef}>
             <video key={lang} ref={videoRef} className="pv-video" playsInline muted preload="metadata"
               poster="/media/arena-promo-poster.jpg" aria-label={tl("pv_aria")}
-              onTimeUpdate={e => { if (e.currentTarget.currentTime >= PV_END_AT) finish(); }}
-              onEnded={finish}>
+              onPlay={() => { if (!played.current) { played.current = true; trackLanding("video_play", { sound: withSound.current ? "on" : "off" }); } }}
+              onTimeUpdate={e => { if (e.currentTarget.currentTime >= PV_END_AT) finish(true); }}
+              onEnded={() => finish(true)}>
               <source src="/media/arena-promo.webm" type="video/webm" />
               <source src="/media/arena-promo.mp4" type="video/mp4" />
             </video>
-            <button type="button" className="pv-skip" onClick={finish}>{tl("pv_skip")} ✕</button>
+            <button type="button" className="pv-skip" onClick={() => finish(false)}>{tl("pv_skip")} ✕</button>
           </div>
         </div>
       )}
@@ -1431,8 +1435,8 @@ function ArenaPromoSection({ tl, lang, onSignIn, bullets }) {
                   {tl("pv_again")}
                 </button>
                 <div className="pv-ctas">
-                  <button type="button" className="btn-hero btn-hero-primary" onClick={onSignIn}>{tl("pv_cta_trial")}</button>
-                  <button type="button" className="btn-hero btn-hero-outline" onClick={onSignIn}>{tl("pv_cta_join")}</button>
+                  <button type="button" className="btn-hero btn-hero-primary" onClick={ctaClick(onSignIn)}>{tl("pv_cta_trial")}</button>
+                  <button type="button" className="btn-hero btn-hero-outline" onClick={ctaClick(onSignIn)}>{tl("pv_cta_join")}</button>
                 </div>
               </div>
             </div>
@@ -1671,6 +1675,8 @@ function DemoCarousel({ tl }) {
 }
 
 export function LandingView({ onSignIn }) {
+  // One page view per visit of the landing (statistics in Settings → Visits).
+  useEffect(() => { trackLanding("pageview"); }, []);
   const [lang, setLang] = useState(() => {
     // Spanish by default; English only when the visitor chose it with the EN switch.
     try { const s = localStorage.getItem("tc_lang"); return s === "en" ? "en" : "es"; } catch { return "es"; }
@@ -1777,8 +1783,8 @@ export function LandingView({ onSignIn }) {
         </div>
         <div className="nav-cta">
           <button className="btn-ghost" onClick={toggleLang} style={{minWidth:40,fontWeight:700,letterSpacing:".04em"}}>{tl("lang_btn")}</button>
-          <button className="btn-ghost" onClick={onSignIn}>{tl("nav_signin")}</button>
-          <button className="btn-primary" onClick={onSignIn}>{tl("nav_start")}</button>
+          <button className="btn-ghost" onClick={ctaClick(onSignIn)}>{tl("nav_signin")}</button>
+          <button className="btn-primary" onClick={ctaClick(onSignIn)}>{tl("nav_start")}</button>
         </div>
       </nav>
 
@@ -1794,7 +1800,7 @@ export function LandingView({ onSignIn }) {
             <h1><em style={{fontSize:"1.2em",display:"block",lineHeight:1}}>Arena</em>{tl("hero_h1a")}<br />{tl("hero_h1b")}</h1>
             <p className="hero-sub">{tl("hero_sub")}</p>
             <div className="hero-actions">
-              <button className="btn-hero btn-hero-primary" onClick={onSignIn}>{tl("hero_trial")}</button>
+              <button className="btn-hero btn-hero-primary" onClick={ctaClick(onSignIn)}>{tl("hero_trial")}</button>
               <a href="#demo" className="btn-hero btn-hero-outline"><Play size={14} style={{verticalAlign:"-2px",marginRight:6}} />{tl("hero_demo")}</a>
             </div>
             <div className="hero-trust">
@@ -2403,7 +2409,7 @@ export function LandingView({ onSignIn }) {
                 <div className="price-amount">$0<small>/mo</small></div>
                 <div className="price-period">{tl("pc_free_period")}</div>
                 <ul className="price-features">{tl("pc_free_f").map(f=><li key={f}>{f}</li>)}</ul>
-                <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_start")}</button>
+                <button className="price-cta price-cta-outline" onClick={ctaClick(onSignIn)}>{tl("btn_start")}</button>
               </div>
               <div className="price-card featured">
                 <div className="price-badge">{tl("pc_pro_badge")}</div>
@@ -2411,7 +2417,7 @@ export function LandingView({ onSignIn }) {
                 <div className="price-amount">$29<small>/mo</small></div>
                 <div className="price-period">{tl("pc_pro_period")}</div>
                 <ul className="price-features">{tl("pc_pro_f").map(f=><li key={f}>{f}</li>)}</ul>
-                <button className="price-cta price-cta-filled" onClick={onSignIn}>{tl("btn_upgrade")}</button>
+                <button className="price-cta price-cta-filled" onClick={ctaClick(onSignIn)}>{tl("btn_upgrade")}</button>
               </div>
             </div>
           )}
@@ -2424,7 +2430,7 @@ export function LandingView({ onSignIn }) {
                 <div className="price-amount">$0<small>/mo</small></div>
                 <div className="price-period">{tl("cl_free_period")}</div>
                 <ul className="price-features">{tl("cl_free_f").map(f=><li key={f}>{f}</li>)}</ul>
-                <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_start")}</button>
+                <button className="price-cta price-cta-outline" onClick={ctaClick(onSignIn)}>{tl("btn_start")}</button>
               </div>
               <div className="price-card featured">
                 <div className="price-badge">{tl("cl_growth_badge")}</div>
@@ -2432,14 +2438,14 @@ export function LandingView({ onSignIn }) {
                 <div className="price-amount">$149<small>/mo</small></div>
                 <div className="price-period">{tl("cl_growth_period")}</div>
                 <ul className="price-features">{tl("cl_growth_f").map(f=><li key={f}>{f}</li>)}</ul>
-                <button className="price-cta price-cta-filled" onClick={onSignIn}>{tl("btn_trial")}</button>
+                <button className="price-cta price-cta-filled" onClick={ctaClick(onSignIn)}>{tl("btn_trial")}</button>
               </div>
               <div className="price-card">
                 <div className="price-name">{tl("cl_ent_name")}</div>
                 <div className="price-amount">{tl("cl_ent_custom")}<small>/mo</small></div>
                 <div className="price-period">{tl("cl_ent_period")}</div>
                 <ul className="price-features">{tl("cl_ent_f").map(f=><li key={f}>{f}</li>)}</ul>
-                <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_contact")}</button>
+                <button className="price-cta price-cta-outline" onClick={ctaClick(onSignIn)}>{tl("btn_contact")}</button>
               </div>
             </div>
           )}
@@ -2452,7 +2458,7 @@ export function LandingView({ onSignIn }) {
                 <div className="price-amount">$99<small>/mo</small></div>
                 <div className="price-period">{tl("hh_pro_period")}</div>
                 <ul className="price-features">{tl("hh_pro_f").map(f=><li key={f}>{f}</li>)}</ul>
-                <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_start")}</button>
+                <button className="price-cta price-cta-outline" onClick={ctaClick(onSignIn)}>{tl("btn_start")}</button>
               </div>
               <div className="price-card featured">
                 <div className="price-badge">{tl("hh_agency_badge")}</div>
@@ -2460,7 +2466,7 @@ export function LandingView({ onSignIn }) {
                 <div className="price-amount">$249<small>/mo</small></div>
                 <div className="price-period">{tl("hh_agency_period")}</div>
                 <ul className="price-features">{tl("hh_agency_f").map(f=><li key={f}>{f}</li>)}</ul>
-                <button className="price-cta price-cta-filled" onClick={onSignIn}>{tl("btn_upgrade")}</button>
+                <button className="price-cta price-cta-filled" onClick={ctaClick(onSignIn)}>{tl("btn_upgrade")}</button>
               </div>
             </div>
           )}
@@ -2474,8 +2480,8 @@ export function LandingView({ onSignIn }) {
         <h2>{tl("cta_h2")}</h2>
         <p>{tl("cta_p")}</p>
         <div className="cta-actions">
-          <button className="btn-hero btn-hero-primary" onClick={onSignIn}>{tl("hero_trial")}</button>
-          <button className="btn-hero btn-hero-outline" onClick={onSignIn}>Schedule a demo</button>
+          <button className="btn-hero btn-hero-primary" onClick={ctaClick(onSignIn)}>{tl("hero_trial")}</button>
+          <button className="btn-hero btn-hero-outline" onClick={ctaClick(onSignIn)}>Schedule a demo</button>
         </div>
       </section>
 

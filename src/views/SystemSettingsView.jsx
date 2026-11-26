@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, Component } from "react";
 import { PAYMENT_PROVIDERS, paymentGateway } from "../lib/payments.js";
 import { LegalSettings } from "../components/Legal.jsx";
+import { LandingStats } from "../components/LandingStats.jsx";
+import { BarChart3 as _LBarChart3 } from "lucide-react";
 import { ScrollText } from "lucide-react";
 import {
   Activity, AlertCircle, AlertTriangle, BadgeCheck, BarChart2, Briefcase,
@@ -6323,6 +6325,7 @@ function SystemSettingsView({ auth, onNavigate }) {
     { id: "sales",       label: "Sales",            Icon: TrendingUp },
     { id: "platform",    label: "Platform",         Icon: Sparkles },
     { id: "legal",       label: "Legal",            Icon: ScrollText },
+    ...(auth?.profile?.role === "admin" ? [{ id: "visits", label: "Visits", Icon: _LBarChart3 }] : []),
     { id: "audit",       label: "Audit Events",     Icon: ClipboardList },
   ];
 
@@ -6361,6 +6364,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       {activeTab === "sap_vm"      && <div className="p-6"><SettingsSapVmTab ssCtx={ssCtx} /></div>}
       {activeTab === "area_leaders" && <SettingsAreaLeadersTab ssCtx={ssCtx} />}
       {activeTab === "legal" && <LegalSettings isAdmin={auth?.profile?.role === "admin"} />}
+      {activeTab === "visits" && auth?.profile?.role === "admin" && <LandingStats />}
       {activeTab === "headhunter"  && <SettingsHeadhunterTab ssCtx={ssCtx} />}
       {activeTab === "sales"       && <SettingsSalesTab ssCtx={ssCtx} auth={auth} />}
       {activeTab === "platform"    && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}
