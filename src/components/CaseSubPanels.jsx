@@ -35,7 +35,7 @@ import { callClaude, logEvent, notify, notifyManagers, sendEmailToUser, sendEmai
 import { useCaseDocuments } from "../hooks/useCoreHooks.js";
 import { useCaseSpecification } from "../hooks/useNotificationHooks.js";
 import { useSpecGenTemplates } from "../hooks/useLifecycleHooks.js";
-import { Badge, Spinner } from "../components/ProfileComponents.jsx";
+import { Badge } from "../components/ProfileComponents.jsx";
 import { Input, Textarea } from "../components/ui.jsx";
 import { fmtDate, fmt, cap } from "../lib/uiUtils.jsx";
 import {
@@ -126,6 +126,11 @@ const STAGE_ICON_MAP = {
   completed: CheckCircle2, terminated: Archive, cancelled: X,
   screening: Search, shortlisted: Star, sourcing: Search,
 };
+// Small inline spinner (the shared Spinner is a 192 px tall block meant for whole-page loading).
+function MiniSpin({ light = false }) {
+  return <span className={`inline-block w-4 h-4 rounded-full border-2 animate-spin flex-shrink-0 ${light ? 'border-white/40 border-t-white' : 'border-blue-200 border-t-blue-600'}`} aria-hidden="true" />;
+}
+
 function getStageIcon(key) { return STAGE_ICON_MAP[key] ?? Flag; }
 
 function CaseLifecycleTrack({ stages, currentStatus, onStageClick }) {
@@ -884,7 +889,7 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError,
 
       {loading && (
         <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-          <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
+          <MiniSpin /><span className="text-sm">{t("spec.gen_all_loading")}</span>
         </div>
       )}
       {fetchErr && (
@@ -915,7 +920,7 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError,
       )}
       {!protoSaved && (generatingSpecs || isRegeneratingProto) && (
         <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-          <Spinner /><span className="text-sm">{isRegeneratingProto ? t("spec.proto_generating") : t("spec.gen_all_loading")}</span>
+          <MiniSpin /><span className="text-sm">{isRegeneratingProto ? t("spec.proto_generating") : t("spec.gen_all_loading")}</span>
         </div>
       )}
       {!protoSaved && !generatingSpecs && !isRegeneratingProto && (
@@ -1635,8 +1640,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
           {allOk && <span className="text-[10px] font-medium text-green-600 dark:text-green-400 flex items-center gap-1"><CheckCircle2 size={10} />{L('Ready to generate', 'Listo para generar')}</span>}
           {!specApproved && (
             <button onClick={handleRunAllAnalysis} disabled={busy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50">
-              {runningAll ? <><Spinner />{L('Running analysis…', 'Ejecutando análisis…')}</> : <><RefreshCw size={12} />{L('Run all analysis', 'Ejecutar todo el análisis')}</>}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 whitespace-nowrap">
+              {runningAll ? <><RefreshCw size={12} className="animate-spin" />{L('Running analysis…', 'Ejecutando análisis…')}</> : <><RefreshCw size={12} />{L('Run all analysis', 'Ejecutar todo el análisis')}</>}
             </button>
           )}
         </div>
@@ -4851,7 +4856,6 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     const summaryIn = opts.summary !== undefined ? opts.summary : requestSummary;
     let result = null;
     setAiStep(1);             // drives the "running" spinner on the step and in its panel
-    setActiveNode(1);
     setStepLoading(true);
     setAiError(null);
     setSapCheck(null);
@@ -4899,7 +4903,6 @@ Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words
       }
       setSapCheck(parsed);
       setAiStep(2);
-      setActiveNode(1); // show SAP result
       await markAnalysisStep('coverage', { sapCheck: parsed, proposalCheck: null });
       result = parsed;
     } catch (e) { setAiError(e.message); }
@@ -4913,7 +4916,6 @@ Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words
     if (!sc) return null;
     let result = null;
     setAiStep(2);             // drives the "running" spinner on the step and in its panel
-    setActiveNode(2);
     setStepLoading(true);
     setAiError(null);
     setProposalCheck(null);
@@ -4963,7 +4965,6 @@ Respond with ONLY a valid JSON object, no markdown fences:
       await markAnalysisStep('validation', { sapCheck: sc, proposalCheck: parsed });
       result = parsed;
       setAiStep(3);
-      setActiveNode(3); // auto-advance to generate step
     } catch (e) { setAiError(e.message); }
     setStepLoading(false);
     return result;
@@ -5071,7 +5072,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
   if (specLoading) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-400">
-        <Spinner />
+        <MiniSpin />
         <span className="ml-3 text-sm">{t("label.loading")}</span>
       </div>
     );
@@ -5335,7 +5336,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
           {wizardLoading && (
             <div className="flex items-center justify-center py-12 gap-3 text-gray-400">
-              <Spinner />
+              <MiniSpin />
               <span className="text-sm">{t("spec.wiz_analyzing")}</span>
             </div>
           )}
@@ -5422,7 +5423,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
           {wizardLoading && (
             <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-              <Spinner />
+              <MiniSpin />
               <span className="text-sm">{t("spec.wiz_gen_qs").replace("{n}", curObj?.type ?? "")}</span>
             </div>
           )}
@@ -5494,7 +5495,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
           {wizardLoading && (
             <div className="flex items-center justify-center py-12 gap-3 text-gray-400">
-              <Spinner />
+              <MiniSpin />
               <span className="text-sm">{t("spec.compiling")}</span>
             </div>
           )}
@@ -5570,6 +5571,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
     const specHasFailed = (key) =>
       specStatuses[key] === 'error' ||
       (!SUB.find(s => s.key === key)?.content && anySpecExists && !generatingSpecs);
+    // Any analysis step running (one step or "Run all"): the Compiled Context node shows it.
+    const analysisBusy = runningAll || stepLoading || requestSummaryLoading || reqLoading === 'extract' || qLoading;
     const NodeBtn = ({ id, icon: Icon, title, sub, status, isActive, canClick, onClick, children }) => {
       const sc = {
         complete: { ring: 'border-green-400',  bg: 'bg-green-50',   circ: 'bg-green-500',  txt: 'text-green-700',  sub: 'text-green-600' },
@@ -5583,7 +5586,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           <button onClick={onClick} disabled={!canClick}
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl border-2 text-left transition-all ${sc.bg} ${isActive ? 'border-blue-500 shadow-md' : sc.ring} ${canClick ? 'cursor-pointer hover:shadow-sm' : 'cursor-not-allowed'}`}>
             <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${sc.circ}`}>
-              {status === 'running' ? <Spinner />
+              {status === 'running' ? <MiniSpin light />
                : <Icon size={14} className={status === 'complete' ? 'text-white' : status === 'locked' ? 'text-gray-300' : 'text-gray-500'} />}
             </div>
             <div className="flex-1 min-w-0">
@@ -5668,8 +5671,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
               {/* Node 6: Compiled Context — the analysis, with its checks as sub-items (like the specs under Generate) */}
               <NodeBtn id={6} icon={Code2}
                 title={t("spec.compiled_ctx_lbl") || "Compiled Context"}
-                sub={requestSummaryLoading ? (t("spec.checking") || "Analyzing…") : requestSummary ? (t("spec.compiled_ctx_ready") || "Analysis ready") : (t("spec.compiled_ctx_sub") || "Assembled prompt context")}
-                status={requestSummaryLoading ? 'running' : (requestSummary || compiledCtxPreview) ? 'complete' : 'pending'}
+                sub={analysisBusy ? (t("spec.checking") || "Analyzing…") : requestSummary ? (t("spec.compiled_ctx_ready") || "Analysis ready") : (t("spec.compiled_ctx_sub") || "Assembled prompt context")}
+                status={analysisBusy ? 'running' : (requestSummary || compiledCtxPreview) ? 'complete' : 'pending'}
                 isActive={activeNode===6}
                 canClick={true}
                 onClick={() => setActiveNode(6)}
@@ -5811,7 +5814,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           <option value="">{L('Project default', 'Predeterminado del proyecto')}{projDefault ? ` — ${envLabel(projDefault)}` : ''}</option>
                           {sapEnvChoice.envs.map(e => <option key={e.id} value={e.id}>{envLabel(e)}</option>)}
                         </select>
-                        {(sapEnvSaving || sapConnLoading) && <Spinner />}
+                        {(sapEnvSaving || sapConnLoading) && <MiniSpin />}
                       </div>
                       <p className="text-[11px] text-gray-500">{sapEnvChoice.caseEnvId
                         ? L('This case uses its own environment; the other cases of the project keep theirs.', 'Este caso usa su propio ambiente; los demás casos del proyecto mantienen el suyo.')
@@ -5834,7 +5837,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
                 {(effectiveBaseCheck || caseLiveCheck === true) && (sapConnLoading || !sapConnInfo) && (
                   <div className="flex items-center justify-center py-8 gap-2 text-gray-400">
-                    <Spinner /><span className="text-sm">{t("spec.checking")}</span>
+                    <MiniSpin /><span className="text-sm">{t("spec.checking")}</span>
                   </div>
                 )}
 
@@ -5943,7 +5946,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                               : 'bg-white border border-blue-300 text-blue-700 hover:bg-blue-50 dark:bg-red-900 dark:border-red-600 dark:text-red-300 dark:hover:bg-red-800'
                         }`}>
                         {sapConnTest === 'testing'
-                          ? <><Spinner />{t("spec.sap_conn_testing")}</>
+                          ? <><MiniSpin />{t("spec.sap_conn_testing")}</>
                           : sapConnTest?.ok
                             ? <><CheckCircle2 className="w-3.5 h-3.5" />{t("spec.sap_conn_test_btn")}</>
                             : <><Zap className="w-3.5 h-3.5" />{t("spec.sap_conn_test_btn")}</>}
@@ -6421,7 +6424,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       <h3 className="text-sm font-semibold text-indigo-800 mb-1">Project Documents</h3>
                       <p className="text-xs text-indigo-500 mb-3">Reference docs configured for this project</p>
                       {projDocsForDisplay === null ? (
-                        <div className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 py-1"><Spinner /><span>Loading…</span></div>
+                        <div className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 py-1"><MiniSpin /><span>Loading…</span></div>
                       ) : projDocsForDisplay.length === 0 ? (
                         <p className="text-xs text-gray-400 italic">No project documents configured</p>
                       ) : (
@@ -6447,7 +6450,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       <h3 className="text-sm font-semibold text-amber-800 mb-1">ABAP Standards Documents</h3>
                       <p className="text-xs text-amber-600 mb-3">Naming conventions &amp; coding standards — sent as context when generating technical specs</p>
                       {abapDocsForDisplay === null ? (
-                        <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 py-1"><Spinner /><span>Loading…</span></div>
+                        <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 py-1"><MiniSpin /><span>Loading…</span></div>
                       ) : abapDocsForDisplay.length === 0 ? (
                         <p className="text-xs text-gray-400 italic">No ABAP standards documents configured for this project</p>
                       ) : (
@@ -6794,7 +6797,7 @@ ${result}`;
                     {!ctxCollapsed && (
                       <div className="px-4 pb-4 space-y-2 border-t border-gray-100">
                         {compiledCtxLoading && (
-                          <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400"><Spinner /><span>Loading context from enabled sources…</span></div>
+                          <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400"><MiniSpin /><span>Loading context from enabled sources…</span></div>
                         )}
                         {!compiledCtxPreview && !compiledCtxLoading && (
                           <div className="pt-3">
@@ -6848,7 +6851,7 @@ ${result}`;
                                               {summary
                                                 ? summary
                                                 : d.text
-                                                  ? <span className="flex items-center gap-1 text-gray-400 italic"><Spinner /><span>Summarizing…</span></span>
+                                                  ? <span className="flex items-center gap-1 text-gray-400 italic"><MiniSpin /><span>Summarizing…</span></span>
                                                   : <span className="text-gray-400 italic">Binary file — content not extractable as text</span>
                                               }
                                             </div>
@@ -7316,7 +7319,7 @@ ${result}`;
                           {canDownloadPdf ? (
                             <button onClick={handleDownloadSpec} disabled={!selectedSpec || downloadingPdf}
                               className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white disabled:opacity-40 flex items-center gap-1">
-                              {downloadingPdf ? <><Spinner />&nbsp;PDF…</> : <><Download size={12} />PDF</>}
+                              {downloadingPdf ? <><MiniSpin />&nbsp;PDF…</> : <><Download size={12} />PDF</>}
                             </button>
                           ) : (
                             <span title="Upgrade to download PDFs" className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-400 rounded-lg flex items-center gap-1 cursor-not-allowed opacity-50">
@@ -7439,7 +7442,7 @@ ${result}`;
                           </div>
                         ) : selectedSpec === 'd' && generatingSpecD ? (
                           <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-                            <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
+                            <MiniSpin /><span className="text-sm">{t("spec.gen_all_loading")}</span>
                           </div>
                         ) : (
                           (() => {
