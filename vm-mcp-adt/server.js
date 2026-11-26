@@ -274,7 +274,9 @@ const MAX_POOL_CLIENTS = Number(process.env.MAX_SAP_CONNECTIONS) ||
   Math.max(2, Math.min(16, Math.floor((os.totalmem() / 1048576 - 1200) / 180)));
 const CLIENT_IDLE_MS = Number(process.env.SAP_CONNECTION_IDLE_MINUTES ?? 15) * 60 * 1000;
 // Pool key of a SAP connection (same format getClient() uses), in the current request's network.
-function poolKeyFor(host, user, serverType) { return `${host}|${user}|${serverType}|${currentNet()?.id ?? 'vm'}`; }
+// The SAP client (mandante) is part of the key: the same user on another client of the same server
+// is a different session (a pooled login to client 100 must never answer for client 120).
+function poolKeyFor(host, user, serverType, client) { return `${host}|${client ?? ''}|${user}|${serverType}|${currentNet()?.id ?? 'vm'}`; }
 function touchClient(key) { const m = clientMeta.get(key); if (m) m.lastUsed = Date.now(); }
 function closeClient(key, why) {
   const c = clientPool.get(key);
@@ -312,7 +314,7 @@ async function getClient(creds) {
   const adtScript = ADT_SCRIPTS[serverType] ?? ADT_SCRIPTS['abap-adt'];
 
   const vnet = currentNet();
-  const key = `${sapUrl}|${sapUser}|${serverType}|${vnet?.id ?? 'vm'}`;
+  const key = poolKeyFor(sapUrl, sapUser, serverType, sapClient);
   // Fast path — subprocess already connected
   if (clientPool.has(key)) { touchClient(key); return clientPool.get(key); }
 
@@ -948,7 +950,7 @@ app.post('/mcp-test', async (req, res) => {
   } catch (e) {
     rw.error = e.message?.slice(0, 150) ?? 'spawn failed';
   } finally {
-    const rwKey = poolKeyFor(host, username, 'abap-adt');
+    const rwKey = poolKeyFor(host, username, 'abap-adt', sapClient);
     if (clientPool.has(rwKey)) {
       try { clientPool.get(rwKey).close?.(); } catch {}
       clientPool.delete(rwKey);
@@ -964,7 +966,7 @@ app.post('/mcp-test', async (req, res) => {
   } catch (e) {
     ro.error = e.message?.slice(0, 150) ?? 'spawn failed';
   } finally {
-    const roKey = poolKeyFor(host, username, 'abap-adt-readonly');
+    const roKey = poolKeyFor(host, username, 'abap-adt-readonly', sapClient);
     if (clientPool.has(roKey)) {
       try { clientPool.get(roKey).close?.(); } catch {}
       clientPool.delete(roKey);
@@ -1325,7 +1327,7 @@ app.post('/sap-write-mcp', async (req, res) => {
         }
         return result;
       }
-      const poolKey = poolKeyFor(host, username, 'abap-adt');
+      const poolKey = poolKeyFor(host, username, 'abap-adt', sapClient);
       async function respawn() {
         try { clientPool.get(poolKey)?.close?.(); } catch {}
         clientPool.delete(poolKey);
@@ -1466,7 +1468,7 @@ app.post('/sap-write-mcp', async (req, res) => {
       console.log(`[bridge] [timing] createOnly start: ${objtype} ${resolvedName} pkg=${parentName} tr=${transport || 'none'}`);
       // Evict R/O subprocess from pool before spawning R+W — prevents simultaneous
       // subprocesses that exhaust VM memory (OOM/SIGKILL).
-      const roKey = poolKeyFor(host, username, 'abap-adt-readonly');
+      const roKey = poolKeyFor(host, username, 'abap-adt-readonly', sapClient);
       if (clientPool.has(roKey)) {
         try { clientPool.get(roKey).close?.(); } catch {}
         clientPool.delete(roKey);
