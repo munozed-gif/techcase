@@ -1927,12 +1927,23 @@ ${md}`;
         label: L('Customer questions answered or acknowledged', 'Preguntas al cliente respondidas o aceptadas como supuesto'),
         detail: open.length ? L(`${open.length} open${pendingLinks.length ? ' — waiting for the customer' : ''}`, `${open.length} abiertas${pendingLinks.length ? ' — esperando al cliente' : ''}`)
           : live.length ? L(`${live.filter(q => q.status === 'answered').length} answered · ${live.filter(q => q.status === 'acknowledged').length} as assumptions`, `${live.filter(q => q.status === 'answered').length} respondidas · ${live.filter(q => q.status === 'acknowledged').length} como supuesto`) : '' },
+      { key: 'analysis_in_spec', ok: analysisAfterSpec().length === 0,
+        label: L('The spec was generated after the last analysis', 'La spec se generó después del último análisis'),
+        detail: analysisAfterSpec().length ? L(`Run after the spec: ${analysisAfterSpec().map(k => ANALYSIS_STEP_LABEL[k]).join(', ')} — regenerate`, `Ejecutado después de la spec: ${analysisAfterSpec().map(k => ANALYSIS_STEP_LABEL[k]).join(', ')} — regenere`) : '' },
       { key: 'answers_in_spec', ok: late.length === 0,
         label: L('The spec includes every answer received', 'La spec incluye todas las respuestas recibidas'),
         detail: late.length ? L(`Answers after the last generation: ${late.map(q => q.id).join(', ')} — regenerate`, `Respuestas posteriores a la última generación: ${late.map(q => q.id).join(', ')} — regenere`) : '' },
     ];
   }
   const signoffValid = () => !!signoff?.at && signoff.specHash === specsHash();
+  // Analysis steps run AFTER the last spec generation: the spec does not include them yet, and
+  // regenerated questions get new numbers (the Q-xx cited in the spec no longer match the list).
+  function analysisAfterSpec() {
+    const genAt = notesRef.current?.specGeneratedAt ?? null;
+    if (!genAt) return [];
+    const meta = notesRef.current?.analysisMeta ?? analysisMeta ?? {};
+    return ['summary', 'requirements', 'questions'].filter(k => meta[k]?.at && meta[k].at > genAt);
+  }
   async function handleSignoff(on) {
     const next = on ? { by: auth.user?.id ?? null, name: auth.profile?.full_name ?? null, at: new Date().toISOString(), specHash: specsHash(), specKey: gateSpecKey(),
       conditions: signoffConditions().map(c => ({ key: c.key, ok: c.ok, detail: c.detail })) } : null;
@@ -6545,20 +6556,38 @@ ${sectionBlocks}`;
 - the specific standard objects the solution would read from or extend (e.g. the BAPI, table or business transaction it builds on).
 Do NOT check generic development or administration tools that every SAP system has (SE11, SE16, SE24, SE37, SE38, SE80, SE09, SE10, SE93, SCI, ATC, SU01, SU21, SU24, PFCG, STMS, SM30, SM37, SICF, SEGW, /IWFND/*) unless the customer's request is specifically about them.
 
-For each object, use the available SAP tools to check whether it exists in the system. Then produce a section titled:
+For each object, use the available SAP tools to check whether it exists in the system (searchObject, objectStructure, ddicElement).
+
+CLEAN CORE — release state. For every existing STANDARD object the solution would call, extend or read (classes, interfaces, BAdIs / enhancement spots, CDS views, function modules, tables, structures; not Z/Y objects), read its API release state with a read-only query, e.g. runQuery with
+  SELECT OBJECT_TYPE, OBJECT_KEY, COMPATIBILITY_CONTRACT, RELEASE_STATE FROM ARS_W_API_STATE WHERE OBJECT_KEY = '<NAME>'
+(or tableContents on ARS_W_API_STATE). Contract C1 = use in ABAP Cloud / key-user extensibility, C0 = extend, C2 = remote API. No row means "not released". If the table cannot be read, write "not verifiable" — never guess a release state.
+
+EXISTING EXTENSIONS — previous work. Look for extensions already made in this area (they may be the starting point of the requirement):
+- custom fields and extension objects: searchObject for YY1_* and ZZ1_* (data elements, append structures, CDS extensions) and keep only the ones related to the objects of this requirement;
+- appended fields: ddicElement / objectStructure of the main tables and UI structures of the requirement, listing fields whose names start with ZZ1_, YY1_, ZZ or Z (append structures / customer includes);
+- Z/Y classes, BAdI implementations or enhancements whose name or package points to this area (searchObject with the business keywords of the requirement).
+Use ONLY read tools (search, structure, DDIC, source, table contents, SELECT queries). Never create, change, activate, delete, lock or release anything.
+
+Then produce a section titled:
 
 ## ${sapHeading}
 
-Use a markdown table with exactly these columns: Object | Type | Status | Note. Status is "✓ Exists" or "✗ Not found". Keep Type to 1–3 words. Write each Note in ${langName}, under 15 words (e.g. what it is, or what was searched).
-Only include objects you actually checked. If no relevant objects are named, write one line saying so.${_analyzeRulesNote}
+Use a markdown table with exactly these columns: Object | Type | Status | Clean Core | Note. Status is "✓ Exists" or "✗ Not found". Clean Core is the release state read from the system ("Released C1", "Released C0", "Not released", "Deprecated", "Custom (Z/Y)", "not verifiable" or "—" when not applicable). Keep Type to 1–3 words. Write each Note in ${langName}, under 15 words (e.g. what it is, or what was searched).
+Only include objects you actually checked. If no relevant objects are named, write one line saying so.
+
+After the table add:
+### ${lang === 'es' ? 'Extensiones existentes' : 'Existing extensions'}
+a short list of the custom fields / appends / Z objects found that relate to this requirement (name, where it is, what it seems to hold), or one line saying none were found and what was searched.
+### ${lang === 'es' ? 'Conclusión Clean Core' : 'Clean Core conclusion'}
+2–4 lines in ${langName}: is there a released (C0/C1) extension point or key-user option for this requirement, which one, and what must still be confirmed. Base it only on what you read in the system.${_analyzeRulesNote}
 
 Analysis to process:
 ${result}`;
                       const sapObjResult = await callClaude({ feature: 'sap_live_check', 
                         model: analysisModel,
-                        system: 'You are an SAP consultant with live system access. Use the SAP tools to verify object existence. Be concise.',
+                        system: 'You are an SAP consultant with live, read-only system access. Use the SAP tools to verify object existence, API release state (Clean Core) and existing extensions. Never change anything in the system. Be concise.',
                         messages: [{ role: 'user', content: sapObjPrompt }],
-                        max_tokens: 2000,
+                        max_tokens: 4000,
                         mcp_servers: mcpServers,
                       }).catch(() => null);
                       if (sapObjResult) fullResult = result + '\n\n' + sapObjResult;
@@ -7299,6 +7328,7 @@ ${result}`;
                             <>
                               <CoveragePanel stats={cv.stats} checked={cv.checked} current={cv.current} ruleViolations={cv.violations}
                                 specLabel={`Spec ${k.toUpperCase()}`} questions={questions} other={other}
+                                staleSteps={analysisAfterSpec().map(x => ANALYSIS_STEP_LABEL[x])} questionsStale={analysisAfterSpec().includes('questions')}
                                 loading={reqLoading} canEdit={canEditReqs()} L={L}
                                 onCheck={() => handleCheckCoverage(k)} onFix={() => handleFixGaps(k)}
                                 onAccept={(gk, reason) => setGapAccepted(k, gk, reason)} onUnaccept={gk => setGapAccepted(k, gk, null)} />

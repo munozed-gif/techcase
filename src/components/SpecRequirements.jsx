@@ -101,11 +101,12 @@ export function pendingQuestionIds(row, questions) {
   return [...ids].filter(id => pending.has(id)).sort();
 }
 
-export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccept, onUnaccept, loading, canEdit, L, ruleViolations, specLabel, questions, other }) {
+export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccept, onUnaccept, loading, canEdit, L, ruleViolations, specLabel, questions, other, staleSteps = [], questionsStale = false }) {
   const [openState, setOpen] = useState(null);   // null = automatic: open while there are gaps
   const open = openState ?? (checked && (stats.gaps.length > 0 || (ruleViolations ?? []).length > 0));
   const [filter, setFilter] = useState('gaps');
-  const rows = stats.rows.map(r => ({ ...r, waitQ: r.status === 'covered' ? [] : pendingQuestionIds(r, questions) }));
+  // Regenerated questions are renumbered: the Q-xx the spec cites no longer match the list.
+  const rows = stats.rows.map(r => ({ ...r, waitQ: r.status === 'covered' || questionsStale ? [] : pendingQuestionIds(r, questions) }));
   const n = {
     covered: rows.filter(r => r.status === 'covered').length,
     partial: rows.filter(r => r.status === 'partial').length,
@@ -174,6 +175,17 @@ export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccep
           </button>
         )}
       </div>
+      {staleSteps.length > 0 && (
+        <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+          <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+          <div>
+            <b>{L('The spec is older than the analysis.', 'La spec es anterior al análisis.')}</b>{' '}
+            {L(`Run after the spec was generated: ${staleSteps.join(', ')}. The spec does not include them yet`, `Se ejecutó después de generar la spec: ${staleSteps.join(', ')}. La spec todavía no lo incluye`)}
+            {questionsStale ? L(', and the question numbers (Q-xx) cited in the spec no longer match the current list', ', y los números de pregunta (Q-xx) que cita la spec ya no coinciden con la lista actual') : ''}.
+            {' '}{L('Regenerate the spec and then check the coverage again.', 'Regenere la spec y luego vuelva a verificar la cobertura.')}
+          </div>
+        </div>
+      )}
       {checked && stats.total > 0 && (
         <div className="space-y-1.5">
           <div className="flex h-2 rounded-full overflow-hidden bg-gray-200">
