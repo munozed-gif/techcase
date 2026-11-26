@@ -1156,8 +1156,9 @@ function SapIntegrationPanel({ clientId, auth, editable = null }) {
                   onClick={() => setExpandedId(isExpanded ? null : env.id)}>
                   <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${typeMeta.color}`}>{typeMeta.label}</span>
-                  <span className="font-semibold text-sm text-gray-800 flex-1 truncate">{env.name || 'Unnamed'}</span>
-                  {env.host && <span className="text-xs text-gray-400 truncate hidden sm:block max-w-[180px]">{env.host}</span>}
+                  <span className="font-semibold text-sm text-gray-800 flex-1 min-w-[7rem] truncate" title={env.name || ''}>{env.name || 'Unnamed'}</span>
+                    {env.client && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 flex-shrink-0" title={lang === 'es' ? 'Mandante' : 'Client'}>{lang === 'es' ? 'Mandante' : 'Client'} {env.client}</span>}
+                  {env.host && <span className="text-xs text-gray-400 truncate hidden 2xl:block max-w-[180px]" title={env.host}>{env.host}</span>}
                   {testStatus === 'ok'   && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
                   {testStatus === 'fail' && <XCircle size={13} className="text-red-600 dark:text-red-400 flex-shrink-0" />}
                   {canEdit && (<>
@@ -3903,9 +3904,10 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                     onClick={() => setExpandedId(isExpanded ? null : env.id)}>
                     <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${typeMeta.color}`}>{typeMeta.label}</span>
-                    <span className="font-semibold text-sm text-gray-800 dark:text-gray-100 flex-1 truncate">{env.name || 'Unnamed'}</span>
+                    <span className="font-semibold text-sm text-gray-800 dark:text-gray-100 flex-1 min-w-[7rem] truncate" title={env.name || ''}>{env.name || 'Unnamed'}</span>
+                    {env.client && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 flex-shrink-0" title={lang === 'es' ? 'Mandante' : 'Client'}>{lang === 'es' ? 'Mandante' : 'Client'} {env.client}</span>}
                     {isDefault && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 flex-shrink-0">Default</span>}
-                    {env.host && <span className="text-xs text-gray-400 truncate hidden sm:block max-w-[180px]">{env.host}</span>}
+                    {env.host && <span className="text-xs text-gray-400 truncate hidden 2xl:block max-w-[180px]" title={env.host}>{env.host}</span>}
                     {testStatus === 'ok'   && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
                     {testStatus === 'fail' && <XCircle size={13} className="text-red-600 dark:text-red-400 flex-shrink-0" />}
                     {/* Infra status dots */}
