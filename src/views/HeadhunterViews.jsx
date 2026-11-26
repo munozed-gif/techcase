@@ -1,3 +1,6 @@
+import { ClipboardList as _LClipboardList } from "lucide-react";
+import { Building2 as _LBuilding2 } from "lucide-react";
+import { Ico } from "../components/Ico.jsx";
 import { useState, useEffect, useCallback } from "react";
 import {
   Activity, Briefcase, CheckCircle2, ChevronRight, Clock, DollarSign,
@@ -613,11 +616,11 @@ export function HeadhunterPipeline({ auth }) {
                     {/* Case */}
                     {item.caseTitle && (
                       <div className="text-[11px] text-gray-500 bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-100 truncate">
-                        📋 {item.caseTitle}
+                        <Ico i={_LClipboardList} />{item.caseTitle}
                       </div>
                     )}
                     {item.company && (
-                      <div className="text-[10px] text-gray-400">🏢 {item.company}</div>
+                      <div className="text-[10px] text-gray-400"><Ico i={_LBuilding2} size={10} />{item.company}</div>
                     )}
                     {/* Meta */}
                     <div className="flex items-center gap-2 flex-wrap">
@@ -780,7 +783,7 @@ export function HeadhunterPlacements({ auth }) {
                       {cap(c.status)}
                     </span>
                   </div>
-                  {company && <div className="text-xs text-gray-500">🏢 {company}</div>}
+                  {company && <div className="text-xs text-gray-500"><Ico i={_LBuilding2} />{company}</div>}
                   <div className="text-[10px] text-gray-400">{t("hh.created_prefix")} {fmtDate(c.created_at)}</div>
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] font-semibold text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-full">

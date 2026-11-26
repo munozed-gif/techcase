@@ -1,3 +1,4 @@
+import { PauseCircle as _LPauseCircle } from "lucide-react";
 import { useState } from "react";
 import {
   Activity, AlertTriangle, BadgeCheck, Bookmark, BookmarkCheck, Check,
@@ -590,7 +591,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="text-yellow-600 font-bold text-lg leading-none">⏸</span>
+              <_LPauseCircle size={18} className="text-yellow-600" />
             </div>
             <div>
               <h3 className="font-bold text-gray-900 text-base">{t("cd.standby_title")}</h3>

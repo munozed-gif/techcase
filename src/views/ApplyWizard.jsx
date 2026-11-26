@@ -1,3 +1,5 @@
+import { AlertTriangle as _LAlertTriangle } from "lucide-react";
+import { Ico } from "../components/Ico.jsx";
 import { useState, useEffect } from "react";
 import { Briefcase, Check, CheckCircle2, FileText, PenLine, Users, X } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -356,7 +358,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1 block">Consultant</label>
                           {hasReq && qualified.length === 0 && (
                             <div className="mb-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 font-medium">
-                              ⚠ No team member has the required skills for this role. Add a qualified consultant to your team first.
+                              <Ico i={_LAlertTriangle} />No team member has the required skills for this role. Add a qualified consultant to your team first.
                             </div>
                           )}
                           <select

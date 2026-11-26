@@ -884,7 +884,7 @@ function PhasesTab({ migProject, auth }) {
                     const border    = isPass ? "rgba(16,185,129,.3)"  : isPending ? "rgba(245,158,11,.3)"  : "rgba(100,116,139,.15)";
                     const iconColor = isPass ? "#10B981"               : isPending ? "#F59E0B"               : "var(--t-text2)";
                     const textColor = isPass ? "var(--t-text2)"        : isPending ? "#FCD34D"               : "var(--t-text2)";
-                    const icon      = isPass ? "✓"                     : isPending ? "⚠"                    : "○";
+                    const icon      = isPass ? "✓"                     : isPending ? "!"                    : "○";
                     return (
                       <div key={d.id}
                         style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 10px", borderRadius:8, border:`1px solid ${border}`, background:bg, flexShrink:0, cursor: isActive && status === 'in_progress' ? "pointer" : "default" }}

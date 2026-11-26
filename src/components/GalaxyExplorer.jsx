@@ -1,3 +1,6 @@
+import { Users as _LUsers } from "lucide-react";
+import { User as _LUser } from "lucide-react";
+import { Ico } from "./Ico.jsx";
 import { useState } from "react";
 import { NovaLandingMark } from "../views/LandingView.jsx";
 
@@ -420,13 +423,13 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
             <div style={{ marginBottom: 8 }}>
               {(() => {
                 const m = cs.application_mode;
-                const [color, bg, border, label] =
-                  m === 'team'       ? ['#4F46E5','rgba(79,70,229,0.08)','rgba(79,70,229,0.25)','👥 Teams only']
-                  : m === 'individual' ? ['#475569','rgba(71,85,105,0.08)','rgba(71,85,105,0.2)','🧑 Individual only']
-                  :                      ['#059669','rgba(5,150,105,0.08)','rgba(5,150,105,0.25)','👥 Teams & Individual'];
+                const [color, bg, border, label, LabelIcon] =
+                  m === 'team'       ? ['#4F46E5','rgba(79,70,229,0.08)','rgba(79,70,229,0.25)','Teams only', _LUsers]
+                  : m === 'individual' ? ['#475569','rgba(71,85,105,0.08)','rgba(71,85,105,0.2)','Individual only', _LUser]
+                  :                      ['#059669','rgba(5,150,105,0.08)','rgba(5,150,105,0.25)','Teams & Individual', _LUsers];
                 return (
                   <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 99, border: `1px solid ${border}`, color, background: bg }}>
-                    {label}
+                    <Ico i={LabelIcon} size={10} />{label}
                   </span>
                 );
               })()}

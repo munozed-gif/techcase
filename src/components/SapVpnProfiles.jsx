@@ -200,7 +200,7 @@ export function ProjectVpnSelector({ env, scopeKeys, ownScopeKey, canEdit, onCha
           className="flex-1 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
           <option value="">{loading ? 'Loading…' : '— Choose a VPN profile —'}</option>
           {profiles.map(p => (
-            <option key={p.id} value={p.id}>🔒 {p.name} — {typeMeta(p.vpn_type).label}{p.scope_key !== ownScopeKey ? ' (customer)' : ''}</option>
+            <option key={p.id} value={p.id}>{p.name} — {typeMeta(p.vpn_type).label}{p.scope_key !== ownScopeKey ? ' (customer)' : ''}</option>
           ))}
         </select>
         <button type="button" onClick={load} title="Reload profiles" className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500"><RefreshCw size={12} /></button>

@@ -1,3 +1,7 @@
+import { Lock as _LLock } from "lucide-react";
+import { Users as _LUsers } from "lucide-react";
+import { User as _LUser } from "lucide-react";
+import { Ico } from "../components/Ico.jsx";
 import { useState, useEffect } from "react";
 import {
   Activity, AlertTriangle, Briefcase, CalendarDays, Check, CheckCircle2,
@@ -678,7 +682,7 @@ function Dashboard({ auth, onNavigate }) {
               </div>
               {_hiddenTierCases.length > 0 && (auth.isConsultant || auth.isHeadhunter) && (
                 <div className="mx-5 mt-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2">
-                  <span className="text-amber-500 shrink-0 text-base">🔒</span>
+                  <_LLock size={16} className="text-amber-500 shrink-0" />
                   <p className="text-sm text-amber-700">
                     <strong>{_hiddenTierCases.length}</strong> premium {_hiddenTierCases.length === 1 ? 'case is' : 'cases are'} hidden — reach <strong className="capitalize">{_nextUnlockTier}</strong> level to unlock {_hiddenTierCases.length === 1 ? 'it' : 'them'}.
                   </p>
@@ -753,9 +757,9 @@ function Dashboard({ auth, onNavigate }) {
                               <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
                               {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
                               {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
-                              {c.application_mode === 'team'       && <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium">👥 Teams only</span>}
-                              {c.application_mode === 'individual' && <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">🧑 Individual only</span>}
-                              {(c.application_mode === 'both' || !c.application_mode) && <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded-lg text-xs font-medium">👥 Teams & Individual</span>}
+                              {c.application_mode === 'team'       && <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium"><Ico i={_LUsers} />Teams only</span>}
+                              {c.application_mode === 'individual' && <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium"><Ico i={_LUser} />Individual only</span>}
+                              {(c.application_mode === 'both' || !c.application_mode) && <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded-lg text-xs font-medium"><Ico i={_LUsers} />Teams & Individual</span>}
                             </div>
                             {/* Company + follow button */}
                             {companyName && (

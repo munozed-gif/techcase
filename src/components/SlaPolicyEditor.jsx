@@ -1,6 +1,8 @@
 // The one SLA editor: type × priority matrix (initial response / solution, business hours), the
 // business calendar the clock runs on, and the contract terms. Same shape for the platform default,
 // partner catalogs, customer overrides and service contracts.
+import { PauseCircle as _LPauseCircle } from "lucide-react";
+import { Ico } from "./Ico.jsx";
 import { normalizeSla, calendarText, SLA_PAUSABLE_STATUSES } from "../lib/servicePlans.js";
 
 const inp = "w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white";
@@ -85,11 +87,11 @@ export function SlaPolicyEditor({ value, onChange, lang = "en", readOnly = false
           <div className="flex flex-wrap gap-1.5">
             {SLA_PAUSABLE_STATUSES.map(st => {
               const on = sla.pause_statuses.includes(st.key);
-              if (readOnly) return on ? <span key={st.key} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700">⏸ {st[es ? "es" : "en"]}</span> : null;
+              if (readOnly) return on ? <span key={st.key} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 inline-flex items-center"><Ico i={_LPauseCircle} />{st[es ? "es" : "en"]}</span> : null;
               return (
                 <button key={st.key} type="button" onClick={() => set({ pause_statuses: on ? sla.pause_statuses.filter(k => k !== st.key) : [...sla.pause_statuses, st.key] })}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${on ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
-                  {on ? "⏸ " : ""}{st[es ? "es" : "en"]}
+                  {on ? <Ico i={_LPauseCircle} /> : null}{st[es ? "es" : "en"]}
                 </button>
               );
             })}

@@ -1,3 +1,5 @@
+import { Moon as _LMoon } from "lucide-react";
+import { Sun as _LSun } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext.jsx";
 import {
@@ -505,12 +507,12 @@ function ProfileView({ auth, compact = false, initialTab = null }) {
               <button onClick={() => previewAppearance("dark")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${isDark ? "bg-blue-600 border-blue-600 text-white" : "border-gray-200 text-gray-600 hover:border-blue-400"}`}
                 style={isDark ? {} : {background:'var(--t-card-bg)'}}>
-                🌙 Dark
+                <_LMoon size={15} /> Dark
               </button>
               <button onClick={() => previewAppearance("light")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${!isDark ? "bg-blue-600 border-blue-600 text-white" : "border-gray-200 text-gray-600 hover:border-blue-400"}`}
                 style={!isDark ? {} : {background:'var(--t-card-bg)'}}>
-                ☀️ Light
+                <_LSun size={15} /> Light
               </button>
             </div>
           </div>

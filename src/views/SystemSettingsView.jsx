@@ -2652,10 +2652,10 @@ function UserApprovalQueue() {
     logEvent('user.approved', { entityType: 'user', entityId: userId });
     const msg = targetUser?.role === 'invited_client'
       ? 'Your full access has been approved! You now have complete client access.'
-      : 'Your account has been approved! 🎉 You now have access to the platform. Welcome aboard.';
+      : 'Your account has been approved. You now have access to the platform. Welcome aboard.';
     notify(userId, 'Account approved', msg);
     if (targetUser?.email) sendEmailToUser(userId, 'Your Account Has Been Approved', buildEmailHtml({
-      title: 'Account Approved 🎉',
+      title: 'Account Approved',
       preheader: 'Your account is now active',
       bodyHtml: `<p>Hi ${targetUser.full_name ?? 'there'},</p><p>${msg}</p>`,
       ctaText: 'Log In Now',
@@ -2720,7 +2720,7 @@ function UserApprovalQueue() {
         : 'Your account has been approved. Welcome aboard.';
       await notify(userId, 'Account approved', msg);
       if (targetUser?.email) sendEmailToUser(userId, 'Your Account Has Been Approved', buildEmailHtml({
-        title: 'Account Approved 🎉',
+        title: 'Account Approved',
         preheader: 'Your account is now active',
         bodyHtml: `<p>Hi ${targetUser.full_name ?? 'there'},</p><p>${msg}</p>`,
         ctaText: 'Log In Now',

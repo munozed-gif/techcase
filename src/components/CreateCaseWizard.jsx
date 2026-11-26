@@ -1,3 +1,13 @@
+import { Globe as _LGlobe } from "lucide-react";
+import { Lock as _LLock } from "lucide-react";
+import { Mail as _LMail } from "lucide-react";
+import { Handshake as _LHandshake } from "lucide-react";
+import { User as _LUser } from "lucide-react";
+import { Users as _LUsers } from "lucide-react";
+import { ShieldCheck as _LShieldCheck } from "lucide-react";
+import { ClipboardList as _LClipboardList } from "lucide-react";
+import { Star as _LStar } from "lucide-react";
+import { Ico } from "./Ico.jsx";
 import { useState, useEffect, useRef } from "react";
 import {
   Check, CheckCircle2, DollarSign, FileText, Flag, GraduationCap, Layers,
@@ -1891,15 +1901,15 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <div className="border border-gray-100 rounded-xl p-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Visibility & Access</p>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {caseVisMode === "public"      && <span className="px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-semibold">🌐 Public</span>}
-                  {caseVisMode === "private"     && <span className="px-2.5 py-1 bg-gray-700 text-white rounded-lg text-xs font-semibold">🔒 Private</span>}
-                  {caseVisMode === "invite-only" && <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold">✉️ Invite only</span>}
-                  {basics.application_mode === "team"       && <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold">🤝 Teams only</span>}
-                  {basics.application_mode === "individual" && <span className="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold">🧑 Individual only</span>}
-                  {(basics.application_mode === "both" || !basics.application_mode) && <span className="px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-semibold">👥 Teams & Individual</span>}
-                  {basics.is_confidential && <span className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-semibold">🔐 Confidential</span>}
-                  {basics.nda_required   && <span className="px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-lg text-xs font-semibold">📋 NDA required</span>}
-                  {basics.min_trust_level && <span className="px-2.5 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg text-xs font-semibold capitalize">⭐ {basics.min_trust_level}+</span>}
+                  {caseVisMode === "public"      && <span className="px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-semibold"><Ico i={_LGlobe} />Public</span>}
+                  {caseVisMode === "private"     && <span className="px-2.5 py-1 bg-gray-700 text-white rounded-lg text-xs font-semibold"><Ico i={_LLock} />Private</span>}
+                  {caseVisMode === "invite-only" && <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold"><Ico i={_LMail} />Invite only</span>}
+                  {basics.application_mode === "team"       && <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold"><Ico i={_LHandshake} />Teams only</span>}
+                  {basics.application_mode === "individual" && <span className="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold"><Ico i={_LUser} />Individual only</span>}
+                  {(basics.application_mode === "both" || !basics.application_mode) && <span className="px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-semibold"><Ico i={_LUsers} />Teams & Individual</span>}
+                  {basics.is_confidential && <span className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-semibold"><Ico i={_LShieldCheck} />Confidential</span>}
+                  {basics.nda_required   && <span className="px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-lg text-xs font-semibold"><Ico i={_LClipboardList} />NDA required</span>}
+                  {basics.min_trust_level && <span className="px-2.5 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg text-xs font-semibold capitalize"><Ico i={_LStar} />{basics.min_trust_level}+</span>}
                 </div>
                 {requiredRoles.filter(r => r.label.trim()).length > 0 && (
                   <div className="border-t border-gray-100 pt-3 space-y-2">

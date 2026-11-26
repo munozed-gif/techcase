@@ -1,3 +1,8 @@
+import { PauseCircle as _LPauseCircle } from "lucide-react";
+import { Lock as _LLock } from "lucide-react";
+import { AlertTriangle as _LAlertTriangle } from "lucide-react";
+import { Zap as _LZap } from "lucide-react";
+import { Ico } from "../components/Ico.jsx";
 import { BRAND_MARK_HTML } from "../lib/brand.js";
 import { CaseSlaPanel } from "../components/SlaPanels.jsx";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -1685,10 +1690,10 @@ canvas{display:block;width:100%}
     <div class="es-risks-wrap">
       <div class="es-risks-head">${s.keysRisks}</div>
       <div class="es-risks-grid">
-        <div class="es-risk"><span class="es-risk-ico">⚠️</span><div><div class="es-risk-t">${s.r1t}</div><div class="es-risk-b">${s.r1b}</div></div></div>
-        <div class="es-risk"><span class="es-risk-ico">🔗</span><div><div class="es-risk-t">${s.r2t}</div><div class="es-risk-b">${esc(cd.area_sap || 'SAP')} connectivity and RFC credentials must be confirmed before development kick-off (${s.weekPrefix}${Math.ceil(estDevStart)}).</div></div></div>
-        <div class="es-risk"><span class="es-risk-ico">📋</span><div><div class="es-risk-t">${s.r3t}</div><div class="es-risk-b">Client must supply representative ${esc(cd.area_sap || 'SAP')} test data before unit and integration testing begins.</div></div></div>
-        <div class="es-risk"><span class="es-risk-ico">🔄</span><div><div class="es-risk-t">${s.r4t}</div><div class="es-risk-b">Any functional scope additions after design sign-off will require a change request and may impact the ${estWeeks}-${lang === 'es' ? 'semana' : 'week'} delivery timeline.</div></div></div>
+        <div class="es-risk"><span class="es-risk-ico">!</span><div><div class="es-risk-t">${s.r1t}</div><div class="es-risk-b">${s.r1b}</div></div></div>
+        <div class="es-risk"><span class="es-risk-ico">&#8645;</span><div><div class="es-risk-t">${s.r2t}</div><div class="es-risk-b">${esc(cd.area_sap || 'SAP')} connectivity and RFC credentials must be confirmed before development kick-off (${s.weekPrefix}${Math.ceil(estDevStart)}).</div></div></div>
+        <div class="es-risk"><span class="es-risk-ico">&#9776;</span><div><div class="es-risk-t">${s.r3t}</div><div class="es-risk-b">Client must supply representative ${esc(cd.area_sap || 'SAP')} test data before unit and integration testing begins.</div></div></div>
+        <div class="es-risk"><span class="es-risk-ico">&#8635;</span><div><div class="es-risk-t">${s.r4t}</div><div class="es-risk-b">Any functional scope additions after design sign-off will require a change request and may impact the ${estWeeks}-${lang === 'es' ? 'semana' : 'week'} delivery timeline.</div></div></div>
       </div>
     </div>
   </div>
@@ -2445,7 +2450,7 @@ ${testPhasesDone.length > 0 ? testPhasesDone.map(pk => {
     const outcomeHtml = a.test_outcome==='passed'
       ? `<span class="pass">${lang === 'es' ? '✓ Aprobado' : '✓ Passed'}</span>`
       : a.test_outcome==='needs_adjustment'
-      ? `<span class="adj">${lang === 'es' ? '⚠ Ajuste' : '⚠ Adjustment'}</span>`
+      ? `<span class="adj">${lang === 'es' ? 'Ajuste' : 'Adjustment'}</span>`
       : (lang === 'es' ? 'Pendiente' : 'Pending');
     return `<tr><td>${he(a.title)}</td><td>${outcomeHtml}</td><td>${a.coverage_pct!=null?he(a.coverage_pct+'%'):'—'}</td><td>${he((a.adjustment_notes??'').slice(0,100))}</td></tr>`;
   }).join('');
@@ -2807,7 +2812,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                   })()}
                   {caseData.status === "standby" && caseData.standby_reason && (
                     <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-semibold flex items-center gap-1">
-                      ⏸ {caseData.standby_reason}
+                      <_LPauseCircle size={12} />{caseData.standby_reason}
                     </span>
                   )}
                 </div>
@@ -3014,7 +3019,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                         </span>
                         {/* State badge */}
                         <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 99, background: isActive ? (state === "current" ? color + "33" : state === "reachable" ? color + "33" : "var(--t-badge-inact-bg)") : "var(--t-badge-inact-bg)", color: isActive ? (state === "current" ? color : state === "reachable" ? color : "var(--t-text2)") : "var(--t-text2)", flexShrink: 0 }}>
-                          {state === "past" ? "Done" : state === "current" ? "Current" : state === "reachable" ? (hasBlockers ? "⚠ Blocked" : hasWarnings ? "⚡ Warn" : "→ Next") : s.trigger === "auto" ? <span style={{display:"flex",alignItems:"center",gap:3}}><Zap size={10}/>Auto</span> : "Upcoming"}
+                          {state === "past" ? "Done" : state === "current" ? "Current" : state === "reachable" ? (hasBlockers ? <><Ico i={_LAlertTriangle} size={11} />Blocked</> : hasWarnings ? <><Ico i={_LZap} size={11} />Warn</> : "→ Next") : s.trigger === "auto" ? <span style={{display:"flex",alignItems:"center",gap:3}}><Zap size={10}/>Auto</span> : "Upcoming"}
                         </span>
                       </div>
 
@@ -3057,7 +3062,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                           const ROLE_NAMES = { manager: "Manager", admin: "Admin", client: "Client", key_user: "Key User", consultant: "Consultant", internal_consultant: "Internal Consultant", project_manager: "Project Manager", final_user: "End User" };
                           return (
                             <p style={{ fontSize: 11.5, color: "var(--t-text2)", margin: "8px 0 0", lineHeight: 1.45 }}>
-                              🔒 {roles.length
+                              <Ico i={_LLock} />{roles.length
                                 ? `Only ${roles.map(r => ROLE_NAMES[r] ?? r).join(", ")} can move the case to ${s.label}.`
                                 : `Your role can't move the case to ${s.label}.`}
                             </p>

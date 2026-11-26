@@ -1,3 +1,5 @@
+import { AlertTriangle as _LAlertTriangle } from "lucide-react";
+import { Ico } from "./Ico.jsx";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import mcpScript from '../../sap-mcp-server/index.js?raw';
@@ -1261,7 +1263,7 @@ function SapIntegrationPanel({ clientId, auth, editable = null }) {
                             className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
                             <option value="">— None (no VPN credentials) —</option>
                             {(clientConns ?? []).filter(c => c.db_type === 'vpn').map(c => (
-                              <option key={c.id} value={c.id}>🔒 VPN — {c.meta?.conn_name || c.host}</option>
+                              <option key={c.id} value={c.id}>VPN — {c.meta?.conn_name || c.host}</option>
                             ))}
                           </select>
                           {canEdit && (
@@ -1859,7 +1861,7 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
             </div>
             {projectLiveCheck !== null && (
               <p className="text-xs text-gray-500">
-                {projectLiveCheck ? '✓ Live SAP check forced ON for this project' : '⚠ Live SAP check forced OFF for this project'}
+                {projectLiveCheck ? '✓ Live SAP check forced ON for this project' : <><Ico i={_LAlertTriangle} />Live SAP check forced OFF for this project</>}
               </p>
             )}
           </>
@@ -4025,7 +4027,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                               <option value="">— None —</option>
                               {projectConns.map(c => (
                                 <option key={c.id} value={c.id}>
-                                  {c.db_type === 'vpn' ? '🔒 VPN' : c.db_type.toUpperCase()} — {c.host}{c.port ? `:${c.port}` : ''}{c.meta?.conn_name ? ` (${c.meta.conn_name})` : ''}
+                                  {c.db_type === 'vpn' ? 'VPN' : c.db_type.toUpperCase()} — {c.host}{c.port ? `:${c.port}` : ''}{c.meta?.conn_name ? ` (${c.meta.conn_name})` : ''}
                                 </option>
                               ))}
                             </select>
@@ -5758,7 +5760,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
 
   async function handleRun(subset) {
     if (running) { stopRef.current = true; return; }
-    if (!canDevelop) { addLog('⛔ Your role is not allowed to run the SAP implementation (Settings → Roles & Perms).', 'error'); return; }
+    if (!canDevelop) { addLog('✗ Your role is not allowed to run the SAP implementation (Settings → Roles & Perms).', 'error'); return; }
     stopRef.current = false;
     // One transport for the whole run: the case's transport, or the first one the
     // bridge returns (found via transportInfo or created), reused for every later object.
@@ -5818,7 +5820,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     };
     // Always enforced: never write to QA / Production SAP systems.
     if (autoImplEnabled && isProtectedSapEnv(sapConfig)) {
-      addLog(`⛔ ${sapConfig?.name ?? 'This SAP environment'} is a ${String(sapConfig?.envType).toUpperCase()} system — the platform only writes to development/sandbox systems.`, 'error');
+      addLog(`✗ ${sapConfig?.name ?? 'This SAP environment'} is a ${String(sapConfig?.envType).toUpperCase()} system — the platform only writes to development/sandbox systems.`, 'error');
       return stopRun('Protected SAP environment (QA/PRD)');
     }
     // Spec approved and case In Progress (or later, not closed).
@@ -5835,7 +5837,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
       ].filter(Boolean);
       if (why.length) {
         if (valPol.sap_require_spec_and_stage.mode === 'block') {
-          addLog(`⛔ Validation: cannot write to SAP because ${why.join(' and ')}. (${valPol.sap_require_spec_and_stage.source} rule)`, 'error');
+          addLog(`✗ Validation: cannot write to SAP because ${why.join(' and ')}. (${valPol.sap_require_spec_and_stage.source} rule)`, 'error');
           return stopRun('Spec / case stage validation');
         }
         addLog(`⚠ Validation: ${why.join(' and ')} — continuing (warning only).`, 'warn');
@@ -5845,7 +5847,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
     const pkgMode = valPol.sap_require_package.source === 'default' && writePolicy.requirePackage ? 'block' : valPol.sap_require_package.mode;
     if (autoImplEnabled && sapConfig?.host && !packageReq && pkgMode !== 'off') {
       if (pkgMode === 'block') {
-        addLog('⛔ Validation: a SAP package is required — set one in the pipeline Setup before running ($TMP is not allowed).', 'error');
+        addLog('✗ Validation: a SAP package is required — set one in the pipeline Setup before running ($TMP is not allowed).', 'error');
         return stopRun('No SAP package configured');
       }
       addLog('⚠ No SAP package configured — objects will be created in $TMP (local, not transportable). Enter a package in the settings above to assign them to a transport.', 'warn');
@@ -5879,7 +5881,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
           const msg = `SAP naming: ${nm.join('; ')}`;
           if (valPol.sap_naming_check.mode === 'block') {
             updateObj(obj.id, { status: 'error', error: `${msg}. Rename the object (Edit) and run again.` });
-            addLog(`${obj.name}: ⛔ ${msg}`, 'error');
+            addLog(`${obj.name}: ✗ ${msg}`, 'error');
             if (stopOnError) { addLog('Stopped on error.', 'error'); break; }
             continue;
           }
@@ -5888,7 +5890,7 @@ Suggest 5-15 objects covering the full scope of the described solution.`;
         if (valPol.sap_require_object_approval.mode !== 'off' && obj.approval_status !== 'approved') {
           if (valPol.sap_require_object_approval.mode === 'block') {
             updateObj(obj.id, { status: 'blocked', error: 'Not approved yet — submit it for review and get it approved before writing to SAP.' });
-            addLog(`${obj.name}: ⛔ not approved (object review required before writing).`, 'blocked');
+            addLog(`${obj.name}: ✗ not approved (object review required before writing).`, 'blocked');
             continue;
           }
           addLog(`${obj.name}: ⚠ not approved yet (object review) — continuing.`, 'warn');
@@ -6155,13 +6157,13 @@ Output ONLY the ABAP source code, no explanations.`;
 
   async function handleApplyOne(obj, { confirmed = false } = {}) {
     if (!sapConfig?.host || !autoImplEnabled) return;
-    if (isProtectedSapEnv(sapConfig)) { addLog(`⛔ ${sapConfig?.name ?? 'This environment'} is a QA/Production system — the platform does not write to it.`, 'error'); return; }
+    if (isProtectedSapEnv(sapConfig)) { addLog(`✗ ${sapConfig?.name ?? 'This environment'} is a QA/Production system — the platform does not write to it.`, 'error'); return; }
     {
       const _vp = resolvePolicies(settings, caseValidationScope(caseData));
       const _nm = _vp.sap_naming_check.mode === 'block' ? sapNamingProblems(obj.type, obj.name) : [];
-      if (_nm.length) { updateObj(obj.id, { status: 'error', error: `SAP naming: ${_nm.join('; ')}` }); addLog(`${obj.name}: ⛔ SAP naming: ${_nm.join('; ')}`, 'error'); return; }
+      if (_nm.length) { updateObj(obj.id, { status: 'error', error: `SAP naming: ${_nm.join('; ')}` }); addLog(`${obj.name}: ✗ SAP naming: ${_nm.join('; ')}`, 'error'); return; }
     }
-    if (!canDevelop) { addLog('⛔ Your role is not allowed to run the SAP implementation (Settings → Roles & Perms).', 'error'); return; }
+    if (!canDevelop) { addLog('✗ Your role is not allowed to run the SAP implementation (Settings → Roles & Perms).', 'error'); return; }
     const code = obj.generatedCode;
     if (!code) return;
     if (!confirmed) {
@@ -6632,7 +6634,7 @@ Output ONLY the ABAP source code, no explanations.`;
                         </p>
                       )}
                       {SAP_OUTCOME_HINT[selectedObj.status] && (
-                        <p className="text-xs text-amber-600">⚠ {SAP_OUTCOME_HINT[selectedObj.status]}</p>
+                        <p className="text-xs text-amber-600"><Ico i={_LAlertTriangle} />{SAP_OUTCOME_HINT[selectedObj.status]}</p>
                       )}
                       {selectedObj.status === 'inactive' && selectedObj.appliedActivateError && (
                         <p className="text-xs text-red-600 dark:text-red-400 font-mono break-words">SAP: {selectedObj.appliedActivateError}</p>
@@ -6644,7 +6646,7 @@ Output ONLY the ABAP source code, no explanations.`;
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">Transport: {selectedObj.appliedTransport}</p>
                       )}
                       {selectedObj.appliedCreated === false && (
-                        <p className="text-xs text-amber-600">⚠ Object already existed in SAP (not re-created)</p>
+                        <p className="text-xs text-amber-600"><Ico i={_LAlertTriangle} />Object already existed in SAP (not re-created)</p>
                       )}
                       {selectedObj.appliedNote && (
                         <p className="text-xs text-blue-600 dark:text-blue-400">{selectedObj.appliedNote}</p>

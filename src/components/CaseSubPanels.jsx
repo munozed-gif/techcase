@@ -1,3 +1,6 @@
+import { Menu as _LMenu, X as _LX } from "lucide-react";
+import { AlertTriangle as _LAlertTriangle } from "lucide-react";
+import { Ico } from "./Ico.jsx";
 import { BRAND_MARK_HTML } from "../lib/brand.js";
 import { useState, useEffect, useRef, Fragment } from "react";
 import DOMPurify from "dompurify";
@@ -4114,7 +4117,7 @@ STEP 3 — GENERATE the full prototype using EXACTLY the style chosen in Step 1.
 
 SAP GUI STYLE spec:
 - Background #f3f2f1, panel #ffffff, borders #b9b9b9, panel headers #dfe4e8, accent #0854a0 / light #e6f0fa, text #22282f
-- Disclaimer bar (⚠ non-functional notice), SAP blue shellbar, toolbar with mode + status toggles + Grabar button, tab strip with real SAP tabs, split layout (ALV grid left + detail panel right), F4 modal with search, fields spec table at bottom, toast notifications
+- Disclaimer bar (non-functional notice, inline SVG warning icon — never emojis), SAP blue shellbar, toolbar with mode + status toggles + Grabar button, tab strip with real SAP tabs, split layout (ALV grid left + detail panel right), F4 modal with search, fields spec table at bottom, toast notifications
 - Full blocking logic: isBlocked() = view mode OR status closed; advisory box shows lock reason; F4 button hidden when blocked
 - render() calls renderAlv() + renderDetail() on every state change
 
@@ -4168,9 +4171,9 @@ VISUAL STYLE — SAP GUI (classic):
 - Warning disclaimer bar at top: background #fff4ce, border-bottom 2px #d29200, padding 8px 16px, font-size 12px
 
 REQUIRED STRUCTURE (in this order):
-1. Disclaimer bar: ⚠ <b>Prototipo no funcional</b> — simulates [transaction code(s) from spec]. Covers CU1–CU[N] from the spec.
+1. Disclaimer bar: <b>Prototipo no funcional</b> — simulates [transaction code(s) from spec]. Covers CU1–CU[N] from the spec.
 2. Shell bar: background #0854a0, white text, 10px 16px padding, flex space-between. Left: app/module title. Right: transaction code + document number + company name (sample data).
-3. Toolbar: background white, border-bottom 1px #b9b9b9, padding 8px 16px, flex row with gap. Include relevant mode toggles (e.g. Display/Change, Create vs Edit vs View, relevant status toggles) as button groups. Include a 💾 Grabar button that triggers a toast.
+3. Toolbar: background white, border-bottom 1px #b9b9b9, padding 8px 16px, flex row with gap. Include relevant mode toggles (e.g. Display/Change, Create vs Edit vs View, relevant status toggles) as button groups. Include a Grabar (save) button with an inline SVG disk icon (never emojis) that triggers a toast.
 4. Tab strip: tabs relevant to the SAP transaction (use real tab names from the spec such as Cabecera, Ítem, Piezas, Condiciones, etc.). The relevant tab is active (color #0854a0, border-bottom 3px #0854a0, font-weight 600).
 5. Main content area (flex row, gap 14px, padding 14px 16px):
    - LEFT: ALV grid panel (flex 1.3, min-width 460px). Panel with gray header. Table with real columns from the spec. At least 3–5 realistic sample data rows. Clicking a row highlights it and updates the right detail panel.
@@ -4185,7 +4188,7 @@ JAVASCRIPT REQUIREMENTS:
 - ALV row click: update selected row index, re-render both ALV (highlight) and detail panel
 - isBlocked() function: returns true when in view/display mode OR when status indicates closed/completed
 - F4 button in detail panel: opens modal; modal search input filters the list; clicking a row assigns the value, closes modal, shows toast, re-renders
-- 💾 Grabar: shows toast "Grabar — simulado. En un caso real, dispara [relevant BAPI/FM from spec]."
+- Grabar (icono de disco en SVG inline, sin emojis): shows toast "Grabar — simulado. En un caso real, dispara [relevant BAPI/FM from spec]."
 - render() calls renderAlv() and renderDetail() — called on every state change
 - document.addEventListener('DOMContentLoaded', () => render())
 
@@ -5545,7 +5548,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             style={{borderColor:'var(--t-border)',color:'var(--t-text2)',background:'var(--t-card-bg)'}}
             onClick={() => setNodesCollapsed(v => !v)}
           >
-            {nodesCollapsed ? '☰ Steps' : '✕ Steps'}
+            {nodesCollapsed ? <_LMenu size={12} /> : <_LX size={12} />} Steps
           </button>
         </div>
 
@@ -5896,7 +5899,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </div>
                     {caseLiveCheck !== null && (
                       <p className="text-[10px] text-gray-500 mt-1.5">
-                        {caseLiveCheck ? '✓ Live SAP check forced ON for this case' : '⚠ Live SAP check forced OFF for this case'}
+                        {caseLiveCheck ? '✓ Live SAP check forced ON for this case' : <><Ico i={_LAlertTriangle} />Live SAP check forced OFF for this case</>}
                       </p>
                     )}
                   </div>
@@ -5938,7 +5941,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           {shareToken && (
                             <p className={`text-xs mt-0.5 ${shareStatus === 'approved' ? 'text-green-600' : shareStatus === 'changes_requested' ? 'text-amber-600' : 'text-blue-600'}`}>
                               {shareStatus === 'approved' ? ('✓ ' + t("spec.share_status_approved"))
-                                : shareStatus === 'changes_requested' ? ('⚠ ' + t("spec.share_status_changes"))
+                                : shareStatus === 'changes_requested' ? t("spec.share_status_changes")
                                 : t("spec.share_link_label")}
                             </p>
                           )}
@@ -7062,7 +7065,7 @@ ${result}`;
                     {/* Warning when analysis steps were skipped */}
                     {!sapCheck && !proposalCheck && (
                       <div className="mb-4 text-left bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
-                        <span className="text-amber-500 text-base leading-none mt-0.5">⚠</span>
+                        <_LAlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
                         <div>
                           <p className="text-xs font-semibold text-amber-800">{t("spec.skipped_warning_title")}</p>
                           <p className="text-xs text-amber-700 mt-0.5">{t("spec.skipped_warning_desc")}</p>

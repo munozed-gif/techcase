@@ -1,3 +1,5 @@
+import { Moon as _LMoon } from "lucide-react";
+import { Sun as _LSun } from "lucide-react";
 import { EffectiveSlaCard } from "../components/SlaPanels.jsx";
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext.jsx";
@@ -602,11 +604,11 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
             <div className="flex gap-2">
               <button onClick={() => setTheme("dark")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${isDark ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-400"}`}>
-                🌙 Dark
+                <_LMoon size={15} /> Dark
               </button>
               <button onClick={() => setTheme("light")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${!isDark ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-400"}`}>
-                ☀️ Light
+                <_LSun size={15} /> Light
               </button>
             </div>
           </div>

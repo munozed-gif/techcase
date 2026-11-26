@@ -1,6 +1,8 @@
 // Unified SLA screens: platform policy (Settings → Workflow → SLA), customer override (Partner →
 // Customers), the case clock (Case detail) and the monitor (SLA menu). The policy shape is the
 // service-plan SLA (see SlaPolicyEditor). Resolution: contract → customer → partner → platform.
+import { PauseCircle as _LPauseCircle } from "lucide-react";
+import { Ico } from "./Ico.jsx";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Loader2, Check, Clock, AlertTriangle, CheckCircle2, ShieldCheck, X } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -199,7 +201,7 @@ export function CaseSlaPanel({ caseId, lang = "en", canEdit = true, refreshKey }
       <span className={`px-2 py-0.5 rounded-full font-semibold ${STATE_CLS[s]}`} title={`${t.resolution_hours} h`}>
         {L("Solution", "Solución")} {t.status === "cancelled" ? L("stopped", "detenido") : `${lbl(s)} ${["running", "breached", "paused"].includes(s) ? fmtDue(t.resolution_due, es) : fmtDue(t.resolved_at, es)}`}{pausedNote(t, es)}
       </span>
-      {paused && <span className="px-2 py-0.5 rounded-full font-semibold text-gray-600 bg-gray-100">⏸ {L("Clock paused since", "Reloj en pausa desde")} {fmtDue(t.paused_at, es)}</span>}
+      {paused && <span className="px-2 py-0.5 rounded-full font-semibold text-gray-600 bg-gray-100 inline-flex items-center"><Ico i={_LPauseCircle} />{L("Clock paused since", "Reloj en pausa desde")} {fmtDue(t.paused_at, es)}</span>}
       {error && <span className="text-red-600">{error}</span>}
     </div>
   );
@@ -283,7 +285,7 @@ export function SlaMonitor({ lang: langProp, onOpenCase }) {
                     <td className="px-4 py-2.5 text-xs text-gray-600">{x.customer ?? "—"}{x.partner ? <div className="text-gray-400">{x.partner}</div> : null}</td>
                     <td className="px-4 py-2.5 text-xs text-gray-600">{TYPES.find(t => t[0] === x.sla_type)?.[es ? 2 : 1] ?? x.sla_type} · {(PRIOS[x.priority] ?? [x.priority, x.priority])[es ? 1 : 0]}</td>
                     <td className="px-4 py-2.5"><span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATE_CLS[r]}`}>{fmtDue(x.first_response_at ?? x.response_due, es)}</span></td>
-                    <td className="px-4 py-2.5"><span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATE_CLS[s]}`}>{x.status === "cancelled" ? L("stopped", "detenido") : `${x.status === "paused" ? "⏸ " : ""}${fmtDue(x.resolved_at ?? x.resolution_due, es)}${pausedNote(x, es)}`}</span></td>
+                    <td className="px-4 py-2.5"><span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATE_CLS[s]}`}>{x.status === "cancelled" ? L("stopped", "detenido") : `${x.status === "paused" ? "‖ " : ""}${fmtDue(x.resolved_at ?? x.resolution_due, es)}${pausedNote(x, es)}`}</span></td>
                     <td className="px-4 py-2.5 text-xs text-gray-500">{sourceLabel(x.source, es)}</td>
                   </tr>
                 );

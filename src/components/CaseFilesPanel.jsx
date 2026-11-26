@@ -1,3 +1,4 @@
+import { Paperclip as _LPaperclip, FileImage as _LFileImage, FileText as _LFileText, FileSpreadsheet as _LFileSpreadsheet } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Download, Paperclip, Upload } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -10,12 +11,11 @@ const CF_ALLOWED_EXTS = ['pdf','doc','docx','xls','xlsx','ppt','pptx','png','jpg
 const CF_MAX_BYTES    = 10 * 1024 * 1024; // 10 MB
 
 function cfFileIcon(mime) {
-  if (!mime) return '📎';
-  if (mime.startsWith('image/'))                          return '🖼';
-  if (mime.includes('pdf') || mime.includes('word') || mime.startsWith('text/')) return '📄';
-  if (mime.includes('excel') || mime.includes('spreadsheet') || mime.includes('csv')) return '📊';
-  if (mime.includes('presentation') || mime.includes('powerpoint')) return '📊';
-  return '📎';
+  const I = !mime ? _LPaperclip : mime.startsWith('image/') ? _LFileImage
+    : (mime.includes('pdf') || mime.includes('word') || mime.startsWith('text/')) ? _LFileText
+    : (mime.includes('excel') || mime.includes('spreadsheet') || mime.includes('csv') || mime.includes('presentation') || mime.includes('powerpoint')) ? _LFileSpreadsheet
+    : _LPaperclip;
+  return <I size={20} className="text-blue-600" />;
 }
 
 function cfFmtSize(bytes) {

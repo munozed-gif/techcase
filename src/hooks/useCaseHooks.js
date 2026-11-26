@@ -256,7 +256,7 @@ function useApplications(caseId = null) {
         // (The database also does this — trigger applications_assign_team — and notifies the members.)
         notify(app.consultant_id, "Application accepted", "Your application has been accepted. You are now assigned to the case.", 'case_assignment');
         sendEmailToUser(app.consultant_id, "Your Application Was Accepted", buildEmailHtml({
-          title: "Application Accepted 🎉",
+          title: "Application Accepted",
           preheader: "Great news — you have been assigned to a case",
           bodyHtml: `<p>Hi ${app.consultant.full_name ?? 'there'},</p><p>Your application has been accepted and you have been assigned to the case. Log in to get started.</p>`,
           ctaText: "View My Case",
