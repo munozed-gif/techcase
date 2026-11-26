@@ -1,7 +1,7 @@
 // Requirement traceability UI: the editable requirements checklist (summary node) and the
 // coverage panel of a generated spec (spec node). Logic lives in src/lib/requirements.js.
 import { useState } from "react";
-import { Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, ListChecks, Wrench, Undo2, ChevronDown } from "lucide-react";
+import { Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, ListChecks, Wrench, Undo2, ChevronDown, MessageCircleQuestion, ArrowRightLeft, Info } from "lucide-react";
 import { REQ_KINDS, REQ_KIND_LABEL, inScope } from "../lib/requirements.js";
 
 const kindName = (k, lang) => (REQ_KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
@@ -93,9 +93,38 @@ const STATUS_CLS = {
   missing: 'bg-red-50 text-red-700 border-red-200',
 };
 
-export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccept, onUnaccept, loading, canEdit, L, ruleViolations }) {
+// Question ids (Q-01…) a gap depends on: those cited in its note / location that the customer has not answered yet.
+const QID_RE = /\bQ-\d+\b/g;
+export function pendingQuestionIds(row, questions) {
+  const pending = new Set((questions ?? []).filter(q => q?.id && q.status !== 'answered').map(q => q.id));
+  const ids = new Set(`${row.note ?? ''} ${row.where ?? ''}`.match(QID_RE) ?? []);
+  return [...ids].filter(id => pending.has(id)).sort();
+}
+
+export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccept, onUnaccept, loading, canEdit, L, ruleViolations, specLabel, questions, other }) {
   const [openState, setOpen] = useState(null);   // null = automatic: open while there are gaps
   const open = openState ?? (checked && (stats.gaps.length > 0 || (ruleViolations ?? []).length > 0));
+  const [filter, setFilter] = useState('gaps');
+  const rows = stats.rows.map(r => ({ ...r, waitQ: r.status === 'covered' ? [] : pendingQuestionIds(r, questions) }));
+  const n = {
+    covered: rows.filter(r => r.status === 'covered').length,
+    partial: rows.filter(r => r.status === 'partial').length,
+    missing: rows.filter(r => r.status === 'missing').length,
+    accepted: rows.filter(r => r.status !== 'covered' && stats.accepted[r.id]).length,
+  };
+  const waiting = rows.filter(r => r.waitQ.length && !stats.accepted[r.id]);
+  const waitIds = [...new Set(waiting.flatMap(r => r.waitQ))].sort();
+  const seg = (v, cls) => v > 0 && <div className={cls} style={{ width: `${(v / Math.max(1, stats.total)) * 100}%` }} />;
+  const FILTERS = [
+    ['gaps', L('Gaps', 'Brechas'), stats.gaps.length],
+    ['wait', L('Waiting on the customer', 'Esperan al cliente'), waiting.length],
+    ['partial', L('Partial', 'Parciales'), n.partial],
+    ['missing', L('Missing', 'Faltan'), n.missing],
+    ['covered', L('Covered', 'Cubiertos'), n.covered],
+    ['all', L('All', 'Todos'), rows.length],
+  ];
+  const shown = rows.filter(r => filter === 'all' ? true : filter === 'gaps' ? r.status !== 'covered'
+    : filter === 'wait' ? r.waitQ.length && !stats.accepted[r.id] : r.status === filter);
   const [reasonFor, setReasonFor] = useState(null);
   const [reason, setReason] = useState('');
   const statusTxt = s => s === 'covered' ? L('covered', 'cubierto') : s === 'partial' ? L('partial', 'parcial') : L('missing', 'falta');
@@ -126,8 +155,8 @@ export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccep
         {checked && current && stats.ok ? <CheckCircle2 size={15} className="text-emerald-600" /> : <AlertTriangle size={15} className={checked && current ? 'text-red-600' : 'text-gray-400'} />}
         <button onClick={() => setOpen(!open)} className="font-semibold text-gray-800 text-left flex-1">
           {!stats.total ? L('Requirements coverage — no requirements checklist yet', 'Cobertura de requerimientos — aún no hay checklist de requerimientos')
-            : !checked ? L('Requirements coverage — not checked', 'Cobertura de requerimientos — sin verificar')
-            : `${L('Requirements coverage', 'Cobertura de requerimientos')}: ${stats.pct}% (${stats.covered}/${stats.total})${stats.openGaps.length ? ` · ${stats.openGaps.length} ${L('open gaps', 'brechas abiertas')}` : ''}${stats.openRules.length ? ` · ${stats.openRules.length} ${L('rule violations', 'reglas incumplidas')}` : ''}${!current ? ` · ${L('outdated: the spec changed', 'desactualizada: la spec cambió')}` : ''}`}
+            : !checked ? `${L('Requirements coverage', 'Cobertura de requerimientos')}${specLabel ? ` · ${specLabel}` : ''} — ${L('not checked', 'sin verificar')}`
+            : `${L('Requirements coverage', 'Cobertura de requerimientos')}${specLabel ? ` · ${specLabel}` : ''}: ${stats.pct}% (${stats.covered}/${stats.total})${stats.openGaps.length ? ` · ${stats.openGaps.length} ${L('open gaps', 'brechas abiertas')}` : ''}${stats.openRules.length ? ` · ${stats.openRules.length} ${L('rule violations', 'reglas incumplidas')}` : ''}${!current ? ` · ${L('outdated: the spec changed', 'desactualizada: la spec cambió')}` : ''}`}
         </button>
         {checked && (
           <button onClick={() => setOpen(!open)} className="px-2.5 py-1 rounded-lg border border-gray-300 bg-white font-semibold text-gray-700 hover:bg-gray-50">
@@ -145,12 +174,55 @@ export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccep
           </button>
         )}
       </div>
+      {checked && stats.total > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex h-2 rounded-full overflow-hidden bg-gray-200">
+            {seg(n.covered, 'bg-emerald-500')}{seg(n.partial, 'bg-amber-400')}{seg(n.missing, 'bg-red-500')}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-600">
+            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" />{L('Covered', 'Cubiertos')} <b>{n.covered}</b></span>
+            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" />{L('Partial', 'Parciales')} <b>{n.partial}</b></span>
+            <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" />{L('Missing', 'Faltan')} <b>{n.missing}</b></span>
+            {n.accepted > 0 && <span className="inline-flex items-center gap-1"><CheckCircle2 size={11} className="text-gray-500" />{L('Gaps accepted', 'Brechas aceptadas')} <b>{n.accepted}</b></span>}
+            <span className="inline-flex items-center gap-1 text-gray-400"><Info size={11} />{L('Only fully covered requirements count in the %; partial ones add nothing.', 'El % solo cuenta los requerimientos cubiertos del todo; los parciales no suman.')}</span>
+          </div>
+          {waiting.length > 0 && (
+            <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+              <MessageCircleQuestion size={14} className="flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <b>{L(`${waiting.length} gaps are waiting on the customer`, `${waiting.length} brechas esperan respuesta del cliente`)}</b>
+                {' '}({waitIds.length} {L('unanswered questions', 'preguntas sin responder')}: {waitIds.slice(0, 10).join(', ')}{waitIds.length > 10 ? '…' : ''}).
+                {' '}{L('Send the questions to the customer and regenerate the spec with the answers: these gaps can then become covered.', 'Envíe las preguntas al cliente y regenere la spec con las respuestas: así estas brechas pueden pasar a cubiertas.')}
+                {canEdit && <button onClick={() => { setOpen(true); setFilter('wait'); }} className="ml-1 underline font-semibold">{L('See them', 'Verlas')}</button>}
+              </div>
+            </div>
+          )}
+          {other?.checked && (
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-600">
+              <ArrowRightLeft size={12} className="text-gray-400" />
+              <span>{other.label}: <b className={other.pct > stats.pct ? 'text-emerald-700' : ''}>{other.pct}%</b> ({other.covered}/{other.total}){!other.current ? ` · ${L('outdated', 'desactualizada')}` : ''}</span>
+              {other.pct > stats.pct && other.onOpen && (
+                <button onClick={other.onOpen} className="px-2 py-0.5 rounded-md border border-gray-300 bg-white font-semibold text-gray-700 hover:bg-gray-50">{L(`Open ${other.label}`, `Ver ${other.label}`)}</button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {checked && current && !stats.ok && (
         <p className="text-red-700">{L('The spec cannot be sent until every requirement is covered or its gap is accepted with a reason. For each gap below: "Fix gaps" regenerates the spec adding what is missing (from the customer documents); if the customer has to define it, add it as a question for the customer; if it is out of scope, accept the gap with the reason.', 'La spec no se puede enviar hasta que cada requerimiento esté cubierto o su brecha se acepte con un motivo. Para cada brecha de abajo: "Corregir brechas" regenera la spec agregando lo que falta (desde los documentos del cliente); si lo tiene que definir el cliente, agréguelo como pregunta para el cliente; si queda fuera de alcance, acepte la brecha con el motivo.')}</p>
       )}
       {open && checked && (
         <div className="space-y-1.5 pt-1">
-          {[...stats.rows].sort((a, b) => (a.status === 'covered') - (b.status === 'covered')).map(r => (
+          <div className="flex flex-wrap gap-1">
+            {FILTERS.filter(([k, , c]) => c > 0 || k === filter || k === 'gaps').map(([k, label, c]) => (
+              <button key={k} onClick={() => setFilter(k)}
+                className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${filter === k ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                {label} · {c}
+              </button>
+            ))}
+          </div>
+          {!shown.length && <p className="text-[11px] text-gray-500 py-1">{L('Nothing here.', 'No hay nada aquí.')}</p>}
+          {[...shown].sort((a, b) => (a.status === 'covered') - (b.status === 'covered')).map(r => (
             <div key={r.id} className="p-2 rounded-lg bg-white border border-gray-100">
               <div className="flex items-start gap-2">
                 <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold flex-shrink-0 ${STATUS_CLS[r.status] ?? STATUS_CLS.missing}`}>{statusTxt(r.status)}</span>
@@ -158,12 +230,18 @@ export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccep
                   <div><span className="font-mono text-gray-500">{r.id}</span> {r.text}</div>
                   {r.where && <div className="text-[11px] text-gray-500">{L('Where', 'Dónde')}: {r.where}</div>}
                   {r.note && r.status !== 'covered' && <div className="text-[11px] text-gray-600">{r.note}</div>}
+                  {r.waitQ.length > 0 && (
+                    <div className="mt-0.5 inline-flex flex-wrap items-center gap-1 text-[10px] text-amber-700">
+                      <MessageCircleQuestion size={11} />{L('Waiting on the customer', 'Espera al cliente')}:
+                      {r.waitQ.map(q => <span key={q} className="px-1 rounded bg-amber-50 border border-amber-200 font-mono">{q}</span>)}
+                    </div>
+                  )}
                   {r.status !== 'covered' && acceptCtl(r.id)}
                 </div>
               </div>
             </div>
           ))}
-          {(ruleViolations ?? []).map(v => (
+          {(filter === 'gaps' || filter === 'all') && (ruleViolations ?? []).map(v => (
             <div key={v.id} className="p-2 rounded-lg bg-white border border-red-100">
               <div className="flex items-start gap-2">
                 <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold flex-shrink-0 ${STATUS_CLS.missing}`}>{L('rule', 'regla')}</span>

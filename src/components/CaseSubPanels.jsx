@@ -7269,9 +7269,15 @@ ${result}`;
                         {(selectedSpec === 'a' || selectedSpec === 'c') && !specHasFailed(selectedSpec) && (() => {
                           const k = selectedSpec;
                           const cv = coverageFor(k);
+                          const ok2 = k === 'a' ? 'c' : 'a';
+                          const otherText = specText(ok2);
+                          const ocv = otherText && !specHasFailed(ok2) ? coverageFor(ok2) : null;
+                          const other = ocv?.checked ? { label: `Spec ${ok2.toUpperCase()}`, pct: ocv.stats.pct, covered: ocv.stats.covered, total: ocv.stats.total, checked: true, current: ocv.current,
+                            onOpen: () => { setSelectedSpec(ok2); setAiContent(otherText); } } : null;
                           return (
                             <>
                               <CoveragePanel stats={cv.stats} checked={cv.checked} current={cv.current} ruleViolations={cv.violations}
+                                specLabel={`Spec ${k.toUpperCase()}`} questions={questions} other={other}
                                 loading={reqLoading} canEdit={canEditReqs()} L={L}
                                 onCheck={() => handleCheckCoverage(k)} onFix={() => handleFixGaps(k)}
                                 onAccept={(gk, reason) => setGapAccepted(k, gk, reason)} onUnaccept={gk => setGapAccepted(k, gk, null)} />
