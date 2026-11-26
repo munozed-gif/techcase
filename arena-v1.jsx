@@ -145,6 +145,7 @@ import CustomerSpecReviewView from "./src/views/CustomerSpecReviewView.jsx";
 import HHInviteView from "./src/views/HHInviteView.jsx";
 import ProposalReviewView, { ProposalPreviewPage } from "./src/views/ProposalReviewView.jsx";
 import { LegalPage, LegalGate, LegalFooter } from "./src/components/Legal.jsx";
+import DocViewerPage from "./src/views/DocViewerPage.jsx";
 import { Tm } from "./src/components/BrandMark.jsx";
 // Customer link pages: © and links to the terms under the page.
 const withLegal = node => <div style={{ background: "#0B0F1A" }}>{node}<LegalFooter /></div>;
@@ -718,6 +719,7 @@ const _questionsMatch = typeof window !== 'undefined' && window.location.pathnam
 const _proposalMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/proposal\/([^/?#]+)/);
 const _proposalPreviewMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/proposal-preview\/([^/?#]+)/);
 // /terminos (/terms) and /privacidad (/privacy) — public legal pages
+const _docMatch = typeof window !== 'undefined' && window.location.pathname === '/doc';
 const _legalMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/(terminos|terms|privacidad|privacy)\/?$/);
 // Intercept /hh-invite/:token and /hh/:code — headhunter candidate invitation / personal link
 const _hhInviteMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/hh-invite\/([^/?#]+)/);
@@ -879,6 +881,7 @@ export default function App() {
   if (_proposalPreviewMatch) {
     return <ProposalPreviewPage id={_proposalPreviewMatch[1]} />;
   }
+  if (_docMatch) return <DocViewerPage />;
   if (_legalMatch) {
     return <LegalPage kind={["terminos", "terms"].includes(_legalMatch[1]) ? "terms" : "privacy"} />;
   }

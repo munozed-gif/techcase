@@ -3,7 +3,7 @@
 // proposal_decide). Approval sets each case's budget and returns the cases to Estimated.
 import { useEffect, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, Clock, Copy, Download, FileText, Presentation, Maximize2, Lock, ScrollText, Loader2, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, XCircle } from "lucide-react";
-import { docLinkClick, openHtml, wireDocFrame } from "../lib/openDoc.js";
+import { docLinkClick, openHtml, wireDocFrame, fixDocLinks } from "../lib/openDoc.js";
 import { supabase } from "../lib/supabase.js";
 import { NovaLandingMark } from "./LandingView.jsx";
 import { Tm } from "../components/BrandMark.jsx";
@@ -218,7 +218,7 @@ export default function ProposalReviewView({ token, embedded = false, defaultNam
             </div>
           ) : (
             <div className="rounded-2xl overflow-hidden border border-white/10 bg-white min-h-[70vh]">
-              <iframe onLoad={wireDocFrame} key={curView} title={curView} srcDoc={(curView === "summary" ? data.summary_html : data.html).replace("</head>", "<style>.print-btn{display:none!important}</style></head>")} className={`w-full ${embedded ? "h-[70vh]" : "h-[78vh]"} bg-white`} sandbox="allow-same-origin allow-popups allow-modals" />
+              <iframe onLoad={wireDocFrame} key={curView} title={curView} srcDoc={fixDocLinks(curView === "summary" ? data.summary_html : data.html).replace("</head>", "<style>.print-btn{display:none!important}</style></head>")} className={`w-full ${embedded ? "h-[70vh]" : "h-[78vh]"} bg-white`} sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-modals" />
             </div>
           )}
         </div>

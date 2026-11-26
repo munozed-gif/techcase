@@ -39,9 +39,21 @@ export function openHtml(html, { print = false, win = null } = {}) {
 // Storage, which serves them as text. HTML_LINKS_SCRIPT makes such links open the rendered page; it is
 // added to documents opened in their own tab (openHtml). For documents shown in a sandboxed iframe
 // (no scripts), wireDocFrame attaches the same behaviour from outside: <iframe onLoad={wireDocFrame}>.
-const HTML_LINKS_SCRIPT = `<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href')||'';if(!/\\.html?(\\?|#|$)/i.test(h))return;e.preventDefault();var w=window.open('','_blank');fetch(h).then(function(r){return r.text()}).then(function(t){if(w){w.document.open();w.document.write(t);w.document.close()}else{location.href=h}}).catch(function(){if(w)w.location.href=h})});</script>`;
+const HTML_LINKS_SCRIPT = `<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href')||'';if(h.indexOf('/storage/v1/object/public/')<0||!/\\.html?(\\?|#|$)/i.test(h))return;e.preventDefault();var w=window.open('','_blank');fetch(h).then(function(r){return r.text()}).then(function(t){if(w){w.document.open();w.document.write(t);w.document.close()}else{location.href=h}}).catch(function(){if(w)w.location.href=h})});</script>`;
+// Platform viewer for stored HTML files: /doc?u=<storage url> renders the page (works in any browser,
+// inside generated documents, PDFs and emails — no script needed in the document).
+const STORAGE_PREFIX = `${(import.meta.env?.VITE_SUPABASE_URL || "").replace(/\/$/, "")}/storage/v1/object/public/`;
+export const isStorageUrl = u => !!u && String(u).startsWith(STORAGE_PREFIX);
+export const docViewerUrl = u => `${window.location.origin}/doc?u=${encodeURIComponent(u)}`;
+/** Rewrite links to stored .html files so they open in the platform viewer. */
+export function fixDocLinks(html) {
+  return String(html ?? "").replace(/href="([^"]+)"/g, (m, href) => {
+    const h = href.replace(/&amp;/g, "&");
+    return isStorageUrl(h) && /\.html?(\?|#|$)/i.test(h) ? `href="${docViewerUrl(h).replace(/&/g, "&amp;")}"` : m;
+  });
+}
 export function withHtmlLinks(html) {
-  const s = String(html ?? "");
+  const s = fixDocLinks(html);
   return s.includes("</body>") ? s.replace("</body>", HTML_LINKS_SCRIPT + "</body>") : s + HTML_LINKS_SCRIPT;
 }
 export function wireDocFrame(e) {
@@ -53,9 +65,9 @@ export function wireDocFrame(e) {
       const a = ev.target?.closest?.("a[href]");
       if (!a) return;
       const href = a.getAttribute("href") || "";
-      if (!/\.html?(\?|#|$)/i.test(href)) return;
+      if (!isStorageUrl(href) || !/\.html?(\?|#|$)/i.test(href)) return;   // viewer links (/doc) work on their own
       ev.preventDefault();
-      openDocument(href, a.textContent || href);
+      window.open(docViewerUrl(href), "_blank");
     });
   } catch { /* cross-origin frame: nothing to do */ }
 }
