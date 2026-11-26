@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { HelpCircle, RefreshCw, Plus, Send, Copy, Check, Ban, Undo2, ChevronDown } from "lucide-react";
 import { usePersistedOpen, SectionHeader } from "./SpecRequirements.jsx";
-import { Q_KINDS, Q_KIND_LABEL, liveQuestions, openQuestions } from "../lib/questions.js";
+import { Q_KINDS, Q_KIND_LABEL, Q_AREAS, qAreaName, areaOf, askableQuestions, liveQuestions, openQuestions } from "../lib/questions.js";
 
 const kindName = (k, lang) => (Q_KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
 const STATUS_CLS = {
@@ -21,6 +21,13 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
   const statusTxt = s => ({ open: L('Open', 'Abierta'), answered: L('Answered', 'Respondida'), acknowledged: L('Assumption accepted', 'Supuesto aceptado'), discarded: L('Discarded', 'Descartada') })[s] ?? s;
   const nextId = () => `Q-${String(Math.max(0, ...list.map(q => Number(String(q.id).replace(/\D/g, '')) || 0)) + 1).padStart(2, '0')}`;
   const nOpen = openQuestions(list).length;
+  const [areaFilter, setAreaFilter] = useState(null);
+  const askable = askableQuestions(list);
+  const byArea = Q_AREAS.map(a => ({ area: a, n: askable.filter(q => areaOf(q) === a).length, total: liveQuestions(list).filter(q => areaOf(q) === a).length })).filter(x => x.total > 0);
+  const AREA_CLS = { functional: 'bg-blue-50 text-blue-700 border-blue-200', abap: 'bg-violet-50 text-violet-700 border-violet-200', basis: 'bg-slate-100 text-slate-700 border-slate-300',
+    security: 'bg-red-50 text-red-700 border-red-200', integration: 'bg-cyan-50 text-cyan-700 border-cyan-200', data: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    testing: 'bg-amber-50 text-amber-700 border-amber-200', management: 'bg-gray-100 text-gray-700 border-gray-300' };
+  const shown = areaFilter ? list.filter(q => areaOf(q) === areaFilter) : list;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
@@ -29,10 +36,29 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
         pill={loading ? L('Looking…', 'Buscando…') : state === 'fresh' ? L('Current', 'Al día') : state === 'outdated' ? L('Outdated', 'Desactualizado') : L('Not run', 'Sin ejecutar')} pillTone={loading ? 'running' : state === 'fresh' ? 'ok' : state === 'outdated' ? 'warn' : 'muted'}
         open={open} onToggle={() => setOpen(o => !o)}
         actions={[
-          canEdit && nOpen > 0 && { Icon: Send, title: L('Send the open questions to the customer (copies the link)', 'Enviar las preguntas abiertas al cliente (copia el enlace)'), onClick: onSendLink },
+          canEdit && askable.length > 0 && { Icon: Send, title: L('One link with all the unanswered questions (copies the link)', 'Un enlace con todas las preguntas sin responder (copia el enlace)'), onClick: () => onSendLink(null) },
           canEdit && { Icon: RefreshCw, title: list.length ? L('Look for questions again', 'Buscar preguntas de nuevo') : L('Find questions', 'Buscar preguntas'), onClick: onExtract, loading, primary: true },
         ]} />
       {error && <p className="text-xs text-red-500">{error}</p>}
+      {byArea.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-[11px] text-gray-500">{L('By area — filter the list, or send each area its own link (only the unanswered questions of that area):', 'Por área — filtra la lista, o envía a cada área su propio enlace (solo las preguntas sin responder de esa área):')}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {byArea.map(x => (
+              <span key={x.area} className={`inline-flex items-center rounded-lg border text-[11px] overflow-hidden ${AREA_CLS[x.area]} ${areaFilter === x.area ? 'ring-2 ring-blue-300' : ''}`}>
+                <button onClick={() => { setAreaFilter(f => (f === x.area ? null : x.area)); setOpen(true); }} className="px-2 py-1 font-semibold">
+                  {qAreaName(x.area, lang)} · {x.n}/{x.total}
+                </button>
+                {canEdit && x.n > 0 && (
+                  <button onClick={() => onSendLink(x.area)} title={L(`Create a link with the ${x.n} unanswered ${qAreaName(x.area, lang)} questions (copies it)`, `Crear un enlace con las ${x.n} preguntas sin responder de ${qAreaName(x.area, lang)} (lo copia)`)}
+                    className="px-1.5 py-1 border-l border-current/20 hover:bg-white/60 inline-flex items-center gap-1"><Send size={11} />{L('Link', 'Enlace')}</button>
+                )}
+              </span>
+            ))}
+            {areaFilter && <button onClick={() => setAreaFilter(null)} className="text-[11px] underline text-gray-500">{L('Show all', 'Ver todas')}</button>}
+          </div>
+        </div>
+      )}
       {(links ?? []).length > 0 && (
         <div className="space-y-1">
           {links.map(l => {
@@ -42,6 +68,7 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
                 <span className={`px-1.5 py-0.5 rounded-full font-semibold ${l.status === 'answered' ? 'bg-emerald-100 text-emerald-700' : l.status === 'revoked' ? 'bg-gray-200 text-gray-500' : 'bg-blue-100 text-blue-700'}`}>
                   {l.status === 'answered' ? L('Answered', 'Respondido') : l.status === 'revoked' ? L('Revoked', 'Revocado') : L('Waiting for the customer', 'Esperando al cliente')}
                 </span>
+                {l.platform?.area && <span className={`px-1.5 py-0.5 rounded border font-semibold ${AREA_CLS[l.platform.area] ?? ''}`}>{qAreaName(l.platform.area, lang)}</span>}
                 <span className="text-gray-600 flex-1">{L('Sent', 'Enviado')} {new Date(l.created_at).toLocaleDateString()} · {(l.questions ?? []).length} {L('questions', 'preguntas')} · {n} {L('answered', 'respondidas')}{l.customer_name ? ` · ${l.customer_name}` : ''}</span>
                 {l.status === 'pending' && (
                   <>
@@ -60,7 +87,7 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
             <p className="text-xs text-gray-400 italic">{L('The analysis looks for contradictions between the documents, ambiguous rules and missing information. Answered questions override the documents when generating; open ones become explicit assumptions in the spec.', 'El análisis busca contradicciones entre documentos, reglas ambiguas e información faltante. Las respuestas prevalecen sobre los documentos al generar; las preguntas abiertas quedan como supuestos explícitos en la spec.')}</p>
           )}
           <div className="space-y-1.5">
-            {list.map(q => (
+            {shown.map(q => (
               <div key={q.id} className={`p-2 rounded-lg border text-xs ${q.status === 'discarded' ? 'bg-gray-50 border-gray-100 opacity-70' : 'border-gray-100'}`}>
                 <div className="flex items-start gap-2">
                   <span className="font-mono font-semibold text-gray-500 w-11 flex-shrink-0 pt-1">{q.id}</span>
@@ -72,6 +99,12 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
                             {Q_KINDS.map(k => <option key={k} value={k}>{kindName(k, lang)}</option>)}
                           </select>
                         : <span className="text-[11px] text-gray-500">{kindName(q.kind, lang)}</span>}
+                      {canEdit && q.status !== 'answered' && q.status !== 'discarded'
+                        ? <select value={areaOf(q)} onChange={e => upd(q.id, { area: e.target.value })} title={L('Who has to answer it', 'Quién debe responderla')}
+                            className={`px-1 py-0.5 border rounded text-[11px] font-semibold ${AREA_CLS[areaOf(q)]}`}>
+                            {Q_AREAS.map(a => <option key={a} value={a}>{qAreaName(a, lang)}</option>)}
+                          </select>
+                        : <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${AREA_CLS[areaOf(q)]}`}>{qAreaName(areaOf(q), lang)}</span>}
                       {q.affects?.length > 0 && <span className="text-[11px] text-gray-500">{L('Affects', 'Afecta')}: {q.affects.join(', ')}</span>}
                     </div>
                     {canEdit && q.status === 'open'
@@ -117,7 +150,7 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
             ))}
           </div>
           {canEdit && (
-            <button onClick={() => onChange([...list, { id: nextId(), kind: 'ambiguity', text: '', sources: '', affects: [], assumption: '', status: 'open', manual: true, ...stamp() }])}
+            <button onClick={() => onChange([...list, { id: nextId(), kind: 'ambiguity', area: areaFilter ?? 'functional', text: '', sources: '', affects: [], assumption: '', status: 'open', manual: true, ...stamp() }])}
               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"><Plus size={13} />{L('Add question', 'Agregar pregunta')}</button>
           )}
         </>

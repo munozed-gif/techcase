@@ -14,6 +14,7 @@ import { runCaseChecks, blockingIssues } from "../lib/caseChecks.js";
 import { CaseChecksPanel } from "./CaseChecksPanel.jsx";
 import { normalizeQuestions, questionsPromptBlock, openQuestions, mergeLinkAnswers } from "../lib/questions.js";
 import { QuestionsPanel } from "./SpecQuestions.jsx";
+import { askableQuestions, areaOf } from "../lib/questions.js";
 import { detectDocLang } from "../lib/docLang.js";
 import { SignoffPanel } from "./SpecSignoff.jsx";
 import {
@@ -1771,7 +1772,8 @@ Case: ${caseData.title}
 Description: ${caseData.description ?? ''}${analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : ''}${summaryIn ? `\nRequest Summary (pre-analysis):\n${summaryIn}` : ''}${(reqs ?? []).length ? `\nRequirements checklist:\n${reqs.filter(r => !r.outOfScope).map(r => `- ${r.id}: ${r.text}`).join('\n')}` : ''}${answeredBlock()}
 
 Respond with ONLY a JSON array (empty if there is nothing to ask), no markdown fences:
-[{ "kind": "contradiction" | "ambiguity" | "missing", "text": "the question for the customer, clear and self-contained", "sources": "document / section of each side", "affects": ["REQ-03"], "assumption": "what the spec assumes if not answered" }]${jsonLangNote(specLang())}`;
+[{ "kind": "contradiction" | "ambiguity" | "missing", "area": "functional" | "abap" | "basis" | "security" | "integration" | "data" | "testing" | "management", "text": "the question for the customer, clear and self-contained", "sources": "document / section of each side", "affects": ["REQ-03"], "assumption": "what the spec assumes if not answered" }]
+"area" = who at the customer has to answer it: functional (business process, functional rules, SAP configuration and screens), abap (technical development: objects, enhancements, BAdIs, Clean Core, technical field names), basis (systems, clients, transports, performance, infrastructure), security (roles and authorizations), integration (interfaces, IDocs, APIs, external systems), data (master data and its maintenance), testing (test scenarios and test data), management (scope, dates, change requests, approvals, documentation).${jsonLangNote(specLang())}`;
       const raw = await callClaude({ feature: 'spec_questions', model: analysisModel,
         system: 'You are an SAP senior functional consultant preparing questions for the customer before writing a specification. Respond ONLY with a valid JSON array.',
         messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: prompt }] : prompt }], max_tokens: 8000 });
@@ -1808,14 +1810,17 @@ Respond with ONLY a JSON array (empty if there is nothing to ask), no markdown f
       if (changed) saveQuestions(merged);
     }).catch(() => {});
   }, [specLoading, caseData.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  async function sendQuestionsLink() {
-    const open = openQuestions(questions);
-    if (!open.length) return;
+  // One link per area (or one for all): only the questions not answered yet (open or on an assumption).
+  async function sendQuestionsLink(area = null, ids = null) {
+    let list = askableQuestions(questions);
+    if (area) list = list.filter(q => areaOf(q) === area);
+    if (ids) list = list.filter(q => ids.includes(q.id));
+    if (!list.length) return;
     try {
       const { data, error } = await supabase.from('spec_question_links').insert({
         case_id: caseData.id, case_title: caseData.title ?? '',
-        questions: open.map(q => ({ id: q.id, kind: q.kind, text: q.text, sources: q.sources, assumption: q.assumption })),
-        platform: { name: ssCtx.settings['platform_name'] || 'Arena Solution Platform', tagline: ssCtx.settings['platform_tagline'] || 'SAP Solutions', lang: specLang() },
+        questions: list.map(q => ({ id: q.id, kind: q.kind, area: areaOf(q), text: q.text, sources: q.sources, assumption: q.assumption })),
+        platform: { name: ssCtx.settings['platform_name'] || 'Arena Solution Platform', tagline: ssCtx.settings['platform_tagline'] || 'SAP Solutions', lang: specLang(), area: area ?? null },
       }).select().single();
       if (error) throw error;
       await copyQuestionsLink(data);
