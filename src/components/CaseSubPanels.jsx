@@ -5931,8 +5931,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
         {/* 2-column pipeline layout */}
         <div className="flex gap-4 items-start">
 
-          {/* LEFT: Pipeline flow diagram */}
-          <div className={`w-56 flex-shrink-0 ${nodesCollapsed ? 'hidden sm:block' : ''}`}>
+          {/* LEFT: Pipeline flow diagram — stays in place while the content on the right scrolls */}
+          <div className={`w-56 flex-shrink-0 sm:sticky sm:top-0 sm:self-start sm:max-h-[calc(100vh-7rem)] sm:overflow-y-auto sm:pr-1 ${nodesCollapsed ? 'hidden sm:block' : ''}`}>
             <div className="relative space-y-1">
               {/* vertical connector line behind nodes */}
               <div className="absolute left-[23px] top-10 bottom-10 w-0.5 bg-gray-200 z-0 pointer-events-none" />
