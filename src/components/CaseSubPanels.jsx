@@ -1716,6 +1716,62 @@ ${sanitizeForJson(section)}`;
     setRequirements(next);
     try { await saveAiNotesPatch({ requirements: next }); } catch (_) {}
   }
+  // Customer answers → checklist: the AI proposes which requirements the answers put out of scope
+  // (this phase) or change (new text), each with its reason and question ids; the consultant confirms.
+  const [answerProposals, setAnswerProposals] = useState(null);
+  const [applyingAnswers, setApplyingAnswers] = useState(false);
+  async function handleApplyAnswers() {
+    const answered = questions.filter(q => q.status === 'answered' && q.answer?.trim());
+    const list = inScope(requirements);
+    if (!answered.length || !list.length) return;
+    setApplyingAnswers(true); setReqError(null); setAnswerProposals(null);
+    try {
+      const prompt = `The customer answered questions about this SAP case. Their answers are authoritative and override the documents.
+Decide, for each requirement of the checklist below (extracted earlier from the documents), whether an answer changes it:
+- "out_of_scope": an answer leaves it out of this phase / not wanted / postponed / pending a later approval;
+- "update": an answer changes what is required (different source, rule, object, profile, value…): give the requirement rewritten to match the answer, keeping the same subject and level of detail;
+- leave it out of the result when no answer affects it.
+Only use what the answers say. Cite the question ids that support each change.
+
+ANSWERS:
+${answered.map(q => `- ${q.id}: ${q.text}\n  ANSWER: ${q.answer}`).join('\n')}
+
+REQUIREMENTS (in scope):
+${list.map(r => `- ${r.id}: ${r.text}`).join('\n')}
+
+Respond with ONLY a JSON array, no markdown fences:
+[{ "id": "REQ-05", "action": "out_of_scope" | "update", "text": "new requirement text (only for update)", "reason": "short reason citing the answer", "questions": ["Q-03"] }]${jsonLangNote(specLang())}`;
+      const raw = await callClaude({ feature: 'spec_requirements', model: analysisModel,
+        system: 'You are an SAP senior functional consultant keeping the requirements checklist in line with the customer answers. Respond ONLY with a valid JSON array.',
+        messages: [{ role: 'user', content: prompt }], max_tokens: 12000 });
+      const parsed = parseJsonArray(raw, 'changes');
+      if (!parsed) throw new Error(L('The proposal could not be read from the AI answer — run it again.', 'No se pudo leer la propuesta de la IA — ejecútelo de nuevo.'));
+      const ids = new Set(list.map(r => r.id));
+      setAnswerProposals(parsed
+        .filter(p => p && ids.has(String(p.id)) && ['out_of_scope', 'update'].includes(p.action) && (p.action === 'out_of_scope' || String(p.text ?? '').trim()))
+        .map(p => ({ id: String(p.id), action: p.action, text: String(p.text ?? '').trim(), reason: String(p.reason ?? '').trim(), questions: Array.isArray(p.questions) ? p.questions.map(String) : [] })));
+    } catch (e) { setReqError(e.message); }
+    setApplyingAnswers(false);
+  }
+  async function confirmAnswerProposals(selected) {
+    const at = new Date().toISOString();
+    const by = auth.user?.id ?? null;
+    const byId = Object.fromEntries(selected.map(p => [p.id, p]));
+    const next = requirements.map(r => {
+      const p = byId[r.id];
+      if (!p) return r;
+      const why = `${p.reason}${p.questions.length ? ` (${p.questions.join(', ')})` : ''}`;
+      return p.action === 'out_of_scope'
+        ? { ...r, outOfScope: true, reason: why, by, at, viaAnswers: true }
+        : { ...r, text: p.text, originalText: r.originalText ?? r.text, reason: why, by, at, viaAnswers: true };
+    });
+    setAnswerProposals(null);
+    await saveRequirements(next);
+    // The coverage was checked against the old texts: check it again on the current spec.
+    const key = gateSpecKey();
+    if (key && specText(key)) await handleCheckCoverage(key, undefined, next);
+  }
+
   async function handleExtractRequirements(opts = {}) {
     const summaryIn = opts.summary !== undefined ? opts.summary : requestSummary;
     setReqLoading('extract'); setReqError(null);
@@ -1728,8 +1784,15 @@ For test matrices (sheets of test scenarios), do NOT list each row: group the sc
 Case: ${caseData.title}
 Description: ${caseData.description ?? ''}${analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : ''}${summaryIn ? `\nRequest Summary (pre-analysis):\n${summaryIn}` : ''}
 
+${(() => {
+  const ans = questions.filter(q => q.status === 'answered' && q.answer?.trim());
+  return ans.length ? `
+CUSTOMER ANSWERS — authoritative, they override the documents: write each requirement as the answers define it (e.g. another source, rule or object). A requirement the answers leave out of this phase / not wanted / pending a later approval is still listed, with "outOfScope": true and "reason" citing the question id.
+${ans.map(q => `- ${q.id}: ${q.text}\n  ANSWER: ${q.answer}`).join('\n')}
+` : '';
+})()}
 Respond with ONLY a JSON array, no markdown fences:
-[{ "source": "document name and section/page/sheet", "text": "the requirement, precise and testable", "kind": "functional" | "data" | "ui" | "report" | "integration" | "authorization" | "test_scenario" | "non_functional" }]${jsonLangNote(lang)}`;
+[{ "source": "document name and section/page/sheet", "text": "the requirement, precise and testable", "kind": "functional" | "data" | "ui" | "report" | "integration" | "authorization" | "test_scenario" | "non_functional", "outOfScope": false, "reason": "only when out of scope: why, citing the question id" }]${jsonLangNote(lang)}`;
       const raw = await callClaude({ feature: 'spec_requirements', model: analysisModel,
         system: 'You are an SAP senior functional consultant doing requirements traceability. Respond ONLY with a valid JSON array.',
         messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: prompt }] : prompt }], max_tokens: 12000 });
@@ -1737,9 +1800,13 @@ Respond with ONLY a JSON array, no markdown fences:
       if (!parsed) throw new Error(L('The requirements could not be read from the AI answer — run it again.', 'No se pudieron leer los requerimientos de la respuesta de la IA — ejecútelo de nuevo.'));
       // Keep what the consultants added by hand and their out-of-scope decisions (matched by text).
       const prevOut = Object.fromEntries(requirements.filter(r => r.outOfScope && !r.manual).map(r => [r.text.trim().toLowerCase(), r]));
-      let next = normalizeRequirements(parsed).map(r => {
+      const at = new Date().toISOString();
+      let next = normalizeRequirements(parsed).map((r, i) => {
         const o = prevOut[r.text.trim().toLowerCase()];
-        return o ? { ...r, outOfScope: true, reason: o.reason, by: o.by, at: o.at } : r;
+        if (o) return { ...r, outOfScope: true, reason: o.reason, by: o.by, at: o.at };
+        // Out of scope according to the customer answers (decided by the extraction itself).
+        const src = parsed.filter(x => x && String(x.text ?? '').trim())[i];
+        return src?.outOfScope === true ? { ...r, outOfScope: true, reason: String(src.reason ?? '').trim() || L('Out of scope per the customer answers', 'Fuera de alcance según las respuestas del cliente'), at, viaAnswers: true } : r;
       });
       const manual = requirements.filter(r => r.manual && r.text?.trim());
       next = [...next, ...manual.map((r, i) => ({ ...r, id: `REQ-${String(next.length + i + 1).padStart(2, '0')}` }))];
@@ -6754,7 +6821,9 @@ ${result}`;
                   {analysisStrip()}
                   <RequirementsChecklist requirements={requirements} onChange={saveRequirements}
                     onExtract={() => handleExtractRequirements()} loading={reqLoading === 'extract'} error={reqError}
-                    canEdit={canEditReqs()} state={analysisState('requirements')} L={L} lang={lang} who={auth.user?.id ?? null} />
+                    canEdit={canEditReqs()} state={analysisState('requirements')} L={L} lang={lang} who={auth.user?.id ?? null}
+                    answeredCount={questions.filter(q => q.status === 'answered').length} onApplyAnswers={handleApplyAnswers} applying={applyingAnswers}
+                    proposals={answerProposals} onConfirmProposals={confirmAnswerProposals} onDiscardProposals={() => setAnswerProposals(null)} />
                   {/* Questions for the customer (also its own node) */}
                   <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
                       loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}

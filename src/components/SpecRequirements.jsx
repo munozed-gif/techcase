@@ -1,7 +1,7 @@
 // Requirement traceability UI: the editable requirements checklist (summary node) and the
 // coverage panel of a generated spec (spec node). Logic lives in src/lib/requirements.js.
 import { useState } from "react";
-import { Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, ListChecks, Wrench, Undo2, ChevronDown, MessageCircleQuestion, ArrowRightLeft, Info } from "lucide-react";
+import { Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, ListChecks, Wrench, Undo2, ChevronDown, MessageCircleQuestion, ArrowRightLeft, Info, MessageSquareReply } from "lucide-react";
 import { REQ_KINDS, REQ_KIND_LABEL, inScope } from "../lib/requirements.js";
 
 const kindName = (k, lang) => (REQ_KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
@@ -13,7 +13,48 @@ export function usePersistedOpen(key, def = true) {
   return [open, setOpen];
 }
 
-export function RequirementsChecklist({ requirements, onChange, onExtract, loading, error, canEdit, state, L, lang, who }) {
+// Review of the changes the customer's answers make to the checklist (out of scope / updated text).
+function AnswersProposals({ proposals, requirements, onConfirm, onDiscard, L }) {
+  const [sel, setSel] = useState(() => Object.fromEntries(proposals.map(p => [p.id, true])));
+  const byId = Object.fromEntries((requirements ?? []).map(r => [r.id, r]));
+  const n = proposals.filter(p => sel[p.id]).length;
+  return (
+    <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-3 space-y-2">
+      <p className="text-xs font-semibold text-violet-800 flex items-center gap-1.5"><MessageSquareReply size={13} />
+        {L(`The customer's answers change ${proposals.length} requirements — review and apply`, `Las respuestas del cliente cambian ${proposals.length} requerimientos — revise y aplique`)}</p>
+      <div className="space-y-1.5 max-h-[420px] overflow-y-auto">
+        {proposals.map(p => {
+          const r = byId[p.id];
+          const out = p.action === 'out_of_scope';
+          return (
+            <label key={p.id} className="flex items-start gap-2 p-2 rounded-lg bg-white border border-gray-100 text-xs cursor-pointer">
+              <input type="checkbox" className="mt-0.5" checked={!!sel[p.id]} onChange={() => setSel(x => ({ ...x, [p.id]: !x[p.id] }))} />
+              <div className="flex-1 space-y-0.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-mono font-semibold text-gray-500">{p.id}</span>
+                  <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${out ? 'bg-gray-100 text-gray-700 border-gray-300' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                    {out ? L('Out of scope', 'Fuera de alcance') : L('Updated', 'Actualizado')}</span>
+                  {(p.questions ?? []).map(q => <span key={q} className="px-1 rounded bg-violet-100 text-violet-700 font-mono text-[10px]">{q}</span>)}
+                </div>
+                <div className={out ? 'line-through text-gray-500' : 'text-gray-500'}>{r?.text}</div>
+                {!out && p.text && <div className="text-gray-800"><span className="font-semibold">{L('New', 'Nuevo')}:</span> {p.text}</div>}
+                <div className="text-[11px] text-gray-600">{L('Why', 'Por qué')}: {p.reason}</div>
+              </div>
+            </label>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button disabled={!n} onClick={() => onConfirm(proposals.filter(p => sel[p.id]))}
+          className="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-semibold disabled:opacity-40">{L(`Apply ${n} selected`, `Aplicar ${n} seleccionados`)}</button>
+        <button onClick={onDiscard} className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs">{L('Discard', 'Descartar')}</button>
+      </div>
+    </div>
+  );
+}
+
+export function RequirementsChecklist({ requirements, onChange, onExtract, loading, error, canEdit, state, L, lang, who,
+  answeredCount = 0, onApplyAnswers, applying = false, proposals = null, onConfirmProposals, onDiscardProposals }) {
   const [open, setOpen] = usePersistedOpen('genctx2_reqs_open', false);
   const [reasonFor, setReasonFor] = useState(null);
   const [reason, setReason] = useState('');
@@ -29,8 +70,17 @@ export function RequirementsChecklist({ requirements, onChange, onExtract, loadi
         detail={list.length ? `${inScope(list).length} ${L('in scope', 'en alcance')}` : null}
         pill={loading ? L('Extracting…', 'Extrayendo…') : state === 'fresh' ? L('Current', 'Al día') : state === 'outdated' ? L('Outdated', 'Desactualizado') : L('Not run', 'Sin ejecutar')} pillTone={loading ? 'running' : state === 'fresh' ? 'ok' : state === 'outdated' ? 'warn' : 'muted'}
         open={open} onToggle={() => setOpen(o => !o)}
-        actions={[canEdit && { Icon: RefreshCw, title: list.length ? L('Extract again', 'Extraer de nuevo') : L('Extract requirements', 'Extraer requerimientos'), onClick: onExtract, loading, primary: true }]} />
+        actions={[
+          canEdit && list.length > 0 && answeredCount > 0 && onApplyAnswers && { Icon: MessageSquareReply, title: L(`Apply the ${answeredCount} customer answers to the checklist (proposes what is now out of scope or changed)`, `Aplicar las ${answeredCount} respuestas del cliente al checklist (propone qué queda fuera de alcance o cambia)`), onClick: onApplyAnswers, loading: applying },
+          canEdit && { Icon: RefreshCw, title: list.length ? L('Extract again', 'Extraer de nuevo') : L('Extract requirements', 'Extraer requerimientos'), onClick: onExtract, loading, primary: true },
+        ]} />
       {error && <p className="text-xs text-red-500">{error}</p>}
+      {applying && <p className="text-xs text-violet-700">{L('Comparing the customer answers with the requirements…', 'Comparando las respuestas del cliente con los requerimientos…')}</p>}
+      {proposals && proposals.length === 0 && (
+        <p className="text-xs text-gray-600 flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-600" />{L('The answers do not change any requirement.', 'Las respuestas no cambian ningún requerimiento.')}
+          <button onClick={onDiscardProposals} className="underline">{L('OK', 'Entendido')}</button></p>
+      )}
+      {proposals && proposals.length > 0 && <AnswersProposals key={proposals.map(p => p.id).join()} proposals={proposals} requirements={list} onConfirm={onConfirmProposals} onDiscard={onDiscardProposals} L={L} />}
       {open && (
         <>
           {!list.length && !loading && (
@@ -54,6 +104,7 @@ export function RequirementsChecklist({ requirements, onChange, onExtract, loadi
                       {r.source && <span title={r.source} className="truncate max-w-xs">{L('Source', 'Fuente')}: {r.source}</span>}
                       {r.manual && <span className="text-blue-600">{L('added by a consultant', 'agregado por un consultor')}</span>}
                       {r.outOfScope && <span className="text-gray-600">{L('Out of scope', 'Fuera de alcance')}: {r.reason}</span>}
+                      {!r.outOfScope && r.originalText && <span className="text-blue-700" title={`${L('Original', 'Original')}: ${r.originalText}`}>{L('Updated by customer answer', 'Actualizado por respuesta del cliente')}{r.reason ? `: ${r.reason}` : ''}</span>}
                     </div>
                     {reasonFor === r.id && (
                       <div className="flex gap-1.5">
