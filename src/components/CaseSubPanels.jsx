@@ -1125,12 +1125,11 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     if (!cur && spec?.mode === 'ai' && spec?.notes) { try { cur = JSON.parse(spec.notes) ?? {}; } catch { cur = {}; } }
     cur = cur ?? {};
     notesRef.current = { ...cur, ...patch };
-    await saveSpec({
-      mode: 'ai', status: spec?.status ?? 'draft',
-      ...(spec?.id ? {} : { content: null, objects: [] }),
-      notes: JSON.stringify(notesRef.current),
-      title: spec?.title ?? (caseData.title + t("spec.doc_title_suffix")),
-    });
+    // An existing spec only gets its notes: never resend status / title from the state loaded with the
+    // screen, or a patch saved right after Approve / Reject would put the old status back.
+    await saveSpec(spec?.id
+      ? { mode: 'ai', notes: JSON.stringify(notesRef.current), ...(spec.title ? {} : { title: caseData.title + t("spec.doc_title_suffix") }) }
+      : { mode: 'ai', status: 'draft', content: null, objects: [], notes: JSON.stringify(notesRef.current), title: caseData.title + t("spec.doc_title_suffix") });
   }
 
   // Mode selection
@@ -5276,7 +5275,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
     try {
       await saveSpec({ status: 'approved', approved_by: auth.user?.id, approved_at: new Date().toISOString(), rejected_reason: null });
       // Which spec was approved (the development plan is built from it — System settings → Spec quality).
-      if (gateSpecKey()) saveAiNotesPatch({ approvedSpec: gateSpecKey() }).catch(() => {});
+      if (gateSpecKey()) await saveAiNotesPatch({ approvedSpec: gateSpecKey() }).catch(() => {});
       await supabase.from('cases').update({ status: 'estimated' }).eq('id', caseData.id);
       logEvent('spec.approved', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, oldValue: { status: 'ai' }, newValue: { status: 'estimated' } });
       await refetch();
