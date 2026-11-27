@@ -1,7 +1,7 @@
 // Settings → Visits: landing page statistics from landing_visits (filled by /api/track).
 // Admins only (landing_stats RPC + table RLS). IPs are stored anonymized.
 import { useEffect, useState } from "react";
-import { BarChart3, Users, Eye, MousePointerClick, UserPlus, Download, RefreshCw, Globe, MapPin, Link2, Megaphone, Monitor, Languages, Film } from "lucide-react";
+import { BarChart3, Users, Eye, MousePointerClick, UserPlus, Download, RefreshCw, Globe, MapPin, Link2, Megaphone, Monitor, Languages, Film, Copy, Check, ExternalLink } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 
@@ -36,6 +36,78 @@ function Breakdown({ Icon, title, rows, valueKey = 'visitors', label = r => r.ke
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+// Lowercase, no accents or spaces: "Lanzamiento Diciembre" → "lanzamiento-diciembre".
+const slug = v => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+
+// Campaign link builder: base URL + utm_source / utm_medium / utm_campaign / utm_content.
+function UtmBuilder({ L, campaigns }) {
+  const SOURCES = [['linkedin', 'LinkedIn'], ['whatsapp', 'WhatsApp'], ['email', L('Email', 'Correo')], ['instagram', 'Instagram'], ['facebook', 'Facebook'], ['google', 'Google'], ['evento', L('Event', 'Evento')]];
+  const MEDIUMS = [['social', L('Social post', 'Publicación social')], ['mensaje', L('Message', 'Mensaje')], ['correo', L('Email', 'Correo')], ['anuncio', L('Ad (paid)', 'Anuncio (pago)')], ['qr', L('QR code', 'Código QR')], ['firma', L('Email signature', 'Firma de correo')]];
+  const DEFAULT_MEDIUM = { linkedin: 'social', instagram: 'social', facebook: 'social', whatsapp: 'mensaje', email: 'correo', google: 'anuncio', evento: 'qr' };
+  const [base, setBase] = useState(() => (typeof window !== 'undefined' ? `${window.location.origin}/` : ''));
+  const [source, setSource] = useState('linkedin');
+  const [medium, setMedium] = useState('social');
+  const [campaign, setCampaign] = useState('');
+  const [content, setContent] = useState('');
+  const [copied, setCopied] = useState(false);
+  const src = slug(source), med = slug(medium), camp = slug(campaign), cont = slug(content);
+  let url = '';
+  try {
+    const u = new URL(base || '/', typeof window !== 'undefined' ? window.location.origin : 'https://example.com');
+    if (src) u.searchParams.set('utm_source', src);
+    if (med) u.searchParams.set('utm_medium', med);
+    if (camp) u.searchParams.set('utm_campaign', camp);
+    if (cont) u.searchParams.set('utm_content', cont);
+    url = u.toString();
+  } catch { url = ''; }
+  const ready = !!(url && src && camp);
+  const chip = on => `px-2 py-1 rounded-lg border text-xs font-semibold ${on ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`;
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-3">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5"><Megaphone size={13} />{L('Campaign link generator', 'Generador de enlaces de campaña')}</p>
+      <p className="text-[11px] text-gray-500">{L('Share this link instead of the plain address: its visits appear under Campaigns and Where they came from.', 'Comparte este enlace en lugar de la dirección sola: sus visitas aparecen en Campañas y en De dónde llegaron.')}</p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <label className="block text-xs text-gray-600">{L('Campaign name', 'Nombre de la campaña')} *
+          <input value={campaign} onChange={e => setCampaign(e.target.value)} list="utm-campaigns" placeholder={L('e.g. launch-dec26', 'p. ej. lanzamiento-dic26')}
+            className="mt-1 w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm" />
+          <datalist id="utm-campaigns">{(campaigns ?? []).map(c => <option key={c.key} value={c.key} />)}</datalist>
+          {campaign && camp !== campaign && <span className="block text-[10px] text-gray-400 mt-0.5">{L('Saved as', 'Se guarda como')}: {camp}</span>}
+        </label>
+        <label className="block text-xs text-gray-600">{L('Version (optional)', 'Versión (opcional)')}
+          <input value={content} onChange={e => setContent(e.target.value)} placeholder={L('e.g. video, image-1', 'p. ej. video, imagen-1')}
+            className="mt-1 w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm" />
+        </label>
+      </div>
+      <div className="space-y-1">
+        <p className="text-xs text-gray-600">{L('Where you will share it (source)', 'Dónde lo vas a compartir (fuente)')} *</p>
+        <div className="flex flex-wrap gap-1.5 items-center">
+          {SOURCES.map(([k, t]) => <button key={k} onClick={() => { setSource(k); setMedium(DEFAULT_MEDIUM[k] ?? medium); }} className={chip(src === k)}>{t}</button>)}
+          <input value={SOURCES.some(([k]) => k === src) ? '' : source} onChange={e => setSource(e.target.value)} placeholder={L('other…', 'otra…')} className="w-28 px-2 py-1 border border-gray-200 rounded-lg text-xs" />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <p className="text-xs text-gray-600">{L('Channel type (medium)', 'Tipo de canal (medio)')}</p>
+        <div className="flex flex-wrap gap-1.5">{MEDIUMS.map(([k, t]) => <button key={k} onClick={() => setMedium(k)} className={chip(med === k)}>{t}</button>)}</div>
+      </div>
+      <details className="text-xs text-gray-600">
+        <summary className="cursor-pointer text-gray-500">{L('Page address', 'Dirección de la página')}: {base}</summary>
+        <input value={base} onChange={e => setBase(e.target.value)} className="mt-1 w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-mono" />
+      </details>
+      <div className={`rounded-lg border p-2 ${ready ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+        <p className="text-[11px] font-mono break-all text-gray-800">{ready ? url : L('Write the campaign name and choose the source.', 'Escribe el nombre de la campaña y elige la fuente.')}</p>
+        {ready && (
+          <div className="flex gap-2 mt-2">
+            <button onClick={async () => { try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* ignore */ } }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold">{copied ? <><Check size={12} />{L('Copied', 'Copiado')}</> : <><Copy size={12} />{L('Copy link', 'Copiar enlace')}</>}</button>
+            <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700"><ExternalLink size={12} />{L('Open', 'Abrir')}</a>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -97,6 +169,8 @@ export function LandingStats() {
       <p className="text-xs text-gray-500">{L('Location comes from the request (country, region, city); IPs are stored anonymized. Visitors are counted with a random id kept in the browser. Visitors with "Do Not Track" are not counted. More (bots excluded, no IP) in Vercel → Analytics.',
         'La ubicación sale de la conexión (país, región, ciudad); las IP se guardan anonimizadas. Los visitantes se cuentan con un identificador aleatorio guardado en el navegador. No se cuentan visitantes con "No rastrear" activado. Más datos (sin IP, sin bots) en Vercel → Analytics.')}</p>
       {error && <p className="text-xs text-red-600">{error}</p>}
+
+      <UtmBuilder L={L} campaigns={data?.by_campaign} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat Icon={Users} label={L('Visitors', 'Visitantes')} value={data?.visitors ?? '—'} sub={`${data?.sessions ?? 0} ${L('sessions', 'sesiones')}`} />
