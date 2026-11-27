@@ -3,6 +3,7 @@ import { CheckCircle2, FileText, Loader2, RotateCcw, Sparkles, XCircle } from "l
 import { supabase } from "../lib/supabase.js";
 import { callClaude, logEvent, notify, notifyManagers } from "../lib/utils.js";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { useT } from "../i18n/index.jsx";
 
 // ── As-built spec update ─────────────────────────────────────────────────────
 // After development and tests, regenerate the approved spec documents with what was
@@ -16,15 +17,18 @@ import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 // Which approved spec documents can be updated. SpecA and SpecD are ticked by default
 // (they change during development); SpecB/SpecC are proposals.
 const ASBUILT_DOCS = [
-  { key: 'specA', label: 'Spec A — Technical spec (Custom ABAP)', title: 'ABAP', prefix: 'SpecA_CustomABAP', def: true },
-  { key: 'specB', label: 'Spec B — SAP standard spec',  title: 'SAP', prefix: 'SpecB_StandardSAP', def: false },
-  { key: 'specC', label: 'Spec C — Client proposal',  title: 'Customer', prefix: 'SpecC_PropuestaCliente', def: false },
-  { key: 'specD', label: 'Spec D — Client functional spec',  title: 'Client Spec', prefix: 'SpecD_EspecCliente', def: true },
+  { key: 'specA', label: 'Spec A — Technical spec (Custom ABAP)', es: 'Spec A — Especificación técnica (ABAP a medida)', title: 'ABAP', prefix: 'SpecA_CustomABAP', def: true },
+  { key: 'specB', label: 'Spec B — SAP standard spec', es: 'Spec B — Especificación con estándar SAP', title: 'SAP', prefix: 'SpecB_StandardSAP', def: false },
+  { key: 'specC', label: 'Spec C — Client proposal', es: 'Spec C — Propuesta para el cliente', title: 'Customer', prefix: 'SpecC_PropuestaCliente', def: false },
+  { key: 'specD', label: 'Spec D — Client functional spec', es: 'Spec D — Especificación funcional del cliente', title: 'Client Spec', prefix: 'SpecD_EspecCliente', def: true },
 ];
 const cut = (s, n) => { const t = String(s ?? ''); return t.length > n ? t.slice(0, n) + '\n…[truncated]' : t; };
 
 export default function AsBuiltSpecPanel({ caseData, auth, spec, refetch, addDocument, refetchDocuments, canApprove, genModel, buildCaseDocHtml }) {
   const { settings } = useSystemSettings();
+  const { lang } = useT();
+  const L = (en, es) => (lang === 'es' ? es : en);
+  const docLabel = d => (lang === 'es' ? d.es : d.label);
   const ab = spec?.asbuilt ?? null;
   let notesObj = {};
   try { notesObj = JSON.parse(spec?.notes ?? '{}') ?? {}; } catch { notesObj = {}; }
@@ -83,14 +87,14 @@ export default function AsBuiltSpecPanel({ caseData, auth, spec, refetch, addDoc
     if (!docs.length) return;
     setBusy(true); setError(null);
     try {
-      setProgress('Collecting what was built and tested…');
+      setProgress(L('Collecting what was built and tested…', 'Reuniendo lo construido y probado…'));
       const ctx = await gatherContext();
       const version = (ab?.version ?? 1) + 1;
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
       const dateStr = new Date().toISOString().slice(0, 10);
       const saved = [];
       for (const d of docs) {
-        setProgress(`Updating ${d.label}…`);
+        setProgress(L(`Updating ${d.label}…`, `Actualizando ${d.es}…`));
         const prompt = `You are updating an APPROVED SAP specification so it documents what was ACTUALLY BUILT ("as-built"), after development and the technical, functional and user tests.
 
 Case: ${caseData.title} · SAP module: ${caseData.area_sap ?? 'general'}
@@ -135,7 +139,7 @@ Instructions:
         await addDocument(new File([html], fileName, { type: 'text/html' }), `[As-built] ${d.label} v${version} (auto-generated)`);
         saved.push({ key: d.key, name: d.label, file_name: fileName });
       }
-      setProgress('Saving…');
+      setProgress(L('Saving…', 'Guardando…'));
       await saveAsBuilt({
         status: 'submitted', version, docs: saved, notes: extra.trim() || null,
         generated_at: new Date().toISOString(), generated_by: auth.user?.id ?? null,
@@ -177,9 +181,9 @@ Instructions:
   }
 
   const badge = !ab ? null
-    : ab.status === 'approved' ? ['Approved', 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30']
-    : ab.status === 'rejected' ? ['Changes requested', 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30']
-    : ['Pending approval', 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30'];
+    : ab.status === 'approved' ? [L('Approved', 'Aprobada'), 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30']
+    : ab.status === 'rejected' ? [L('Changes requested', 'Cambios solicitados'), 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30']
+    : [L('Pending approval', 'Pendiente de aprobación'), 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30'];
 
   return (
     <div className="bg-white dark:bg-gray-900/60 rounded-2xl border border-emerald-200 dark:border-emerald-500/25 shadow-sm overflow-hidden">
@@ -189,11 +193,12 @@ Instructions:
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-bold text-gray-900 dark:text-white text-sm">As-built update</p>
+            <p className="font-bold text-gray-900 dark:text-white text-sm">{L('As-built update', 'Actualización as-built')}</p>
             {badge && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge[1]}`}>{badge[0]}{ab?.version ? ` · v${ab.version}` : ''}</span>}
           </div>
           <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
-            After development and the technical, functional and user tests, update the approved spec with what was actually built in SAP. Required to move the case to Approved.
+            {L('After development and the technical, functional and user tests, update the approved spec with what was actually built in SAP. Required to move the case to Approved.',
+               'Después del desarrollo y de las pruebas técnicas, funcionales y de usuario, actualiza la spec aprobada con lo que realmente se construyó en SAP. Es obligatorio para pasar el caso a Aprobado.')}
           </p>
         </div>
       </div>
@@ -201,10 +206,10 @@ Instructions:
       <div className="p-5 space-y-4">
         {ab?.docs?.length > 0 && (
           <div className="text-xs text-gray-600 dark:text-white/60 space-y-1">
-            <p>Latest version (v{ab.version}, {ab.generated_at ? new Date(ab.generated_at).toLocaleString() : ''}) — in the Docs tab under <strong>As-built documentation</strong>:</p>
+            <p>{L('Latest version', 'Última versión')} (v{ab.version}, {ab.generated_at ? new Date(ab.generated_at).toLocaleString() : ''}) — {L('in the Docs tab under', 'en la pestaña Documentos, en')} <strong>{L('As-built documentation', 'Documentación as-built')}</strong>:</p>
             <ul className="list-disc pl-5">{ab.docs.map(d => <li key={d.file_name} className="font-mono text-[11px]">{d.file_name}</li>)}</ul>
-            {ab.status === 'rejected' && ab.rejected_reason && <p className="text-red-600 dark:text-red-400">Changes requested: {ab.rejected_reason}</p>}
-            {ab.status === 'approved' && ab.approved_at && <p className="text-green-700 dark:text-green-400">Approved {new Date(ab.approved_at).toLocaleString()}.</p>}
+            {ab.status === 'rejected' && ab.rejected_reason && <p className="text-red-600 dark:text-red-400">{L('Changes requested', 'Cambios solicitados')}: {ab.rejected_reason}</p>}
+            {ab.status === 'approved' && ab.approved_at && <p className="text-green-700 dark:text-green-400">{L('Approved', 'Aprobada el')} {new Date(ab.approved_at).toLocaleString()}.</p>}
           </div>
         )}
 
@@ -212,18 +217,18 @@ Instructions:
           <div className="flex flex-wrap items-center gap-2">
             <button onClick={handleApprove} disabled={busy}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-40">
-              <CheckCircle2 size={13} /> Approve as-built spec
+              <CheckCircle2 size={13} /> {L('Approve as-built spec', 'Aprobar spec as-built')}
             </button>
             <button onClick={() => setRejecting(r => !r)} disabled={busy}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-red-300 dark:border-red-500/40 text-red-600 dark:text-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10">
-              <XCircle size={13} /> Request changes
+              <XCircle size={13} /> {L('Request changes', 'Solicitar cambios')}
             </button>
             {rejecting && (
               <div className="w-full flex gap-2">
-                <input value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="What should change?"
+                <input value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder={L('What should change?', '¿Qué debe cambiar?')}
                   className="flex-1 text-xs border border-gray-200 dark:border-white/15 rounded-lg px-2.5 py-1.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                 <button onClick={handleReject} disabled={!rejectReason.trim() || busy}
-                  className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg disabled:opacity-40">Send</button>
+                  className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg disabled:opacity-40">{L('Send', 'Enviar')}</button>
               </div>
             )}
           </div>
@@ -231,37 +236,38 @@ Instructions:
 
         <div className="space-y-3">
             <p className="text-[10px] font-bold text-gray-500 dark:text-white/40 uppercase tracking-widest">
-              {ab ? 'Generate a new version' : 'Documents to update'}
+              {ab ? L('Generate a new version', 'Generar una nueva versión') : L('Documents to update', 'Documentos a actualizar')}
             </p>
             {available.length === 0 ? (
-              <p className="text-xs text-gray-500 dark:text-white/40">No approved spec documents with content were found for this case.</p>
+              <p className="text-xs text-gray-500 dark:text-white/40">{L('No approved spec documents with content were found for this case.', 'No se encontraron documentos de spec aprobados con contenido en este caso.')}</p>
             ) : (
               <div className="grid sm:grid-cols-2 gap-2">
                 {available.map(d => (
                   <label key={d.key} className="flex items-center gap-2 text-xs text-gray-700 dark:text-white/70 cursor-pointer px-3 py-2 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5">
                     <input type="checkbox" className="accent-emerald-600" checked={picked.has(d.key)}
                       onChange={e => setPicked(p => { const n = new Set(p); e.target.checked ? n.add(d.key) : n.delete(d.key); return n; })} />
-                    {d.label}
+                    {docLabel(d)}
                   </label>
                 ))}
               </div>
             )}
             <textarea value={extra} onChange={e => setExtra(e.target.value)} rows={2}
-              placeholder="Optional notes for the update, e.g. mention that the payment code was extended to 8 characters at the client's request"
+              placeholder={L("Optional notes for the update, e.g. mention that the payment code was extended to 8 characters at the client's request", 'Notas opcionales para la actualización, p. ej. indicar que el código de pago se amplió a 8 caracteres a pedido del cliente')}
               className="w-full text-xs border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 bg-white dark:bg-white/5 text-gray-800 dark:text-white/80 placeholder-gray-400 dark:placeholder-white/25 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400" />
             <p className="text-[11px] text-gray-500 dark:text-white/35">
-              Uses the approved spec, the objects built in SAP (with their final code and transports), the run feedback, the test activities and the case comments. The original documents are kept unchanged.
+              {L('Uses the approved spec, the objects built in SAP (with their final code and transports), the run feedback, the test activities and the case comments. The original documents are kept unchanged.',
+                 'Usa la spec aprobada, los objetos construidos en SAP (con su código final y órdenes de transporte), los comentarios de las ejecuciones, las actividades de prueba y los comentarios del caso. Los documentos originales no se modifican.')}
             </p>
             <div className="flex items-center gap-2">
               <button onClick={handleGenerate} disabled={busy || picked.size === 0}
                 className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-40">
                 {busy ? <Loader2 size={13} className="animate-spin" /> : ab ? <RotateCcw size={13} /> : <Sparkles size={13} />}
-                {ab ? 'Generate new version' : 'Generate updated spec'}
+                {ab ? L('Generate new version', 'Generar nueva versión') : L('Generate updated spec', 'Generar spec actualizada')}
               </button>
               {progress && <span className="text-xs text-gray-500 dark:text-white/50">{progress}</span>}
             </div>
             {ab?.status === 'approved' && (
-              <p className="text-[11px] text-amber-700 dark:text-amber-300">A new version replaces the approved one and needs approval again.</p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-300">{L('A new version replaces the approved one and needs approval again.', 'Una nueva versión reemplaza la aprobada y requiere aprobarse de nuevo.')}</p>
             )}
         </div>
 
