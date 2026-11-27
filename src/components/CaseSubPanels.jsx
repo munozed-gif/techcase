@@ -1611,7 +1611,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   function analysisStrip() {
     const steps = ANALYSIS_ORDER.filter(analysisStepOn);
     const stale = steps.filter(st => analysisState(st) !== 'fresh');
-    const busy = runningAll || stepLoading || requestSummaryLoading || !!reqLoading || qLoading;
+    const busy = runningAll || stepLoading || requestSummaryLoading || !!reqLoading || qLoading || reviewLoading;
     const running = { summary: requestSummaryLoading, coverage: stepLoading && aiStep === 1, validation: stepLoading && aiStep === 2, requirements: reqLoading === 'extract', questions: qLoading };
     const blockingChecks = blockingIssues(caseChecks, checksResolved);
     const openChecks = (caseChecks ?? []).filter(i => !checksResolved?.[i.key]);
@@ -1621,15 +1621,24 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
         status: checksLoading ? 'checking' : !caseChecks ? 'pending' : blockingChecks.length ? 'error' : openChecks.length ? 'warning' : 'ok',
         detail: !caseChecks ? '' : blockingChecks.length ? L(`${blockingChecks.length} to resolve before Analyze`, `${blockingChecks.length} por resolver antes de Analizar`)
           : openChecks.length ? L(`${openChecks.length} warning${openChecks.length === 1 ? '' : 's'}`, `${openChecks.length} advertencia${openChecks.length === 1 ? '' : 's'}`) : L('Documents, project and duplicates checked', 'Documentos, proyecto y duplicados revisados') },
-      ...steps.map(st => {
+      ...steps.flatMap(st => {
         const state = analysisState(st);
         const at = analysisMeta?.[st]?.at;
-        return { key: st, label: ANALYSIS_STEP_LABEL[st],
+        const row = { key: st, label: ANALYSIS_STEP_LABEL[st],
           status: running[st] ? 'checking' : state === 'fresh' ? 'ok' : state === 'outdated' ? 'warning' : 'pending',
           pill: state === 'outdated' && !running[st] ? L('Outdated', 'Desactualizado') : null,
           detail: state === 'missing' ? '' : state === 'outdated'
             ? L(`Run ${fmt(at)} — the documents or an earlier step changed since`, `Ejecutado ${fmt(at)} — desde entonces cambiaron los documentos o un paso anterior`)
             : L(`Run ${fmt(at)}`, `Ejecutado ${fmt(at)}`) };
+        if (st !== 'questions') return [row];
+        // Global review: shown before the questions; it runs right after them (it reviews them too).
+        const rOut = reviewOutdated();
+        return [{ key: 'review', label: L('Global review and next steps', 'Revisión global y próximos pasos'),
+          status: reviewLoading ? 'checking' : !globalReview ? 'pending' : rOut ? 'warning' : 'ok',
+          pill: globalReview && rOut && !reviewLoading ? L('Outdated', 'Desactualizado') : null,
+          detail: !globalReview ? L('Runs after the customer questions', 'Se ejecuta después de las preguntas para el cliente')
+            : rOut ? L(`Run ${fmt(globalReview.at)} — an analysis step or an answer changed since`, `Ejecutado ${fmt(globalReview.at)} — desde entonces cambió un paso del análisis o una respuesta`)
+            : L(`Run ${fmt(globalReview.at)}`, `Ejecutado ${fmt(globalReview.at)}`) }, row];
       }),
     ];
     const icon = st => st === 'checking' ? <RefreshCw size={14} className="animate-spin text-blue-600 dark:text-blue-400" />
@@ -5751,7 +5760,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
       specStatuses[key] === 'error' ||
       (!SUB.find(s => s.key === key)?.content && anySpecExists && !generatingSpecs);
     // Any analysis step running (one step or "Run all"): the Compiled Context node shows it.
-    const analysisBusy = runningAll || stepLoading || requestSummaryLoading || reqLoading === 'extract' || qLoading;
+    const analysisBusy = runningAll || stepLoading || requestSummaryLoading || reqLoading === 'extract' || qLoading || reviewLoading;
     const NodeBtn = ({ id, icon: Icon, title, sub, status, isActive, canClick, onClick, children }) => {
       const sc = {
         complete: { ring: 'border-green-400',  bg: 'bg-green-50',   circ: 'bg-green-500',  txt: 'text-green-700',  sub: 'text-green-600' },
@@ -5870,6 +5879,11 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       hint: proposalCheck ? `${proposalCheck.score}/10` : '',
                     },
                     {
+                      node: 6, scrollTo: 'global-review', label: L('Global review', 'Revisión global'), dot: 'bg-violet-500',
+                      state: reviewLoading ? 'running' : !globalReview ? 'pending' : reviewOutdated() ? 'outdated' : 'done',
+                      hint: globalReview && reviewOutdated() ? L('outdated', 'desactualizada') : '',
+                    },
+                    {
                       node: 7, label: L('Customer questions', 'Preguntas al cliente'), dot: 'bg-blue-500',
                       state: qLoading ? 'running' : !questions.length ? 'pending' : openQ ? 'open' : 'done',
                       hint: questions.length ? (openQ ? `${openQ} ${L('open', 'abiertas')}` : L('answered', 'respondidas')) : '',
@@ -5883,8 +5897,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           : x.state === 'running' ? 'bg-blue-50 border-blue-200 text-blue-700'
                           : 'bg-gray-50 border-gray-100 text-gray-400';
                         return (
-                          <button key={x.node} disabled={x.state === 'locked'} onClick={() => setActiveNode(x.node)}
-                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all disabled:opacity-50 ${cls} ${activeNode === x.node ? 'ring-2 ring-blue-300' : ''}`}>
+                          <button key={x.scrollTo ?? x.node} disabled={x.state === 'locked'}
+                            onClick={() => { setActiveNode(x.node); if (x.scrollTo) { setReviewOpen(true); setTimeout(() => document.getElementById(x.scrollTo)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80); } }}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all disabled:opacity-50 ${cls} ${activeNode === x.node && !x.scrollTo ? 'ring-2 ring-blue-300' : ''}`}>
                             <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${x.dot}`} />
                             <span className="truncate font-medium">{x.label}</span>
                             {x.state === 'running' ? <RefreshCw size={10} className="ml-auto animate-spin flex-shrink-0" />
@@ -6992,7 +7007,7 @@ ${sapObjResult}`;
                     answeredCount={questions.filter(q => q.status === 'answered').length} onApplyAnswers={handleApplyAnswers} applying={applyingAnswers}
                     proposals={answerProposals} onConfirmProposals={confirmAnswerProposals} onDiscardProposals={() => setAnswerProposals(null)} />
                   {/* Global review and next steps (runs after the questions) */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+                  <div id="global-review" className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 scroll-mt-4">
                     <SectionHeader Icon={ClipboardCheck} title={L('Global review and next steps', 'Revisión global y próximos pasos')}
                       detail={globalReview?.at ? new Date(globalReview.at).toLocaleString(lang === 'es' ? 'es' : 'en', { dateStyle: 'short', timeStyle: 'short' }) : null}
                       pill={reviewLoading ? L('Reviewing…', 'Revisando…') : !globalReview ? L('Not run', 'Sin ejecutar') : reviewOutdated() ? L('Outdated', 'Desactualizado') : L('Current', 'Al día')}
