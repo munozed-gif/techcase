@@ -7006,6 +7006,11 @@ ${sapObjResult}`;
                     canEdit={canEditReqs()} state={analysisState('requirements')} L={L} lang={lang} who={auth.user?.id ?? null}
                     answeredCount={questions.filter(q => q.status === 'answered').length} onApplyAnswers={handleApplyAnswers} applying={applyingAnswers}
                     proposals={answerProposals} onConfirmProposals={confirmAnswerProposals} onDiscardProposals={() => setAnswerProposals(null)} />
+                  {/* Questions for the customer (also its own node) */}
+                  <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
+                      loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
+                      who={{ id: auth.user?.id ?? null, name: auth.profile?.full_name ?? null }} links={qLinks}
+                      onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
                   {/* Global review and next steps (runs after the questions) */}
                   <div id="global-review" className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 scroll-mt-4">
                     <SectionHeader Icon={ClipboardCheck} title={L('Global review and next steps', 'Revisión global y próximos pasos')}
@@ -7020,11 +7025,6 @@ ${sapObjResult}`;
                           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(globalReview.md) + '</div>') }} />
                       : <p className="text-xs text-gray-400 italic">{L('After the customer questions, the analysis reviews everything (system findings, requirements, answers, spec and coverage) and recommends how to resolve each pending question and the next steps. For the team: it is not sent to the spec generation.', 'Después de las preguntas para el cliente, el análisis revisa todo (hallazgos del sistema, requerimientos, respuestas, spec y cobertura) y recomienda cómo resolver cada pregunta pendiente y los próximos pasos. Es para el equipo: no se envía a la generación de la spec.')}</p>)}
                   </div>
-                  {/* Questions for the customer (also its own node) */}
-                  <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
-                      loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
-                      who={{ id: auth.user?.id ?? null, name: auth.profile?.full_name ?? null }} links={qLinks}
-                      onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
                   {/* AI Request Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className={summaryCollapsed ? '' : 'mb-2'}>
