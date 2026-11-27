@@ -1,11 +1,42 @@
 // Questions for the customer (src/lib/questions.js): the list the analysis finds, edited by the
 // consultants, answered by the customer on /questions/:token or recorded by hand.
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { HelpCircle, RefreshCw, Plus, Send, Copy, Check, Ban, Undo2, ChevronDown } from "lucide-react";
 import { usePersistedOpen, SectionHeader } from "./SpecRequirements.jsx";
 import { Q_KINDS, Q_KIND_LABEL, Q_AREAS, qAreaName, areaOf, askableQuestions, liveQuestions, openQuestions } from "../lib/questions.js";
 
 const kindName = (k, lang) => (Q_KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
+
+// ── Links to questions (Q-07) from anywhere: requirements, coverage notes, reviews ──
+const QREF_RE = /\bQ-\d{1,3}\b/g;
+/** Ask the specification screen to show question `id` (opens its panel and scrolls to it). */
+export function openQuestion(id) {
+  try { window.dispatchEvent(new CustomEvent('arena:open-question', { detail: { id } })); } catch { /* ignore */ }
+}
+/** Text where every "Q-07" becomes a link to that question. */
+export function QRefText({ text, className = '' }) {
+  const t = String(text ?? '');
+  const parts = [];
+  let last = 0, m;
+  QREF_RE.lastIndex = 0;
+  while ((m = QREF_RE.exec(t))) {
+    if (m.index > last) parts.push(t.slice(last, m.index));
+    const id = m[0];
+    parts.push(<button key={`${id}-${m.index}`} type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); openQuestion(id); }}
+      className="font-mono font-semibold text-violet-700 dark:text-violet-300 underline decoration-dotted underline-offset-2 hover:text-violet-900">{id}</button>);
+    last = m.index + id.length;
+  }
+  if (last < t.length) parts.push(t.slice(last));
+  return <span className={className}>{parts}</span>;
+}
+/** For rendered markdown (HTML): turn "Q-07" into links handled by onQRefClick. */
+export const linkQRefsHtml = html => String(html ?? '').replace(/(>[^<]*)/g, seg => seg.replace(QREF_RE, id => `<a href="#${id}" data-qref="${id}" class="qref">${id}</a>`));
+export function onQRefClick(e) {
+  const a = e.target?.closest?.('[data-qref]');
+  if (!a) return;
+  e.preventDefault();
+  openQuestion(a.getAttribute('data-qref'));
+}
 const STATUS_CLS = {
   open: 'bg-amber-50 text-amber-700 border-amber-200', answered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   acknowledged: 'bg-blue-50 text-blue-700 border-blue-200', discarded: 'bg-gray-50 text-gray-500 border-gray-200',
@@ -28,6 +59,18 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
     security: 'bg-red-50 text-red-700 border-red-200', integration: 'bg-teal-50 text-teal-700 border-teal-200', data: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     testing: 'bg-amber-50 text-amber-700 border-amber-200', management: 'bg-gray-100 text-gray-700 border-gray-300' };
   const shown = areaFilter ? list.filter(q => areaOf(q) === areaFilter) : list;
+  const [flash, setFlash] = useState(null);
+  useEffect(() => {
+    const onFocus = e => {
+      const id = e.detail?.id;
+      if (!id) return;
+      setOpen(true); setAreaFilter(null); setFlash(id);
+      setTimeout(() => document.getElementById(`q-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+      setTimeout(() => setFlash(f => (f === id ? null : f)), 2600);
+    };
+    window.addEventListener('arena:focus-question', onFocus);
+    return () => window.removeEventListener('arena:focus-question', onFocus);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
@@ -115,7 +158,7 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
           )}
           <div className="space-y-1.5">
             {shown.map(q => (
-              <div key={q.id} className={`p-2 rounded-lg border text-xs ${q.status === 'discarded' ? 'bg-gray-50 border-gray-100 opacity-70' : 'border-gray-100'}`}>
+              <div key={q.id} id={`q-${q.id}`} className={`p-2 rounded-lg border text-xs scroll-mt-24 transition-shadow ${q.status === 'discarded' ? 'bg-gray-50 border-gray-100 opacity-70' : 'border-gray-100'} ${flash === q.id ? 'ring-2 ring-violet-400 shadow-md' : ''}`}>
                 <div className="flex items-start gap-2">
                   <span className="font-mono font-semibold text-gray-500 w-11 flex-shrink-0 pt-1">{q.id}</span>
                   <div className="flex-1 space-y-1">

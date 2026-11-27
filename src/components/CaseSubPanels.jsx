@@ -14,7 +14,7 @@ import { RequirementsChecklist, CoveragePanel, SectionHeader } from "./SpecRequi
 import { runCaseChecks, blockingIssues } from "../lib/caseChecks.js";
 import { CaseChecksPanel } from "./CaseChecksPanel.jsx";
 import { normalizeQuestions, questionsPromptBlock, openQuestions, mergeLinkAnswers } from "../lib/questions.js";
-import { QuestionsPanel } from "./SpecQuestions.jsx";
+import { QuestionsPanel, linkQRefsHtml, onQRefClick } from "./SpecQuestions.jsx";
 import { askableQuestions, areaOf } from "../lib/questions.js";
 import { detectDocLang } from "../lib/docLang.js";
 import { SignoffPanel } from "./SpecSignoff.jsx";
@@ -1248,6 +1248,18 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [genReviewLoading, setGenReviewLoading] = useState(false);
   const [genReviewError, setGenReviewError] = useState(null);
   const viewingSide = viewingProto || viewingGenReview;
+  // A click on a question reference (Q-07) anywhere: show the Compiled Context node, where the
+  // questions panel lives, then focus that question.
+  useEffect(() => {
+    const onOpen = e => {
+      const id = e.detail?.id;
+      if (!id) return;
+      setActiveNode(6);
+      setTimeout(() => { try { window.dispatchEvent(new CustomEvent('arena:focus-question', { detail: { id } })); } catch { /* ignore */ } }, 150);
+    };
+    window.addEventListener('arena:open-question', onOpen);
+    return () => window.removeEventListener('arena:open-question', onOpen);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [protoError, setProtoError]         = useState(false);
   const [protoErrorMsg, setProtoErrorMsg]   = useState('');
   const [protoGenerating, setProtoGenerating] = useState(false);
@@ -7125,7 +7137,7 @@ ${sapObjResult}`;
                     {reviewError && <p className="text-xs text-red-500">{reviewError}</p>}
                     {reviewOpen && (globalReview?.md
                       ? <div className="prose prose-sm max-w-none text-sm text-gray-800 dark:text-gray-200 [&_table]:text-xs [&_table]:w-full [&_td]:align-top [&_td]:border [&_td]:border-gray-200 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-gray-200 [&_th]:px-2 [&_th]:py-1 [&_th]:bg-gray-50 overflow-x-auto"
-                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(globalReview.md) + '</div>') }} />
+                          onClick={onQRefClick} dangerouslySetInnerHTML={{ __html: linkQRefsHtml(DOMPurify.sanitize('<div>' + renderMarkdown(globalReview.md) + '</div>')) }} />
                       : <p className="text-xs text-gray-400 italic">{L('After the customer questions, the analysis reviews everything (system findings, requirements, answers, spec and coverage) and recommends how to resolve each pending question and the next steps. For the team: it is not sent to the spec generation.', 'Después de las preguntas para el cliente, el análisis revisa todo (hallazgos del sistema, requerimientos, respuestas, spec y cobertura) y recomienda cómo resolver cada pregunta pendiente y los próximos pasos. Es para el equipo: no se envía a la generación de la spec.')}</p>)}
                   </div>
                   {/* AI Request Summary */}
@@ -7885,7 +7897,7 @@ ${sapObjResult}`;
                     {genReviewError && <p className="text-xs text-red-500">{genReviewError}</p>}
                     {genReview?.md
                       ? <div className="prose prose-sm max-w-none text-sm text-gray-800 dark:text-gray-200 overflow-x-auto"
-                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(genReview.md) + '</div>') }} />
+                          onClick={onQRefClick} dangerouslySetInnerHTML={{ __html: linkQRefsHtml(DOMPurify.sanitize('<div>' + renderMarkdown(genReview.md) + '</div>')) }} />
                       : <p className="text-xs text-gray-400 italic">{genReviewLoading ? L('Reviewing the generated documents…', 'Revisando los documentos generados…')
                           : L('Runs by itself after all documents are generated (after the coverage check and the prototype): coverage gaps and how to close each one, quality and consistency, what is missing before sending to the customer, and next steps.', 'Se ejecuta sola al terminar de generar todos los documentos (después de la verificación de cobertura y del prototipo): brechas de cobertura y cómo cerrar cada una, calidad y consistencia, qué falta antes de enviar al cliente y próximos pasos.')}</p>}
                   </div>

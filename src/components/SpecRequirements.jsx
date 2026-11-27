@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, ListChecks, Wrench, Undo2, ChevronDown, MessageCircleQuestion, ArrowRightLeft, Info, MessageSquareReply } from "lucide-react";
 import { REQ_KINDS, REQ_KIND_LABEL, inScope } from "../lib/requirements.js";
+import { QRefText, openQuestion } from "./SpecQuestions.jsx";
 
 const kindName = (k, lang) => (REQ_KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
 
@@ -34,11 +35,11 @@ function AnswersProposals({ proposals, requirements, onConfirm, onDiscard, L }) 
                   <span className="font-mono font-semibold text-gray-500">{p.id}</span>
                   <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${out ? 'bg-gray-100 text-gray-700 border-gray-300' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
                     {out ? L('Out of scope', 'Fuera de alcance') : L('Updated', 'Actualizado')}</span>
-                  {(p.questions ?? []).map(q => <span key={q} className="px-1 rounded bg-violet-100 text-violet-700 font-mono text-[10px]">{q}</span>)}
+                  {(p.questions ?? []).map(q => <button type="button" key={q} onClick={e => { e.preventDefault(); e.stopPropagation(); openQuestion(q); }} className="px-1 rounded bg-violet-100 text-violet-700 font-mono text-[10px] hover:underline">{q}</button>)}
                 </div>
                 <div className={out ? 'line-through text-gray-500' : 'text-gray-500'}>{r?.text}</div>
                 {!out && p.text && <div className="text-gray-800"><span className="font-semibold">{L('New', 'Nuevo')}:</span> {p.text}</div>}
-                <div className="text-[11px] text-gray-600">{L('Why', 'Por qué')}: {p.reason}</div>
+                <div className="text-[11px] text-gray-600">{L('Why', 'Por qué')}: <QRefText text={p.reason} /></div>
               </div>
             </label>
           );
@@ -101,10 +102,10 @@ export function RequirementsChecklist({ requirements, onChange, onExtract, loadi
                             {REQ_KINDS.map(k => <option key={k} value={k}>{kindName(k, lang)}</option>)}
                           </select>
                         : <span className="px-1.5 py-0.5 rounded bg-gray-100">{kindName(r.kind, lang)}</span>}
-                      {r.source && <span title={r.source} className="truncate max-w-xs">{L('Source', 'Fuente')}: {r.source}</span>}
+                      {r.source && <span title={r.source} className="max-w-md">{L('Source', 'Fuente')}: <QRefText text={r.source} /></span>}
                       {r.manual && <span className="text-blue-600">{L('added by a consultant', 'agregado por un consultor')}</span>}
-                      {r.outOfScope && <span className="text-gray-600">{L('Out of scope', 'Fuera de alcance')}: {r.reason}</span>}
-                      {!r.outOfScope && r.originalText && <span className="text-blue-700" title={`${L('Original', 'Original')}: ${r.originalText}`}>{L('Updated by customer answer', 'Actualizado por respuesta del cliente')}{r.reason ? `: ${r.reason}` : ''}</span>}
+                      {r.outOfScope && <span className="text-gray-600">{L('Out of scope', 'Fuera de alcance')}: <QRefText text={r.reason} /></span>}
+                      {!r.outOfScope && r.originalText && <span className="text-blue-700" title={`${L('Original', 'Original')}: ${r.originalText}`}>{L('Updated by customer answer', 'Actualizado por respuesta del cliente')}{r.reason ? <>: <QRefText text={r.reason} /></> : null}</span>}
                     </div>
                     {reasonFor === r.id && (
                       <div className="flex gap-1.5">
@@ -291,12 +292,12 @@ export function CoveragePanel({ stats, current, checked, onCheck, onFix, onAccep
                 <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold flex-shrink-0 ${STATUS_CLS[r.status] ?? STATUS_CLS.missing}`}>{statusTxt(r.status)}</span>
                 <div className="flex-1">
                   <div><span className="font-mono text-gray-500">{r.id}</span> {r.text}</div>
-                  {r.where && <div className="text-[11px] text-gray-500">{L('Where', 'Dónde')}: {r.where}</div>}
-                  {r.note && r.status !== 'covered' && <div className="text-[11px] text-gray-600">{r.note}</div>}
+                  {r.where && <div className="text-[11px] text-gray-500">{L('Where', 'Dónde')}: <QRefText text={r.where} /></div>}
+                  {r.note && r.status !== 'covered' && <div className="text-[11px] text-gray-600"><QRefText text={r.note} /></div>}
                   {r.waitQ.length > 0 && (
                     <div className="mt-0.5 inline-flex flex-wrap items-center gap-1 text-[10px] text-amber-700">
                       <MessageCircleQuestion size={11} />{L('Waiting on the customer', 'Espera al cliente')}:
-                      {r.waitQ.map(q => <span key={q} className="px-1 rounded bg-amber-50 border border-amber-200 font-mono">{q}</span>)}
+                      {r.waitQ.map(q => <button type="button" key={q} onClick={() => openQuestion(q)} className="px-1 rounded bg-amber-50 border border-amber-200 font-mono hover:underline">{q}</button>)}
                     </div>
                   )}
                   {r.status !== 'covered' && acceptCtl(r.id)}

@@ -495,3 +495,7 @@ html:not(.arena-dark) main .placeholder-gray-400::placeholder { color: #9CA3AF; 
 .arena-dark .border-emerald-100 { border-color: rgba(16,185,129,0.18) !important; }
 .arena-dark .border-emerald-200 { border-color: rgba(16,185,129,0.30) !important; }
 .arena-dark .border-emerald-300 { border-color: rgba(16,185,129,0.45) !important; }
+
+/* Question references (Q-07) inside rendered reviews: link to the question */
+a.qref { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; color: #6d28d9; text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
+.arena-dark a.qref { color: #c4b5fd; }
