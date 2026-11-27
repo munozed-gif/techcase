@@ -32,7 +32,7 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
       <SectionHeader Icon={HelpCircle} title={L('Questions for the customer', 'Preguntas para el cliente')}
-        detail={liveQuestions(list).length ? `${nOpen} ${L('open', 'abiertas')} / ${liveQuestions(list).length}` : null}
+        detail={liveQuestions(list).length ? `${liveQuestions(list).length - askableQuestions(list).length}/${liveQuestions(list).length} ${L('answered', 'respondidas')}${askableQuestions(list).length ? ` · ${askableQuestions(list).length} ${L('pending', 'pendientes')}` : ''}` : null}
         pill={loading ? L('Looking…', 'Buscando…') : state === 'fresh' ? L('Current', 'Al día') : state === 'outdated' ? L('Outdated', 'Desactualizado') : L('Not run', 'Sin ejecutar')} pillTone={loading ? 'running' : state === 'fresh' ? 'ok' : state === 'outdated' ? 'warn' : 'muted'}
         open={open} onToggle={() => setOpen(o => !o)}
         actions={[
@@ -42,16 +42,17 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
       {error && <p className="text-xs text-red-500">{error}</p>}
       {byArea.length > 0 && (
         <div className="space-y-1">
-          <p className="text-[11px] text-gray-500">{L('By area — filter the list, or send each area its own link (only the unanswered questions of that area):', 'Por área — filtra la lista, o envía a cada área su propio enlace (solo las preguntas sin responder de esa área):')}</p>
+          <p className="text-[11px] text-gray-500">{L('By area (answered / total) — filter the list, or send each area its own link with its pending questions:', 'Por área (respondidas / total) — filtra la lista, o envía a cada área su propio enlace con sus preguntas pendientes:')}</p>
           <div className="flex flex-wrap gap-1.5">
             {byArea.map(x => (
               <span key={x.area} className={`inline-flex items-center rounded-lg border text-[11px] overflow-hidden ${AREA_CLS[x.area]} ${areaFilter === x.area ? 'ring-2 ring-blue-300' : ''}`}>
-                <button onClick={() => { setAreaFilter(f => (f === x.area ? null : x.area)); setOpen(true); }} className="px-2 py-1 font-semibold">
-                  {qAreaName(x.area, lang)} · {x.n}/{x.total}
+                <button onClick={() => { setAreaFilter(f => (f === x.area ? null : x.area)); setOpen(true); }} className="px-2 py-1 font-semibold inline-flex items-center gap-1"
+                  title={L(`${x.total - x.n} of ${x.total} answered · ${x.n} pending`, `${x.total - x.n} de ${x.total} respondidas · ${x.n} pendientes`)}>
+                  {x.n === 0 && <Check size={11} />}{qAreaName(x.area, lang)} · {x.total - x.n}/{x.total}
                 </button>
                 {canEdit && x.n > 0 && (
                   <button onClick={() => onSendLink(x.area)} title={L(`Create a link with the ${x.n} unanswered ${qAreaName(x.area, lang)} questions (copies it)`, `Crear un enlace con las ${x.n} preguntas sin responder de ${qAreaName(x.area, lang)} (lo copia)`)}
-                    className="px-1.5 py-1 border-l border-current/20 hover:bg-white/60 inline-flex items-center gap-1"><Send size={11} />{L('Link', 'Enlace')}</button>
+                    className="px-1.5 py-1 border-l border-current/20 hover:bg-white/60 inline-flex items-center gap-1"><Send size={11} />{L(`Link (${x.n} pending)`, `Enlace (${x.n} pend.)`)}</button>
                 )}
               </span>
             ))}
