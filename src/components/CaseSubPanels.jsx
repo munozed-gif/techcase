@@ -7130,30 +7130,6 @@ ${sapObjResult}`;
                     } : null}
                     onLinkProject={async (pid) => { await onUpdate?.(caseData.id, { project_id: pid }); }} />
                   {analysisStrip()}
-                  <RequirementsChecklist requirements={requirements} onChange={saveRequirements}
-                    onExtract={() => handleExtractRequirements()} loading={reqLoading === 'extract'} error={reqError}
-                    canEdit={canEditReqs()} state={analysisState('requirements')} L={L} lang={lang} who={auth.user?.id ?? null}
-                    answeredCount={questions.filter(q => q.status === 'answered').length} onApplyAnswers={handleApplyAnswers} applying={applyingAnswers}
-                    proposals={answerProposals} onConfirmProposals={confirmAnswerProposals} onDiscardProposals={() => setAnswerProposals(null)} />
-                  {/* Questions for the customer (also its own node) */}
-                  <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
-                      loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
-                      who={{ id: auth.user?.id ?? null, name: auth.profile?.full_name ?? null }} links={qLinks}
-                      onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
-                  {/* Global review and next steps (runs after the questions) */}
-                  <div id="global-review" className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 scroll-mt-4">
-                    <SectionHeader Icon={ClipboardCheck} title={L('Compiled context review and next steps', 'Revisión del compilado y próximos pasos')}
-                      detail={globalReview?.at ? new Date(globalReview.at).toLocaleString(lang === 'es' ? 'es' : 'en', { dateStyle: 'short', timeStyle: 'short' }) : null}
-                      pill={reviewLoading ? L('Reviewing…', 'Revisando…') : !globalReview ? L('Not run', 'Sin ejecutar') : reviewOutdated() ? L('Outdated', 'Desactualizado') : L('Current', 'Al día')}
-                      pillTone={reviewLoading ? 'running' : !globalReview ? 'muted' : reviewOutdated() ? 'warn' : 'ok'}
-                      open={reviewOpen} onToggle={() => setReviewOpen(o => !o)}
-                      actions={[canEditReqs() && { Icon: RefreshCw, title: globalReview ? L('Review again', 'Revisar de nuevo') : L('Run the review', 'Ejecutar la revisión'), onClick: () => handleGlobalReview(), loading: reviewLoading, disabled: !requestSummary, primary: true }]} />
-                    {reviewError && <p className="text-xs text-red-500">{reviewError}</p>}
-                    {reviewOpen && (globalReview?.md
-                      ? <div className="prose prose-sm max-w-none text-sm text-gray-800 dark:text-gray-200 [&_table]:text-xs [&_table]:w-full [&_td]:align-top [&_td]:border [&_td]:border-gray-200 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-gray-200 [&_th]:px-2 [&_th]:py-1 [&_th]:bg-gray-50 overflow-x-auto"
-                          onClick={onQRefClick} dangerouslySetInnerHTML={{ __html: linkQRefsHtml(DOMPurify.sanitize('<div>' + renderMarkdown(globalReview.md) + '</div>')) }} />
-                      : <p className="text-xs text-gray-400 italic">{L('After the customer questions, the analysis reviews everything (system findings, requirements, answers, spec and coverage) and recommends how to resolve each pending question and the next steps. For the team: it is not sent to the spec generation.', 'Después de las preguntas para el cliente, el análisis revisa todo (hallazgos del sistema, requerimientos, respuestas, spec y cobertura) y recomienda cómo resolver cada pregunta pendiente y los próximos pasos. Es para el equipo: no se envía a la generación de la spec.')}</p>)}
-                  </div>
                   {/* AI Request Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className={summaryCollapsed ? '' : 'mb-2'}>
@@ -7183,6 +7159,30 @@ ${sapObjResult}`;
                     )}
                   </div>
 
+                  <RequirementsChecklist requirements={requirements} onChange={saveRequirements}
+                    onExtract={() => handleExtractRequirements()} loading={reqLoading === 'extract'} error={reqError}
+                    canEdit={canEditReqs()} state={analysisState('requirements')} L={L} lang={lang} who={auth.user?.id ?? null}
+                    answeredCount={questions.filter(q => q.status === 'answered').length} onApplyAnswers={handleApplyAnswers} applying={applyingAnswers}
+                    proposals={answerProposals} onConfirmProposals={confirmAnswerProposals} onDiscardProposals={() => setAnswerProposals(null)} />
+                  {/* Questions for the customer (also its own node) */}
+                  <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
+                      loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
+                      who={{ id: auth.user?.id ?? null, name: auth.profile?.full_name ?? null }} links={qLinks}
+                      onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
+                  {/* Global review and next steps (runs after the questions) */}
+                  <div id="global-review" className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 scroll-mt-4">
+                    <SectionHeader Icon={ClipboardCheck} title={L('Compiled context review and next steps', 'Revisión del compilado y próximos pasos')}
+                      detail={globalReview?.at ? new Date(globalReview.at).toLocaleString(lang === 'es' ? 'es' : 'en', { dateStyle: 'short', timeStyle: 'short' }) : null}
+                      pill={reviewLoading ? L('Reviewing…', 'Revisando…') : !globalReview ? L('Not run', 'Sin ejecutar') : reviewOutdated() ? L('Outdated', 'Desactualizado') : L('Current', 'Al día')}
+                      pillTone={reviewLoading ? 'running' : !globalReview ? 'muted' : reviewOutdated() ? 'warn' : 'ok'}
+                      open={reviewOpen} onToggle={() => setReviewOpen(o => !o)}
+                      actions={[canEditReqs() && { Icon: RefreshCw, title: globalReview ? L('Review again', 'Revisar de nuevo') : L('Run the review', 'Ejecutar la revisión'), onClick: () => handleGlobalReview(), loading: reviewLoading, disabled: !requestSummary, primary: true }]} />
+                    {reviewError && <p className="text-xs text-red-500">{reviewError}</p>}
+                    {reviewOpen && (globalReview?.md
+                      ? <div className="prose prose-sm max-w-none text-sm text-gray-800 dark:text-gray-200 [&_table]:text-xs [&_table]:w-full [&_td]:align-top [&_td]:border [&_td]:border-gray-200 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-gray-200 [&_th]:px-2 [&_th]:py-1 [&_th]:bg-gray-50 overflow-x-auto"
+                          onClick={onQRefClick} dangerouslySetInnerHTML={{ __html: linkQRefsHtml(DOMPurify.sanitize('<div>' + renderMarkdown(globalReview.md) + '</div>')) }} />
+                      : <p className="text-xs text-gray-400 italic">{L('After the customer questions, the analysis reviews everything (system findings, requirements, answers, spec and coverage) and recommends how to resolve each pending question and the next steps. For the team: it is not sent to the spec generation.', 'Después de las preguntas para el cliente, el análisis revisa todo (hallazgos del sistema, requerimientos, respuestas, spec y cobertura) y recomienda cómo resolver cada pregunta pendiente y los próximos pasos. Es para el equipo: no se envía a la generación de la spec.')}</p>)}
+                  </div>
                   {/* Compiled context — collapsible */}
                   <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                     <div className="p-4">
