@@ -65,6 +65,10 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
   const [open, setOpen] = usePersistedOpen('genctx2_questions_open', false);
   const [answerFor, setAnswerFor] = useState(null);
   const [answer, setAnswer] = useState('');
+  const [confirmMode, setConfirmMode] = useState(false);   // answer box opened by "Confirm assumption"
+  const [confirmedBy, setConfirmedBy] = useState('');
+  const startAnswer = q => { setAnswerFor(q.id); setAnswer(''); setConfirmMode(false); setConfirmedBy(''); };
+  const startConfirm = q => { setAnswerFor(q.id); setAnswer(q.assumption ?? ''); setConfirmMode(true); setConfirmedBy(''); };
   const list = questions ?? [];
   const upd = (id, patch) => onChange(list.map(q => (q.id === id ? { ...q, ...patch } : q)));
   const stamp = () => ({ by: who?.id ?? null, name: who?.name ?? null, at: new Date().toISOString() });
@@ -140,7 +144,10 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
                     <span className="font-mono font-semibold text-gray-500 flex-shrink-0">{q.id}</span>
                     <span className={`px-1 py-0.5 rounded border text-[10px] font-semibold flex-shrink-0 ${STATUS_CLS[q.status] ?? STATUS_CLS.open}`}>{statusTxt(q.status)}</span>
                     <span className="flex-1 text-gray-700"><QRefText text={q.text} />{q.assumption ? <span className="block text-[11px] text-gray-500 mt-0.5">{L('Assumption', 'Supuesto')}: <QRefText text={q.assumption} /></span> : null}</span>
-                    {canEdit && <button onClick={() => { setAreaFilter(x.area); setAnswerFor(q.id); setAnswer(''); }} className="px-1.5 py-0.5 text-[10px] rounded border border-gray-200 text-gray-600 hover:bg-gray-50 flex-shrink-0">{L('Answer', 'Responder')}</button>}
+                    {canEdit && <span className="flex flex-col gap-1 flex-shrink-0">
+                      <button onClick={() => { setAreaFilter(x.area); startAnswer(q); }} className="px-1.5 py-0.5 text-[10px] rounded border border-gray-200 text-gray-600 hover:bg-gray-50">{L('Answer', 'Responder')}</button>
+                      {q.assumption?.trim() && <button onClick={() => { setAreaFilter(x.area); startConfirm(q); }} className="px-1.5 py-0.5 text-[10px] rounded border border-violet-200 text-violet-700 hover:bg-violet-50 whitespace-nowrap">{L('Confirm assumption', 'Confirmar supuesto')}</button>}
+                    </span>}
                   </li>
                 ))}
               </ul>
@@ -211,15 +218,30 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
                     {q.status === 'answered' && (
                       <div className="text-[11px] text-emerald-800 bg-emerald-50 rounded px-2 py-1">
                         <span className="font-semibold">{L('Answer', 'Respuesta')}:</span> <QRefText text={q.answer} />
-                        <span className="text-emerald-600"> — {q.via === 'customer' ? L('customer', 'cliente') : L('recorded by', 'registrada por')} {q.name ?? ''}{q.at ? `, ${new Date(q.at).toLocaleDateString()}` : ''}</span>
+                        <span className="text-emerald-600"> — {q.via === 'customer' ? L('customer', 'cliente')
+                          : q.via === 'assumption' ? `${L('assumption confirmed', 'supuesto confirmado')}${q.confirmedBy ? ` ${L('by', 'por')} ${q.confirmedBy}` : ''} · ${L('recorded by', 'registrado por')}`
+                          : L('recorded by', 'registrada por')} {q.name ?? ''}{q.at ? `, ${new Date(q.at).toLocaleDateString()}` : ''}</span>
                       </div>
                     )}
                     {q.status === 'discarded' && q.reason && <div className="text-[11px] text-gray-500">{L('Discarded', 'Descartada')}: <QRefText text={q.reason} /></div>}
                     {answerFor === q.id && (
                       <div className="space-y-1">
-                        <textarea autoFocus rows={2} value={answer} onChange={e => setAnswer(e.target.value)}
+                        {confirmMode && <p className="text-[11px] text-violet-700">{L('The assumption becomes the answer: edit it if needed (e.g. the final technical name) and say who confirmed it.', 'El supuesto pasa a ser la respuesta: edítelo si hace falta (p. ej. el nombre técnico definitivo) e indique quién lo confirmó.')}</p>}
+                        <AutoTextarea autoFocus value={answer} onChange={e => setAnswer(e.target.value)}
                           placeholder={L('Answer (where did it come from? e.g. email of 24/11 from the key user)', 'Respuesta (¿de dónde viene? p. ej. correo del 24/11 del usuario clave)')}
                           className="w-full px-2 py-1 border border-gray-200 rounded text-xs" />
+                        {confirmMode && (
+                          <input value={confirmedBy} onChange={e => setConfirmedBy(e.target.value)}
+                            placeholder={L('Confirmed by (name / role, e.g. Rafael Rodriguez, project architect)', 'Confirmado por (nombre / rol, p. ej. Rafael Rodriguez, arquitecto del proyecto)')}
+                            className="w-full px-2 py-1 border border-gray-200 rounded text-xs" />
+                        )}
+                        {confirmMode ? (
+                          <div className="flex gap-1.5">
+                            <button disabled={!answer.trim() || !confirmedBy.trim()} onClick={() => { upd(q.id, { status: 'answered', answer: answer.trim(), via: 'assumption', confirmedBy: confirmedBy.trim(), ...stamp() }); setAnswerFor(null); setConfirmMode(false); }}
+                              className="px-2 py-1 rounded bg-violet-600 text-white disabled:opacity-40">{L('Confirm as answer', 'Confirmar como respuesta')}</button>
+                            <button onClick={() => { setAnswerFor(null); setConfirmMode(false); }} className="px-2 py-1 rounded border border-gray-200">{L('Cancel', 'Cancelar')}</button>
+                          </div>
+                        ) : (
                         <div className="flex gap-1.5">
                           <button disabled={!answer.trim()} onClick={() => { upd(q.id, { status: 'answered', answer: answer.trim(), via: 'consultant', ...stamp() }); setAnswerFor(null); }}
                             className="px-2 py-1 rounded bg-emerald-600 text-white disabled:opacity-40">{L('Save answer', 'Guardar respuesta')}</button>
@@ -227,13 +249,18 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
                             className="px-2 py-1 rounded border border-gray-200 disabled:opacity-40">{L('Discard (text = reason)', 'Descartar (texto = motivo)')}</button>
                           <button onClick={() => setAnswerFor(null)} className="px-2 py-1 rounded border border-gray-200">{L('Cancel', 'Cancelar')}</button>
                         </div>
+                        )}
                       </div>
                     )}
                   </div>
                   {canEdit && answerFor !== q.id && (
                     <div className="flex flex-col gap-1 flex-shrink-0">
                       {(q.status === 'open' || q.status === 'acknowledged')
-                        ? <button onClick={() => { setAnswerFor(q.id); setAnswer(''); }} className="px-1.5 py-0.5 text-[10px] rounded border border-gray-200 text-gray-600 hover:bg-gray-50">{L('Answer', 'Responder')}</button>
+                        ? <>
+                            <button onClick={() => startAnswer(q)} className="px-1.5 py-0.5 text-[10px] rounded border border-gray-200 text-gray-600 hover:bg-gray-50">{L('Answer', 'Responder')}</button>
+                            {q.assumption?.trim() && <button onClick={() => startConfirm(q)} title={L('Use the assumption as the answer (records who confirmed it)', 'Usar el supuesto como respuesta (registra quién lo confirmó)')}
+                              className="px-1.5 py-0.5 text-[10px] rounded border border-violet-200 text-violet-700 hover:bg-violet-50 whitespace-nowrap">{L('Confirm assumption', 'Confirmar supuesto')}</button>}
+                          </>
                         : <button title={L('Reopen', 'Reabrir')} onClick={() => upd(q.id, { status: 'open', answer: null, reason: null })} className="p-1 text-gray-400 hover:text-blue-600"><Undo2 size={13} /></button>}
                     </div>
                   )}
