@@ -1652,7 +1652,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
         if (st !== 'questions') return [row];
         // Global review: last step, right after the questions (it reviews them too).
         const rOut = reviewOutdated();
-        return [row, { key: 'review', label: L('Global review and next steps', 'Revisión global y próximos pasos'),
+        return [row, { key: 'review', label: L('Compiled context review and next steps', 'Revisión del compilado y próximos pasos'),
           status: reviewLoading ? 'checking' : !globalReview ? 'pending' : rOut ? 'warning' : 'ok',
           pill: globalReview && rOut && !reviewLoading ? L('Outdated', 'Desactualizado') : null,
           detail: !globalReview ? L('Runs after the customer questions', 'Se ejecuta después de las preguntas para el cliente')
@@ -5983,7 +5983,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       hint: questions.length ? (openQ ? `${openQ} ${L('open', 'abiertas')}` : L('answered', 'respondidas')) : '',
                     },
                     {
-                      node: 6, scrollTo: 'global-review', label: L('Global review', 'Revisión global'), dot: 'bg-violet-500',
+                      node: 6, scrollTo: 'global-review', label: L('Compiled context review', 'Revisión del compilado'), dot: 'bg-violet-500',
                       state: reviewLoading ? 'running' : !globalReview ? 'pending' : reviewOutdated() ? 'outdated' : 'done',
                       hint: globalReview && reviewOutdated() ? L('outdated', 'desactualizada') : '',
                     },
@@ -7128,7 +7128,7 @@ ${sapObjResult}`;
                       onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
                   {/* Global review and next steps (runs after the questions) */}
                   <div id="global-review" className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 scroll-mt-4">
-                    <SectionHeader Icon={ClipboardCheck} title={L('Global review and next steps', 'Revisión global y próximos pasos')}
+                    <SectionHeader Icon={ClipboardCheck} title={L('Compiled context review and next steps', 'Revisión del compilado y próximos pasos')}
                       detail={globalReview?.at ? new Date(globalReview.at).toLocaleString(lang === 'es' ? 'es' : 'en', { dateStyle: 'short', timeStyle: 'short' }) : null}
                       pill={reviewLoading ? L('Reviewing…', 'Revisando…') : !globalReview ? L('Not run', 'Sin ejecutar') : reviewOutdated() ? L('Outdated', 'Desactualizado') : L('Current', 'Al día')}
                       pillTone={reviewLoading ? 'running' : !globalReview ? 'muted' : reviewOutdated() ? 'warn' : 'ok'}
