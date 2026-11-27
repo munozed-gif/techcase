@@ -1,9 +1,21 @@
 // Questions for the customer (src/lib/questions.js): the list the analysis finds, edited by the
 // consultants, answered by the customer on /questions/:token or recorded by hand.
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { HelpCircle, RefreshCw, Plus, Send, Copy, Check, Ban, Undo2, ChevronDown } from "lucide-react";
 import { usePersistedOpen, SectionHeader } from "./SpecRequirements.jsx";
 import { Q_KINDS, Q_KIND_LABEL, Q_AREAS, qAreaName, areaOf, askableQuestions, liveQuestions, openQuestions } from "../lib/questions.js";
+
+// Textarea that grows with its text (no inner scroll, nothing cut off).
+function AutoTextarea({ value, onChange, className = '', minRows = 2, ...rest }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [value]);
+  return <textarea ref={ref} rows={minRows} value={value} onChange={onChange} className={`resize-none overflow-hidden ${className}`} {...rest} />;
+}
 
 const kindName = (k, lang) => (Q_KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
 
@@ -178,12 +190,12 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
                       {q.affects?.length > 0 && <span className="text-[11px] text-gray-500">{L('Affects', 'Afecta')}: {q.affects.join(', ')}</span>}
                     </div>
                     {canEdit && q.status === 'open'
-                      ? <textarea rows={2} value={q.text} onChange={e => upd(q.id, { text: e.target.value })} className="w-full px-2 py-1 border border-gray-200 rounded text-xs" />
+                      ? <AutoTextarea value={q.text} onChange={e => upd(q.id, { text: e.target.value })} className="w-full px-2 py-1 border border-gray-200 rounded text-xs" />
                       : <div className={q.status === 'discarded' ? 'line-through' : ''}>{q.text}</div>}
                     {q.sources && <div className="text-[11px] text-gray-500">{L('Sources', 'Fuentes')}: {q.sources}</div>}
                     {q.status !== 'answered' && (canEdit && q.status === 'open'
                       ? <label className="block text-[11px] text-gray-500">{L('Assumption if not answered', 'Supuesto si no se responde')}:
-                          <input value={q.assumption ?? ''} onChange={e => upd(q.id, { assumption: e.target.value })} className="mt-0.5 w-full px-2 py-1 border border-gray-200 rounded text-xs" />
+                          <AutoTextarea minRows={1} value={q.assumption ?? ''} onChange={e => upd(q.id, { assumption: e.target.value })} className="mt-0.5 w-full px-2 py-1 border border-gray-200 rounded text-xs" />
                         </label>
                       : q.assumption && <div className="text-[11px] text-gray-600">{L('Assumption', 'Supuesto')}: {q.assumption}</div>)}
                     {q.status === 'answered' && (
