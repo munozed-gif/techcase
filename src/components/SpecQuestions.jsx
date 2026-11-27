@@ -40,7 +40,7 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
           canEdit && { Icon: RefreshCw, title: list.length ? L('Look for questions again', 'Buscar preguntas de nuevo') : L('Find questions', 'Buscar preguntas'), onClick: onExtract, loading, primary: true },
         ]} />
       {error && <p className="text-xs text-red-500">{error}</p>}
-      {byArea.length > 0 && (
+      {open && byArea.length > 0 && (
         <div className="space-y-1">
           <p className="text-[11px] text-gray-500">{L('By area (answered / total) — filter the list, or send each area its own link with its pending questions:', 'Por área (respondidas / total) — filtra la lista, o envía a cada área su propio enlace con sus preguntas pendientes:')}</p>
           <div className="flex flex-wrap gap-1.5">
@@ -60,7 +60,33 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
           </div>
         </div>
       )}
-      {(links ?? []).length > 0 && (
+      {open && askable.length > 0 && (
+        <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-2.5 space-y-2.5">
+          <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide">{L(`Pending by area · ${askable.length} of ${liveQuestions(list).length}`, `Pendientes por área · ${askable.length} de ${liveQuestions(list).length}`)}</p>
+          {byArea.filter(x => x.n > 0).map(x => (
+            <div key={x.area} className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${AREA_CLS[x.area]}`}>{qAreaName(x.area, lang)}</span>
+                <span className="text-[11px] text-gray-500">{L(`${x.total - x.n}/${x.total} answered · ${x.n} pending`, `${x.total - x.n}/${x.total} respondidas · ${x.n} pendientes`)}</span>
+                {canEdit && (
+                  <button onClick={() => onSendLink(x.area)} className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:underline"><Send size={11} />{L('Link for this area', 'Enlace para esta área')}</button>
+                )}
+              </div>
+              <ul className="space-y-1">
+                {askable.filter(q => areaOf(q) === x.area).map(q => (
+                  <li key={q.id} className="flex items-start gap-2 text-xs bg-white border border-gray-100 rounded-lg px-2 py-1.5">
+                    <span className="font-mono font-semibold text-gray-500 flex-shrink-0">{q.id}</span>
+                    <span className={`px-1 py-0.5 rounded border text-[10px] font-semibold flex-shrink-0 ${STATUS_CLS[q.status] ?? STATUS_CLS.open}`}>{statusTxt(q.status)}</span>
+                    <span className="flex-1 text-gray-700">{q.text}{q.assumption ? <span className="block text-[11px] text-gray-500 mt-0.5">{L('Assumption', 'Supuesto')}: {q.assumption}</span> : null}</span>
+                    {canEdit && <button onClick={() => { setAreaFilter(x.area); setAnswerFor(q.id); setAnswer(''); }} className="px-1.5 py-0.5 text-[10px] rounded border border-gray-200 text-gray-600 hover:bg-gray-50 flex-shrink-0">{L('Answer', 'Responder')}</button>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+      {open && (links ?? []).length > 0 && (
         <div className="space-y-1">
           {links.map(l => {
             const n = Object.keys(l.answers ?? {}).length;
