@@ -1241,6 +1241,13 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [protoSaved, setProtoSaved]         = useState(false);
   const [protoHtmlState, setProtoHtmlState] = useState(null);
   const [viewingProto, setViewingProto]     = useState(false);
+  // Review of the generated documents (notes.generationReview: { at, md, specHash }), shown as a
+  // sub-node under the prototype; runs after "generate all" (after coverage and prototype).
+  const [viewingGenReview, setViewingGenReview] = useState(false);
+  const [genReview, setGenReview]           = useState(null);
+  const [genReviewLoading, setGenReviewLoading] = useState(false);
+  const [genReviewError, setGenReviewError] = useState(null);
+  const viewingSide = viewingProto || viewingGenReview;
   const [protoError, setProtoError]         = useState(false);
   const [protoErrorMsg, setProtoErrorMsg]   = useState('');
   const [protoGenerating, setProtoGenerating] = useState(false);
@@ -1967,6 +1974,79 @@ SPECIFICATION: ${specState}`;
     setReviewLoading(false);
     return out;
   }
+  // ── Review of the generation ─────────────────────────────────
+  // After all documents are generated: coverage gaps grouped by how to close them, quality and
+  // consistency of the spec, what is still needed before sending it to the customer, next steps.
+  async function handleGenerationReview(opts = {}) {
+    const key = opts.key ?? gateSpecKey();
+    const md = key ? (opts.text ?? specText(key)) : null;
+    if (!md) return null;
+    setGenReviewLoading(true); setGenReviewError(null);
+    let out = null;
+    try {
+      const cv = coverageFor(key);
+      const live = questions.filter(q => q.status !== 'discarded');
+      const pending = live.filter(q => q.status !== 'answered');
+      const conds = signoffConditions();
+      const gaps = cv.stats.rows.filter(r => r.status !== 'covered');
+      const prompt = `You are reviewing, as a senior SAP consultant, the documents just generated for this case, before the consultant signs them off and sends them to the customer.
+Write a concise review in ${lang === 'es' ? 'Spanish' : 'English'} with EXACTLY these sections (markdown):
+
+## ${L('Generation status', 'Estado de la generación')}
+3–5 bullets: which documents were generated (specs, prototype), the requirements coverage of Spec ${key.toUpperCase()} and what changed in this version if visible.
+
+## ${L('Coverage gaps and how to close them', 'Brechas de cobertura y cómo cerrarlas')}
+A markdown table: | ${L('Requirement', 'Requerimiento')} | ${L('Gap', 'Brecha')} | ${L('How to close it', 'Cómo cerrarla')} |
+"How to close it" is one of: "${L('Fix gaps', 'Corregir brechas')}" (the spec can say it from what is known), "${L('Answer', 'Responder')} Q-xx" (needs a pending question), "${L('Accept with a reason', 'Aceptar con motivo')}" (approval or management item, not design), "${L('Decision', 'Decisión')}" (a design decision of the customer / architect) — plus a short why. If there are no gaps, one line saying so.
+
+## ${L('Quality and consistency', 'Calidad y consistencia')}
+2–5 bullets: contradictions inside the spec, assumptions still used, objects or names to check, test scenarios with real data or not.
+
+## ${L('Before sending to the customer', 'Antes de enviar al cliente')}
+The sign-off conditions below, each with what is missing (or OK).
+
+## ${L('Next steps', 'Próximos pasos')}
+A numbered list in order.
+
+Be specific (requirement and question ids, objects). No introduction, no closing.
+
+CASE: ${caseData.title}
+
+COVERAGE of Spec ${key.toUpperCase()}: ${cv.checked ? `${cv.stats.pct}% (${cv.stats.covered}/${cv.stats.total})${cv.current ? '' : ' — checked on an older version'}` : 'not checked'}.
+GAPS:
+${gaps.map(r => `- ${r.id} (${r.status}): ${r.text}\n  NOTE: ${r.note ?? ''}${cv.stats.accepted?.[r.id] ? ' [gap accepted]' : ''}`).join('\n') || '- none'}
+${cv.violations?.length ? `PROJECT RULES NOT MET:\n${cv.violations.map(v => `- ${v.text}: ${v.detail ?? ''}`).join('\n')}` : ''}
+
+PENDING QUESTIONS (${pending.length} of ${live.length}):
+${pending.map(q => `- ${q.id} [${q.area ?? ''}] ${q.text}${q.assumption ? ` — assumption used: ${q.assumption}` : ''}`).join('\n') || '- none'}
+
+SIGN-OFF CONDITIONS:
+${conds.map(c => `- ${c.ok ? 'OK' : 'MISSING'}: ${c.label}${c.detail ? ` (${c.detail})` : ''}`).join('\n')}
+
+DOCUMENTS: specs ${['a', 'b', 'c', 'd'].filter(k => specText(k)).map(k => k.toUpperCase()).join(', ') || 'none'}; prototype ${protoSaved ? 'generated' : activeProfile?.prototype_enabled ? 'not generated' : 'not enabled'}.
+
+SPEC ${key.toUpperCase()} (beginning):
+${md.slice(0, 30000)}`;
+      const text = String(await callClaude({ feature: 'spec_review', model: analysisModel,
+        system: 'You are an SAP senior consultant writing a short, actionable review of generated specification documents for the project team.',
+        messages: [{ role: 'user', content: sanitizeForJson(prompt) }], max_tokens: 8000 }) ?? '').trim();
+      if (!text) throw new Error(L('The review came back empty — run it again.', 'La revisión llegó vacía — ejecútela de nuevo.'));
+      out = { at: new Date().toISOString(), md: text, specHash: textHash(md), key };
+      setGenReview(out);
+      await saveAiNotesPatch({ generationReview: out });
+    } catch (e) { setGenReviewError(e.message); }
+    setGenReviewLoading(false);
+    return out;
+  }
+  function genReviewOutdated() {
+    if (!genReview?.at) return false;
+    const key = genReview.key ?? gateSpecKey();
+    const md = key ? specText(key) : null;
+    if (md && genReview.specHash && genReview.specHash !== textHash(md)) return true;
+    const covAt = key ? reqCoverage?.[key]?.at : null;
+    return !!(covAt && covAt > genReview.at) || questions.some(q => q.status === 'answered' && q.at && q.at > genReview.at);
+  }
+
   // Outdated when an analysis step or an answer is newer than the review.
   function reviewOutdated() {
     if (!globalReview?.at) return false;
@@ -3174,6 +3254,7 @@ ${mdToHtml(markdownContent)}
           setReqCoverage(nd.reqCoverage && typeof nd.reqCoverage === 'object' ? nd.reqCoverage : {});
           setQuestions(Array.isArray(nd.questions) ? nd.questions : []);
           setGlobalReview(nd.globalReview?.md ? nd.globalReview : null);
+          setGenReview(nd.generationReview?.md ? nd.generationReview : null);
           setSignoff(nd.signoff ?? null);
           if (nd.docLang) docLangRef.current = nd.docLang;
           setHoursOverrides(nd.hoursOverrides ?? {});
@@ -4523,6 +4604,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
   }
 
   async function handleGenerateSpecs({ autoSubmit = false, genProfile = null, fromApprovalReview = false } = {}) {
+    let genCoverageP = null;   // coverage check started after saving; the generation review waits for it
     if (!genProfile || fromApprovalReview) {
       genGateOverrideRef.current = false;
       if (!generationGateOk()) return;
@@ -4669,7 +4751,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       try {
         await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ ...(notesRef.current ?? {}), specGeneratedAt: new Date().toISOString(), sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile, regenDiff: newDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
         setGenLog(updatedLog);
-        if ((specC || specA) && inScope(requirements).length) handleCheckCoverage(specC ? 'c' : 'a', specC || specA);
+        if ((specC || specA) && inScope(requirements).length) genCoverageP = handleCheckCoverage(specC ? 'c' : 'a', specC || specA);
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (e) {
         // Never lose a generated spec silently — the text is still on screen, so say it wasn't stored.
@@ -4740,6 +4822,11 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       }
 
       if (autoSubmit) await refetch();
+      // Review of the generation, once every document (and the coverage check) is done.
+      if (specC || specA) {
+        try { await genCoverageP; } catch (_) {}
+        handleGenerationReview({ key: specC ? 'c' : 'a', text: specC || specA }).catch(() => {});
+      }
     } catch (e) {
       setAiError(e.message);
     }
@@ -5928,12 +6015,12 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     {SUB.map(s => {
                       const hasError = specHasFailed(s.key);
                       return (
-                        <button key={s.key} onClick={() => { setActiveNode(3); setSelectedSpec(s.key); setViewingProto(false); setAiContent(s.content); }}
+                        <button key={s.key} onClick={() => { setActiveNode(3); setSelectedSpec(s.key); setViewingProto(false); setViewingGenReview(false); setAiContent(s.content); }}
                           className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all ${
                             hasError    ? 'bg-red-50 border-red-300 text-red-600'
                             : s.content ? 'bg-green-50 border-green-200 text-green-700'
                             :             'bg-gray-50 border-gray-100 text-gray-400'
-                          } ${selectedSpec === s.key && activeNode===3 && !viewingProto ? 'ring-2 ring-blue-300' : ''}`}>
+                          } ${selectedSpec === s.key && activeNode===3 && !viewingSide ? 'ring-2 ring-blue-300' : ''}`}>
                           <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${hasError ? 'bg-red-500' : s.dot}`} />
                           <span className="truncate font-medium">{s.label}</span>
                           {s.content  && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
@@ -5943,7 +6030,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     })}
                     {/* Prototype sub-node — only when enabled in profile */}
                     {activeProfile?.prototype_enabled && (
-                      <button onClick={() => { setActiveNode(3); setViewingProto(true); }}
+                      <button onClick={() => { setActiveNode(3); setViewingGenReview(false); setViewingProto(true); }}
                         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all ${
                           protoSaved ? 'bg-green-50 border-green-200 text-green-700'
                           : protoError ? 'bg-red-50 border-red-200 text-red-600'
@@ -5953,6 +6040,22 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         <span className="truncate font-medium">{t("spec.proto_node_lbl")}</span>
                         {protoSaved && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
                         {protoError && !protoSaved && <span className="ml-auto text-red-500 text-xs">!</span>}
+                      </button>
+                    )}
+                    {/* Review of the generation — last sub-node; runs after all documents are generated */}
+                    {(aiSpecA || aiSpecC || genReview) && (
+                      <button onClick={() => { setActiveNode(3); setViewingProto(false); setViewingGenReview(true); }}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all ${
+                          genReviewLoading ? 'bg-blue-50 border-blue-200 text-blue-700'
+                          : genReview && !genReviewOutdated() ? 'bg-green-50 border-green-200 text-green-700'
+                          : genReview ? 'bg-amber-50 border-amber-200 text-amber-700'
+                          : 'bg-gray-50 border-gray-100 text-gray-400'
+                        } ${viewingGenReview && activeNode===3 ? 'ring-2 ring-blue-300' : ''}`}>
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-violet-500" />
+                        <span className="truncate font-medium">{L('Generation review', 'Revisión de la generación')}</span>
+                        {genReviewLoading ? <RefreshCw size={10} className="ml-auto animate-spin flex-shrink-0" />
+                          : genReview && !genReviewOutdated() ? <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />
+                          : genReview ? <span className="ml-auto text-[10px] flex-shrink-0">{L('outdated', 'desactualizada')}</span> : null}
                       </button>
                     )}
                   </div>
@@ -7384,7 +7487,7 @@ ${sapObjResult}`;
             {activeNode === 3 && (
               <div className="space-y-4">
                 {/* Analysis accordion */}
-                {(sapCheck || proposalCheck) && !viewingProto && (
+                {(sapCheck || proposalCheck) && !viewingSide && (
                   <div className="border border-gray-200 rounded-xl overflow-hidden">
                     <button onClick={() => setAnalysisOpen(p => !p)}
                       className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-sm font-semibold text-gray-700">
@@ -7446,7 +7549,7 @@ ${sapObjResult}`;
                 )}
 
                 {/* Generate button */}
-                {!aiSpecA && !aiSpecB && !aiSpecC && !generatingSpecs && !viewingProto && !specApproved && (
+                {!aiSpecA && !aiSpecB && !aiSpecC && !generatingSpecs && !viewingSide && !specApproved && (
                   <div className="text-center py-6">
                     {/* Warning when analysis steps were skipped */}
                     {!sapCheck && !proposalCheck && (
@@ -7482,7 +7585,7 @@ ${sapObjResult}`;
                   </div>
                 )}
 
-                {generatingSpecs && !viewingProto && (
+                {generatingSpecs && !viewingSide && (
                   <div className="py-8 px-4 space-y-3">
                     <p className="text-xs text-gray-500 text-center mb-4">{t("spec.gen_all_loading")}</p>
                     {[
@@ -7526,7 +7629,7 @@ ${sapObjResult}`;
                 )}
 
                 {/* Retry Failed banner — shown after generation when some specs are missing */}
-                {!generatingSpecs && !viewingProto && anySpecExists && SUB.some(s => specHasFailed(s.key)) && (
+                {!generatingSpecs && !viewingSide && anySpecExists && SUB.some(s => specHasFailed(s.key)) && (
                   <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-red-700">
@@ -7544,7 +7647,7 @@ ${sapObjResult}`;
                 )}
 
                 {/* Spec tabs + content */}
-                {(aiSpecA || aiSpecB || aiSpecC || aiSpecD || (specApproved && spec?.content)) && !generatingSpecs && !viewingProto && (
+                {(aiSpecA || aiSpecB || aiSpecC || aiSpecD || (specApproved && spec?.content)) && !generatingSpecs && !viewingSide && (
                   <div className="space-y-0">
                     <div className="flex border-b border-gray-200">
                       {SUB.map(s => {
@@ -7766,6 +7869,27 @@ ${sapObjResult}`;
                 )}
 
                 {/* ── Prototype Preview ── */}
+                {viewingGenReview && (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-1.5 flex-1"><ClipboardCheck size={15} className="text-violet-600" />{L('Generation review', 'Revisión de la generación')}</h3>
+                      {genReview?.at && <span className="text-[11px] text-gray-500">{new Date(genReview.at).toLocaleString(lang === 'es' ? 'es' : 'en', { dateStyle: 'short', timeStyle: 'short' })}{genReview.key ? ` · Spec ${genReview.key.toUpperCase()}` : ''}</span>}
+                      {genReview && genReviewOutdated() && !genReviewLoading && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{L('Outdated', 'Desactualizada')}</span>}
+                      {canEditReqs() && (
+                        <button onClick={() => handleGenerationReview()} disabled={genReviewLoading || !gateSpecKey()}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-violet-200 text-violet-700 text-xs font-semibold hover:bg-violet-50 disabled:opacity-50">
+                          <RefreshCw size={12} className={genReviewLoading ? 'animate-spin' : ''} />{genReviewLoading ? L('Reviewing…', 'Revisando…') : genReview ? L('Review again', 'Revisar de nuevo') : L('Run the review', 'Ejecutar la revisión')}
+                        </button>
+                      )}
+                    </div>
+                    {genReviewError && <p className="text-xs text-red-500">{genReviewError}</p>}
+                    {genReview?.md
+                      ? <div className="prose prose-sm max-w-none text-sm text-gray-800 dark:text-gray-200 overflow-x-auto"
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(genReview.md) + '</div>') }} />
+                      : <p className="text-xs text-gray-400 italic">{genReviewLoading ? L('Reviewing the generated documents…', 'Revisando los documentos generados…')
+                          : L('Runs by itself after all documents are generated (after the coverage check and the prototype): coverage gaps and how to close each one, quality and consistency, what is missing before sending to the customer, and next steps.', 'Se ejecuta sola al terminar de generar todos los documentos (después de la verificación de cobertura y del prototipo): brechas de cobertura y cómo cerrar cada una, calidad y consistencia, qué falta antes de enviar al cliente y próximos pasos.')}</p>}
+                  </div>
+                )}
                 {viewingProto && activeProfile?.prototype_enabled && (
                   <ProtoPanel
                     protoHtmlState={protoHtmlState}
