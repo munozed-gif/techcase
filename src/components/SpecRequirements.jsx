@@ -88,6 +88,13 @@ export function RequirementsChecklist({ requirements, onChange, onExtract, loadi
           canEdit && { Icon: RefreshCw, title: list.length ? L('Extract again', 'Extraer de nuevo') : L('Extract requirements', 'Extraer requerimientos'), onClick: onExtract, loading, primary: true },
         ]} />
       {error && <p className="text-xs text-red-500">{error}</p>}
+      {canEdit && list.length > 0 && answeredCount > 0 && onApplyAnswers && !proposals && (
+        <button onClick={onApplyAnswers} disabled={applying}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-violet-700 text-xs font-semibold hover:bg-violet-100 disabled:opacity-50">
+          <MessageSquareReply size={13} className={applying ? 'animate-pulse' : ''} />
+          {applying ? L('Applying the answers…', 'Aplicando las respuestas…') : L(`Apply customer answers to the checklist (${answeredCount})`, `Aplicar respuestas del cliente al checklist (${answeredCount})`)}
+        </button>
+      )}
       {applying && <p className="text-xs text-violet-700">{L('Comparing the customer answers with the requirements…', 'Comparando las respuestas del cliente con los requerimientos…')}</p>}
       {proposals && proposals.length === 0 && (
         <p className="text-xs text-gray-600 flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-600" />{L('The answers do not change any requirement.', 'Las respuestas no cambian ningún requerimiento.')}
