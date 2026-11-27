@@ -5,6 +5,7 @@ import { Ico } from "./Ico.jsx";
 import { BRAND_MARK_HTML } from "../lib/brand.js";
 import { useState, useEffect, useRef, Fragment } from "react";
 import DOMPurify from "dompurify";
+import { ClipboardCheck } from "lucide-react";
 import { diffSpecs, KIND_LABEL } from "../lib/specDiff.js";
 import { applySpecHours, replaceEstimateSection, countMatrixScenarios, readObjects, computeEstimate } from "../lib/specHours.js";
 import { activeRules, rulesPromptBlock, checkRules } from "../lib/projectRules.js";
@@ -1199,6 +1200,11 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [checksResolved, setChecksResolved] = useState({});
   const [checksLoading, setChecksLoading] = useState(false);
   const [questions, setQuestions] = useState([]);           // notes.questions (src/lib/questions.js)
+  // Global review and next steps (notes.globalReview: { at, md }): runs after the questions step.
+  const [globalReview, setGlobalReview] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState(null);
+  const [reviewOpen, setReviewOpen] = useState(true);
   const [qLoading, setQLoading] = useState(false);
   const [qError, setQError] = useState(null);
   const [qLinks, setQLinks] = useState([]);                 // spec_question_links of the case
@@ -1879,7 +1885,85 @@ Respond with ONLY a JSON array (empty if there is nothing to ask), no markdown f
       result = next;
     } catch (e) { setQError(e.message); }
     setQLoading(false);
+    // Global review of the whole analysis, right after the questions.
+    if (result) await handleGlobalReview({ summary: summaryIn, reqs, questions: result });
     return result;
+  }
+
+  // ── Global review and next steps ────────────────────────────
+  // Reads everything the analysis produced (summary, live SAP objects and verified data, requirements,
+  // customer questions and answers, spec and coverage state) and writes where the case stands, the
+  // key system findings, how to resolve each pending question, risks and the next steps in order.
+  // For the consultant: it is not sent to the spec generation.
+  async function handleGlobalReview(opts = {}) {
+    const summaryIn = opts.summary !== undefined ? opts.summary : requestSummary;
+    const reqs = opts.reqs ?? requirements;
+    const qs = opts.questions ?? questions;
+    if (!summaryIn) return null;
+    setReviewLoading(true); setReviewError(null);
+    let out = null;
+    try {
+      const inS = inScope(reqs), outS = (reqs ?? []).filter(r => r.outOfScope);
+      const live = qs.filter(q => q.status !== 'discarded');
+      const answered = live.filter(q => q.status === 'answered');
+      const pending = live.filter(q => q.status !== 'answered');
+      const key = gateSpecKey();
+      const cv = key ? coverageFor(key) : null;
+      const genAt = notesRef.current?.specGeneratedAt ?? null;
+      const specState = !key ? 'No specification generated yet.'
+        : `Spec ${key.toUpperCase()} generated ${genAt ?? '?'}; coverage ${cv?.checked ? `${cv.stats.pct}% (${cv.stats.covered}/${cv.stats.total})${cv.current ? '' : ' — checked on an older version'}` : 'not checked'}. Analysis steps run after that generation: ${analysisAfterSpec().join(', ') || 'none'}.`;
+      const prompt = `You are reviewing, as a senior SAP consultant, the whole analysis of a case before the specification is (re)generated.
+Write a concise review in ${lang === 'es' ? 'Spanish' : 'English'} with EXACTLY these sections (markdown):
+
+## ${L('Overall status', 'Estado general')}
+3–6 bullets: where the case stands (analysis, requirements in / out of scope, questions answered / pending, specification and coverage).
+
+## ${L('Key system findings', 'Hallazgos clave del sistema')}
+Bullets with what the live SAP check and the verified data confirm or refute (objects, Clean Core, existing extensions, test data). Skip the section's bullets if there was no live check, and say so in one line.
+
+## ${L('Pending questions', 'Preguntas pendientes')}
+A markdown table: | ${L('Question', 'Pregunta')} | ${L('Area', 'Área')} | ${L('Priority', 'Prioridad')} | ${L('What to answer / how to resolve it', 'Qué conviene responder / cómo resolverla')} |
+One row per pending question (id + short subject), priority Alta / Media / Baja (${L('High / Medium / Low', 'Alta / Media / Baja')}) by how much it blocks the specification. Base the advice on the documents, answers and system findings; say who should answer. If there are none, one line saying so.
+
+## ${L('Risks and points of attention', 'Riesgos y puntos de atención')}
+2–5 bullets (contradictions, decisions still open, data or transport issues).
+
+## ${L('Next steps', 'Próximos pasos')}
+A numbered list, in the order to do them (answer which questions first, apply answers to the checklist, re-run analysis, regenerate the spec, check coverage, prepare test data…).
+
+Be specific to this case (ids, objects, numbers). No introduction, no closing.
+
+CASE: ${caseData.title}
+
+ANALYSIS (with live SAP findings and verified data when available):
+${summaryIn}
+
+REQUIREMENTS: ${inS.length} in scope, ${outS.length} out of scope.
+${inS.map(r => `- ${r.id}: ${r.text}`).join('\n')}
+${outS.length ? `Out of scope:\n${outS.map(r => `- ${r.id}: ${r.text} — ${r.reason ?? ''}`).join('\n')}` : ''}
+
+QUESTIONS: ${answered.length} answered, ${pending.length} pending.
+${answered.map(q => `- ${q.id} [${q.area ?? ''}] ${q.text} → ${q.answer}`).join('\n')}
+${pending.length ? `Pending:\n${pending.map(q => `- ${q.id} [${q.area ?? ''}] (${q.status}) ${q.text}${q.assumption ? ` — assumption: ${q.assumption}` : ''}`).join('\n')}` : ''}
+
+SPECIFICATION: ${specState}`;
+      const md = String(await callClaude({ feature: 'spec_review', model: analysisModel,
+        system: 'You are an SAP senior consultant writing a short, actionable review of a case analysis for the project team.',
+        messages: [{ role: 'user', content: sanitizeForJson(prompt) }], max_tokens: 8000 }) ?? '').trim();
+      if (!md) throw new Error(L('The review came back empty — run it again.', 'La revisión llegó vacía — ejecútela de nuevo.'));
+      out = { at: new Date().toISOString(), md };
+      setGlobalReview(out);
+      await saveAiNotesPatch({ globalReview: out });
+    } catch (e) { setReviewError(e.message); }
+    setReviewLoading(false);
+    return out;
+  }
+  // Outdated when an analysis step or an answer is newer than the review.
+  function reviewOutdated() {
+    if (!globalReview?.at) return false;
+    const meta = notesRef.current?.analysisMeta ?? analysisMeta ?? {};
+    if (['summary', 'requirements', 'questions'].some(k => meta[k]?.at && meta[k].at > globalReview.at)) return true;
+    return questions.some(q => q.status === 'answered' && q.at && q.at > globalReview.at);
   }
   function answeredBlock() {
     const a = questions.filter(q => q.status === 'answered' && q.answer);
@@ -3080,6 +3164,7 @@ ${mdToHtml(markdownContent)}
           setRequirements(Array.isArray(nd.requirements) ? nd.requirements : []);
           setReqCoverage(nd.reqCoverage && typeof nd.reqCoverage === 'object' ? nd.reqCoverage : {});
           setQuestions(Array.isArray(nd.questions) ? nd.questions : []);
+          setGlobalReview(nd.globalReview?.md ? nd.globalReview : null);
           setSignoff(nd.signoff ?? null);
           if (nd.docLang) docLangRef.current = nd.docLang;
           setHoursOverrides(nd.hoursOverrides ?? {});
@@ -6906,6 +6991,20 @@ ${sapObjResult}`;
                     canEdit={canEditReqs()} state={analysisState('requirements')} L={L} lang={lang} who={auth.user?.id ?? null}
                     answeredCount={questions.filter(q => q.status === 'answered').length} onApplyAnswers={handleApplyAnswers} applying={applyingAnswers}
                     proposals={answerProposals} onConfirmProposals={confirmAnswerProposals} onDiscardProposals={() => setAnswerProposals(null)} />
+                  {/* Global review and next steps (runs after the questions) */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+                    <SectionHeader Icon={ClipboardCheck} title={L('Global review and next steps', 'Revisión global y próximos pasos')}
+                      detail={globalReview?.at ? new Date(globalReview.at).toLocaleString(lang === 'es' ? 'es' : 'en', { dateStyle: 'short', timeStyle: 'short' }) : null}
+                      pill={reviewLoading ? L('Reviewing…', 'Revisando…') : !globalReview ? L('Not run', 'Sin ejecutar') : reviewOutdated() ? L('Outdated', 'Desactualizado') : L('Current', 'Al día')}
+                      pillTone={reviewLoading ? 'running' : !globalReview ? 'muted' : reviewOutdated() ? 'warn' : 'ok'}
+                      open={reviewOpen} onToggle={() => setReviewOpen(o => !o)}
+                      actions={[canEditReqs() && { Icon: RefreshCw, title: globalReview ? L('Review again', 'Revisar de nuevo') : L('Run the review', 'Ejecutar la revisión'), onClick: () => handleGlobalReview(), loading: reviewLoading, disabled: !requestSummary, primary: true }]} />
+                    {reviewError && <p className="text-xs text-red-500">{reviewError}</p>}
+                    {reviewOpen && (globalReview?.md
+                      ? <div className="prose prose-sm max-w-none text-sm text-gray-800 dark:text-gray-200 [&_table]:text-xs [&_table]:w-full [&_td]:align-top [&_td]:border [&_td]:border-gray-200 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-gray-200 [&_th]:px-2 [&_th]:py-1 [&_th]:bg-gray-50 overflow-x-auto"
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(globalReview.md) + '</div>') }} />
+                      : <p className="text-xs text-gray-400 italic">{L('After the customer questions, the analysis reviews everything (system findings, requirements, answers, spec and coverage) and recommends how to resolve each pending question and the next steps. For the team: it is not sent to the spec generation.', 'Después de las preguntas para el cliente, el análisis revisa todo (hallazgos del sistema, requerimientos, respuestas, spec y cobertura) y recomienda cómo resolver cada pregunta pendiente y los próximos pasos. Es para el equipo: no se envía a la generación de la spec.')}</p>)}
+                  </div>
                   {/* Questions for the customer (also its own node) */}
                   <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
                       loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
