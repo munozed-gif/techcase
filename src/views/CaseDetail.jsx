@@ -2603,7 +2603,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
     setActiveTab(tab);   // the section carousel follows activeTab
     requestAnimationFrame(() => carouselRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     // Activities not created yet: open the development plan generator when it can be generated.
-    const canPlan = (auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.can_add_activities;
+    const canPlan = stageRules.can_add_activities;
     if (cond.key === 'activities_created' && !cond.passed && canPlan && caseSpec?.status === 'approved' && perms.can('generate_dev_plan')) {
       setPendingDevPlanIsRegen(false);
       setTimeout(() => setShowDevPlanModal(true), 350);
@@ -4537,7 +4537,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
 
                     {/* ── Activities Tab ── */}
                     {tab.id === "activities" && (() => {
-        const canManage = (auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.can_add_activities;
+        const canManage = stageRules.can_add_activities;
         const totalActualHoursAll = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
 
         function statusColor(s) {
