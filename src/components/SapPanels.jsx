@@ -1473,6 +1473,7 @@ function SapIntegrationPanel({ clientId, auth, editable = null }) {
                       {[
                         { key: 'liveCheckOnGenerate', labelKey: 'sap.live_check_label', descKey: 'sap.live_check_desc', color: 'bg-blue-600' },
                         { key: 'autoImplementEnabled', labelKey: 'sap.auto_impl_label', descKey: 'sap.auto_impl_desc', color: 'bg-amber-500' },
+                        { key: 'allowTestData', labelKey: 'sap.test_data_label', descKey: 'sap.test_data_desc', color: 'bg-violet-600' },
                       ].map(({ key, labelKey, descKey, color }) => (
                         <div key={key} className="flex items-start gap-4 p-3 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/60">
                           <div className="flex-1 min-w-0">
@@ -4243,6 +4244,7 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                         {[
                           { key: 'liveCheckOnGenerate', labelKey: 'sap.live_check_label', descKey: 'sap.live_check_desc', color: 'bg-blue-600' },
                           { key: 'autoImplementEnabled', labelKey: 'sap.auto_impl_label', descKey: 'sap.auto_impl_desc', color: 'bg-amber-500' },
+                          { key: 'allowTestData', labelKey: 'sap.test_data_label', descKey: 'sap.test_data_desc', color: 'bg-violet-600' },
                         ].map(({ key, labelKey, descKey, color }) => (
                           <div key={key} className="flex items-start gap-4 p-3 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/60">
                             <div className="flex-1 min-w-0">

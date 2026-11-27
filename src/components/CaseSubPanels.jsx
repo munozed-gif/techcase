@@ -1310,6 +1310,15 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   // Environments this case can use and which one it uses: its own choice (sap_case_env) or the project default.
   const [sapEnvChoice, setSapEnvChoice]   = useState(null); // { envs, caseEnvId, projectEnvId, activeId }
   const [sapEnvSaving, setSapEnvSaving]   = useState(false);
+  // Test data check (read-only SELECTs on the case's test data): the environment's default
+  // (allowTestData) unless the case sets its own (notes.testDataOverride: true / false).
+  const [caseTestData, setCaseTestData]   = useState(null);
+  const testDataEnvDefault = () => sapConnCfg?.allowTestData === true;
+  const testDataOn = () => (caseTestData ?? testDataEnvDefault()) === true;
+  async function changeCaseTestData(v) {
+    setCaseTestData(v);
+    try { await saveAiNotesPatch({ testDataOverride: v }); } catch (_) {}
+  }
   const [sapConnTest, setSapConnTest]     = useState(null); // null | 'testing' | { ok, info?, error?, message? }
 
   // Project docs + ABAP standards — fetched for display in Node 0
@@ -1697,6 +1706,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
 - Build on the existing extensions listed here (custom fields, appends, Z objects): do not propose to create again something that already exists; name the real objects.
 - Do not design around objects marked "Not found": say the document's proposal does not exist in the system and use the existing alternative (or keep it as an open point).
 - Respect the Clean Core states: prefer released (C0/C1) and key-user options; an object marked "Not released" may only be used as a documented, encapsulated classic exception, and the spec must say so.
+- When a "verified system data" section is present: use the confirmed test data (real document numbers, locations, values) in the test scenarios and examples, and state what was not found or is inconsistent as an open point.
 - Cite this check as "verificación en el sistema" when you use it.
 ${sanitizeForJson(section)}`;
   }
@@ -3050,6 +3060,7 @@ ${mdToHtml(markdownContent)}
           if (nd.specC)         setAiSpecC(nd.specC);
           if (nd.specD)         setAiSpecD(nd.specD);
           if (nd.selectedSpec)  setSelectedSpec(nd.selectedSpec);
+          setCaseTestData(typeof nd.testDataOverride === 'boolean' ? nd.testDataOverride : null);
           if (nd.prevMode)      setPrevMode(nd.prevMode);
           if (nd.analysisCustomerContent) setAnalysisCustomerContent(nd.analysisCustomerContent);
           if (nd.requestSummary) setRequestSummary(nd.requestSummary);
@@ -5894,6 +5905,28 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </div>
                   );
                 })()}
+                {sapConnCfg && (() => {
+                  const envDef = testDataEnvDefault();
+                  const on = testDataOn();
+                  const canChange = !specApproved || auth.isAdmin;
+                  return (
+                    <div className={`border rounded-xl p-3 space-y-1.5 ${on ? 'border-violet-200 bg-violet-50/40' : 'border-gray-200'}`}>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">{L('Check with test data', 'Verificación con datos de prueba')}</label>
+                      <select value={caseTestData === null ? '' : caseTestData ? 'on' : 'off'} disabled={!canChange}
+                        onChange={e => changeCaseTestData(e.target.value === '' ? null : e.target.value === 'on')}
+                        className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 disabled:opacity-60">
+                        <option value="">{L('Environment default', 'Predeterminado del ambiente')} — {envDef ? L('allowed', 'permitida') : L('not allowed', 'no permitida')}</option>
+                        <option value="on">{L('On for this case', 'Activada en este caso')}</option>
+                        <option value="off">{L('Off for this case', 'Desactivada en este caso')}</option>
+                      </select>
+                      <p className="text-[11px] text-gray-500">{on
+                        ? L(`On: the analysis reads the case's test data in client ${sapConnInfo?.client ?? ''} (read-only, max. 50 rows per query) and adds "Verified system data" to the compiled context; the spec uses it in its test scenarios. The rows read are sent to the AI.`,
+                            `Activada: el análisis lee los datos de prueba del caso en el mandante ${sapConnInfo?.client ?? ''} (solo lectura, máx. 50 filas por consulta) y agrega "Datos verificados en el sistema" al contexto compilado; la spec los usa en sus escenarios de prueba. Las filas leídas se envían a la IA.`)
+                        : L('Off: only SAP objects are checked (existence, Clean Core, extensions), not data.', 'Desactivada: solo se verifican objetos SAP (existencia, Clean Core, extensiones), no datos.')}
+                        {caseTestData === true && !envDef && <span className="block text-amber-700 mt-0.5">{L('The environment does not allow it by default: make sure this client has no production data.', 'El ambiente no lo permite por defecto: asegúrese de que este mandante no tenga datos productivos.')}</span>}</p>
+                    </div>
+                  );
+                })()}
                 {(effectiveBaseCheck || caseLiveCheck === true) && (
                   <div className="border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-transparent rounded-xl p-3 flex items-start gap-2">
                     <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
@@ -6729,7 +6762,45 @@ ${result}`;
                         mcp_servers: mcpServers,
                       }).catch(() => null);
                       if (sapObjResult) fullResult = result + '\n\n' + sapObjResult;
-                      else sapSkipReason = lang === 'es' ? 'la consulta a SAP no devolvió resultado' : 'the SAP query returned no result';
+                      // Test data check: only when the environment (or this case) allows reading data.
+                      if (sapObjResult && testDataOn()) {
+                        const maxRows = Math.min(200, Math.max(1, Number(sapConnCfg?.testDataMaxRows) || 50));
+                        const ansQ = questions.filter(q => q.status === 'answered' && q.answer?.trim());
+                        const testReqs = inScope(requirements).filter(r => r.kind === 'test_scenario' || /prueba|test|escenario|CT-\d/i.test(r.text));
+                        const dataPrompt = `Verify in the live SAP system (client ${sapConnCfg?.client ?? ''}) the TEST DATA this case relies on, with READ-ONLY queries.
+1. From the analysis, the test scenarios and the customer answers below, list the concrete data the case names: document numbers (freight units, orders, deliveries…), locations, business partners, customers, codes (zones, plants…), and the volumes it assumes.
+2. Check each one with the SAP query tools (runQuery with a SELECT, or tableContents), at most ${maxRows} rows per query (use the tool's row limit). Select only the columns you need; use COUNT(*) for volumes. Write keys in their internal format (e.g. numeric document numbers with leading zeros to the field length). Do not read personal data (names, e-mails, phones, bank data) unless the case is about them.
+3. Follow the relations the requirement needs (e.g. document → destination location → address → zone), stopping when the fact is confirmed or refuted.
+Never create, change, lock or delete anything. If a query fails, try once with a corrected key format, then report it.
+
+Produce exactly this section (in ${langName}):
+
+## ${lang === 'es' ? 'Datos verificados en el sistema' : 'Verified system data'}
+
+| Dato | Consulta | Resultado | Nota |
+|---|---|---|---|
+(one row per data item: what was checked, the table and condition, what was found — values or "no encontrado" —, and what it means for the requirement; notes under 20 words)
+
+### ${lang === 'es' ? 'Conclusión de datos' : 'Data conclusion'}
+2–5 bullets: which test data are confirmed, which do not exist or are inconsistent, and what the specification and its test scenarios must use or ask.
+
+### ${lang === 'es' ? 'Consultas ejecutadas' : 'Queries run'}
+A numbered list of every query you ran (table, condition, rows returned), for audit.
+
+ANALYSIS:
+${result}
+${testReqs.length ? `\nTEST SCENARIOS (requirements):\n${testReqs.map(r => `- ${r.id}: ${r.text}`).join('\n')}` : ''}
+${ansQ.length ? `\nCUSTOMER ANSWERS:\n${ansQ.map(q => `- ${q.id}: ${q.text} → ${q.answer}`).join('\n')}` : ''}
+
+OBJECTS ALREADY CHECKED:
+${sapObjResult}`;
+                        const dataResult = await callClaude({ feature: 'sap_live_check', model: analysisModel,
+                          system: 'You are an SAP consultant verifying test data in a live system with read-only queries. Never change anything. Be precise and concise.',
+                          messages: [{ role: 'user', content: dataPrompt }], max_tokens: 4000, mcp_servers: mcpServers }).catch(() => null);
+                        supabase.rpc('log_sap_op', { p_case: caseData.id, p_kind: 'live_check' }).then(() => {}, () => {});
+                        fullResult += dataResult ? `\n\n${dataResult}` : `\n\n## ${lang === 'es' ? 'Datos verificados en el sistema' : 'Verified system data'}\n${lang === 'es' ? 'No se pudo completar la verificación de datos de prueba (la consulta a SAP no devolvió resultado).' : 'The test data check could not be completed (the SAP query returned no result).'}`;
+                      }
+                      else if (!sapObjResult) sapSkipReason = lang === 'es' ? 'la consulta a SAP no devolvió resultado' : 'the SAP query returned no result';
                     } catch (e) { sapSkipReason = e?.message || 'error'; }
                   }
                   if (wantSapLive && sapSkipReason && result) {
