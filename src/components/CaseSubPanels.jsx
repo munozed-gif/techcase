@@ -1996,10 +1996,15 @@ SPECIFICATION: ${specState}`;
     setGenReviewLoading(true); setGenReviewError(null);
     let out = null;
     try {
-      const cv = coverageFor(key);
+      // The coverage just computed (the screen state may not be updated yet inside this sequence).
+      const covRaw = notesRef.current?.reqCoverage?.[key] ?? reqCoverage?.[key];
+      const violations = checkRules(md, activeRules(ssCtx.settings, caseData.project_id));
+      const cv = { stats: coverageStats(requirements, covRaw, violations), checked: !!covRaw?.at, current: !!covRaw?.at && covRaw.specHash === textHash(md), violations };
       const live = questions.filter(q => q.status !== 'discarded');
       const pending = live.filter(q => q.status !== 'answered');
-      const conds = signoffConditions();
+      const conds = signoffConditions().map(c => c.key === 'coverage'
+        ? { ...c, ok: cv.stats.total > 0 && cv.checked && cv.current && cv.stats.openGaps.length === 0, detail: cv.checked ? `${cv.stats.pct}% — ${cv.stats.openGaps.length} ${L('open gaps', 'brechas abiertas')}` : c.detail }
+        : c);
       const gaps = cv.stats.rows.filter(r => r.status !== 'covered');
       const prompt = `You are reviewing, as a senior SAP consultant, the documents just generated for this case, before the consultant signs them off and sends them to the customer.
 Write a concise review in ${lang === 'es' ? 'Spanish' : 'English'} with EXACTLY these sections (markdown):
@@ -2207,6 +2212,7 @@ ${md}`;
       await saveAiNotesPatch({ [key === 'c' ? 'specC' : 'specA']: newMd, ...(key === 'c' && calc.d ? { specD: calc.d } : {}), regenDiff: nextDiff, specGeneratedAt: new Date().toISOString() });
       setReqLoading(null);
       await handleCheckCoverage(key, newMd);
+      await handleGenerationReview({ key, text: newMd }).catch(() => {});
     } catch (e) { setReqError(e.message); setReqLoading(null); }
   }
   // ── Consultant sign-off before anything goes to the customer ─
@@ -4763,7 +4769,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       try {
         await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ ...(notesRef.current ?? {}), specGeneratedAt: new Date().toISOString(), sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile, regenDiff: newDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
         setGenLog(updatedLog);
-        if ((specC || specA) && inScope(requirements).length) genCoverageP = handleCheckCoverage(specC ? 'c' : 'a', specC || specA);
+        // In sequence: coverage of the new spec first, then the rest (prototype), then the review.
+        if ((specC || specA) && inScope(requirements).length) { genCoverageP = handleCheckCoverage(specC ? 'c' : 'a', specC || specA); try { await genCoverageP; } catch (_) {} }
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (e) {
         // Never lose a generated spec silently — the text is still on screen, so say it wasn't stored.
@@ -4837,7 +4844,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       // Review of the generation, once every document (and the coverage check) is done.
       if (specC || specA) {
         try { await genCoverageP; } catch (_) {}
-        handleGenerationReview({ key: specC ? 'c' : 'a', text: specC || specA }).catch(() => {});
+        await handleGenerationReview({ key: specC ? 'c' : 'a', text: specC || specA }).catch(() => {});
       }
     } catch (e) {
       setAiError(e.message);
@@ -5118,6 +5125,12 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         setSpecError('proto', e.message);
         setProtoError(true);
       }
+    }
+    // The gate spec was regenerated: coverage, then the review (in sequence).
+    const gk = newSpecs.c ? 'c' : (newSpecs.a && !aiSpecC) ? 'a' : null;
+    if (gk && inScope(requirements).length) {
+      try { await handleCheckCoverage(gk, newSpecs[gk]); } catch (_) {}
+      await handleGenerationReview({ key: gk, text: newSpecs[gk] }).catch(() => {});
     }
     setGeneratingSpecs(false);
   }
