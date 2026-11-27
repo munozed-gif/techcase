@@ -27,7 +27,21 @@ export function parseJsonArray(raw, key) {
   if (v === undefined) { const m = txt.match(/\[[\s\S]*\]/); if (m) v = tryParse(m[0]); }
   if (v === undefined) { const m = txt.match(/\{[\s\S]*\}/); if (m) v = tryParse(m[0]); }
   if (v && !Array.isArray(v) && Array.isArray(v[key])) v = v[key];
-  return Array.isArray(v) ? v : null;
+  if (Array.isArray(v)) return v;
+  // Answer cut off (output limit): keep the complete top-level objects of the array.
+  const start = txt.indexOf('[');
+  if (start < 0) return null;
+  const out = [];
+  let depth = 0, inStr = false, esc = false, objStart = -1;
+  for (let i = start + 1; i < txt.length; i++) {
+    const ch = txt[i];
+    if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue; }
+    if (ch === '"') { inStr = true; continue; }
+    if (ch === '{') { if (depth === 0) objStart = i; depth++; }
+    else if (ch === '}') { depth--; if (depth === 0 && objStart >= 0) { const o = tryParse(txt.slice(objStart, i + 1)); if (o) out.push(o); objStart = -1; } }
+    else if (ch === ']' && depth === 0) break;
+  }
+  return out.length ? out : null;
 }
 
 /** Normalise the extracted list: REQ-01.. ids, known kinds, no empty texts. */

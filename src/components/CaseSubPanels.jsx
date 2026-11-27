@@ -1736,29 +1736,40 @@ ${sanitizeForJson(section)}`;
     if (!answered.length || !list.length) return;
     setApplyingAnswers(true); setReqError(null); setAnswerProposals(null);
     try {
-      const prompt = `The customer answered questions about this SAP case. Their answers are authoritative and override the documents.
-Decide, for each requirement of the checklist below (extracted earlier from the documents), whether an answer changes it:
+      const ansBlock = answered.map(q => `- ${q.id}: ${q.text}\n  ANSWER: ${q.answer}`).join('\n');
+      const ids = new Set(list.map(r => r.id));
+      const all = [];
+      let failed = 0;
+      // In parts: one answer covering every requirement can exceed the output limit.
+      for (let i = 0; i < list.length; i += 15) {
+        const part = list.slice(i, i + 15);
+        const prompt = `The customer answered questions about this SAP case. Their answers are authoritative and override the documents.
+Decide, for each requirement below (extracted earlier from the documents), whether an answer changes it:
 - "out_of_scope": an answer leaves it out of this phase / not wanted / postponed / pending a later approval;
-- "update": an answer changes what is required (different source, rule, object, profile, value…): give the requirement rewritten to match the answer, keeping the same subject and level of detail;
+- "update": an answer changes what is required (different source, rule, object, profile, value…): give the requirement rewritten to match the answer, same subject, one or two sentences;
 - leave it out of the result when no answer affects it.
-Only use what the answers say. Cite the question ids that support each change.
+Only use what the answers say. Cite the question ids that support each change. Keep "reason" under 20 words.
 
 ANSWERS:
-${answered.map(q => `- ${q.id}: ${q.text}\n  ANSWER: ${q.answer}`).join('\n')}
+${ansBlock}
 
-REQUIREMENTS (in scope):
-${list.map(r => `- ${r.id}: ${r.text}`).join('\n')}
+REQUIREMENTS:
+${part.map(r => `- ${r.id}: ${r.text}`).join('\n')}
 
-Respond with ONLY a JSON array, no markdown fences:
+Respond with ONLY a JSON array (empty if nothing changes), no markdown fences:
 [{ "id": "REQ-05", "action": "out_of_scope" | "update", "text": "new requirement text (only for update)", "reason": "short reason citing the answer", "questions": ["Q-03"] }]${jsonLangNote(specLang())}`;
-      const raw = await callClaude({ feature: 'spec_requirements', model: analysisModel,
-        system: 'You are an SAP senior functional consultant keeping the requirements checklist in line with the customer answers. Respond ONLY with a valid JSON array.',
-        messages: [{ role: 'user', content: prompt }], max_tokens: 12000 });
-      const parsed = parseJsonArray(raw, 'changes');
-      if (!parsed) throw new Error(L('The proposal could not be read from the AI answer — run it again.', 'No se pudo leer la propuesta de la IA — ejecútelo de nuevo.'));
-      const ids = new Set(list.map(r => r.id));
-      setAnswerProposals(parsed
-        .filter(p => p && ids.has(String(p.id)) && ['out_of_scope', 'update'].includes(p.action) && (p.action === 'out_of_scope' || String(p.text ?? '').trim()))
+        const raw = await callClaude({ feature: 'spec_requirements', model: analysisModel,
+          system: 'You are an SAP senior functional consultant keeping the requirements checklist in line with the customer answers. Respond ONLY with a valid JSON array.',
+          messages: [{ role: 'user', content: prompt }], max_tokens: 16000 }).catch(() => null);
+        const parsed = raw == null ? null : (String(raw).trim().replace(/^```(?:json)?\s*|\s*```$/g, '') === '[]' ? [] : parseJsonArray(raw, 'changes'));
+        if (!parsed) { failed++; continue; }
+        all.push(...parsed);
+      }
+      if (failed && !all.length) throw new Error(L('The proposal could not be read from the AI answer — run it again.', 'No se pudo leer la propuesta de la IA — ejecútelo de nuevo.'));
+      if (failed) setReqError(L(`${failed} part(s) of the checklist could not be reviewed — the proposal below is partial; run it again later for the rest.`, `${failed} parte(s) del checklist no se pudieron revisar — la propuesta de abajo es parcial; vuelva a ejecutarlo luego para el resto.`));
+      const seen = new Set();
+      setAnswerProposals(all
+        .filter(p => p && ids.has(String(p.id)) && !seen.has(String(p.id)) && seen.add(String(p.id)) && ['out_of_scope', 'update'].includes(p.action) && (p.action === 'out_of_scope' || String(p.text ?? '').trim()))
         .map(p => ({ id: String(p.id), action: p.action, text: String(p.text ?? '').trim(), reason: String(p.reason ?? '').trim(), questions: Array.isArray(p.questions) ? p.questions.map(String) : [] })));
     } catch (e) { setReqError(e.message); }
     setApplyingAnswers(false);
