@@ -1255,7 +1255,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       const id = e.detail?.id;
       if (!id) return;
       setActiveNode(6);
-      setTimeout(() => { try { window.dispatchEvent(new CustomEvent('arena:focus-question', { detail: { id } })); } catch { /* ignore */ } }, 150);
+      const ev = e.detail?.kind === 'req' ? 'arena:focus-requirement' : 'arena:focus-question';
+      setTimeout(() => { try { window.dispatchEvent(new CustomEvent(ev, { detail: { id } })); } catch { /* ignore */ } }, 150);
     };
     window.addEventListener('arena:open-question', onOpen);
     return () => window.removeEventListener('arena:open-question', onOpen);

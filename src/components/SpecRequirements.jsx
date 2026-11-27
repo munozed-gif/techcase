@@ -1,6 +1,6 @@
 // Requirement traceability UI: the editable requirements checklist (summary node) and the
 // coverage panel of a generated spec (spec node). Logic lives in src/lib/requirements.js.
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, ListChecks, Wrench, Undo2, ChevronDown, MessageCircleQuestion, ArrowRightLeft, Info, MessageSquareReply } from "lucide-react";
 import { REQ_KINDS, REQ_KIND_LABEL, inScope } from "../lib/requirements.js";
 import { QRefText, openQuestion } from "./SpecQuestions.jsx";
@@ -57,6 +57,18 @@ function AnswersProposals({ proposals, requirements, onConfirm, onDiscard, L }) 
 export function RequirementsChecklist({ requirements, onChange, onExtract, loading, error, canEdit, state, L, lang, who,
   answeredCount = 0, onApplyAnswers, applying = false, proposals = null, onConfirmProposals, onDiscardProposals }) {
   const [open, setOpen] = usePersistedOpen('genctx2_reqs_open', false);
+  const [flashReq, setFlashReq] = useState(null);
+  useEffect(() => {
+    const onFocus = e => {
+      const id = e.detail?.id;
+      if (!id) return;
+      setOpen(true); setFlashReq(id);
+      setTimeout(() => document.getElementById(`req-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+      setTimeout(() => setFlashReq(f => (f === id ? null : f)), 2600);
+    };
+    window.addEventListener('arena:focus-requirement', onFocus);
+    return () => window.removeEventListener('arena:focus-requirement', onFocus);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [reasonFor, setReasonFor] = useState(null);
   const [reason, setReason] = useState('');
   const list = requirements ?? [];
@@ -89,7 +101,7 @@ export function RequirementsChecklist({ requirements, onChange, onExtract, loadi
           )}
           <div className="space-y-1.5">
             {list.map(r => (
-              <div key={r.id} className={`p-2 rounded-lg border text-xs ${r.outOfScope ? 'bg-gray-50 border-gray-100 opacity-70' : 'border-gray-100'}`}>
+              <div key={r.id} id={`req-${r.id}`} className={`p-2 rounded-lg border text-xs scroll-mt-24 ${r.outOfScope ? 'bg-gray-50 border-gray-100 opacity-70' : 'border-gray-100'} ${flashReq === r.id ? 'ring-2 ring-violet-400 shadow-md' : ''}`}>
                 <div className="flex items-start gap-2">
                   <span className="font-mono font-semibold text-gray-500 w-14 flex-shrink-0 pt-1">{r.id}</span>
                   <div className="flex-1 space-y-1">

@@ -20,12 +20,19 @@ function AutoTextarea({ value, onChange, className = '', minRows = 2, ...rest })
 const kindName = (k, lang) => (Q_KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
 
 // ── Links to questions (Q-07) from anywhere: requirements, coverage notes, reviews ──
-const QREF_RE = /\bQ-\d{1,3}\b/g;
+const QREF_RE = /\b(?:Q|REQ)-\d{1,3}\b/g;
 /** Ask the specification screen to show question `id` (opens its panel and scrolls to it). */
 export function openQuestion(id) {
   try { window.dispatchEvent(new CustomEvent('arena:open-question', { detail: { id } })); } catch { /* ignore */ }
 }
-/** Text where every "Q-07" becomes a link to that question. */
+/** Same for a requirement of the checklist (REQ-06). */
+export function openRequirement(id) {
+  try { window.dispatchEvent(new CustomEvent('arena:open-question', { detail: { id, kind: 'req' } })); } catch { /* ignore */ }
+}
+const openRef = id => (id.startsWith('REQ-') ? openRequirement(id) : openQuestion(id));
+/** References (Q-07, REQ-06) mentioned in a text, without repeats. */
+export const refsIn = t => [...new Set(String(t ?? '').match(QREF_RE) ?? [])];
+/** Text where every "Q-07" / "REQ-06" becomes a link to that question / requirement. */
 export function QRefText({ text, className = '' }) {
   const t = String(text ?? '');
   const parts = [];
@@ -34,7 +41,7 @@ export function QRefText({ text, className = '' }) {
   while ((m = QREF_RE.exec(t))) {
     if (m.index > last) parts.push(t.slice(last, m.index));
     const id = m[0];
-    parts.push(<button key={`${id}-${m.index}`} type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); openQuestion(id); }}
+    parts.push(<button key={`${id}-${m.index}`} type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); openRef(id); }}
       className="font-mono font-semibold text-violet-700 dark:text-violet-300 underline decoration-dotted underline-offset-2 hover:text-violet-900">{id}</button>);
     last = m.index + id.length;
   }
@@ -47,7 +54,7 @@ export function onQRefClick(e) {
   const a = e.target?.closest?.('[data-qref]');
   if (!a) return;
   e.preventDefault();
-  openQuestion(a.getAttribute('data-qref'));
+  openRef(a.getAttribute('data-qref'));
 }
 const STATUS_CLS = {
   open: 'bg-amber-50 text-amber-700 border-amber-200', answered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -132,7 +139,7 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
                   <li key={q.id} className="flex items-start gap-2 text-xs bg-white border border-gray-100 rounded-lg px-2 py-1.5">
                     <span className="font-mono font-semibold text-gray-500 flex-shrink-0">{q.id}</span>
                     <span className={`px-1 py-0.5 rounded border text-[10px] font-semibold flex-shrink-0 ${STATUS_CLS[q.status] ?? STATUS_CLS.open}`}>{statusTxt(q.status)}</span>
-                    <span className="flex-1 text-gray-700">{q.text}{q.assumption ? <span className="block text-[11px] text-gray-500 mt-0.5">{L('Assumption', 'Supuesto')}: {q.assumption}</span> : null}</span>
+                    <span className="flex-1 text-gray-700"><QRefText text={q.text} />{q.assumption ? <span className="block text-[11px] text-gray-500 mt-0.5">{L('Assumption', 'Supuesto')}: <QRefText text={q.assumption} /></span> : null}</span>
                     {canEdit && <button onClick={() => { setAreaFilter(x.area); setAnswerFor(q.id); setAnswer(''); }} className="px-1.5 py-0.5 text-[10px] rounded border border-gray-200 text-gray-600 hover:bg-gray-50 flex-shrink-0">{L('Answer', 'Responder')}</button>}
                   </li>
                 ))}
@@ -187,24 +194,27 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
                             {Q_AREAS.map(a => <option key={a} value={a}>{qAreaName(a, lang)}</option>)}
                           </select>
                         : <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${AREA_CLS[areaOf(q)]}`}>{qAreaName(areaOf(q), lang)}</span>}
-                      {q.affects?.length > 0 && <span className="text-[11px] text-gray-500">{L('Affects', 'Afecta')}: {q.affects.join(', ')}</span>}
+                      {q.affects?.length > 0 && <span className="text-[11px] text-gray-500">{L('Affects', 'Afecta')}: <QRefText text={q.affects.join(', ')} /></span>}
                     </div>
                     {canEdit && q.status === 'open'
-                      ? <AutoTextarea value={q.text} onChange={e => upd(q.id, { text: e.target.value })} className="w-full px-2 py-1 border border-gray-200 rounded text-xs" />
-                      : <div className={q.status === 'discarded' ? 'line-through' : ''}>{q.text}</div>}
-                    {q.sources && <div className="text-[11px] text-gray-500">{L('Sources', 'Fuentes')}: {q.sources}</div>}
+                      ? <>
+                          <AutoTextarea value={q.text} onChange={e => upd(q.id, { text: e.target.value })} className="w-full px-2 py-1 border border-gray-200 rounded text-xs" />
+                          {refsIn(q.text).length > 0 && <div className="text-[11px] text-gray-500">{L('References', 'Referencias')}: <QRefText text={refsIn(q.text).join(', ')} /></div>}
+                        </>
+                      : <div className={q.status === 'discarded' ? 'line-through' : ''}><QRefText text={q.text} /></div>}
+                    {q.sources && <div className="text-[11px] text-gray-500">{L('Sources', 'Fuentes')}: <QRefText text={q.sources} /></div>}
                     {q.status !== 'answered' && (canEdit && q.status === 'open'
                       ? <label className="block text-[11px] text-gray-500">{L('Assumption if not answered', 'Supuesto si no se responde')}:
                           <AutoTextarea minRows={1} value={q.assumption ?? ''} onChange={e => upd(q.id, { assumption: e.target.value })} className="mt-0.5 w-full px-2 py-1 border border-gray-200 rounded text-xs" />
                         </label>
-                      : q.assumption && <div className="text-[11px] text-gray-600">{L('Assumption', 'Supuesto')}: {q.assumption}</div>)}
+                      : q.assumption && <div className="text-[11px] text-gray-600">{L('Assumption', 'Supuesto')}: <QRefText text={q.assumption} /></div>)}
                     {q.status === 'answered' && (
                       <div className="text-[11px] text-emerald-800 bg-emerald-50 rounded px-2 py-1">
-                        <span className="font-semibold">{L('Answer', 'Respuesta')}:</span> {q.answer}
+                        <span className="font-semibold">{L('Answer', 'Respuesta')}:</span> <QRefText text={q.answer} />
                         <span className="text-emerald-600"> — {q.via === 'customer' ? L('customer', 'cliente') : L('recorded by', 'registrada por')} {q.name ?? ''}{q.at ? `, ${new Date(q.at).toLocaleDateString()}` : ''}</span>
                       </div>
                     )}
-                    {q.status === 'discarded' && q.reason && <div className="text-[11px] text-gray-500">{L('Discarded', 'Descartada')}: {q.reason}</div>}
+                    {q.status === 'discarded' && q.reason && <div className="text-[11px] text-gray-500">{L('Discarded', 'Descartada')}: <QRefText text={q.reason} /></div>}
                     {answerFor === q.id && (
                       <div className="space-y-1">
                         <textarea autoFocus rows={2} value={answer} onChange={e => setAnswer(e.target.value)}
