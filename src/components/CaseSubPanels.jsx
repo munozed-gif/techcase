@@ -1631,14 +1631,14 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
             ? L(`Run ${fmt(at)} — the documents or an earlier step changed since`, `Ejecutado ${fmt(at)} — desde entonces cambiaron los documentos o un paso anterior`)
             : L(`Run ${fmt(at)}`, `Ejecutado ${fmt(at)}`) };
         if (st !== 'questions') return [row];
-        // Global review: shown before the questions; it runs right after them (it reviews them too).
+        // Global review: last step, right after the questions (it reviews them too).
         const rOut = reviewOutdated();
-        return [{ key: 'review', label: L('Global review and next steps', 'Revisión global y próximos pasos'),
+        return [row, { key: 'review', label: L('Global review and next steps', 'Revisión global y próximos pasos'),
           status: reviewLoading ? 'checking' : !globalReview ? 'pending' : rOut ? 'warning' : 'ok',
           pill: globalReview && rOut && !reviewLoading ? L('Outdated', 'Desactualizado') : null,
           detail: !globalReview ? L('Runs after the customer questions', 'Se ejecuta después de las preguntas para el cliente')
             : rOut ? L(`Run ${fmt(globalReview.at)} — an analysis step or an answer changed since`, `Ejecutado ${fmt(globalReview.at)} — desde entonces cambió un paso del análisis o una respuesta`)
-            : L(`Run ${fmt(globalReview.at)}`, `Ejecutado ${fmt(globalReview.at)}`) }, row];
+            : L(`Run ${fmt(globalReview.at)}`, `Ejecutado ${fmt(globalReview.at)}`) }];
       }),
     ];
     const icon = st => st === 'checking' ? <RefreshCw size={14} className="animate-spin text-blue-600 dark:text-blue-400" />
@@ -5879,14 +5879,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       hint: proposalCheck ? `${proposalCheck.score}/10` : '',
                     },
                     {
-                      node: 6, scrollTo: 'global-review', label: L('Global review', 'Revisión global'), dot: 'bg-violet-500',
-                      state: reviewLoading ? 'running' : !globalReview ? 'pending' : reviewOutdated() ? 'outdated' : 'done',
-                      hint: globalReview && reviewOutdated() ? L('outdated', 'desactualizada') : '',
-                    },
-                    {
                       node: 7, label: L('Customer questions', 'Preguntas al cliente'), dot: 'bg-blue-500',
                       state: qLoading ? 'running' : !questions.length ? 'pending' : openQ ? 'open' : 'done',
                       hint: questions.length ? (openQ ? `${openQ} ${L('open', 'abiertas')}` : L('answered', 'respondidas')) : '',
+                    },
+                    {
+                      node: 6, scrollTo: 'global-review', label: L('Global review', 'Revisión global'), dot: 'bg-violet-500',
+                      state: reviewLoading ? 'running' : !globalReview ? 'pending' : reviewOutdated() ? 'outdated' : 'done',
+                      hint: globalReview && reviewOutdated() ? L('outdated', 'desactualizada') : '',
                     },
                   ].filter(Boolean);
                   return (
