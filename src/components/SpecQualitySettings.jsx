@@ -82,10 +82,20 @@ function DevPlanSettings({ ssCtx }) {
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   async function save() {
     setSaving(true);
-    await ssCtx.setSetting('dev_plan_settings', draft);
+    const clean = Object.fromEntries(Object.entries(draft).map(([k, v]) => [k, v === '' ? DEV_PLAN_DEFAULTS[k] : v]));
+    await ssCtx.setSetting('dev_plan_settings', clean);
     setSaving(false); setDone(true); setTimeout(() => setDone(false), 2000);
   }
   const keys = ['c', 'a', 'b', 'd'];
+  const setNum = (k, v) => setDraft(d => ({ ...d, [k]: v === '' ? '' : Number(v) }));
+  const inp = "w-20 px-2 py-1 border border-gray-200 rounded-lg text-xs text-right";
+  const NumRow = ({ k, label, hint, step = 1, unit }) => (
+    <label className="flex items-start gap-3 text-xs text-gray-700">
+      <span className="flex-1 min-w-0"><span className="font-semibold">{label}</span>{hint && <span className="block text-gray-500">{hint}</span>}</span>
+      <input type="number" min="0" step={step} value={draft[k] ?? ''} onChange={e => setNum(k, e.target.value)} className={inp} />
+      {unit && <span className="w-16 text-gray-500 pt-1">{unit}</span>}
+    </label>
+  );
   return (
     <div className="space-y-4">
       <div>
@@ -111,7 +121,7 @@ function DevPlanSettings({ ssCtx }) {
       </label>
       <label className="flex items-start gap-2 text-sm text-gray-700">
         <input type="checkbox" checked={draft.full_spec} onChange={e => setDraft(d => ({ ...d, full_spec: e.target.checked }))} className="mt-1 accent-blue-600" />
-        <span>Enviar la especificación completa a la IA <span className="block text-xs text-gray-500">Si se desactiva, solo se envían los primeros 4.000 caracteres (sin la tabla de objetos ni la estimación).</span></span>
+        <span>Enviar la especificación completa a la IA <span className="block text-xs text-gray-500">Si se desactiva, solo se envían los primeros {Number(draft.short_spec_chars || DEV_PLAN_DEFAULTS.short_spec_chars).toLocaleString('es')} caracteres (sin la tabla de objetos ni la estimación).</span></span>
       </label>
       <label className="flex items-start gap-2 text-sm text-gray-700">
         <input type="checkbox" checked={draft.align_objects} onChange={e => setDraft(d => ({ ...d, align_objects: e.target.checked }))} className="mt-1 accent-blue-600" />
@@ -121,6 +131,20 @@ function DevPlanSettings({ ssCtx }) {
         <input type="checkbox" checked={draft.include_tests !== false} onChange={e => setDraft(d => ({ ...d, include_tests: e.target.checked }))} className="mt-1 accent-blue-600" />
         <span>Incluir las pruebas unitarias y el soporte UAT de la estimación <span className="block text-xs text-gray-500">Se crean como actividades de Prueba técnica y Prueba de usuario con las horas de la especificación, para que el plan sume lo mismo que la estimación aprobada.</span></span>
       </label>
+      <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-2">
+        <div className="font-semibold text-sm text-gray-800">Generación del plan</div>
+        <div className="grid sm:grid-cols-2 gap-2">
+          {NumRow({ k: 'design_min', label: 'Actividades de diseño: mínimo', hint: 'Cantidad mínima de actividades de la fase Diseño que se piden a la IA.' })}
+          {NumRow({ k: 'design_max', label: 'Actividades de diseño: máximo', hint: 'Cantidad máxima de actividades de la fase Diseño.' })}
+          {NumRow({ k: 'dev_min', label: 'Actividades de desarrollo: mínimo', hint: 'Solo si no se alinea con los objetos técnicos (con la opción activa, hay una por objeto).' })}
+          {NumRow({ k: 'dev_max', label: 'Actividades de desarrollo: máximo', hint: 'Igual que el mínimo: se ignora cuando las actividades siguen los objetos.' })}
+          {NumRow({ k: 'max_hours', label: 'Horas máximas por actividad', hint: 'Límite de las horas estándar de cada actividad que propone la IA (mínimo 0,5 h).', step: 0.5, unit: 'h' })}
+          {NumRow({ k: 'json_max_tokens', label: 'Tokens máximos: actividades', hint: 'Respuesta máxima de la llamada que devuelve las actividades (JSON).', step: 500, unit: 'tokens' })}
+          {NumRow({ k: 'doc_max_tokens', label: 'Tokens máximos: documento del plan', hint: 'Respuesta máxima de la llamada que redacta el documento del plan (markdown).', step: 500, unit: 'tokens' })}
+          {NumRow({ k: 'max_spec_chars', label: 'Caracteres de la especificación completa', hint: 'Caracteres enviados cuando está activa la especificación completa.', step: 1000, unit: 'caract.' })}
+          {NumRow({ k: 'short_spec_chars', label: 'Caracteres de la especificación resumida', hint: 'Caracteres enviados cuando la especificación completa está desactivada.', step: 500, unit: 'caract.' })}
+        </div>
+      </div>
       <div className="flex items-center justify-end gap-2">
         <button onClick={() => setDraft(JSON.parse(JSON.stringify(DEV_PLAN_DEFAULTS)))} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">Valores iniciales</button>
         <button onClick={save} disabled={!dirty || saving} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">{saving ? 'Guardando…' : done ? 'Guardado ✓' : 'Guardar'}</button>

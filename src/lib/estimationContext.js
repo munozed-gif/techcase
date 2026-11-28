@@ -30,8 +30,9 @@ export function caseLiveCheckOn(caseData, settings, env) {
   return (settings?.generation_context ?? {}).sap_live_check === true;
 }
 
-/** Seniority used for the estimate: the assigned consultant's, else the case's expected one, else mid. */
-export async function caseSeniority(caseData) {
+/** Seniority used for the estimate: the assigned consultant's, else the case's expected one, else
+ *  estimation_factors.default_seniority (default mid). */
+export async function caseSeniority(caseData, settings) {
   const assigned = caseData?.case_assignments?.[0]?.consultant_id ?? caseData?.case_assignments?.[0]?.users?.id ?? null;
   if (assigned) {
     try {
@@ -40,7 +41,7 @@ export async function caseSeniority(caseData) {
     } catch { /* fall through */ }
   }
   if (SENIORITY_LEVELS.includes(caseData?.expected_seniority)) return { seniority: caseData.expected_seniority, source: 'case' };
-  return { seniority: 'mid', source: 'default' };
+  return { seniority: estimationFactors(settings).default_seniority, source: 'default' };
 }
 
 export async function caseEstimationContext(caseData, settings, { isStaff = false } = {}) {
@@ -55,6 +56,6 @@ export async function caseEstimationContext(caseData, settings, { isStaff = fals
   }
   const arenaAvailable = !!env && ADT_TYPES.includes(env.mcp_type) && liveCheck && planAllows;
   const policyTypes = { ...DEFAULT_OBJECT_TYPES, ...((settings?.mcp_adt_pipeline_policy ?? {}).object_types ?? {}) };
-  const { seniority, source } = await caseSeniority(caseData);
+  const { seniority, source } = await caseSeniority(caseData, settings);
   return { env, liveCheck, planAllows, arenaAvailable, policyTypes, seniority, senioritySource: source, factors: estimationFactors(settings) };
 }

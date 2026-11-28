@@ -164,7 +164,11 @@ function EstimationFactorsCard({ ssCtx }) {
   async function save() {
     setBusy(true);
     const clean = (g) => Object.fromEntries(Object.entries(f[g]).map(([k, v]) => [k, Math.max(0.05, Math.min(3, Number(v) || DEFAULT_ESTIMATION_FACTORS[g][k]))]));
-    try { await ssCtx.setSetting('estimation_factors', { automation: clean('automation'), seniority: clean('seniority') }); setOk(true); }
+    const D = DEFAULT_ESTIMATION_FACTORS;
+    const step = Number(f.round_step) > 0 ? Number(f.round_step) : D.round_step;
+    const minH = f.min_hours === '' || !(Number(f.min_hours) >= 0) ? D.min_hours : Number(f.min_hours);
+    try { await ssCtx.setSetting('estimation_factors', { automation: clean('automation'), seniority: clean('seniority'),
+      default_seniority: f.default_seniority, round_step: step, min_hours: minH, unit_test_mode: f.unit_test_mode, uat_mode: f.uat_mode }); setOk(true); }
     catch (e) { alert(e.message); }
     setBusy(false);
   }
@@ -200,6 +204,43 @@ function EstimationFactorsCard({ ssCtx }) {
         {Row({ group: "seniority", k: "mid", label: "Mid", })}
         {Row({ group: "seniority", k: "senior", label: "Senior", })}
         {Row({ group: "seniority", k: "expert", label: "Expert", })}
+      </div>
+      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">Defaults and rounding</p>
+      <div className="space-y-2 mb-4">
+        {[
+          { k: "default_seniority", label: "Default seniority", hint: "Used when neither the assigned consultant nor the case sets a seniority",
+            options: [['junior', 'Junior'], ['mid', 'Mid'], ['senior', 'Senior'], ['expert', 'Expert']] },
+          { k: "unit_test_mode", label: "Unit tests", hint: "Automation applied to unit tests (spec estimate and Technical Test / adjustment activities). Manual = no Arena reduction",
+            options: [['manual', 'Manual'], ['semi', 'Semi-automatic'], ['auto', 'Automatic']] },
+          { k: "uat_mode", label: "UAT support", hint: "Automation applied to UAT support (spec estimate and the functional / user test and adjustment activities). Manual = no Arena reduction",
+            options: [['manual', 'Manual'], ['semi', 'Semi-automatic'], ['auto', 'Automatic']] },
+        ].map(({ k, label, hint, options }) => (
+          <div key={k} className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-gray-700">{label}</p>
+              <p className="text-[11px] text-gray-400">{hint}</p>
+            </div>
+            <select value={f[k]} onChange={e => { setOk(false); setF(p => ({ ...p, [k]: e.target.value })); }}
+              className="w-36 border border-gray-200 rounded-lg px-2 py-1 text-sm bg-white">
+              {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+        ))}
+        {[
+          { k: "round_step", label: "Rounding step (h)", hint: "Calculated and Arena hours are rounded to this step" },
+          { k: "min_hours", label: "Minimum Arena hours (h)", hint: "Lowest Arena estimate of an activity or object that has hours" },
+        ].map(({ k, label, hint }) => (
+          <div key={k} className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-gray-700">{label}</p>
+              <p className="text-[11px] text-gray-400">{hint}</p>
+            </div>
+            <input type="number" step="0.25" min="0" value={f[k]}
+              onChange={e => { setOk(false); setF(p => ({ ...p, [k]: e.target.value })); }}
+              className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-sm text-right" />
+            <span className="w-12" />
+          </div>
+        ))}
       </div>
       <div className="flex items-center gap-3">
         <button onClick={save} disabled={busy} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">{busy ? 'Saving…' : 'Save factors'}</button>
@@ -2078,7 +2119,8 @@ function SettingsGenerationTab({ ssCtx }) {
         prototype_model:  resolveModel("prototype_model", "claude-haiku-5-5"),
         prototype_fallback_model: resolveModel("prototype_fallback_model", "claude-haiku-5-5"),
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
-        context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx },
+        context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx,
+          prototype_fiori_auto: { ...GENERATION_CONTEXT_DEFAULTS.prototype_fiori_auto, ...(storedCtx.prototype_fiori_auto ?? {}) } },
         profiles: {},
       };
       for (const pk of ["basic", "standard", "full"]) {
@@ -2088,6 +2130,8 @@ function SettingsGenerationTab({ ssCtx }) {
           additional_instructions: sto.additional_instructions ?? def.additional_instructions ?? "",
           prototype_enabled: sto.prototype_enabled ?? false,
           prototype_style:   sto.prototype_style   ?? 'fiori',
+          max_tokens:           sto.max_tokens           ?? 40000,
+          prototype_max_tokens: sto.prototype_max_tokens ?? 40000,
         };
         for (const dk of GEN_DOCS.map(d => d.key)) {
           p[dk] = { ...(def[dk] ?? {}), ...(sto[dk] ?? {}) };
@@ -2341,6 +2385,92 @@ function SettingsGenerationTab({ ssCtx }) {
           ))}
         </div>
 
+        {/* Document language and prototype inputs */}
+        <div className="mt-5 border-t border-gray-100 pt-4 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-700">{t("gen.ctx_doc_lang")}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t("gen.ctx_doc_lang_desc")}</p>
+            </div>
+            <select value={form.context.default_doc_language ?? 'es'}
+              onChange={e => setForm(p => ({ ...p, context: { ...p.context, default_doc_language: e.target.value } }))}
+              className="border border-gray-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-blue-400">
+              <option value="es">{t("gen.ctx_lang_es")}</option>
+              <option value="en">{t("gen.ctx_lang_en")}</option>
+            </select>
+          </div>
+
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">{t("gen.ctx_proto_title")}</p>
+          {[
+            { key: "prototype_customer_chars",  labelKey: "gen.ctx_proto_customer_chars",  descKey: "gen.ctx_proto_customer_chars_desc" },
+            { key: "prototype_primary_chars",   labelKey: "gen.ctx_proto_primary_chars",   descKey: "gen.ctx_proto_primary_chars_desc" },
+            { key: "prototype_reference_chars", labelKey: "gen.ctx_proto_reference_chars", descKey: "gen.ctx_proto_reference_chars_desc" },
+          ].map(({ key, labelKey, descKey }) => (
+            <div key={key} className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-700">{t(labelKey)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t(descKey)}</p>
+              </div>
+              <input type="number" min={500} step={500} value={form.context[key]}
+                onChange={e => setForm(p => ({ ...p, context: { ...p.context, [key]: e.target.value === '' ? '' : Math.max(500, +e.target.value) } }))}
+                className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-right focus:outline-none focus:border-blue-400" />
+            </div>
+          ))}
+
+          <div>
+            <p className="text-sm font-medium text-gray-700">{t("gen.ctx_proto_order")}</p>
+            <p className="text-xs text-gray-400 mt-0.5 mb-2">{t("gen.ctx_proto_order_desc")}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {(form.context.prototype_source_order ?? ['c']).map((k, i, arr) => (
+                <span key={k} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-blue-300 bg-blue-50 text-xs font-medium text-blue-700">
+                  {i + 1}. Spec {k.toUpperCase()}
+                  {i > 0 && (
+                    <button type="button" title={t("gen.ctx_proto_order_up")} className="text-blue-400 hover:text-blue-700"
+                      onClick={() => setForm(p => { const o = [...arr]; [o[i - 1], o[i]] = [o[i], o[i - 1]]; return { ...p, context: { ...p.context, prototype_source_order: o } }; })}>
+                      <ChevronUp size={11} />
+                    </button>
+                  )}
+                  {arr.length > 1 && (
+                    <button type="button" title={t("gen.ctx_proto_order_remove")} className="text-blue-400 hover:text-red-600"
+                      onClick={() => setForm(p => ({ ...p, context: { ...p.context, prototype_source_order: arr.filter(x => x !== k) } }))}>
+                      <X size={11} />
+                    </button>
+                  )}
+                </span>
+              ))}
+              {['c', 'a', 'd'].filter(k => !(form.context.prototype_source_order ?? ['c']).includes(k)).map(k => (
+                <button key={k} type="button"
+                  onClick={() => setForm(p => ({ ...p, context: { ...p.context, prototype_source_order: [...(p.context.prototype_source_order ?? ['c']), k] } }))}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-gray-50 text-xs font-medium text-gray-500 hover:border-blue-200">
+                  <Plus size={11} /> Spec {k.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="flex items-center justify-between gap-4 cursor-pointer select-none">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-700">{t("gen.ctx_proto_fiori_auto")}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t("gen.ctx_proto_fiori_auto_desc")}</p>
+            </div>
+            <button type="button"
+              onClick={() => setForm(p => ({ ...p, context: { ...p.context, prototype_fiori_auto: { ...p.context.prototype_fiori_auto, enabled: p.context.prototype_fiori_auto?.enabled === false } } }))}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.context.prototype_fiori_auto?.enabled !== false ? 'bg-blue-600' : 'bg-gray-200'}`}
+              role="switch" aria-checked={form.context.prototype_fiori_auto?.enabled !== false}>
+              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form.context.prototype_fiori_auto?.enabled !== false ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+          </label>
+          {form.context.prototype_fiori_auto?.enabled !== false && (
+            <div>
+              <p className="text-xs text-gray-500 mb-1">{t("gen.ctx_proto_fiori_keywords")}</p>
+              <textarea rows={2} value={form.context.prototype_fiori_auto?.keywords ?? ''}
+                onChange={e => setForm(p => ({ ...p, context: { ...p.context, prototype_fiori_auto: { ...p.context.prototype_fiori_auto, keywords: e.target.value } } }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono resize-y focus:outline-none focus:border-blue-400" />
+              <p className="text-[11px] text-gray-400 mt-0.5">{t("gen.ctx_proto_fiori_keywords_desc")}</p>
+            </div>
+          )}
+        </div>
+
         {/* Compiled Context Preview */}
         <div className="mt-5 border-t border-gray-100 pt-4">
           <button type="button" onClick={toggleCtxPreview}
@@ -2431,6 +2561,17 @@ function SettingsGenerationTab({ ssCtx }) {
             <p className="text-xs text-gray-400 mt-1">{t("gen.additional_instructions_hint")}</p>
           </div>
 
+          {/* Max tokens of the spec calls */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-700">{t("gen.max_tokens_label")}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t("gen.max_tokens_desc")}</p>
+            </div>
+            <input type="number" min={1000} step={1000} value={form.profiles[activeProfile].max_tokens}
+              onChange={e => setForm(prev => ({ ...prev, profiles: { ...prev.profiles, [activeProfile]: { ...prev.profiles[activeProfile], max_tokens: e.target.value === '' ? '' : Math.max(1000, +e.target.value) } } }))}
+              className="w-28 border border-gray-200 rounded-lg px-2 py-1 text-sm text-right focus:outline-none focus:border-blue-400" />
+          </div>
+
           {/* Per-document section toggles */}
           <div className="space-y-4">
             {GEN_DOCS.map(doc => (
@@ -2499,6 +2640,15 @@ function SettingsGenerationTab({ ssCtx }) {
                       </button>
                     );
                   })}
+                </div>
+                <div className="flex items-center justify-between gap-4 mt-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-gray-600">Prototype max tokens</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Longest response of the prototype call (HTML). Raise it when prototypes come back cut off.</p>
+                  </div>
+                  <input type="number" min={1000} step={1000} value={form.profiles[activeProfile].prototype_max_tokens}
+                    onChange={e => setForm(prev => ({ ...prev, profiles: { ...prev.profiles, [activeProfile]: { ...prev.profiles[activeProfile], prototype_max_tokens: e.target.value === '' ? '' : Math.max(1000, +e.target.value) } } }))}
+                    className="w-28 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:border-indigo-400" />
                 </div>
                 <p className="text-[11px] text-gray-500 mt-2 leading-relaxed">
                   This is the default style. The customer's documents take priority: when the spec or the customer's

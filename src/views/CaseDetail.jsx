@@ -29,7 +29,7 @@ import {
 import { useCases, useApplications, useRatings } from "../hooks/useCaseHooks.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings, usePermissions } from "../hooks/useSystemSettings.jsx";
-import { pickPlanSpec, planObjects, alignWithObjects, planDesignHours, scaleDesign, planTestActivities, applySpecArena, SPEC_NAMES } from "../lib/devPlanBase.js";
+import { pickPlanSpec, devPlanSettings, planObjects, alignWithObjects, planDesignHours, scaleDesign, planTestActivities, applySpecArena, SPEC_NAMES } from "../lib/devPlanBase.js";
 import { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, sendEmailToUser } from "../lib/utils.js";
 import { Badge, ROLE_LABELS, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Modal, Input, Textarea, Select } from "../components/ui.jsx";
@@ -2075,6 +2075,12 @@ canvas{display:block;width:100%}
     try {
       // Base spec from System settings → Spec quality → Development plan (default: the approved one, Spec C).
       const planPick = pickPlanSpec(caseSpec, cdSettings);
+      const planCfg = devPlanSettings(cdSettings);
+      const range = (a, b) => (a === b ? `${a}` : `${a}–${b}`);
+      // With align_objects the development activities follow the spec's objects (one per object).
+      const devRangeText = specObjs => planCfg.align_objects && specObjs.length
+        ? 'the Development phase activities (one per technical object of the specification, as listed below)'
+        : `${range(planCfg.dev_min, planCfg.dev_max)} Development phase activities`;
       const specContent = planPick?.text ?? '';
       const specObjs = planPick?.cfg?.align_objects ? planObjects(planPick, cdSettings) : [];
       const specLabel = planPick?.key ? (SPEC_NAMES[planPick.key]?.[0] ?? `Spec ${planPick.key.toUpperCase()}`) : 'Specification';
@@ -2099,7 +2105,7 @@ ${specContent || '(Spec content not available — use the case description to in
           role: 'user',
           content: `${ctx}
 
-Generate 3–5 Design phase activities and 4–8 Development phase activities for this SAP case.
+Generate ${range(planCfg.design_min, planCfg.design_max)} Design phase activities and ${devRangeText(specObjs)} for this SAP case.
 
 est_hours is the STANDARD estimate: the hours a mid-level SAP consultant needs doing the work by hand (no automation). For each development activity that builds one SAP object, set sap_object_type to one of: program, report, include, class, function_module, bapi, badi, enhancement, table, structure, domain, data_element, message_class, odata, smartform, config — or "none" when it is not about one object (testing, transport, documentation…). Prefer one activity per object.
 
@@ -2113,14 +2119,14 @@ Return ONLY this JSON object (no other text):
 
 Rules: phase must be exactly "design" or "development". Return ONLY the JSON, nothing else.`,
         }],
-        max_tokens: 3000,
+        max_tokens: planCfg.json_max_tokens,
       });
 
       const mapActivity = a => ({
         title: String(a.title ?? '').slice(0, 200),
         description: String(a.description ?? ''),
         acceptance_criteria: String(a.acceptance_criteria ?? ''),
-        est_hours: Math.max(0.5, Math.min(40, Number(a.est_hours) || 4)),
+        est_hours: Math.max(0.5, Math.min(planCfg.max_hours, Number(a.est_hours) || 4)),
         phase: ['design', 'development'].includes(a.phase) ? a.phase : 'development',
         sap_object_type: typeof a.sap_object_type === 'string' ? a.sap_object_type : null,
         _selected: true,
@@ -2185,7 +2191,7 @@ Include a table comparing, per phase and in total, the STANDARD estimate (by han
 
 Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${buildGenSuffix(genProfile)}`,
         }],
-        max_tokens: 3000,
+        max_tokens: planCfg.doc_max_tokens,
       });
 
       // Build HTML plan preview (PDF will be generated at confirm time)

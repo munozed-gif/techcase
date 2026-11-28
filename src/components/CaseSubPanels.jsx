@@ -709,6 +709,27 @@ function MarkdownAccordion({ text, defaultAllOpen = false }) {
   );
 }
 
+// Words that switch a forced SAP GUI prototype to Fiori (generation_context.prototype_fiori_auto.keywords,
+// comma-separated; each word may be a regular expression fragment such as m[oó]vil).
+function fioriSignalRegex(keywords) {
+  const words = String(keywords ?? '').split(',').map(w => w.trim()).filter(Boolean);
+  if (!words.length) return null;
+  try { return new RegExp('\\b(' + words.join('|') + ')\\b', 'i'); }
+  catch {
+    const esc = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    return new RegExp('\\b(' + esc.join('|') + ')\\b', 'i');
+  }
+}
+
+// Max tokens of the spec / prototype calls (generation_profiles.profiles.<key>.max_tokens / prototype_max_tokens).
+const GEN_MAX_TOKENS_DEFAULT = 40000;
+function profileMaxTokens(settings, profile, field) {
+  const gp = settings?.["generation_profiles"] ?? {};
+  const key = profile?.key ?? gp.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile;
+  const v = Number(profile?.[field] ?? gp.profiles?.[key]?.[field]);
+  return v > 0 ? v : GEN_MAX_TOKENS_DEFAULT;
+}
+
 function GenerationProfileModal({ onConfirm, onClose, title, outputMode, onOutputModeChange }) {
   const { t } = useT();
   const { settings } = useSystemSettings();
@@ -726,6 +747,9 @@ function GenerationProfileModal({ onConfirm, onClose, title, outputMode, onOutpu
     merged.additional_instructions = sto.additional_instructions ?? def.additional_instructions ?? "";
     merged.prototype_enabled = sto.prototype_enabled ?? false;
     merged.prototype_style   = sto.prototype_style   ?? 'auto';
+    merged.max_tokens           = sto.max_tokens           ?? GEN_MAX_TOKENS_DEFAULT;
+    merged.prototype_max_tokens = sto.prototype_max_tokens ?? GEN_MAX_TOKENS_DEFAULT;
+    merged.key = key;
     return merged;
   }
 
@@ -1047,15 +1071,17 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   // retried once with the fallback model (prototype_fallback_model, default Haiku).
   const protoModel = _protoRaw || genModel;
   const protoFallbackModel = ssCtx.settings["prototype_fallback_model"] || 'claude-haiku-5-5';
-  const callPrototype = (system, messages) =>
-    callClaude({ feature: 'prototype', model: protoModel, system, messages, max_tokens: 40000 })
+  const callPrototype = (system, messages, profile) => {
+    const max_tokens = profileMaxTokens(ssCtx.settings, profile, 'prototype_max_tokens');
+    return callClaude({ feature: 'prototype', model: protoModel, system, messages, max_tokens })
       .catch(e => {
         if (protoFallbackModel && protoFallbackModel !== protoModel) {
           console.warn('[prototype] ' + protoModel + ' failed (' + (e?.message ?? e) + '), retrying with ' + protoFallbackModel);
-          return callClaude({ feature: 'prototype', model: protoFallbackModel, system, messages, max_tokens: 40000 });
+          return callClaude({ feature: 'prototype', model: protoFallbackModel, system, messages, max_tokens });
         }
         throw e;
       });
+  };
   const liveCheckEnabled = (ssCtx.settings["generation_context"] ?? {}).sap_live_check === true;
   const clientLiveCheckVal = (ssCtx.settings['sap_client_live_check'] ?? {})[caseData.client_id] ?? null;
   const clientPerms = (ssCtx.settings['sap_client_live_check_perms'] ?? {})[caseData.client_id] ?? {};
@@ -2209,7 +2235,7 @@ CURRENT SPECIFICATION:
 ${md}`;
       const raw = await callClaude({ feature: 'spec', model: genModel,
         system: 'You are an SAP functional consultant. Return only the full corrected functional specification in markdown.',
-        messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: sanitizeForJson(prompt) }] : sanitizeForJson(prompt) }], max_tokens: 40000 });
+        messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: sanitizeForJson(prompt) }] : sanitizeForJson(prompt) }], max_tokens: profileMaxTokens(ssCtx.settings, activeProfile, 'max_tokens') });
       const fixed = checkSpecText(raw);
       const calc = withCalculatedHours(key === 'c' ? { c: fixed, d: aiSpecD } : { a: fixed });
       const newMd = calc[key];
@@ -4412,13 +4438,42 @@ ${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, spec
     return out;
   }
 
-  // Prototype source: the customer proposal (Spec C) is the primary document — it is what the
-  // customer reviews — with the platform proposal (Spec A) as technical reference. Falls back to
-  // Spec A when no Spec C exists. All generation paths (first run, retry, Regenerate) use this.
+  // Prototype inputs (Settings → AI → Generation context: generation_context.prototype_*).
+  const protoCfg = () => {
+    const gc = { ...GENERATION_CONTEXT_DEFAULTS, ...(ssCtx.settings["generation_context"] ?? {}) };
+    const n = (v, d) => (Number(v) > 0 ? Number(v) : d);
+    const order = (Array.isArray(gc.prototype_source_order) ? gc.prototype_source_order : []).filter(k => ['a', 'c', 'd'].includes(k));
+    const fa = { ...GENERATION_CONTEXT_DEFAULTS.prototype_fiori_auto, ...(gc.prototype_fiori_auto ?? {}) };
+    return {
+      customerChars: n(gc.prototype_customer_chars, GENERATION_CONTEXT_DEFAULTS.prototype_customer_chars),
+      primaryChars: n(gc.prototype_primary_chars, GENERATION_CONTEXT_DEFAULTS.prototype_primary_chars),
+      referenceChars: n(gc.prototype_reference_chars, GENERATION_CONTEXT_DEFAULTS.prototype_reference_chars),
+      order: order.length ? order : GENERATION_CONTEXT_DEFAULTS.prototype_source_order,
+      fioriAuto: fa.enabled !== false,
+      fioriRe: fioriSignalRegex(fa.keywords),
+    };
+  };
+  const PROTO_LABELS = { a: 'Platform proposal (Spec A)', c: 'Customer proposal (Spec C)', d: 'Client spec (Spec D)' };
+  // Spec the prototype is generated from: the first of prototype_source_order that exists (default
+  // ['c']: the customer proposal, which is what the customer reviews). Spec A is the technical
+  // reference when the primary is another spec. null when none of them exists.
+  function prototypePrimaryKey(texts) {
+    return protoCfg().order.find(k => texts[k]?.trim()) ?? null;
+  }
+  // "Requires Spec C …" message when no spec of prototype_source_order exists.
+  function protoNeedsMsg() {
+    const order = protoCfg().order;
+    if (order.length === 1 && order[0] === 'c') return L('Requires Spec C, which was not generated. It is generated when Spec C is retried.', 'Requiere la Spec C, que no se generó. Se generará al reintentar la Spec C.');
+    const list = order.map(k => 'Spec ' + k.toUpperCase()).join(', ');
+    return L(`Requires one of ${list}, none of which was generated.`, `Requiere una de estas specs: ${list}; no se generó ninguna.`);
+  }
+  // All generation paths (first run, retry, Regenerate) use this. Regenerate (lenient) falls back
+  // to C, then A, then D when no spec of the configured order exists.
   function prototypeSources(c = aiSpecC, a = aiSpecA, d = aiSpecD) {
-    if (c) return { primary: c, reference: a || '', primaryLabel: 'Customer proposal (Spec C)', refLabel: 'Platform proposal (Spec A)' };
-    if (a) return { primary: a, reference: '', primaryLabel: 'Platform proposal (Spec A)', refLabel: '' };
-    return { primary: d || '', reference: '', primaryLabel: 'Client spec (Spec D)', refLabel: '' };
+    const texts = { a, c, d };
+    const k = prototypePrimaryKey(texts) ?? (c ? 'c' : a ? 'a' : 'd');
+    const ref = k !== 'a' && a ? a : '';
+    return { primary: texts[k] || '', reference: ref, primaryLabel: PROTO_LABELS[k], refLabel: ref ? PROTO_LABELS.a : '' };
   }
 
   function extractSpecScreens(md) {
@@ -4432,10 +4487,12 @@ ${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, spec
   // The customer's documents decide the UI technology. The template's prototype style is only a
   // default: a spec that defines a Fiori screen, or customer requirements asking for a Fiori /
   // mobile / handheld app, switch a forced SAP GUI style to Fiori (and vice versa for GUI).
-  const FIORI_SIGNAL = /\b(fiori|sapui5|ui5|handheld|hand-held|m[oó]vil|mobile|tablet|smartphone|celular|esc[aá]ner|scanner|launchpad|aplicaci[oó]n web|web app|responsive)\b/i;
+  // Words: generation_context.prototype_fiori_auto.keywords; off with prototype_fiori_auto.enabled = false.
   function resolvePrototypeStyle(style, primary, customerText) {
+    const { fioriAuto, fioriRe } = protoCfg();
+    if (!fioriAuto) return style;
     const specScreens = extractSpecScreens(primary).join('\n');
-    const wantsFiori = /SCREEN:\s*FIORI/i.test(specScreens) || FIORI_SIGNAL.test(customerText ?? '') || FIORI_SIGNAL.test(specScreens);
+    const wantsFiori = /SCREEN:\s*FIORI/i.test(specScreens) || (!!fioriRe && (fioriRe.test(customerText ?? '') || fioriRe.test(specScreens)));
     if (style === 'sapgui' && wantsFiori) return 'fiori';
     return style;
   }
@@ -4444,9 +4501,10 @@ ${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, spec
     const { primary, reference, primaryLabel, refLabel } = src;
     const customerText = [requestSummary, analysisCustomerContent].filter(Boolean).join('\n\n');
     const style = resolvePrototypeStyle(styleIn, primary, customerText);
+    const pc = protoCfg();
     if (style !== styleIn) console.info('[Prototype] style', styleIn, '→', style, '(customer documents / spec ask for a Fiori app)');
     const customerNote = customerText
-      ? `\n\nCUSTOMER REQUIREMENTS (summarised from the customer's own documents — their requested UI technology, device and layout take priority over any default style):\n${sanitizeForJson(customerText).slice(0, 4000)}`
+      ? `\n\nCUSTOMER REQUIREMENTS (summarised from the customer's own documents — their requested UI technology, device and layout take priority over any default style):\n${sanitizeForJson(customerText).slice(0, pc.customerChars)}`
       : '';
     const screens = extractSpecScreens(primary);
     const screensNote = customerNote + (screens.length
@@ -4467,10 +4525,10 @@ Industry: ${safeInd}
 Description: ${safeDesc}
 
 PRIMARY SPEC — ${primaryLabel} (the prototype must reproduce THIS document's screens):
-${safeA.slice(0, 9000)}
+${safeA.slice(0, pc.primaryChars)}
 ${safeB ? `
 REFERENCE SPEC — ${refLabel} (technical background only — where it differs from the primary spec, the PRIMARY spec wins):
-${safeB.slice(0, 3000)}` : ''}
+${safeB.slice(0, pc.referenceChars)}` : ''}
 
 FIDELITY RULES (mandatory):
 - Recreate the screen prototypes defined in the PRIMARY spec (section "Prototipo de Pantalla" / "Screen Prototype" and its sub-sections) as the prototype's screens: same transaction / app code and title, same fields with the same labels, order, required markers and sample values, same buttons and tabs.
@@ -4525,10 +4583,10 @@ Industry: ${safeInd}
 Description: ${safeDesc}
 
 PRIMARY SPEC — ${primaryLabel} (the prototype must reproduce THIS document's screens):
-${safeA.slice(0, 9000)}
+${safeA.slice(0, pc.primaryChars)}
 ${safeB ? `
 REFERENCE SPEC — ${refLabel} (technical background only — where it differs from the primary spec, the PRIMARY spec wins):
-${safeB.slice(0, 3000)}` : ''}
+${safeB.slice(0, pc.referenceChars)}` : ''}
 
 FIDELITY RULES (mandatory):
 - Recreate the screen prototypes defined in the PRIMARY spec (section "Prototipo de Pantalla" / "Screen Prototype" and its sub-sections) as the prototype's screens: same transaction / app code and title, same fields with the same labels, order, required markers and sample values, same buttons and tabs.
@@ -4591,10 +4649,10 @@ Industry: ${safeInd}
 Description: ${safeDesc}
 
 PRIMARY SPEC — ${primaryLabel} (the prototype must reproduce THIS document's screens):
-${safeA.slice(0, 9000)}
+${safeA.slice(0, pc.primaryChars)}
 ${safeB ? `
 REFERENCE SPEC — ${refLabel} (technical background only — where it differs from the primary spec, the PRIMARY spec wins):
-${safeB.slice(0, 3000)}` : ''}
+${safeB.slice(0, pc.referenceChars)}` : ''}
 
 FIDELITY RULES (mandatory):
 - Recreate the screen prototypes defined in the PRIMARY spec (section "Prototipo de Pantalla" / "Screen Prototype" and its sub-sections) as the prototype's screens: same transaction / app code and title, same fields with the same labels, order, required markers and sample values, same buttons and tabs.
@@ -4704,7 +4762,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
         try {
           const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
-          return await callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: mcpServers });
+          return await callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: profileMaxTokens(ssCtx.settings, genProfile, 'max_tokens'), mcp_servers: mcpServers });
         } catch (e) {
           // Retry with EVERYTHING the first try had (documents, ABAP standards, context). Only the
           // live SAP tools are dropped, and only when they were what failed.
@@ -4712,7 +4770,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           const isMcpErr = mcpServers.length > 0 && /mcp|connection closed|connection error|listing tools/i.test(e?.message ?? '');
           const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
           const sysRetry = isMcpErr ? sys.replace(mcpNote, '').replace(mcpRulesNote, '') : sys;
-          return callClaude({ feature: 'spec',  model: genModel, system: sysRetry, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: isMcpErr ? [] : mcpServers });
+          return callClaude({ feature: 'spec',  model: genModel, system: sysRetry, messages: [{ role: 'user', content }], max_tokens: profileMaxTokens(ssCtx.settings, genProfile, 'max_tokens'), mcp_servers: isMcpErr ? [] : mcpServers });
         }
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
@@ -4797,17 +4855,19 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       if (fromApprovalReview) setApprovalStep('sending');
       await saveAllSpecsAsDocuments(specA, specB, specC, specD, sapCheck, proposalCheck);
 
-      // Generate interactive prototype if enabled for this profile — only from Spec C.
-      if (genProfile?.prototype_enabled && !specC) {
-        setSpecStatus('proto', 'error'); setSpecError('proto', L('Requires Spec C, which was not generated. It is generated when Spec C is retried.', 'Requiere la Spec C, que no se generó. Se generará al reintentar la Spec C.')); setProtoError(true);
+      // Generate interactive prototype if enabled for this profile — from the first spec of
+      // generation_context.prototype_source_order (default: only Spec C).
+      const protoKey = prototypePrimaryKey({ a: specA, c: specC, d: specD });
+      if (genProfile?.prototype_enabled && !protoKey) {
+        setSpecStatus('proto', 'error'); setSpecError('proto', protoNeedsMsg()); setProtoError(true);
       }
-      if (genProfile?.prototype_enabled && specC) {
+      if (genProfile?.prototype_enabled && protoKey) {
         setSpecStatus('proto', 'generating');
         try {
           const protoStyle = genProfile.prototype_style ?? 'auto';
           const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
           const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(prototypeSources(specC, specA, specD), protoStyle) }];
-          let protoHtml = await callPrototype(protoSys, protoMsgs);
+          let protoHtml = await callPrototype(protoSys, protoMsgs, genProfile);
           if (!protoHtml) throw new Error('Empty prototype response');
           protoHtml = sanitizeForJson(protoHtml).trim();
           if (protoHtml.startsWith('```')) {
@@ -4882,14 +4942,14 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         const prompt = sanitizeForJson(rawPrompt);
         try {
           const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
-          return await callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: mcpServersD });
+          return await callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: profileMaxTokens(ssCtx.settings, activeProfile, 'max_tokens'), mcp_servers: mcpServersD });
         } catch (e) {
           // Retry with the same documents; drop the live SAP tools only if they failed.
           if (e?.code === 'ai_limit_reached') throw e;
           const isMcpErr = mcpServersD.length > 0 && /mcp|connection closed|connection error|listing tools/i.test(e?.message ?? '');
           const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
           const sysRetry = isMcpErr ? sys.replace(mcpNoteD, '').replace(mcpRulesNoteD, '') : sys;
-          return callClaude({ feature: 'spec',  model: genModel, system: sysRetry, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: isMcpErr ? [] : mcpServersD });
+          return callClaude({ feature: 'spec',  model: genModel, system: sysRetry, messages: [{ role: 'user', content }], max_tokens: profileMaxTokens(ssCtx.settings, activeProfile, 'max_tokens'), mcp_servers: isMcpErr ? [] : mcpServersD });
         }
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
@@ -4978,14 +5038,14 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
       try {
         const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
-        return await callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: mcpServersR });
+        return await callClaude({ feature: 'spec',  model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: profileMaxTokens(ssCtx.settings, profile, 'max_tokens'), mcp_servers: mcpServersR });
       } catch (e) {
         // Retry with the same documents; drop the live SAP tools only if they failed.
         if (e?.code === 'ai_limit_reached') throw e;
         const isMcpErr = mcpServersR.length > 0 && /mcp|connection closed|connection error|listing tools/i.test(e?.message ?? '');
         const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
         const sysRetry = isMcpErr ? sys.replace(mcpNoteR, '').replace(mcpRulesNoteR, '') : sys;
-        return callClaude({ feature: 'spec',  model: genModel, system: sysRetry, messages: [{ role: 'user', content }], max_tokens: 40000, mcp_servers: isMcpErr ? [] : mcpServersR });
+        return callClaude({ feature: 'spec',  model: genModel, system: sysRetry, messages: [{ role: 'user', content }], max_tokens: profileMaxTokens(ssCtx.settings, profile, 'max_tokens'), mcp_servers: isMcpErr ? [] : mcpServersR });
       }
     };
     const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
@@ -5084,15 +5144,16 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       } catch (_) {}
     }
 
-    // Retry proto if it was also failed — only from Spec C.
-    if (failedKeys.includes('proto') && profile?.prototype_enabled && !newSpecs.c) markNeedsC('proto');
-    if (failedKeys.includes('proto') && profile?.prototype_enabled && newSpecs.c) {
+    // Retry proto if it was also failed — from the first spec of prototype_source_order (default Spec C).
+    const protoKeyR = prototypePrimaryKey(newSpecs);
+    if (failedKeys.includes('proto') && profile?.prototype_enabled && !protoKeyR) { setSpecStatus('proto', 'error'); setSpecError('proto', protoNeedsMsg()); }
+    if (failedKeys.includes('proto') && profile?.prototype_enabled && protoKeyR) {
       setSpecStatus('proto', 'generating');
       try {
         const specA = aiSpecA; const specB = aiSpecB;
         const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
         const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(prototypeSources(newSpecs?.c || aiSpecC, newSpecs?.a || aiSpecA, newSpecs?.d || aiSpecD), profile.prototype_style ?? 'auto') }];
-        let protoHtml = await callPrototype(protoSys, protoMsgs);
+        let protoHtml = await callPrototype(protoSys, protoMsgs, profile);
         if (!protoHtml) throw new Error('Empty prototype response');
         protoHtml = sanitizeForJson(protoHtml).trim();
         if (protoHtml.startsWith('```')) {
@@ -7943,7 +8004,7 @@ ${sapObjResult}`;
                       try {
                         const _protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
                         const _protoMsgs = [{ role: 'user', content: buildPrototypePrompt(prototypeSources(), protoStyle) }];
-                        let html = await callPrototype(_protoSys, _protoMsgs);
+                        let html = await callPrototype(_protoSys, _protoMsgs, activeProfile);
                         if (!html) throw new Error('Model returned empty response');
                         html = sanitizeForJson(html).trim();
                         if (html.startsWith('```')) {

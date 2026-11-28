@@ -4,7 +4,7 @@
 // UAT from the test-matrix size) and the ARENA hours with the estimation factors, and rewrites the
 // objects table and the time-estimation section so the numbers always add up.
 import { OBJ_HEADING, TIME_HEADING, cells, kindOf, KIND_LABEL } from './specDiff.js';
-import { arenaHours, SENIORITY_LABEL } from './estimation.js';
+import { arenaHours, SENIORITY_LABEL, estimationFactors, roundHours, testMode } from './estimation.js';
 
 // Seeded from the hours the generated specs produced per object type (Admosa cases, Nov 2026).
 export const DEFAULT_SPEC_HOURS = {
@@ -54,9 +54,12 @@ export function normalizeComplexity(v) {
 const COMPLEXITY_LABEL = { es: { low: 'Baja', medium: 'Media', high: 'Alta' }, en: { low: 'Low', medium: 'Medium', high: 'High' } };
 
 const num = s => { const m = String(s ?? '').replace(',', '.').match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; };
-const r1 = n => Math.round(n * 2) / 2;                    // to 0.5 h
 const raw = (n, es) => { const s = String(Number(n)); return es ? s.replace('.', ',') : s; };   // settings as entered
-const fmt = (n, es) => { const v = r1(n); const s = Number.isInteger(v) ? String(v) : v.toFixed(1); return es ? s.replace('.', ',') : s; };
+// Values are already rounded by computeEstimate (estimation_factors.round_step, default 0.5 h).
+const fmt = (n, es) => { const v = Math.round(Number(n) * 100) / 100; const s = String(v); return es ? s.replace('.', ',') : s; };
+
+/** Default language of the generated documents (generation_context.default_doc_language, default 'es'). */
+export const defaultDocLanguage = settings => (settings?.generation_context ?? {}).default_doc_language || 'es';
 
 /** Objects of the technical-objects table, with complexity and description. */
 export function readObjects(md) {
@@ -96,7 +99,9 @@ export function readObjects(md) {
  */
 export function computeEstimate(objects, { settings, estCtx, scenarios = 0, overrides = {} } = {}) {
   const cfg = specHoursSettings(settings);
-  const factors = estCtx?.factors, seniority = estCtx?.seniority ?? 'mid', liveCheck = !!estCtx?.liveCheck;
+  const ef = estCtx?.factors ?? estimationFactors(settings);
+  const r1 = n => roundHours(n, ef);                      // to round_step (default 0.5 h)
+  const factors = estCtx?.factors, seniority = estCtx?.seniority ?? ef.default_seniority ?? 'mid', liveCheck = !!estCtx?.liveCheck;
   const modeOf = kind => {
     if (!estCtx?.arenaAvailable) return 'manual';
     const p = KIND_TO_POLICY[kind];
@@ -118,11 +123,11 @@ export function computeEstimate(objects, { settings, estCtx, scenarios = 0, over
   const phases = {
     analysis: { std: analysis, arena: arenaHours(analysis, 'design', seniority, factors, { liveCheck }) },
     dev: { std: r1(dev), arena: r1(devArena) },
-    unit: { std: unit, arena: arenaHours(unit, 'manual', seniority, factors) },
-    uat: { std: uat, arena: arenaHours(uat, 'manual', seniority, factors) },
+    unit: { std: unit, arena: arenaHours(unit, testMode(ef.unit_test_mode, estCtx?.arenaAvailable), seniority, factors) },
+    uat: { std: uat, arena: arenaHours(uat, testMode(ef.uat_mode, estCtx?.arenaAvailable), seniority, factors) },
   };
   const total = { std: r1(analysis + dev + unit + uat), arena: r1(phases.analysis.arena + devArena + phases.unit.arena + phases.uat.arena) };
-  return { rows, phases, total, scenarios: Number(scenarios) || 0, cfg, seniority, liveCheck, arenaAvailable: !!estCtx?.arenaAvailable };
+  return { rows, phases, total, scenarios: Number(scenarios) || 0, cfg, seniority, liveCheck, arenaAvailable: !!estCtx?.arenaAvailable, defaultLang: defaultDocLanguage(settings) };
 }
 
 function objectsTable(est, es) {
@@ -173,7 +178,7 @@ export function applySpecHours(md, opts = {}) {
   const text = String(md ?? '');
   const { objects, start, tableFrom, tableTo } = readObjects(text);
   if (!objects.length || tableFrom < 0) return { md: text, estimate: null };
-  const es = (opts.lang ?? 'es') === 'es';
+  const es = (opts.lang ?? defaultDocLanguage(opts.settings)) === 'es';
   const est = computeEstimate(objects, opts);
   let lines = text.split('\n');
   lines = [...lines.slice(0, tableFrom), ...objectsTable(est, es), ...lines.slice(tableTo)];
@@ -209,9 +214,10 @@ export function countMatrixScenarios(text) {
 }
 
 /** Replace only the time-estimation section (specs without an objects table, e.g. Spec D) with an estimate. */
-export function replaceEstimateSection(md, est, lang = 'es') {
+export function replaceEstimateSection(md, est, langIn) {
   const text = String(md ?? '');
   if (!est) return text;
+  const lang = langIn ?? est.defaultLang ?? 'es';
   const lines = text.split('\n');
   const tIx = lines.findIndex(l => TIME_HEADING.test(l.trim()));
   if (tIx < 0) return text;

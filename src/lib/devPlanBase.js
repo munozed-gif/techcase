@@ -4,20 +4,32 @@
 //   fallback: order tried when the base spec does not exist
 //   full_spec: send the whole spec (otherwise the first 4,000 characters, the old behaviour)
 //   align_objects: one development activity per technical object, with the spec's calculated hours
+//   design_min / design_max, dev_min / dev_max: activity ranges asked of the AI
+//   json_max_tokens / doc_max_tokens: max tokens of the activities (JSON) and the plan document calls
+//   max_hours: upper limit of est_hours of a generated activity
+//   max_spec_chars / short_spec_chars: spec characters sent with full_spec on / off
 import { readObjects, computeEstimate } from './specHours.js';
 
-export const DEV_PLAN_DEFAULTS = { base: 'approved', fallback: ['c', 'a', 'b', 'd'], full_spec: true, align_objects: true, include_tests: true };
+export const DEV_PLAN_DEFAULTS = {
+  base: 'approved', fallback: ['c', 'a', 'b', 'd'], full_spec: true, align_objects: true, include_tests: true,
+  design_min: 3, design_max: 5, dev_min: 4, dev_max: 8,
+  json_max_tokens: 3000, doc_max_tokens: 3000, max_hours: 40,
+  max_spec_chars: 60000, short_spec_chars: 4000,
+};
+const DEV_PLAN_NUMERIC = ['design_min', 'design_max', 'dev_min', 'dev_max', 'json_max_tokens', 'doc_max_tokens', 'max_hours', 'max_spec_chars', 'short_spec_chars'];
 export const SPEC_NAMES = {
   a: ['Spec A — custom development', 'Spec A — desarrollo a medida'],
   b: ['Spec B — standard SAP', 'Spec B — SAP estándar'],
   c: ['Spec C — customer proposal (sent to the customer)', 'Spec C — propuesta del cliente (la que se envía)'],
   d: ['Spec D — customer summary', 'Spec D — resumen para el cliente'],
 };
-const MAX_SPEC_CHARS = 60000;
-
 export function devPlanSettings(settings) {
   const v = settings?.dev_plan_settings ?? {};
-  return { ...DEV_PLAN_DEFAULTS, ...v, fallback: Array.isArray(v.fallback) && v.fallback.length ? v.fallback : DEV_PLAN_DEFAULTS.fallback };
+  const out = { ...DEV_PLAN_DEFAULTS, ...v, fallback: Array.isArray(v.fallback) && v.fallback.length ? v.fallback : DEV_PLAN_DEFAULTS.fallback };
+  for (const k of DEV_PLAN_NUMERIC) out[k] = Number(out[k]) > 0 ? Number(out[k]) : DEV_PLAN_DEFAULTS[k];
+  if (out.design_max < out.design_min) out.design_max = out.design_min;
+  if (out.dev_max < out.dev_min) out.dev_max = out.dev_min;
+  return out;
 }
 
 /** { key, text, notes } of the spec the plan is built from (null when the case has no spec text). */
@@ -29,10 +41,10 @@ export function pickPlanSpec(specRow, settings) {
   const approved = notes.approvedSpec || notes.signoff?.specKey || null;
   const first = cfg.base === 'approved' ? approved : cfg.base;
   const order = [first, ...cfg.fallback].filter((k, i, arr) => k && texts[k] !== undefined && arr.indexOf(k) === i);
-  for (const k of order) if (texts[k]?.trim()) return { key: k, text: cfg.full_spec ? texts[k].slice(0, MAX_SPEC_CHARS) : texts[k].slice(0, 4000), notes, cfg };
+  for (const k of order) if (texts[k]?.trim()) return { key: k, text: cfg.full_spec ? texts[k].slice(0, cfg.max_spec_chars) : texts[k].slice(0, cfg.short_spec_chars), notes, cfg };
   // Manual / older specs: the record's main text.
   const t = specRow?.content ?? '';
-  return t.trim() ? { key: null, text: cfg.full_spec ? t.slice(0, MAX_SPEC_CHARS) : t.slice(0, 4000), notes, cfg } : null;
+  return t.trim() ? { key: null, text: cfg.full_spec ? t.slice(0, cfg.max_spec_chars) : t.slice(0, cfg.short_spec_chars), notes, cfg } : null;
 }
 
 /** Technical objects of the spec with the platform's standard hours (same catalog as the spec). */

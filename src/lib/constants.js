@@ -69,6 +69,19 @@ const GENERATION_CONTEXT_DEFAULTS = {
   include_related_cases: false,
   related_cases_count:   3,
   sap_live_check:        false,
+  // Language of generated documents when the customer documents do not set one (es / en / …).
+  default_doc_language:  'es',
+  // Interactive prototype inputs: characters of the customer requirements, primary and reference spec.
+  prototype_customer_chars:  4000,
+  prototype_primary_chars:   9000,
+  prototype_reference_chars: 3000,
+  // Specs the prototype is generated from, first available wins (Spec A is the reference otherwise).
+  prototype_source_order: ['c'],
+  // Customer / spec words that switch a forced SAP GUI prototype to Fiori (comma-separated).
+  prototype_fiori_auto: {
+    enabled: true,
+    keywords: 'fiori, sapui5, ui5, handheld, hand-held, m[oó]vil, mobile, tablet, smartphone, celular, esc[aá]ner, scanner, launchpad, aplicaci[oó]n web, web app, responsive',
+  },
   request_summary_sections: [
     { name: 'Customer Request Summary',   enabled: true  },
     { name: 'Key Considerations',         enabled: true  },
