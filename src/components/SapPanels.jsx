@@ -5920,7 +5920,10 @@ Suggest 5-15 objects covering the full scope of the described solution.${stagePr
       }
     }
     // Package required.
-    const pkgMode = valPol.sap_require_package.source === 'default' && writePolicy.requirePackage ? 'block' : valPol.sap_require_package.mode;
+    // One rule: the validation policy "SAP package required" (global / partner / customer / project).
+    // The bridge's requirePackage follows it.
+    const pkgMode = valPol.sap_require_package.mode;
+    writePolicy.requirePackage = pkgMode === 'block';
     if (autoImplEnabled && sapConfig?.host && !packageReq && pkgMode !== 'off') {
       if (pkgMode === 'block') {
         addLog('✗ Validation: a SAP package is required — set one in the pipeline Setup before running ($TMP is not allowed).', 'error');
@@ -6286,7 +6289,8 @@ Output ONLY the ABAP source code, no explanations.`;
         : 'ADT')
       : 'custom MCP';
     addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabelManual}] | tunnel: ${adtBase} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
-    const applyPolicy = { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(ssCtx.settings['sap_adt_write_policy'] ?? {}) };
+    const applyPolicy = { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(ssCtx.settings['sap_adt_write_policy'] ?? {}),
+      requirePackage: resolvePolicies(ssCtx.settings, caseValidationScope(caseData)).sap_require_package.mode === 'block' };
     const applyCaps   = { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(ssCtx.settings['sap_adt_capabilities'] ?? {}) };
     const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined, applyPolicy, applyCaps, ssCtx.settings['sap_adt_object_map'] ?? {}, { caseId: caseData.id, transportDescription: caseTransportDescription(caseData) });
     if (result.ok) {
@@ -9246,7 +9250,18 @@ function SapMcpPolicyPanel({ auth }) {
         {activeLayer === 'policy' && (
           <div>
             <p className="text-xs text-gray-500 mb-1">These toggles control what the bridge does on each write operation. Changes take effect immediately on the next run.</p>
-            <Toggle value={policy.requirePackage}         onChange={v => setPolicy(p => ({ ...p, requirePackage: v }))}         disabled={!canEdit} label="Require Package"          desc="Block write if no SAP package is configured. Objects would otherwise land in $TMP (non-transportable)." />
+            {(() => {
+              const pkgMode = resolvePolicies(settings).sap_require_package.mode;
+              return (
+                <div className="flex items-start gap-3 py-2.5 border-b border-gray-100 dark:border-white/10">
+                  <Lock size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs">
+                    <p className="font-medium text-gray-800 dark:text-white/80">Require Package: <span className="font-semibold">{pkgMode === 'block' ? 'Block' : pkgMode === 'warn' ? 'Warn' : 'Off'}</span> (global)</p>
+                    <p className="text-gray-500 dark:text-white/45 mt-0.5">Set in Settings → Validations → "SAP package required (no $TMP)", where partners, customers and projects can override it. The bridge follows that rule.</p>
+                  </div>
+                </div>
+              );
+            })()}
             <Toggle value={policy.packageFromSpec}        onChange={v => setPolicy(p => ({ ...p, packageFromSpec: v }))}        disabled={!canEdit} label="Package from approved spec" desc="When a case's SAP package is empty, fill it in with the development package the approved spec names (e.g. a Z package in its technical objects). The consultant can still change it." />
             <Toggle value={policy.autoCreateTransport}    onChange={v => setPolicy(p => ({ ...p, autoCreateTransport: v }))}    disabled={!canEdit} label="Auto-create Transport"     desc="Automatically create a Workbench transport request when package ≠ $TMP and no TR is provided." />
             <Toggle value={policy.syntaxCheckBeforeWrite} onChange={v => setPolicy(p => ({ ...p, syntaxCheckBeforeWrite: v }))} disabled={!canEdit} label="Syntax Check Before Write" desc="Run syntaxCheckCode via R+W MCP before saving. Requires the syntaxCheckCode tool." />
