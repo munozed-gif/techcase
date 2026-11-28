@@ -5,7 +5,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useProjects, useTimeEntries } from "../hooks/useCoreHooks.js";
 import { useCases } from "../hooks/useCaseHooks.js";
-import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Select, Textarea, TimeRangeFields, fmtTimeRange } from "../components/ui.jsx";
 import { fmtDate } from "../lib/uiUtils.jsx";
@@ -14,6 +14,7 @@ import { PersonAvatar } from "./Projects.jsx";
 
 function TimeEntriesView({ auth }) {
   const { t, lang } = useT();
+  const perms = usePermissions(auth);
   const { entries, loading, addTimeEntry, approveEntry, deleteEntry } = useTimeEntries();
 
   // Period
@@ -151,7 +152,7 @@ function TimeEntriesView({ auth }) {
     { id: "raw",            label: "Log" },
     { id: "by_case",        label: "By Case" },
     { id: "by_consultant",  label: "By Consultant" },
-    ...((auth.isAdmin || auth.isManager || auth.isClient) ? [{ id: "budget", label: "Budget vs. Actual" }] : []),
+    ...(perms.can('view_reports') ? [{ id: "budget", label: "Budget vs. Actual" }] : []),
   ];
 
   const renderRaw = () => {
@@ -491,7 +492,7 @@ function TimeEntriesView({ auth }) {
             className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
             <Download size={14} />Export CSV
           </button>
-          {auth.isConsultant && (
+          {perms.can('log_time') && (
             <button onClick={() => setShowForm(p => !p)}
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
               {t("time.log")}
@@ -579,7 +580,7 @@ function TimeEntriesView({ auth }) {
       )}
 
       {/* Log time form */}
-      {showForm && auth.isConsultant && (
+      {showForm && perms.can('log_time') && (
         <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
           <h3 className="font-semibold text-gray-900 mb-4">{t("time.form_title")}</h3>
           <div className="mb-4">

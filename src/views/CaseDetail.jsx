@@ -3406,7 +3406,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                       {mountedSlides.has(tab.id) ? (
                         <div className="space-y-4" style={{ flex:1, overflowY:'auto', padding:'18px 20px', color:'var(--t-text)' }}>
                           {/* Stage lock banner (shown only on active tab, only to roles that can edit) */}
-                          {isActive && currentStage?.rules && (auth.isAdmin || auth.isManager || auth.isConsultant) && (() => {
+                          {isActive && currentStage?.rules && (perms.can('add_activities') || perms.can('log_time') || perms.can('upload_docs')) && (() => {
                             const locked = [
                               !stageRules.editable && t("cd.lock_editing"),
                               !stageRules.can_log_time && t("cd.lock_time"),
@@ -5757,7 +5757,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
                                 Time Logged ({actHours.toFixed(1)}h{act.est_hours ? ` / ${act.est_hours}h est.` : ''})
                               </p>
-                              {stageRules.can_log_time && auth.isConsultant && logTimeActId !== act.id && (() => {
+                              {stageRules.can_log_time && logTimeActId !== act.id && (() => {
                                 const phaseDef = resolvedPhases.find(p => p.key === act.phase);
                                 const phaseIsLocked = phaseDef?.required_status && caseData.status !== phaseDef.required_status;
                                 return phaseIsLocked ? (

@@ -4,6 +4,7 @@ import { Download, Paperclip, Upload } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useCaseDocuments } from "../hooks/useCoreHooks.js";
+import { usePermissions } from "../hooks/useSystemSettings.jsx";
 import { fmtDate } from "../lib/uiUtils.jsx";
 import { Spinner } from "./ProfileComponents.jsx";
 
@@ -27,6 +28,7 @@ function cfFmtSize(bytes) {
 
 function CaseFilesPanel({ caseId, auth, embedded = false }) {
   const { t }                             = useT();
+  const perms                             = usePermissions(auth);
   const [files, setFiles]                 = useState([]);
   const [loading, setLoading]             = useState(true);
   const [uploading, setUploading]         = useState({});   // { filename: true }
@@ -179,7 +181,7 @@ function CaseFilesPanel({ caseId, auth, embedded = false }) {
               className="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded border border-blue-100 hover:bg-blue-50 flex-shrink-0 flex items-center gap-1 transition-colors">
               <Download className="w-3 h-3" />{t("files.download")}
             </button>
-            {(file.user_id === auth.user?.id || auth.isAdmin || auth.isManager) && (
+            {(file.user_id === auth.user?.id || perms.can('delete_docs')) && (
               <button onClick={() => handleDelete(file)}
                 className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0 transition-colors">
                 {t("files.delete")}

@@ -8641,7 +8641,7 @@ FALLBACK:
                   const isApplied = as.applied || implLog.some(l => l.activityId === act.id);
                   const isManual  = MANUAL_TYPES.has(obj.objectType ?? '');
                   const hasError  = !!as.applyError;
-                  const canEdit   = auth.isAdmin || auth.isManager || auth.isConsultant;
+                  const canEdit   = implPerms.can('run_sap_implementation');
                   const statusLabel = isApplied ? 'Done' : hasError ? 'Error' : isManual ? 'Manual' : 'Pending';
                   return (
                     <div key={act.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${

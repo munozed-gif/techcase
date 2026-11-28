@@ -7714,7 +7714,7 @@ ${sapObjResult}`;
                               {aiEditing ? t("spec.preview_lbl") : t("spec.edit_lbl")}
                             </button>
                           )}
-                          {canDownloadPdf ? (
+                          {!perms.can('export_pdf_docs') ? null : canDownloadPdf ? (
                             <button onClick={handleDownloadSpec} disabled={!selectedSpec || downloadingPdf}
                               className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white disabled:opacity-40 flex items-center gap-1">
                               {downloadingPdf ? <><MiniSpin />&nbsp;PDF…</> : <><Download size={12} />PDF</>}
