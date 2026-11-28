@@ -37,7 +37,7 @@ export const SPEC_ANALYSIS_DEFAULTS = {
     combined_extra_chars: 60000,      // room added to total_chars when project docs + ABAP standards join the case docs
   },
   max_tokens: {
-    summary: 3000, sap_coverage: 4000, validation: 4000, live_check_objects: 4000, live_check_data: 4000,
+    summary: 3000, sap_coverage: 4000, validation: 4000, live_check_objects: 8000, live_check_data: 4000,
     requirements: 12000, questions: 8000, review: 8000, coverage: 8000, generation_review: 8000,
   },
   apply_answers: { batch_size: 15, max_tokens: 16000 },

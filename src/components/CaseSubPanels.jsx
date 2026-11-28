@@ -1724,7 +1724,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex-1">{L('Analysis pipeline', 'Pipeline de análisis')}</span>
           {allOk && <span className="text-[10px] font-medium text-green-600 dark:text-green-400 flex items-center gap-1"><CheckCircle2 size={10} />{L('Ready to generate', 'Listo para generar')}</span>}
-          {!specApproved && (
+          {!analysisLocked && (
             <button onClick={handleRunAllAnalysis} disabled={busy}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 whitespace-nowrap">
               {runningAll ? <><RefreshCw size={12} className="animate-spin" />{L('Running analysis…', 'Ejecutando análisis…')}</> : <><RefreshCw size={12} />{L('Run all analysis', 'Ejecutar todo el análisis')}</>}
@@ -1796,7 +1796,7 @@ ${sanitizeForJson(section)}`;
   }
 
   // ── Requirement traceability (src/lib/requirements.js) ──────
-  const canEditReqs = () => !specApproved && (auth.isAdmin || isCaseOwner);
+  const canEditReqs = () => !analysisLocked && (auth.isAdmin || isCaseOwner);
   const whoAmI = () => ({ by: auth.user?.id ?? null, name: auth.profile?.full_name ?? null });
   async function saveRequirements(next) {
     setRequirements(next);
@@ -3291,6 +3291,9 @@ ${mdToHtml(markdownContent)}
   const userPlan   = planCfg.getUserPlan(auth.user?.id ?? '');
   const canDownloadPdf = auth.isAdmin || auth.isManager || userPlan !== 'free';
   const specApproved = spec?.status === 'approved';
+  // With the spec approved the analysis is locked (it is what was approved), except for admins, who can
+  // re-run it to re-check SAP or coverage; the approved spec itself is not changed.
+  const analysisLocked = specApproved && !auth.isAdmin;
   // After the first spec has been generated/saved, leaving the current mode (back to the mode
   // chooser, which can discard the generated specs) is reserved for admins.
   const specGenerated = !!(spec?.content || aiSpecA || aiSpecB || aiSpecC || aiSpecD);
@@ -7069,7 +7072,11 @@ RELEASED BAdIs — candidate extension points. Find the BAdIs this requirement c
 - released enhancement spots / BAdIs of the requirement's area: runQuery on ARS_W_API_STATE with OBJECT_TYPE IN ('ENHS','BADI','SXSD') (or no type filter) and OBJECT_KEY LIKE the area's namespaces and business keywords (e.g. '%SCMTMS%TOR%', '/SCMTMS/%', '%FREIGHT%' for TM freight units/orders), RELEASE_STATE = 'RELEASED';
 - BAdI definitions and their spots, interface and methods: BADI_MAIN (BADI_NAME, ENHSPOTNAME, INTER_NAME) with the same keywords; open the interface (objectStructure) to read the method names and parameters;
 - for key-user custom fields (ZZ1_/YY1_), the BAdIs offered for custom logic of the field's business context (released C0 BAdIs whose interface works on that business object's node).
-Keep at most 8 candidates, the most relevant first. Never invent a name: list only what the queries returned.` : ''}
+For EVERY enhancement spot you find, go down to the BAdI level — a spot alone is not an answer:
+  1. list the BAdI definitions of the spot: open the spot with the ADT tools (objectStructure / searchObject on the spot name, ADT path /sap/bc/adt/enhancements/enhsxsb/<spot>), or query the spot-to-BAdI tables (BADI_SPOTS: BADI_NAME, ENHSPOT; or ENHSPOTOBJ / ENHOBJ), trying the next source if one fails;
+  2. for each BAdI, its interface (BADI_MAIN.INTER_NAME) and the interface's methods with their parameters (objectStructure / classInterface on the interface);
+  3. say which method runs when the document is created or changed and whether its parameters let you SET a field of the node the requirement needs (e.g. a changing table of the ROOT node with the custom field).
+Keep at most 8 BAdIs, the most relevant first. Never invent a name: list only what the queries or tools returned; if a level could not be read, say which and why.` : ''}
 Use ONLY read tools (search, structure, DDIC, source, table contents, SELECT queries). Never create, change, activate, delete, lock or release anything.
 
 Then produce a section titled:
@@ -7106,6 +7113,7 @@ ${result}`;
 1. From the analysis, the test scenarios and the customer answers below, list the concrete data the case names: document numbers (freight units, orders, deliveries…), locations, business partners, customers, codes (zones, plants…), and the volumes it assumes.
 2. Check each one with the SAP query tools (runQuery with a SELECT, or tableContents), at most ${maxRows} rows per query (use the tool's row limit). Select only the columns you need; use COUNT(*) for volumes. Write keys in their internal format (e.g. numeric document numbers with leading zeros to the field length). Do not read personal data (names, e-mails, phones, bank data) unless the case is about them.
 3. Follow the relations the requirement needs (e.g. document → destination location → address → zone), stopping when the fact is confirmed or refuted.
+   SAP TM note: freight units, freight orders and freight bookings are all /SCMTMS/TOR documents in /SCMTMS/D_TORROT (TOR_ID with leading zeros to 20 characters, TOR_CAT 'FU' / 'TO' / 'BO'); their stops are in /SCMTMS/D_TORSTP (PARENT_KEY = the root DB_KEY). Do not conclude a freight unit table is missing.
 Never create, change, lock or delete anything. If a query fails, try once with a corrected key format, then report it.
 
 Produce exactly this section (in ${langName}):
@@ -7215,7 +7223,7 @@ ${sapObjResult}`;
                   </div>
 
                   <CaseChecksPanel issues={caseChecks} resolved={checksResolved} loading={checksLoading} L={L}
-                    canEdit={!specApproved && (auth.isAdmin || isCaseOwner)} needsProject={!caseData.project_id}
+                    canEdit={!analysisLocked && (auth.isAdmin || isCaseOwner)} needsProject={!caseData.project_id}
                     onRecheck={() => runCaseChecksNow()} onResolve={setCheckResolved} onUnresolve={k => setCheckResolved(k, null)}
                     onRemoveDoc={deleteDocument ? async (i) => {
                       const doc = (documents ?? []).find(d => i.key.endsWith(d.id));
@@ -7444,7 +7452,7 @@ ${sapObjResult}`;
                   <p className="text-xs text-gray-500">{t("spec.ai_step1_desc")}</p>
                 </div>
 
-                {!sapCheck && !stepLoading && !specApproved && (
+                {!sapCheck && !stepLoading && !analysisLocked && (
                   <div className="text-center py-4">
                     <button onClick={() => handleSapCheck()}
                       className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
@@ -7452,7 +7460,7 @@ ${sapObjResult}`;
                     </button>
                   </div>
                 )}
-                {!sapCheck && !stepLoading && specApproved && (
+                {!sapCheck && !stepLoading && analysisLocked && (
                   <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400">
                     <AlertTriangle size={13} className="flex-shrink-0" />
                     <span>{t("spec.skipped")}</span>
@@ -7464,7 +7472,7 @@ ${sapObjResult}`;
                     message={L('Checking standard SAP coverage against the case documents — this may take a minute…', 'Verificando la cobertura del estándar SAP con los documentos del caso — puede tardar un minuto…')} />
                 )}
 
-                {sapCheck && !stepLoading && !specApproved && (
+                {sapCheck && !stepLoading && !analysisLocked && (
                   <div className="flex justify-end">
                     <button onClick={() => handleSapCheck()}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
@@ -7502,7 +7510,7 @@ ${sapObjResult}`;
                     {sapCheck.recommendation && (
                       <p className={`text-xs italic border-t pt-2 ${cc[1]} ${cc[2]}`}>{sapCheck.recommendation}</p>
                     )}
-                    {!specApproved && (
+                    {!analysisLocked && (
                       <div className="flex gap-3 justify-between items-center pt-1">
                         <button onClick={() => handleSapCheck()} className={`text-xs underline ${cc[2]}`}>{t("spec.rerun_check")}</button>
                         <button onClick={() => setActiveNode(2)}
@@ -7530,7 +7538,7 @@ ${sapObjResult}`;
                   <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step2_h")}</h3>
                   <p className="text-xs text-gray-500">{t("spec.ai_step2_desc")}</p>
                 </div>
-                {!proposalCheck && !stepLoading && !specApproved && (
+                {!proposalCheck && !stepLoading && !analysisLocked && (
                   <div className="text-center py-4">
                     <button onClick={() => handleProposalValidation()}
                       className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
@@ -7538,7 +7546,7 @@ ${sapObjResult}`;
                     </button>
                   </div>
                 )}
-                {!proposalCheck && !stepLoading && specApproved && (
+                {!proposalCheck && !stepLoading && analysisLocked && (
                   <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400">
                     <AlertTriangle size={13} className="flex-shrink-0" />
                     <span>{t("spec.skipped")}</span>
@@ -7548,7 +7556,7 @@ ${sapObjResult}`;
                   <StepRunning button={L('Validating…', 'Validando…')}
                     message={L('Validating the proposal against the documents and the coverage check — this may take a minute…', 'Validando la propuesta con los documentos y la verificación del estándar — puede tardar un minuto…')} />
                 )}
-                {proposalCheck && !stepLoading && !specApproved && sapCheck && (
+                {proposalCheck && !stepLoading && !analysisLocked && sapCheck && (
                   <div className="flex justify-end">
                     <button onClick={() => handleProposalValidation()}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
@@ -7592,7 +7600,7 @@ ${sapObjResult}`;
                         {proposalCheck.recommendation}
                       </p>
                     )}
-                    {!specApproved && (
+                    {!analysisLocked && (
                       <div className="flex gap-3 justify-between items-center pt-1">
                         <button onClick={() => handleProposalValidation()}
                           className={`text-xs underline ${proposalCheck.valid ? 'text-green-700' : 'text-amber-700'}`}>{t("spec.revalidate")}</button>
