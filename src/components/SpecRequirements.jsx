@@ -2,10 +2,9 @@
 // coverage panel of a generated spec (spec node). Logic lives in src/lib/requirements.js.
 import { useState, useEffect } from "react";
 import { Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, ListChecks, Wrench, Undo2, ChevronDown, MessageCircleQuestion, ArrowRightLeft, Info, MessageSquareReply } from "lucide-react";
-import { REQ_KINDS, REQ_KIND_LABEL, inScope } from "../lib/requirements.js";
+import { reqKindKeys, reqKindName, inScope } from "../lib/requirements.js";
 import { QRefText, openQuestion } from "./SpecQuestions.jsx";
 
-const kindName = (k, lang) => (REQ_KIND_LABEL[k] ?? [k, k])[lang === 'es' ? 1 : 0];
 
 // Open / closed state remembered per browser.
 export function usePersistedOpen(key, def = true) {
@@ -54,9 +53,11 @@ function AnswersProposals({ proposals, requirements, onConfirm, onDiscard, L }) 
   );
 }
 
-export function RequirementsChecklist({ requirements, onChange, onExtract, loading, error, canEdit, state, L, lang, who,
+export function RequirementsChecklist({ requirements, onChange, onExtract, loading, error, warning, kinds, canEdit, state, L, lang, who,
   answeredCount = 0, onApplyAnswers, applying = false, proposals = null, onConfirmProposals, onDiscardProposals }) {
   const [open, setOpen] = usePersistedOpen('genctx2_reqs_open', false);
+  // Kinds from Settings → Spec quality (spec_analysis_policy.requirement_kinds); defaults when not given.
+  const kindName = (k, lg) => reqKindName(k, lg, kinds);
   const [flashReq, setFlashReq] = useState(null);
   useEffect(() => {
     const onFocus = e => {
@@ -88,6 +89,7 @@ export function RequirementsChecklist({ requirements, onChange, onExtract, loadi
           canEdit && { Icon: RefreshCw, title: list.length ? L('Extract again', 'Extraer de nuevo') : L('Extract requirements', 'Extraer requerimientos'), onClick: onExtract, loading, primary: true },
         ]} />
       {error && <p className="text-xs text-red-500">{error}</p>}
+      {warning && <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-2 py-1">{warning}</p>}
       {canEdit && list.length > 0 && answeredCount > 0 && onApplyAnswers && !proposals && (
         <button onClick={onApplyAnswers} disabled={applying}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-violet-700 text-xs font-semibold hover:bg-violet-100 disabled:opacity-50">
@@ -118,7 +120,7 @@ export function RequirementsChecklist({ requirements, onChange, onExtract, loadi
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
                       {canEdit
                         ? <select value={r.kind} onChange={e => upd(r.id, { kind: e.target.value })} className="px-1 py-0.5 border border-gray-200 rounded bg-white">
-                            {REQ_KINDS.map(k => <option key={k} value={k}>{kindName(k, lang)}</option>)}
+                            {reqKindKeys(kinds).map(k => <option key={k} value={k}>{kindName(k, lang)}</option>)}
                           </select>
                         : <span className="px-1.5 py-0.5 rounded bg-gray-100">{kindName(r.kind, lang)}</span>}
                       {r.source && <span title={r.source} className="max-w-md">{L('Source', 'Fuente')}: <QRefText text={r.source} /></span>}

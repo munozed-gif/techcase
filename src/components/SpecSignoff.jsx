@@ -1,9 +1,10 @@
 // Consultant sign-off before the spec goes to the customer: the conditions, who signed and when.
 // The sign-off holds a fingerprint of the specs and is cleared when they change.
-import { CheckCircle2, XCircle, PenLine } from "lucide-react";
+// A condition with mode 'warn' (Settings → Spec quality, spec_analysis_policy.signoff.conditions) is shown but does not block.
+import { CheckCircle2, XCircle, PenLine, AlertTriangle } from "lucide-react";
 
 export function SignoffPanel({ conditions, signoff, valid, canSign, onSign, onUndo, L }) {
-  const allOk = conditions.every(c => c.ok);
+  const allOk = conditions.every(c => c.ok || c.mode === 'warn');
   const stale = !!signoff?.at && !valid;
   const tone = valid ? 'border-emerald-200 bg-emerald-50/60' : allOk ? 'border-blue-200 bg-blue-50/50' : 'border-gray-200 bg-gray-50';
   return (
@@ -27,8 +28,10 @@ export function SignoffPanel({ conditions, signoff, valid, canSign, onSign, onUn
         <div className="space-y-1">
           {conditions.map(c => (
             <div key={c.key} className="flex items-start gap-2">
-              {c.ok ? <CheckCircle2 size={13} className="text-green-500 mt-0.5 flex-shrink-0" /> : <XCircle size={13} className="text-red-500 mt-0.5 flex-shrink-0" />}
-              <div><span className={c.ok ? 'text-gray-700' : 'text-gray-900 font-semibold'}>{c.label}</span>{c.detail && <span className="text-gray-500"> — {c.detail}</span>}</div>
+              {c.ok ? <CheckCircle2 size={13} className="text-green-500 mt-0.5 flex-shrink-0" />
+                : c.mode === 'warn' ? <AlertTriangle size={13} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                : <XCircle size={13} className="text-red-500 mt-0.5 flex-shrink-0" />}
+              <div><span className={c.ok ? 'text-gray-700' : c.mode === 'warn' ? 'text-gray-700' : 'text-gray-900 font-semibold'}>{c.label}</span>{c.detail && <span className="text-gray-500"> — {c.detail}</span>}{!c.ok && c.mode === 'warn' && <span className="text-amber-600"> ({L('warning, does not block', 'aviso, no bloquea')})</span>}</div>
             </div>
           ))}
         </div>

@@ -6,6 +6,8 @@ import { callClaude } from "./utils.js";
 
 export const VIDEO_EXTS = ['mp4', 'mov', 'webm', 'm4v'];
 export const VIDEO_MAX_BYTES = 200 * 1024 * 1024;
+// Defaults of the options below; editable in Settings → Spec quality (spec_analysis_policy.video).
+export const VIDEO_DEFAULTS = { max_frames: 40, batch_frames: 12, batch_mb: 3, max_mb: 200, max_tokens: 4000, summary_max_tokens: 1500 };
 export const VIDEO_ANALYSIS_SUFFIX = ' - analisis de video.md';
 
 export const isVideoDoc = d => {
@@ -90,7 +92,7 @@ export async function extractVideoFrames(src, { maxFrames = 40, maxSide = 1280, 
 }
 
 // Frames per AI call: the request body must stay well under the server limit (about 4.5 MB).
-function batchFrames(frames, maxChars = 3000000, maxCount = 12) {
+function batchFrames(frames, maxChars = VIDEO_DEFAULTS.batch_mb * 1000000, maxCount = VIDEO_DEFAULTS.batch_frames) {
   const out = []; let cur = []; let size = 0;
   for (const f of frames) {
     if (cur.length && (size + f.data.length > maxChars || cur.length >= maxCount)) { out.push(cur); cur = []; size = 0; }
@@ -103,10 +105,12 @@ function batchFrames(frames, maxChars = 3000000, maxCount = 12) {
 /**
  * Describe the frames with the AI and return the markdown document text.
  * context: { caseTitle, caseDescription, notes } helps the AI know what to look for.
+ * options: { batch_frames, batch_mb, max_tokens, summary_max_tokens } (VIDEO_DEFAULTS when missing).
  */
-export async function describeVideo({ fileName, duration, frames, context = {}, model, lang = 'es', caseId, onProgress }) {
+export async function describeVideo({ fileName, duration, frames, context = {}, model, lang = 'es', caseId, onProgress, options = {} }) {
   const es = lang === 'es';
-  const batches = batchFrames(frames);
+  const o = { ...VIDEO_DEFAULTS, ...options };
+  const batches = batchFrames(frames, o.batch_mb * 1000000, o.batch_frames);
   const parts = [];
   for (const [bi, batch] of batches.entries()) {
     onProgress?.({ phase: 'ai', done: bi, total: batches.length });
@@ -125,7 +129,7 @@ Rules:
       content.push({ type: 'text', text: `[${fmtTime(f.t)}]` });
       content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: f.data } });
     }
-    const raw = await callClaude({ feature: 'video_analysis', model, caseId, outputLang: lang, max_tokens: 4000,
+    const raw = await callClaude({ feature: 'video_analysis', model, caseId, outputLang: lang, max_tokens: o.max_tokens,
       system: 'You are an SAP functional analyst documenting what a screen recording shows. Be precise and factual.',
       messages: [{ role: 'user', content }] });
     parts.push(String(raw ?? '').trim());
@@ -135,7 +139,7 @@ Rules:
   // Short summary of the whole video from the step descriptions (text only, cheap).
   let summary = '';
   try {
-    summary = String(await callClaude({ feature: 'video_analysis', model, caseId, outputLang: lang, max_tokens: 1500,
+    summary = String(await callClaude({ feature: 'video_analysis', model, caseId, outputLang: lang, max_tokens: o.summary_max_tokens,
       system: 'You are an SAP functional analyst. Be brief and factual.',
       messages: [{ role: 'user', content: `Summarize in 3-6 bullet points what this screen recording shows and what it tells about the requirement (screens, objects, problems seen). Cite timestamps. Do not add anything that is not in the description.\n\n${parts.join('\n\n')}` }] }) ?? '').trim();
   } catch (_) { /* the step description is enough */ }
@@ -147,11 +151,13 @@ Rules:
   return `${title}\n\n${meta}\n\n${summary ? `## ${es ? 'Resumen' : 'Summary'}\n\n${summary}\n\n` : ''}## ${es ? 'Paso a paso' : 'Step by step'}\n\n${parts.join('\n\n')}\n`;
 }
 
-/** Full flow: frames → AI description → saved as a text document of the case. */
-export async function analyzeVideoToDocument({ src, fileName, addDocument, context, model, lang, caseId, onProgress }) {
-  const { duration, frames } = await extractVideoFrames(src, { onProgress });
+/** Full flow: frames → AI description → saved as a text document of the case.
+ *  options: { max_frames, batch_frames, batch_mb, max_tokens, summary_max_tokens } (VIDEO_DEFAULTS when missing). */
+export async function analyzeVideoToDocument({ src, fileName, addDocument, context, model, lang, caseId, onProgress, options = {} }) {
+  const o = { ...VIDEO_DEFAULTS, ...options };
+  const { duration, frames } = await extractVideoFrames(src, { maxFrames: o.max_frames, onProgress });
   if (!frames.length) throw new Error('No frames could be taken from the video.');
-  const md = await describeVideo({ fileName, duration, frames, context, model, lang, caseId, onProgress });
+  const md = await describeVideo({ fileName, duration, frames, context, model, lang, caseId, onProgress, options: o });
   const file = new File([md], videoAnalysisName(fileName), { type: 'text/markdown' });
   await addDocument(file, `[Requirements] ${lang === 'es' ? `Análisis por IA del video "${fileName}" (${frames.length} fotogramas, ${fmtTime(duration)})` : `AI analysis of the video "${fileName}" (${frames.length} frames, ${fmtTime(duration)})`}`);
   return { duration, frames: frames.length };

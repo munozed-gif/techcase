@@ -1,4 +1,5 @@
-import { isVideoDoc, isVideoFile, VIDEO_MAX_BYTES, VIDEO_EXTS, videoAnalysisName, analyzeVideoToDocument } from "../lib/videoAnalysis.js";
+import { isVideoDoc, isVideoFile, VIDEO_EXTS, videoAnalysisName, analyzeVideoToDocument } from "../lib/videoAnalysis.js";
+import { specAnalysisPolicy, modificationRegex } from "../lib/specAnalysisPolicy.js";
 import { Film as _LFilm, Sparkles as _LSparkles } from "lucide-react";
 import { PauseCircle as _LPauseCircle } from "lucide-react";
 import { Lock as _LLock } from "lucide-react";
@@ -224,6 +225,8 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   const visCfg        = useVisibilitySettings();
   const genModel      = cdSettings["ai_model"]       ?? 'claude-haiku-5-5';
   const analysisModel = cdSettings["analysis_model"] ?? 'claude-haiku-5-5';
+  // Compiled-context analysis settings (Settings → Spec quality, spec_analysis_policy): video, live check.
+  const pol = specAnalysisPolicy(cdSettings);
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone, updateMilestone, deleteMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
@@ -890,7 +893,7 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
     setJob({ busy: true, status: LV('Taking frames from the video…', 'Tomando fotogramas del video…') });
     try {
       const r = await analyzeVideoToDocument({
-        src, fileName, addDocument, model: analysisModel, lang, caseId: caseData.id,
+        src, fileName, addDocument, model: analysisModel, lang, caseId: caseData.id, options: pol.video,
         context: { caseTitle: caseData.title, caseDescription: caseData.description, notes },
         onProgress: p => setJob({ busy: true, status: p.phase === 'frames'
           ? LV(`Taking frames from the video… ${Math.round((p.done / p.total) * 100)}%`, `Tomando fotogramas del video… ${Math.round((p.done / p.total) * 100)}%`)
@@ -921,7 +924,7 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   async function handleDocUpload() {
     if (!pendingDocFile) return;
     const video = isVideoFile(pendingDocFile);
-    if (video && pendingDocFile.size > VIDEO_MAX_BYTES) { alert(LV('The video is larger than 200 MB. Trim it or lower its resolution and try again.', 'El video pesa más de 200 MB. Recórtelo o baje su resolución e inténtelo de nuevo.')); return; }
+    if (video && pendingDocFile.size > pol.video.max_mb * 1024 * 1024) { alert(LV(`The video is larger than ${pol.video.max_mb} MB. Trim it or lower its resolution and try again.`, `El video pesa más de ${pol.video.max_mb} MB. Recórtelo o baje su resolución e inténtelo de nuevo.`)); return; }
     setUploadingDoc(true);
     try {
       const catLabels = { requirements: "Requirements", deliverable: "Deliverable", reference: "Reference", other: "Other" };
@@ -2028,15 +2031,16 @@ canvas{display:block;width:100%}
           const detail = liveData.message ? ` (${liveData.message})` : liveData.error ? ` (HTTP ${liveData.error})` : '';
           throw new Error(`SAP live check failed — cannot generate documents without a live connection.${detail}`);
         }
-        extra.sapLiveData = liveData;
+        extra.sapLiveData = { ...liveData, sourceChars: pol.live_check.source_chars };
         // For modification/update cases, try to fetch existing ABAP object source
+        // (words and limits: Settings → Spec quality, spec_analysis_policy.live_check)
         const combinedText = caseData.title + ' ' + (caseData.description ?? '');
-        const isModification = /modif|updat|enhanc|extend|fix|correct|adjust/i.test(combinedText);
+        const isModification = !!modificationRegex(pol.live_check.modification_keywords)?.test(combinedText);
         if (isModification) {
           const objMatches = [...combinedText.matchAll(/\b([ZY][A-Z0-9_]{1,30})\b/g)]
             .map(m => m[1])
             .filter((v, i, a) => a.indexOf(v) === i)
-            .slice(0, 3);
+            .slice(0, pol.live_check.max_objects);
           if (objMatches.length) {
             const typeHint = detectSapObjectType(combinedText);
             const typesToTry = typeHint
@@ -4484,8 +4488,8 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                         className="block w-full text-sm text-gray-500 file:mr-3 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
                       {pendingDocFile && isVideoFile(pendingDocFile) && (
                         <p className="mt-1 text-[11px] text-blue-700 flex items-start gap-1"><_LFilm className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
-                          {LV('Video (max. 200 MB): after uploading, the AI looks at frames of it and saves a description with timestamps as a document of the case. The audio is not analyzed. Keep this tab open while it runs.',
-                              'Video (máx. 200 MB): al subirlo, la IA revisa fotogramas y guarda una descripción con el minuto de cada paso como documento del caso. El audio no se analiza. Mantenga esta pestaña abierta mientras termina.')}</p>
+                          {LV(`Video (max. ${pol.video.max_mb} MB): after uploading, the AI looks at frames of it and saves a description with timestamps as a document of the case. The audio is not analyzed. Keep this tab open while it runs.`,
+                              `Video (máx. ${pol.video.max_mb} MB): al subirlo, la IA revisa fotogramas y guarda una descripción con el minuto de cada paso como documento del caso. El audio no se analiza. Mantenga esta pestaña abierta mientras termina.`)}</p>
                       )}
                     </div>
                   </div>

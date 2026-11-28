@@ -124,7 +124,7 @@ export default function CustomerQuestionsView({ token, embedded = false, default
           <h1 className="text-xl font-bold flex items-center gap-2"><HelpCircle size={20} className="text-[#4F6EF7]" />{L.title}</h1>
           <p className="text-gray-400 text-sm">{L.intro}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-            {data.platform?.area && <span className="font-semibold text-[#9db0ff]">{lang === 'es' ? 'Área' : 'Area'}: {qAreaName(data.platform.area, lang)}</span>}
+            {data.platform?.area && <span className="font-semibold text-[#9db0ff]">{lang === 'es' ? 'Área' : 'Area'}: {data.platform.area_label?.[lang === 'es' ? 1 : 0] || qAreaName(data.platform.area, lang)}</span>}
             {data.project && <span>{L.project}: {data.project}</span>}
             {data.creator_name && <span>{L.from}: {data.creator_name}</span>}
             {daysLeft !== null && <span className="flex items-center gap-1"><Clock size={11} />{L.expires(Math.max(daysLeft, 0))}</span>}

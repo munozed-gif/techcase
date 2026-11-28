@@ -15,7 +15,8 @@ import { runCaseChecks, blockingIssues } from "../lib/caseChecks.js";
 import { CaseChecksPanel } from "./CaseChecksPanel.jsx";
 import { normalizeQuestions, questionsPromptBlock, openQuestions, mergeLinkAnswers } from "../lib/questions.js";
 import { QuestionsPanel, linkQRefsHtml, onQRefClick } from "./SpecQuestions.jsx";
-import { askableQuestions, areaOf } from "../lib/questions.js";
+import { askableQuestions, areaOf, qAreaName, DEFAULT_Q_AREAS } from "../lib/questions.js";
+import { specAnalysisPolicy, modificationRegex, docSummaryModel, truncatedNote } from "../lib/specAnalysisPolicy.js";
 import { detectDocLang } from "../lib/docLang.js";
 import { SignoffPanel } from "./SpecSignoff.jsx";
 import {
@@ -571,7 +572,7 @@ function buildContextString(caseData, genCtx = {}, extra = {}) {
     if (ld.components?.length) lines.push(`SAP Software Components: ${ld.components.join(', ')}`);
     if (ld.existingSource) {
       const typeLabel = ld.existingObjectType ? ` [${ld.existingObjectType}]` : '';
-      lines.push(`Existing ABAP Object Source (${ld.existingObjectName ?? 'current'}${typeLabel}):\n\`\`\`abap\n${ld.existingSource.slice(0, 3000)}\n\`\`\``);
+      lines.push(`Existing ABAP Object Source (${ld.existingObjectName ?? 'current'}${typeLabel}):\n\`\`\`abap\n${ld.existingSource.slice(0, ld.sourceChars ?? 3000)}\n\`\`\``);
     }
     if (ld.existingObjectMissing) lines.push(`Note: Object "${ld.existingObjectName}" was NOT found in SAP — this is a new creation.`);
   }
@@ -1064,6 +1065,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const ssCtx = useSystemSettings();
   const genModel       = ssCtx.settings["ai_model"]        ?? 'claude-haiku-5-5';
   const analysisModel  = ssCtx.settings["analysis_model"]  ?? 'claude-haiku-5-5';
+  // Compiled-context analysis settings (Settings → Spec quality, spec_analysis_policy).
+  const pol = specAnalysisPolicy(ssCtx.settings);
+  const covGate = { minPct: pol.signoff.coverage_min_pct, partialIsGap: pol.signoff.partial_counts_as_gap };
   const sapMcpServerUrl = (ssCtx.settings["sap_mcp_server_url"] ?? '').trim();
   const sapMcpRules = (ssCtx.settings["sap_mcp_rules"] ?? '').trim();
   const _protoRaw  = ssCtx.settings["prototype_model"];
@@ -1428,8 +1432,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
 
   // Text budget per document and in total for one AI call (≈ 4 chars per token). Documents past
   // their share are cut with an explicit "truncated" note, so the AI never reads them as complete.
-  const DOC_CHARS_PER_FILE = 120000;
-  const DOC_CHARS_TOTAL    = 240000;
+  // Settings → Spec quality (spec_analysis_policy.doc_limits).
+  const DOC_CHARS_PER_FILE = pol.doc_limits.per_file_chars;
+  const DOC_CHARS_TOTAL    = pol.doc_limits.total_chars;
   const IMAGE_EXTS = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
   // Files this platform generated earlier (specs, prototypes, dev plans): never sent to the AI as
   // input — a regeneration must start from the customer's documents only, not from its last output.
@@ -1799,6 +1804,10 @@ ${sanitizeForJson(section)}`;
   // Customer answers → checklist: the AI proposes which requirements the answers put out of scope
   // (this phase) or change (new text), each with its reason and question ids; the consultant confirms.
   const [answerProposals, setAnswerProposals] = useState(null);
+  // AI JSON answers cut off by the output limit (parseJsonArray → truncated): step → kept items.
+  const [truncWarn, setTruncWarn] = useState({});
+  const noteTrunc = (step, arr) => setTruncWarn(p => ({ ...p, [step]: arr?.truncated ? arr.length : 0 }));
+  const truncMsg = (...steps) => { const n = steps.map(k => truncWarn[k]).find(Boolean); return n ? truncatedNote(n, L) : null; };
   const [applyingAnswers, setApplyingAnswers] = useState(false);
   async function handleApplyAnswers() {
     const answered = questions.filter(q => q.status === 'answered' && q.answer?.trim());
@@ -1811,8 +1820,10 @@ ${sanitizeForJson(section)}`;
       const all = [];
       let failed = 0;
       // In parts: one answer covering every requirement can exceed the output limit.
-      for (let i = 0; i < list.length; i += 15) {
-        const part = list.slice(i, i + 15);
+      const bs = pol.apply_answers.batch_size;
+      let cutN = 0;
+      for (let i = 0; i < list.length; i += bs) {
+        const part = list.slice(i, i + bs);
         const prompt = `The customer answered questions about this SAP case. Their answers are authoritative and override the documents.
 Decide, for each requirement below (extracted earlier from the documents), whether an answer changes it:
 - "out_of_scope": an answer leaves it out of this phase / not wanted / postponed / pending a later approval;
@@ -1830,11 +1841,13 @@ Respond with ONLY a JSON array (empty if nothing changes), no markdown fences:
 [{ "id": "REQ-05", "action": "out_of_scope" | "update", "text": "new requirement text (only for update)", "reason": "short reason citing the answer", "questions": ["Q-03"] }]${jsonLangNote(specLang())}`;
         const raw = await callClaude({ feature: 'spec_requirements', model: analysisModel,
           system: 'You are an SAP senior functional consultant keeping the requirements checklist in line with the customer answers. Respond ONLY with a valid JSON array.',
-          messages: [{ role: 'user', content: prompt }], max_tokens: 16000 }).catch(() => null);
+          messages: [{ role: 'user', content: prompt }], max_tokens: pol.apply_answers.max_tokens }).catch(() => null);
         const parsed = raw == null ? null : (String(raw).trim().replace(/^```(?:json)?\s*|\s*```$/g, '') === '[]' ? [] : parseJsonArray(raw, 'changes'));
         if (!parsed) { failed++; continue; }
+        if (parsed.truncated) cutN += parsed.length;
         all.push(...parsed);
       }
+      setTruncWarn(p => ({ ...p, apply_answers: cutN }));
       if (failed && !all.length) throw new Error(L('The proposal could not be read from the AI answer — run it again.', 'No se pudo leer la propuesta de la IA — ejecútelo de nuevo.'));
       if (failed) setReqError(L(`${failed} part(s) of the checklist could not be reviewed — the proposal below is partial; run it again later for the rest.`, `${failed} parte(s) del checklist no se pudieron revisar — la propuesta de abajo es parcial; vuelva a ejecutarlo luego para el resto.`));
       const seen = new Set();
@@ -1860,7 +1873,7 @@ Respond with ONLY a JSON array (empty if nothing changes), no markdown fences:
     await saveRequirements(next);
     // The coverage was checked against the old texts: check it again on the current spec.
     const key = gateSpecKey();
-    if (key && specText(key)) await handleCheckCoverage(key, undefined, next);
+    if (pol.auto_steps.coverage_after_answers && key && specText(key)) await handleCheckCoverage(key, undefined, next);
   }
 
   async function handleExtractRequirements(opts = {}) {
@@ -1883,16 +1896,17 @@ ${ans.map(q => `- ${q.id}: ${q.text}\n  ANSWER: ${q.answer}`).join('\n')}
 ` : '';
 })()}
 Respond with ONLY a JSON array, no markdown fences:
-[{ "source": "document name and section/page/sheet", "text": "the requirement, precise and testable", "kind": "functional" | "data" | "ui" | "report" | "integration" | "authorization" | "test_scenario" | "non_functional", "outOfScope": false, "reason": "only when out of scope: why, citing the question id" }]${jsonLangNote(lang)}`;
+[{ "source": "document name and section/page/sheet", "text": "the requirement, precise and testable", "kind": ${pol.requirement_kinds.map(k => `"${k.key}"`).join(' | ')}, "outOfScope": false, "reason": "only when out of scope: why, citing the question id" }]${jsonLangNote(lang)}`;
       const raw = await callClaude({ feature: 'spec_requirements', model: analysisModel,
         system: 'You are an SAP senior functional consultant doing requirements traceability. Respond ONLY with a valid JSON array.',
-        messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: prompt }] : prompt }], max_tokens: 12000 });
+        messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: prompt }] : prompt }], max_tokens: pol.max_tokens.requirements });
       const parsed = parseJsonArray(raw, 'requirements');
+      noteTrunc('requirements', parsed);
       if (!parsed) throw new Error(L('The requirements could not be read from the AI answer — run it again.', 'No se pudieron leer los requerimientos de la respuesta de la IA — ejecútelo de nuevo.'));
       // Keep what the consultants added by hand and their out-of-scope decisions (matched by text).
       const prevOut = Object.fromEntries(requirements.filter(r => r.outOfScope && !r.manual).map(r => [r.text.trim().toLowerCase(), r]));
       const at = new Date().toISOString();
-      let next = normalizeRequirements(parsed).map((r, i) => {
+      let next = normalizeRequirements(parsed, pol.requirement_kinds).map((r, i) => {
         const o = prevOut[r.text.trim().toLowerCase()];
         if (o) return { ...r, outOfScope: true, reason: o.reason, by: o.by, at: o.at };
         // Out of scope according to the customer answers (decided by the extraction itself).
@@ -1930,18 +1944,21 @@ Case: ${caseData.title}
 Description: ${caseData.description ?? ''}${analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : ''}${summaryIn ? `\nRequest Summary (pre-analysis):\n${summaryIn}` : ''}${(reqs ?? []).length ? `\nRequirements checklist:\n${reqs.filter(r => !r.outOfScope).map(r => `- ${r.id}: ${r.text}`).join('\n')}` : ''}${answeredBlock()}
 
 Respond with ONLY a JSON array (empty if there is nothing to ask), no markdown fences:
-[{ "kind": "contradiction" | "ambiguity" | "missing", "area": "functional" | "abap" | "basis" | "security" | "integration" | "data" | "testing" | "management", "text": "the question for the customer, clear and self-contained", "sources": "document / section of each side", "affects": ["REQ-03"], "assumption": "what the spec assumes if not answered" }]
-"area" = who at the customer has to answer it: functional (business process, functional rules, SAP configuration and screens), abap (technical development: objects, enhancements, BAdIs, Clean Core, technical field names), basis (systems, clients, transports, performance, infrastructure), security (roles and authorizations), integration (interfaces, IDocs, APIs, external systems), data (master data and its maintenance), testing (test scenarios and test data), management (scope, dates, change requests, approvals, documentation).${jsonLangNote(specLang())}`;
+[{ "kind": "contradiction" | "ambiguity" | "missing", "area": ${pol.question_areas.map(a => `"${a.key}"`).join(' | ')}, "text": "the question for the customer, clear and self-contained", "sources": "document / section of each side", "affects": ["REQ-03"], "assumption": "what the spec assumes if not answered" }]
+${JSON.stringify(pol.question_areas.map(a => [a.key, a.label_en])) === JSON.stringify(DEFAULT_Q_AREAS.map(a => [a.key, a.label_en]))
+  ? '"area" = who at the customer has to answer it: functional (business process, functional rules, SAP configuration and screens), abap (technical development: objects, enhancements, BAdIs, Clean Core, technical field names), basis (systems, clients, transports, performance, infrastructure), security (roles and authorizations), integration (interfaces, IDocs, APIs, external systems), data (master data and its maintenance), testing (test scenarios and test data), management (scope, dates, change requests, approvals, documentation).'
+  : `"area" = who at the customer has to answer it: ${pol.question_areas.map(a => `${a.key} (${a.label_en || a.label_es || a.key})`).join(', ')}.`}${jsonLangNote(specLang())}`;
       const raw = await callClaude({ feature: 'spec_questions', model: analysisModel,
         system: 'You are an SAP senior functional consultant preparing questions for the customer before writing a specification. Respond ONLY with a valid JSON array.',
-        messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: prompt }] : prompt }], max_tokens: 8000 });
+        messages: [{ role: 'user', content: docBlocks.length ? [...docBlocks, { type: 'text', text: prompt }] : prompt }], max_tokens: pol.max_tokens.questions });
       const parsed = parseJsonArray(raw, 'questions');
+      noteTrunc('questions', parsed);
       if (!parsed) throw new Error(L('The questions could not be read from the AI answer — run it again.', 'No se pudieron leer las preguntas de la respuesta de la IA — ejecútelo de nuevo.'));
       // Keep what is already decided (answered, discarded, added by hand); new questions get new ids.
       const kept = questions.filter(q => q.status === 'answered' || q.status === 'discarded' || q.manual);
       const keptText = new Set(kept.map(q => q.text.trim().toLowerCase()));
       let n = Math.max(0, ...kept.map(q => Number(String(q.id).replace(/\D/g, '')) || 0));
-      const fresh = normalizeQuestions(parsed).filter(q => !keptText.has(q.text.toLowerCase()))
+      const fresh = normalizeQuestions(parsed, pol.question_areas).filter(q => !keptText.has(q.text.toLowerCase()))
         .map(q => ({ ...q, id: `Q-${String(++n).padStart(2, '0')}` }));
       const next = [...kept, ...fresh];
       setQuestions(next);
@@ -1950,7 +1967,7 @@ Respond with ONLY a JSON array (empty if there is nothing to ask), no markdown f
     } catch (e) { setQError(e.message); }
     setQLoading(false);
     // Global review of the whole analysis, right after the questions.
-    if (result) await handleGlobalReview({ summary: summaryIn, reqs, questions: result });
+    if (result && pol.auto_steps.review_after_questions) await handleGlobalReview({ summary: summaryIn, reqs, questions: result });
     return result;
   }
 
@@ -2013,7 +2030,7 @@ ${pending.length ? `Pending:\n${pending.map(q => `- ${q.id} [${q.area ?? ''}] ($
 SPECIFICATION: ${specState}`;
       const md = String(await callClaude({ feature: 'spec_review', model: analysisModel,
         system: 'You are an SAP senior consultant writing a short, actionable review of a case analysis for the project team.',
-        messages: [{ role: 'user', content: sanitizeForJson(prompt) }], max_tokens: 8000 }) ?? '').trim();
+        messages: [{ role: 'user', content: sanitizeForJson(prompt) }], max_tokens: pol.max_tokens.review }) ?? '').trim();
       if (!md) throw new Error(L('The review came back empty — run it again.', 'La revisión llegó vacía — ejecútela de nuevo.'));
       out = { at: new Date().toISOString(), md };
       setGlobalReview(out);
@@ -2035,11 +2052,11 @@ SPECIFICATION: ${specState}`;
       // The coverage just computed (the screen state may not be updated yet inside this sequence).
       const covRaw = notesRef.current?.reqCoverage?.[key] ?? reqCoverage?.[key];
       const violations = checkRules(md, activeRules(ssCtx.settings, caseData.project_id));
-      const cv = { stats: coverageStats(requirements, covRaw, violations), checked: !!covRaw?.at, current: !!covRaw?.at && covRaw.specHash === textHash(md), violations };
+      const cv = { stats: coverageStats(requirements, covRaw, violations, covGate), checked: !!covRaw?.at, current: !!covRaw?.at && covRaw.specHash === textHash(md), violations };
       const live = questions.filter(q => q.status !== 'discarded');
       const pending = live.filter(q => q.status !== 'answered');
       const conds = signoffConditions().map(c => c.key === 'coverage'
-        ? { ...c, ok: cv.stats.total > 0 && cv.checked && cv.current && cv.stats.openGaps.length === 0, detail: cv.checked ? `${cv.stats.pct}% — ${cv.stats.openGaps.length} ${L('open gaps', 'brechas abiertas')}` : c.detail }
+        ? { ...c, ok: cv.stats.total > 0 && cv.checked && cv.current && cv.stats.coverageOk, detail: cv.checked ? `${cv.stats.pct}% — ${cv.stats.openGaps.length} ${L('open gaps', 'brechas abiertas')}` : c.detail }
         : c);
       const gaps = cv.stats.rows.filter(r => r.status !== 'covered');
       const prompt = `You are reviewing, as a senior SAP consultant, the documents just generated for this case, before the consultant signs them off and sends them to the customer.
@@ -2074,15 +2091,15 @@ PENDING QUESTIONS (${pending.length} of ${live.length}):
 ${pending.map(q => `- ${q.id} [${q.area ?? ''}] ${q.text}${q.assumption ? ` — assumption used: ${q.assumption}` : ''}`).join('\n') || '- none'}
 
 SIGN-OFF CONDITIONS:
-${conds.map(c => `- ${c.ok ? 'OK' : 'MISSING'}: ${c.label}${c.detail ? ` (${c.detail})` : ''}`).join('\n')}
+${conds.map(c => `- ${c.ok ? 'OK' : c.mode === 'warn' ? 'WARNING (does not block)' : 'MISSING'}: ${c.label}${c.detail ? ` (${c.detail})` : ''}`).join('\n')}
 
 DOCUMENTS: specs ${['a', 'b', 'c', 'd'].filter(k => specText(k)).map(k => k.toUpperCase()).join(', ') || 'none'}; prototype ${protoSaved ? 'generated' : activeProfile?.prototype_enabled ? 'not generated' : 'not enabled'}.
 
 SPEC ${key.toUpperCase()} (beginning):
-${md.slice(0, 30000)}`;
+${md.slice(0, pol.review_spec_chars)}`;
       const text = String(await callClaude({ feature: 'spec_review', model: analysisModel,
         system: 'You are an SAP senior consultant writing a short, actionable review of generated specification documents for the project team.',
-        messages: [{ role: 'user', content: sanitizeForJson(prompt) }], max_tokens: 8000 }) ?? '').trim();
+        messages: [{ role: 'user', content: sanitizeForJson(prompt) }], max_tokens: pol.max_tokens.generation_review }) ?? '').trim();
       if (!text) throw new Error(L('The review came back empty — run it again.', 'La revisión llegó vacía — ejecútela de nuevo.'));
       out = { at: new Date().toISOString(), md: text, specHash: textHash(md), key };
       setGenReview(out);
@@ -2127,14 +2144,15 @@ ${md.slice(0, 30000)}`;
   // One link per area (or one for all): only the questions not answered yet (open or on an assumption).
   async function sendQuestionsLink(area = null, ids = null) {
     let list = askableQuestions(questions);
-    if (area) list = list.filter(q => areaOf(q) === area);
+    if (area) list = list.filter(q => areaOf(q, pol.question_areas) === area);
     if (ids) list = list.filter(q => ids.includes(q.id));
     if (!list.length) return;
     try {
       const { data, error } = await supabase.from('spec_question_links').insert({
         case_id: caseData.id, case_title: caseData.title ?? '',
-        questions: list.map(q => ({ id: q.id, kind: q.kind, area: areaOf(q), text: q.text, sources: q.sources, assumption: q.assumption })),
-        platform: { name: ssCtx.settings['platform_name'] || 'Arena Solution Platform', tagline: ssCtx.settings['platform_tagline'] || 'SAP Solutions', lang: specLang(), area: area ?? null },
+        questions: list.map(q => ({ id: q.id, kind: q.kind, area: areaOf(q, pol.question_areas), text: q.text, sources: q.sources, assumption: q.assumption })),
+        platform: { name: ssCtx.settings['platform_name'] || 'Arena Solution Platform', tagline: ssCtx.settings['platform_tagline'] || 'SAP Solutions', lang: specLang(), area: area ?? null,
+          ...(area ? { area_label: [qAreaName(area, 'en', pol.question_areas), qAreaName(area, 'es', pol.question_areas)] } : {}) },
       }).select().single();
       if (error) throw error;
       await copyQuestionsLink(data);
@@ -2192,8 +2210,9 @@ Respond with ONLY a JSON array, no markdown fences:
 [{ "id": "REQ-01", "status": "covered" | "partial" | "missing", "where": "section / object", "note": "what is missing (empty if covered)" }]${jsonLangNote(lang)}`;
       const raw = await callClaude({ feature: 'spec_coverage', model: analysisModel,
         system: 'You are a strict SAP QA reviewer. Only mark a requirement covered when the specification really specifies it. Respond ONLY with a valid JSON array.',
-        messages: [{ role: 'user', content: prompt }], max_tokens: 8000 });
+        messages: [{ role: 'user', content: prompt }], max_tokens: pol.max_tokens.coverage });
       const items = parseJsonArray(raw, 'items');
+      noteTrunc('coverage', items);
       if (!items) throw new Error(L('The coverage result could not be read — run it again.', 'No se pudo leer el resultado de la cobertura — ejecútelo de nuevo.'));
       const prev = reqCoverage?.[key]?.accepted ?? {};
       const next = { ...reqCoverage, [key]: { at: new Date().toISOString(), specHash: textHash(md), items: items.map(i => ({ id: String(i.id), status: ['covered', 'partial', 'missing'].includes(i.status) ? i.status : 'missing', where: i.where ?? '', note: i.note ?? '' })), accepted: prev } };
@@ -2216,7 +2235,7 @@ Respond with ONLY a JSON array, no markdown fences:
     const md = specText(key);
     const cov = reqCoverage?.[key];
     const violations = md ? checkRules(md, activeRules(ssCtx.settings, caseData.project_id)) : [];
-    return { stats: coverageStats(requirements, cov, violations), checked: !!cov?.at, current: !!cov?.at && cov.specHash === textHash(md), violations };
+    return { stats: coverageStats(requirements, cov, violations, covGate), checked: !!cov?.at, current: !!cov?.at && cov.specHash === textHash(md), violations };
   }
   // Regenerate the spec closing its open gaps and rule violations, then check it again.
   async function handleFixGaps(key) {
@@ -2252,8 +2271,8 @@ ${md}`;
         key === 'c' ? newMd : aiSpecC, key === 'c' && calc.d ? calc.d : aiSpecD,
         sapCheck, proposalCheck, { keepPrototype: true }).catch(() => {});
       setReqLoading(null);
-      await handleCheckCoverage(key, newMd);
-      await handleGenerationReview({ key, text: newMd }).catch(() => {});
+      if (pol.auto_steps.coverage_after_fix_gaps) await handleCheckCoverage(key, newMd);
+      if (pol.auto_steps.review_after_fix_gaps) await handleGenerationReview({ key, text: newMd }).catch(() => {});
     } catch (e) { setReqError(e.message); setReqLoading(null); }
   }
   // ── Consultant sign-off before anything goes to the customer ─
@@ -2267,11 +2286,11 @@ ${md}`;
     const late = genAt ? live.filter(q => q.status === 'answered' && q.at && q.at > genAt) : [];
     const pendingLinks = qLinks.filter(l => l.status === 'pending');
     return [
-      { key: 'coverage', ok: !!cv && cv.stats.total > 0 && cv.checked && cv.current && cv.stats.openGaps.length === 0,
+      { key: 'coverage', ok: !!cv && cv.stats.total > 0 && cv.checked && cv.current && cv.stats.coverageOk,
         label: L('Requirements covered (or gaps accepted)', 'Requerimientos cubiertos (o brechas aceptadas)'),
         detail: !cv ? L('No generated spec', 'No hay spec generada') : !cv.stats.total ? L('No requirements checklist', 'Sin checklist de requerimientos')
           : !cv.checked || !cv.current ? L('Coverage not checked on the current spec', 'Cobertura sin verificar en la spec actual')
-          : cv.stats.openGaps.length ? L(`${cv.stats.pct}% — ${cv.stats.openGaps.length} open gaps`, `${cv.stats.pct}% — ${cv.stats.openGaps.length} brechas abiertas`) : `${cv.stats.pct}%` },
+          : cv.stats.openGaps.length ? L(`${cv.stats.pct}% — ${cv.stats.openGaps.length} open gaps`, `${cv.stats.pct}% — ${cv.stats.openGaps.length} brechas abiertas`) + (pol.signoff.coverage_min_pct < 100 ? L(` (minimum ${pol.signoff.coverage_min_pct}%)`, ` (mínimo ${pol.signoff.coverage_min_pct}%)`) : '') : `${cv.stats.pct}%` },
       { key: 'rules', ok: !!cv && cv.stats.openRules.length === 0,
         label: L('Project mandatory rules met (or accepted)', 'Reglas obligatorias del proyecto cumplidas (o aceptadas)'),
         detail: cv?.stats.openRules.length ? cv.stats.openRules.map(v => v.text).join(' · ') : '' },
@@ -2285,7 +2304,7 @@ ${md}`;
       { key: 'answers_in_spec', ok: late.length === 0,
         label: L('The spec includes every answer received', 'La spec incluye todas las respuestas recibidas'),
         detail: late.length ? L(`Answers after the last generation: ${late.map(q => q.id).join(', ')} — regenerate`, `Respuestas posteriores a la última generación: ${late.map(q => q.id).join(', ')} — regenere`) : '' },
-    ];
+    ].map(c => ({ ...c, mode: pol.signoff.conditions[c.key] ?? 'required' }));   // 'warn': shown, does not block
   }
   const signoffValid = () => !!signoff?.at && signoff.specHash === specsHash();
   // Analysis steps run AFTER the last spec generation: the spec does not include them yet, and
@@ -2298,7 +2317,7 @@ ${md}`;
   }
   async function handleSignoff(on) {
     const next = on ? { by: auth.user?.id ?? null, name: auth.profile?.full_name ?? null, at: new Date().toISOString(), specHash: specsHash(), specKey: gateSpecKey(),
-      conditions: signoffConditions().map(c => ({ key: c.key, ok: c.ok, detail: c.detail })) } : null;
+      conditions: signoffConditions().map(c => ({ key: c.key, ok: c.ok, mode: c.mode, detail: c.detail })) } : null;
     setSignoff(next);
     try { await saveAiNotesPatch({ signoff: next }); } catch (_) {}
     if (on) logEvent?.('spec.signed_off', { entityType: 'case', entityId: caseData.id, entityName: caseData.title });
@@ -2307,7 +2326,7 @@ ${md}`;
   function sendGateOk() {
     if (!gateSpecKey()) return true;
     if (signoffValid()) return true;
-    const pending = signoffConditions().filter(c => !c.ok);
+    const pending = signoffConditions().filter(c => !c.ok && c.mode !== 'warn');
     alert(pending.length
       ? L(`The spec cannot be sent yet:\n${pending.map(c => `• ${c.label}${c.detail ? ` — ${c.detail}` : ''}`).join('\n')}`, `La spec todavía no se puede enviar:\n${pending.map(c => `• ${c.label}${c.detail ? ` — ${c.detail}` : ''}`).join('\n')}`)
       : signoff?.at ? L('The spec changed after the sign-off. Sign it off again before sending it.', 'La spec cambió después de la firma. Fírmela de nuevo antes de enviarla.')
@@ -2331,7 +2350,7 @@ ${md}`;
     return out;
   }
 
-  // Builds ALL doc blocks: case docs + project docs + ABAP standards (text capped at DOC_CHARS_TOTAL + 60k)
+  // Builds ALL doc blocks: case docs + project docs + ABAP standards (text capped at DOC_CHARS_TOTAL + doc_limits.combined_extra_chars)
   async function buildAllDocBlocks() {
     const [caseBlocks, abap] = await Promise.all([
       buildDocumentBlocks(),
@@ -2350,7 +2369,7 @@ ${md}`;
             const r = await fetch('/api/extract-text', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url: doc.url, fileName: doc.name, maxChars: 60000 }),
+              body: JSON.stringify({ url: doc.url, fileName: doc.name, maxChars: pol.doc_limits.project_doc_chars }),
               signal: ctrl.signal,
             });
             clearTimeout(tid);
@@ -2363,7 +2382,7 @@ ${md}`;
     // Case documents (the customer's requirement) first, then project documents and ABAP
     // standards. Cap the total text; anything cut is marked so the AI doesn't read it as complete.
     const all = [...caseBlocks, ...projBlocks, ...abap.blocks];
-    const CAP = DOC_CHARS_TOTAL + 60000;
+    const CAP = DOC_CHARS_TOTAL + pol.doc_limits.combined_extra_chars;
     let totalChars = 0;
     const capped = [];
     for (const block of all) {
@@ -2406,7 +2425,7 @@ ${md}`;
         const r = await fetch('/api/extract-text', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, fileName: hasExt ? name : name + '.pdf', maxChars: 40000 }),
+          body: JSON.stringify({ url, fileName: hasExt ? name : name + '.pdf', maxChars: pol.doc_limits.standards_chars }),
         });
         const { text } = r.ok ? await r.json() : {};
         if (text) blocks.push({ type: 'text', text: `[ABAP Standards Document: ${name}]\n${text}` });
@@ -3591,13 +3610,14 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
   useEffect(() => {
     const docs = compiledCtxExtra?.projectDocs;
     if (!docs?.length) return;
+    if (!pol.doc_summary.enabled) return;   // Settings → Spec quality (spec_analysis_policy.doc_summary)
     const unsummarized = docs.filter(d => d.text && !docSummaries[d.name]);
     if (!unsummarized.length) return;
     unsummarized.forEach(doc => {
       callClaude({ feature: 'spec_wizard', 
-        model: 'claude-haiku-5-5',
-        messages: [{ role: 'user', content: `Summarize this document in 2–3 concise sentences. Focus on what the document is about, its main topic, and any key details relevant to an SAP consulting project. Be specific.\n\nDocument name: ${doc.name}\n\n${doc.text.slice(0, 3000)}` }],
-        max_tokens: 200,
+        model: docSummaryModel(pol, ssCtx.settings),
+        messages: [{ role: 'user', content: `Summarize this document in 2–3 concise sentences. Focus on what the document is about, its main topic, and any key details relevant to an SAP consulting project. Be specific.\n\nDocument name: ${doc.name}\n\n${doc.text.slice(0, pol.doc_summary.input_chars)}` }],
+        max_tokens: pol.doc_summary.max_tokens,
       })
         .then(summary => setDocSummaries(prev => ({ ...prev, [doc.name]: summary })))
         .catch(() => setDocSummaries(prev => ({ ...prev, [doc.name]: '(summary unavailable)' })));
@@ -3723,15 +3743,16 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
           const detail = liveData.message ? ` (${liveData.message})` : liveData.error ? ` (HTTP ${liveData.error})` : '';
           throw new Error(`SAP live check failed — cannot generate documents without a live connection.${detail}`);
         }
-        extra.sapLiveData = liveData;
+        extra.sapLiveData = { ...liveData, sourceChars: pol.live_check.source_chars };
         // For modification/update cases, try to fetch existing ABAP object source
+        // (words and limits: Settings → Spec quality, spec_analysis_policy.live_check)
         const combinedText = caseData.title + ' ' + (caseData.description ?? '');
-        const isModification = /modif|updat|enhanc|extend|fix|correct|adjust/i.test(combinedText);
+        const isModification = !!modificationRegex(pol.live_check.modification_keywords)?.test(combinedText);
         if (isModification) {
           const objMatches = [...combinedText.matchAll(/\b([ZY][A-Z0-9_]{1,30})\b/g)]
             .map(m => m[1])
             .filter((v, i, a) => a.indexOf(v) === i)
-            .slice(0, 3);
+            .slice(0, pol.live_check.max_objects);
           if (objMatches.length) {
             const typeHint = detectSapObjectType(combinedText);
             const typesToTry = typeHint
@@ -4845,7 +4866,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ ...(notesRef.current ?? {}), specGeneratedAt: new Date().toISOString(), sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, requestSummary, activeProfile: genProfile, regenDiff: newDiff , hoursOverrides, scenarioCount: docScenariosRef.current }), title: caseData.title + t("spec.doc_title_suffix"), generation_log: updatedLog });
         setGenLog(updatedLog);
         // In sequence: coverage of the new spec first, then the rest (prototype), then the review.
-        if ((specC || specA) && inScope(requirements).length) { genCoverageP = handleCheckCoverage(specC ? 'c' : 'a', specC || specA); try { await genCoverageP; } catch (_) {} }
+        if (pol.auto_steps.coverage_after_generation && (specC || specA) && inScope(requirements).length) { genCoverageP = handleCheckCoverage(specC ? 'c' : 'a', specC || specA); try { await genCoverageP; } catch (_) {} }
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (e) {
         // Never lose a generated spec silently — the text is still on screen, so say it wasn't stored.
@@ -4913,7 +4934,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
 
       if (autoSubmit) await refetch();
       // Review of the generation, once every document (and the coverage check) is done.
-      if (specC || specA) {
+      if ((specC || specA) && pol.auto_steps.review_after_generation) {
         try { await genCoverageP; } catch (_) {}
         await handleGenerationReview({ key: specC ? 'c' : 'a', text: specC || specA }).catch(() => {});
       }
@@ -5195,8 +5216,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     // The gate spec was regenerated: coverage, then the review (in sequence).
     const gk = newSpecs.c ? 'c' : (newSpecs.a && !aiSpecC) ? 'a' : null;
     if (gk && inScope(requirements).length) {
-      try { await handleCheckCoverage(gk, newSpecs[gk]); } catch (_) {}
-      await handleGenerationReview({ key: gk, text: newSpecs[gk] }).catch(() => {});
+      if (pol.auto_steps.coverage_after_generation) { try { await handleCheckCoverage(gk, newSpecs[gk]); } catch (_) {} }
+      if (pol.auto_steps.review_after_generation) await handleGenerationReview({ key: gk, text: newSpecs[gk] }).catch(() => {});
     }
     setGeneratingSpecs(false);
   }
@@ -5260,8 +5281,8 @@ Keep it concise: at most 8 standard_transactions and 8 gaps, each under 25 words
       const raw = await callClaude({ feature: 'sap_coverage', 
         model: analysisModel, system: sysSap,
         messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
-        max_tokens: 4000,
-      }).catch(_ => callClaude({ feature: 'sap_coverage',  model: analysisModel, system: sysSap, messages: [{ role: 'user', content: prompt + sapPdfNote }], max_tokens: 4000 }));
+        max_tokens: pol.max_tokens.sap_coverage,
+      }).catch(_ => callClaude({ feature: 'sap_coverage',  model: analysisModel, system: sysSap, messages: [{ role: 'user', content: prompt + sapPdfNote }], max_tokens: pol.max_tokens.sap_coverage }));
       let parsed;
       try { parsed = JSON.parse(raw.trim()); } catch (_) {
         const m = raw.match(/\{[\s\S]*\}/);
@@ -5320,8 +5341,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
       const raw = await callClaude({ feature: 'proposal_validation', 
         model: analysisModel, system: sysProp,
         messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
-        max_tokens: 4000,
-      }).catch(_ => callClaude({ feature: 'proposal_validation',  model: analysisModel, system: sysProp, messages: [{ role: 'user', content: prompt + propPdfNote }], max_tokens: 4000 }));
+        max_tokens: pol.max_tokens.validation,
+      }).catch(_ => callClaude({ feature: 'proposal_validation',  model: analysisModel, system: sysProp, messages: [{ role: 'user', content: prompt + propPdfNote }], max_tokens: pol.max_tokens.validation }));
       let parsed;
       try { parsed = JSON.parse(raw.trim()); } catch (_) {
         const m = raw.match(/\{[\s\S]*\}/);
@@ -6997,8 +7018,8 @@ ${sectionBlocks}`;
                   const result = await callClaude({ feature: 'context_analyze', 
                     model: analysisModel, system,
                     messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
-                    max_tokens: 3000,
-                  }).catch(_ => callClaude({ feature: 'context_analyze',  model: analysisModel, system, messages: [{ role: 'user', content: prompt }], max_tokens: 3000 }));
+                    max_tokens: pol.max_tokens.summary,
+                  }).catch(_ => callClaude({ feature: 'context_analyze',  model: analysisModel, system, messages: [{ role: 'user', content: prompt }], max_tokens: pol.max_tokens.summary }));
 
                   // SAP object verification — only when a live SAP MCP connection is available
                   // and pipeline policy allows MCP at the analyze stage
@@ -7063,7 +7084,7 @@ ${result}`;
                         model: analysisModel,
                         system: 'You are an SAP consultant with live, read-only system access. Use the SAP tools to verify object existence, API release state (Clean Core) and existing extensions. Never change anything in the system. Be concise.',
                         messages: [{ role: 'user', content: sapObjPrompt }],
-                        max_tokens: 4000,
+                        max_tokens: pol.max_tokens.live_check_objects,
                         mcp_servers: mcpServers,
                       }).catch(() => null);
                       if (sapObjResult) fullResult = result + '\n\n' + sapObjResult;
@@ -7101,7 +7122,7 @@ OBJECTS ALREADY CHECKED:
 ${sapObjResult}`;
                         const dataResult = await callClaude({ feature: 'sap_live_check', model: analysisModel,
                           system: 'You are an SAP consultant verifying test data in a live system with read-only queries. Never change anything. Be precise and concise.',
-                          messages: [{ role: 'user', content: dataPrompt }], max_tokens: 4000, mcp_servers: mcpServers }).catch(() => null);
+                          messages: [{ role: 'user', content: dataPrompt }], max_tokens: pol.max_tokens.live_check_data, mcp_servers: mcpServers }).catch(() => null);
                         supabase.rpc('log_sap_op', { p_case: caseData.id, p_kind: 'live_check' }).then(() => {}, () => {});
                         fullResult += dataResult ? `\n\n${dataResult}` : `\n\n## ${lang === 'es' ? 'Datos verificados en el sistema' : 'Verified system data'}\n${lang === 'es' ? 'No se pudo completar la verificación de datos de prueba (la consulta a SAP no devolvió resultado).' : 'The test data check could not be completed (the SAP query returned no result).'}`;
                       }
@@ -7226,12 +7247,13 @@ ${sapObjResult}`;
 
                   <RequirementsChecklist requirements={requirements} onChange={saveRequirements}
                     onExtract={() => handleExtractRequirements()} loading={reqLoading === 'extract'} error={reqError}
+                    warning={truncMsg('requirements', 'apply_answers')} kinds={pol.requirement_kinds}
                     canEdit={canEditReqs()} state={analysisState('requirements')} L={L} lang={lang} who={auth.user?.id ?? null}
                     answeredCount={questions.filter(q => q.status === 'answered').length} onApplyAnswers={handleApplyAnswers} applying={applyingAnswers}
                     proposals={answerProposals} onConfirmProposals={confirmAnswerProposals} onDiscardProposals={() => setAnswerProposals(null)} />
                   {/* Questions for the customer (also its own node) */}
                   <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
-                      loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
+                      loading={qLoading} error={qError} warning={truncMsg('questions')} areas={pol.question_areas} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
                       who={{ id: auth.user?.id ?? null, name: auth.profile?.full_name ?? null }} links={qLinks}
                       onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
                   {/* Global review and next steps (runs after the questions) */}
@@ -7314,6 +7336,8 @@ ${sapObjResult}`;
                                             <div className="ml-4 text-[11px] text-gray-500 leading-snug">
                                               {summary
                                                 ? summary
+                                                : d.text && !pol.doc_summary.enabled
+                                                  ? <span className="text-gray-400 italic">{L('Automatic summary off (Settings → Spec quality)', 'Resumen automático desactivado (Configuración → Calidad de spec)')}</span>
                                                 : d.text
                                                   ? <span className="flex items-center gap-1 text-gray-400 italic"><MiniSpin /><span>Summarizing…</span></span>
                                                   : <span className="text-gray-400 italic">Binary file — content not extractable as text</span>
@@ -7397,7 +7421,7 @@ ${sapObjResult}`;
                         'Contradicciones, ambigüedades e información faltante encontradas en los documentos. Envíe las abiertas al cliente: recibe un enlace para responder sin iniciar sesión, y los usuarios del cliente en el caso también las ven en la aplicación, en Mis revisiones. Las respuestas vuelven aquí solas y se usan al generar; las preguntas abiertas quedan como supuestos en la spec.')}</p>
                 </div>
                   <QuestionsPanel questions={questions} onChange={saveQuestions} onExtract={() => handleExtractQuestions()}
-                    loading={qLoading} error={qError} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
+                    loading={qLoading} error={qError} warning={truncMsg('questions')} areas={pol.question_areas} canEdit={canEditReqs()} state={analysisState('questions')} L={L} lang={lang}
                     who={{ id: auth.user?.id ?? null, name: auth.profile?.full_name ?? null }} links={qLinks}
                     onSendLink={sendQuestionsLink} onCopyLink={copyQuestionsLink} onRevokeLink={revokeQuestionsLink} copiedId={qCopied} />
               </div>
@@ -7863,6 +7887,7 @@ ${sapObjResult}`;
                                 onCheck={() => handleCheckCoverage(k)} onFix={() => handleFixGaps(k)}
                                 onAccept={(gk, reason) => setGapAccepted(k, gk, reason)} onUnaccept={gk => setGapAccepted(k, gk, null)} />
                               {reqError && <p className="mb-3 text-xs text-red-500">{reqError}</p>}
+                              {truncMsg('coverage') && <p className="mb-3 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-2 py-1">{truncMsg('coverage')}</p>}
                             </>
                           );
                         })()}

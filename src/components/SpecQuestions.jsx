@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { HelpCircle, RefreshCw, Plus, Send, Copy, Check, Ban, Undo2, ChevronDown } from "lucide-react";
 import { usePersistedOpen, SectionHeader } from "./SpecRequirements.jsx";
-import { Q_KINDS, Q_KIND_LABEL, Q_AREAS, qAreaName, areaOf, askableQuestions, liveQuestions, openQuestions } from "../lib/questions.js";
+import { Q_KINDS, Q_KIND_LABEL, qAreaKeys, qAreaName as qAreaNameBase, areaOf as areaOfBase, askableQuestions, liveQuestions, openQuestions } from "../lib/questions.js";
 
 // Textarea that grows with its text (no inner scroll, nothing cut off).
 function AutoTextarea({ value, onChange, className = '', minRows = 2, ...rest }) {
@@ -61,8 +61,11 @@ const STATUS_CLS = {
   acknowledged: 'bg-blue-50 text-blue-700 border-blue-200', discarded: 'bg-gray-50 text-gray-500 border-gray-200',
 };
 
-export function QuestionsPanel({ questions, onChange, onExtract, loading, error, canEdit, state, L, lang, who, links, onSendLink, onCopyLink, onRevokeLink, copiedId }) {
+export function QuestionsPanel({ questions, onChange, onExtract, loading, error, warning, areas, canEdit, state, L, lang, who, links, onSendLink, onCopyLink, onRevokeLink, copiedId }) {
   const [open, setOpen] = usePersistedOpen('genctx2_questions_open', false);
+  // Areas from Settings → Spec quality (spec_analysis_policy.question_areas); defaults when not given.
+  const qAreaName = (a, lg) => qAreaNameBase(a, lg, areas);
+  const areaOf = q => areaOfBase(q, areas);
   const [answerFor, setAnswerFor] = useState(null);
   const [answer, setAnswer] = useState('');
   const [confirmMode, setConfirmMode] = useState(false);   // answer box opened by "Confirm assumption"
@@ -77,10 +80,11 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
   const nOpen = openQuestions(list).length;
   const [areaFilter, setAreaFilter] = useState(null);
   const askable = askableQuestions(list);
-  const byArea = Q_AREAS.map(a => ({ area: a, n: askable.filter(q => areaOf(q) === a).length, total: liveQuestions(list).filter(q => areaOf(q) === a).length })).filter(x => x.total > 0);
+  const byArea = qAreaKeys(areas).map(a => ({ area: a, n: askable.filter(q => areaOf(q) === a).length, total: liveQuestions(list).filter(q => areaOf(q) === a).length })).filter(x => x.total > 0);
   const AREA_CLS = { functional: 'bg-blue-50 text-blue-700 border-blue-200', abap: 'bg-violet-50 text-violet-700 border-violet-200', basis: 'bg-slate-100 text-slate-700 border-slate-300',
     security: 'bg-red-50 text-red-700 border-red-200', integration: 'bg-teal-50 text-teal-700 border-teal-200', data: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     testing: 'bg-amber-50 text-amber-700 border-amber-200', management: 'bg-gray-100 text-gray-700 border-gray-300' };
+  const areaCls = a => AREA_CLS[a] ?? 'bg-gray-50 text-gray-700 border-gray-200';
   const shown = areaFilter ? list.filter(q => areaOf(q) === areaFilter) : list;
   const [flash, setFlash] = useState(null);
   useEffect(() => {
@@ -106,12 +110,13 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
           canEdit && { Icon: RefreshCw, title: list.length ? L('Look for questions again', 'Buscar preguntas de nuevo') : L('Find questions', 'Buscar preguntas'), onClick: onExtract, loading, primary: true },
         ]} />
       {error && <p className="text-xs text-red-500">{error}</p>}
+      {warning && <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-2 py-1">{warning}</p>}
       {open && byArea.length > 0 && (
         <div className="space-y-1">
           <p className="text-[11px] text-gray-500">{L('By area (answered / total) — filter the list, or send each area its own link with its pending questions:', 'Por área (respondidas / total) — filtra la lista, o envía a cada área su propio enlace con sus preguntas pendientes:')}</p>
           <div className="flex flex-wrap gap-1.5">
             {byArea.map(x => (
-              <span key={x.area} className={`inline-flex items-center rounded-lg border text-[11px] overflow-hidden ${AREA_CLS[x.area]} ${areaFilter === x.area ? 'ring-2 ring-blue-300' : ''}`}>
+              <span key={x.area} className={`inline-flex items-center rounded-lg border text-[11px] overflow-hidden ${areaCls(x.area)} ${areaFilter === x.area ? 'ring-2 ring-blue-300' : ''}`}>
                 <button onClick={() => { setAreaFilter(f => (f === x.area ? null : x.area)); setOpen(true); }} className="px-2 py-1 font-semibold inline-flex items-center gap-1"
                   title={L(`${x.total - x.n} of ${x.total} answered · ${x.n} pending`, `${x.total - x.n} de ${x.total} respondidas · ${x.n} pendientes`)}>
                   {x.n === 0 && <Check size={11} />}{qAreaName(x.area, lang)} · {x.total - x.n}/{x.total}
@@ -132,7 +137,7 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
           {byArea.filter(x => x.n > 0).map(x => (
             <div key={x.area} className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${AREA_CLS[x.area]}`}>{qAreaName(x.area, lang)}</span>
+                <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${areaCls(x.area)}`}>{qAreaName(x.area, lang)}</span>
                 <span className="text-[11px] text-gray-500">{L(`${x.total - x.n}/${x.total} answered · ${x.n} pending`, `${x.total - x.n}/${x.total} respondidas · ${x.n} pendientes`)}</span>
                 {canEdit && (
                   <button onClick={() => onSendLink(x.area)} className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:underline"><Send size={11} />{L('Link for this area', 'Enlace para esta área')}</button>
@@ -164,7 +169,7 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
                 <span className={`px-1.5 py-0.5 rounded-full font-semibold ${l.status === 'answered' ? 'bg-emerald-100 text-emerald-700' : l.status === 'revoked' ? 'bg-gray-200 text-gray-500' : 'bg-blue-100 text-blue-700'}`}>
                   {l.status === 'answered' ? L('Answered', 'Respondido') : l.status === 'revoked' ? L('Revoked', 'Revocado') : L('Waiting for the customer', 'Esperando al cliente')}
                 </span>
-                {l.platform?.area && <span className={`px-1.5 py-0.5 rounded border font-semibold ${AREA_CLS[l.platform.area] ?? ''}`}>{qAreaName(l.platform.area, lang)}</span>}
+                {l.platform?.area && <span className={`px-1.5 py-0.5 rounded border font-semibold ${areaCls(l.platform.area)}`}>{l.platform.area_label?.[lang === 'es' ? 1 : 0] || qAreaName(l.platform.area, lang)}</span>}
                 <span className="text-gray-600 flex-1">{L('Sent', 'Enviado')} {new Date(l.created_at).toLocaleDateString()} · {(l.questions ?? []).length} {L('questions', 'preguntas')} · {n} {L('answered', 'respondidas')}{l.customer_name ? ` · ${l.customer_name}` : ''}</span>
                 {l.status === 'pending' && (
                   <>
@@ -197,10 +202,10 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
                         : <span className="text-[11px] text-gray-500">{kindName(q.kind, lang)}</span>}
                       {canEdit && q.status !== 'answered' && q.status !== 'discarded'
                         ? <select value={areaOf(q)} onChange={e => upd(q.id, { area: e.target.value })} title={L('Who has to answer it', 'Quién debe responderla')}
-                            className={`px-1 py-0.5 border rounded text-[11px] font-semibold ${AREA_CLS[areaOf(q)]}`}>
-                            {Q_AREAS.map(a => <option key={a} value={a}>{qAreaName(a, lang)}</option>)}
+                            className={`px-1 py-0.5 border rounded text-[11px] font-semibold ${areaCls(areaOf(q))}`}>
+                            {qAreaKeys(areas).map(a => <option key={a} value={a}>{qAreaName(a, lang)}</option>)}
                           </select>
-                        : <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${AREA_CLS[areaOf(q)]}`}>{qAreaName(areaOf(q), lang)}</span>}
+                        : <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${areaCls(areaOf(q))}`}>{qAreaName(areaOf(q), lang)}</span>}
                       {q.affects?.length > 0 && <span className="text-[11px] text-gray-500">{L('Affects', 'Afecta')}: <QRefText text={q.affects.join(', ')} /></span>}
                     </div>
                     {canEdit && q.status === 'open'
