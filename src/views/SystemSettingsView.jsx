@@ -1617,7 +1617,7 @@ function SettingsRolesTab({ ssCtx }) {
               <GIcon size={15} className="text-blue-500" />
               <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{group.label}</h3>
             </div>
-            <PermTable caps={group.caps} />
+            {PermTable({ caps: group.caps })}
           </div>
         );
       })}
