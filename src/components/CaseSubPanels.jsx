@@ -5367,10 +5367,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
       await saveSpec({ status: 'approved', approved_by: auth.user?.id, approved_at: new Date().toISOString(), rejected_reason: null });
       // Which spec was approved (the development plan is built from it — System settings → Spec quality).
       if (gateSpecKey()) await saveAiNotesPatch({ approvedSpec: gateSpecKey() }).catch(() => {});
-      await supabase.from('cases').update({ status: 'estimated' }).eq('id', caseData.id);
-      logEvent('spec.approved', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, oldValue: { status: 'ai' }, newValue: { status: 'estimated' } });
+      // A re-approval after "Reopen spec" keeps the case where it is (e.g. In progress); only the first
+      // approval moves it to Estimated.
+      const _reapproval = (notesRef.current?.reopenHistory?.length ?? 0) > 0;
+      if (!_reapproval) await supabase.from('cases').update({ status: 'estimated' }).eq('id', caseData.id);
+      logEvent('spec.approved', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, oldValue: { status: 'ai' }, newValue: { status: _reapproval ? caseData.status : 'estimated', reapproval: _reapproval } });
       await refetch();
-      onUpdate?.(caseData.id, { status: 'estimated' });
+      if (!_reapproval) onUpdate?.(caseData.id, { status: 'estimated' });
 
       // Notify + email for records
       const caseTitle   = caseData.title ?? 'a case';
@@ -5403,6 +5406,48 @@ Respond with ONLY a valid JSON object, no markdown fences:
     } catch (e) { alert(e.message); }
     setApproving(false);
   }
+
+  // Admin: reopen an approved spec as a new version. The approved text is kept as a document of the
+  // case ("SpecAprobada_v<n>_…", not touched by later spec saves); the spec goes back to draft so the
+  // analysis and the specs can be run again; the case stage does not change.
+  const [reopening, setReopening] = useState(false);
+  async function handleReopenSpec() {
+    if (!auth.isAdmin || spec?.status !== 'approved') return;
+    if (!window.confirm(L('Reopen the approved spec as a new version? The approved version is saved in Documents, the spec goes back to draft and must be approved again. The case stage does not change.',
+      '¿Reabrir la spec aprobada como nueva versión? La versión aprobada se guarda en Documentos, la spec vuelve a borrador y deberá aprobarse de nuevo. La etapa del caso no cambia.'))) return;
+    setReopening(true);
+    try {
+      const n = notesRef.current ?? (() => { try { return JSON.parse(spec.notes ?? '{}') ?? {}; } catch { return {}; } })();
+      const key = n.approvedSpec || n.signoff?.specKey || 'c';
+      const text = n[`spec${String(key).toUpperCase()}`] || spec.content || '';
+      const version = (n.reopenHistory?.length ?? 0) + 1;
+      if (text.trim()) {
+        const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const html = buildCaseDocHtml(`Spec ${String(key).toUpperCase()} — ${L('approved version', 'versión aprobada')} v${version}`, 'SAP Consulting · ' + t("spec.html_title"),
+          [{ label: t("spec.label_case_id"), value: '#' + (caseData.id ?? '').slice(0, 8) },
+           { label: L('Approved', 'Aprobada'), value: spec.approved_at ? fmtDate(spec.approved_at) : '—' }], text);
+        await addDocument(new File([html], `SpecAprobada_v${version}_${String(key).toUpperCase()}_${safeName}_${dateStr}.html`, { type: 'text/html' }),
+          L(`Approved spec ${String(key).toUpperCase()} v${version} (before reopening)`, `Spec ${String(key).toUpperCase()} aprobada v${version} (antes de reabrir)`));
+        if (refetchDocuments) await refetchDocuments();
+      }
+      const entry = { at: new Date().toISOString(), by: auth.user?.id ?? null, approvedAt: spec.approved_at ?? null, approvedSpec: key, version };
+      await saveAiNotesPatch({ reopenHistory: [...(n.reopenHistory ?? []), entry], approvedSpec: null, signoff: null });
+      await saveSpec({ status: 'draft', approved_by: null, approved_at: null, rejected_reason: null });
+      logEvent('spec.reopened', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, oldValue: { status: 'approved' }, newValue: { status: 'draft', version } });
+      setApprovalStep('generated');
+      await refetch();
+    } catch (e) { alert(e.message); }
+    setReopening(false);
+  }
+  const ReopenSpecButton = () => (auth.isAdmin && spec?.status === 'approved') ? (
+    <button onClick={handleReopenSpec} disabled={reopening}
+      title={L('Admins: back to draft as a new version; the approved version is kept in Documents', 'Solo admin: vuelve a borrador como nueva versión; la versión aprobada queda en Documentos')}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-amber-300 text-amber-700 dark:text-amber-300 dark:border-amber-500/40 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-500/10 disabled:opacity-50 flex-shrink-0">
+      <RotateCcw size={12} className={reopening ? 'animate-spin' : ''} />
+      {reopening ? L('Reopening…', 'Reabriendo…') : L('Reopen spec (new version)', 'Reabrir spec (nueva versión)')}
+    </button>
+  ) : null;
 
   async function handleReject() {
     if (!rejectReason.trim()) return;
@@ -5490,6 +5535,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <p className="font-semibold text-green-800 text-sm">{t("spec.approved_title")}</p>
               {spec.approved_at && <p className="text-xs text-green-600 mt-0.5">{t("spec.approved_on").replace("{n}", fmtDate(spec.approved_at))}</p>}
             </div>
+            <div className="ml-auto">{ReopenSpecButton()}</div>
           </div>
         )}
         {spec.status === 'submitted' && (
@@ -6773,6 +6819,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         <div>
                           <p className="font-semibold text-green-800 text-sm">{t("spec.approved_title")}</p>
                           {spec.approved_at && <p className="text-xs text-green-600 mt-0.5">{t("spec.approved_on").replace("{n}", fmtDate(spec.approved_at))}</p>}
+                          {auth.isAdmin && <div className="mt-2">{ReopenSpecButton()}</div>}
                           {genLog.length > 0 && (
                             <p className="text-xs text-green-500 mt-1">{L(`${genLog.length} generation iteration${genLog.length !== 1 ? 's' : ''} to reach approval`, `${genLog.length} iteración(es) hasta la aprobación`)}</p>
                           )}
