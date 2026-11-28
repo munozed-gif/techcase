@@ -1215,6 +1215,7 @@ const CAP_ICONS = {
   manage_db_connections:      Database,
   manage_team_members:        UserPlus,
   manage_migrations:          Rocket,
+  auto_assign_creator:        UserCheck,
 };
 
 function SettingsRolesTab({ ssCtx }) {
@@ -1336,7 +1337,7 @@ function SettingsRolesTab({ ssCtx }) {
   }
 
   const PERM_GROUPS = [
-    { label: "Cases",               icon: FolderOpen,  caps: ["create_cases","view_all_cases","apply_to_cases","arena_see_all_cases","reopen_cases","add_subcases","bulk_edit_cases","move_kanban_cards","view_case_costs","change_case_sap_env","invite_case_client","manage_case_consultants","manage_milestones","post_internal_comments","save_as_template"] },
+    { label: "Cases",               icon: FolderOpen,  caps: ["create_cases","view_all_cases","apply_to_cases","arena_see_all_cases","reopen_cases","add_subcases","bulk_edit_cases","move_kanban_cards","view_case_costs","change_case_sap_env","invite_case_client","manage_case_consultants","manage_milestones","post_internal_comments","save_as_template","auto_assign_creator"] },
     { label: "Documents & Specs",   icon: FileText,    caps: ["upload_docs","view_docs","delete_docs","delete_own_docs","approve_specs","regen_specs","submit_specs","generate_dev_plan","export_pdf_docs","approve_asbuilt_spec"] },
     { label: "SAP Implementation", icon: Zap,         caps: ["run_sap_implementation","edit_sap_setup","release_transports","confirm_transport_imports"] },
     { label: "Activities & Time",   icon: ListChecks,  caps: ["add_activities","log_time","approve_time","delete_time_entries","edit_activity_phase","edit_activity_predecessors","bulk_delete_activities","bulk_delete_subcases"] },

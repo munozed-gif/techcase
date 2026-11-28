@@ -18,6 +18,7 @@ import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
+import { ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Select, Textarea } from "../components/ui.jsx";
 import { PRIORITY_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_PRIORITIES, SLA_UNIT_LABELS, SlaMatrixEditor, cap, fmtDate } from "../lib/uiUtils.jsx";
@@ -376,6 +377,12 @@ function RequiredRolesBuilder({ roles, onChange, catalogSkills, applicationMode 
 
 function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null, presetData = null, defaultMode = null }) {
   const { t } = useT();
+  // Settings → Roles → "Assign me to the cases I create". Read as stored, without the admin override
+  // of can(), so an admin is only assigned when the matrix says so.
+  const { settings: _rpSettings } = useSystemSettings();
+  const _myRole = auth.profile?.role ?? null;
+  const autoAssignCreator = !!_myRole && (_rpSettings?.role_permissions?.auto_assign_creator?.[_myRole]
+    ?? ROLE_PERMISSIONS_DEFAULTS.auto_assign_creator?.[_myRole] ?? false) === true;
   const { settings: catalogSettings } = useSystemSettings();
   const planCfg = usePlanConfig();
   const SKILL_DEFAULTS = ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"];
@@ -776,7 +783,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             }
           }
         }
-        const newCase = await createCase(payload, { autoAssignCreator: auth.isConsultant && !!auth.user?.id });
+        const newCase = await createCase(payload, { autoAssignCreator: !!auth.user?.id && autoAssignCreator });
         if (newCase?.id) {
           if (caseVisMode !== 'public') {
             await _visCfg.setCaseVisibility(newCase.id, caseVisMode);
