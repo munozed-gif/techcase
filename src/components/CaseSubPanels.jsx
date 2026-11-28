@@ -47,7 +47,7 @@ import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES,
   DEFAULT_ACTIVITY_PHASES, ROLE_COLORS,
 } from "../lib/businessConstants.js";
-import { sapLiveCheck, sapFetchSource, detectSapObjectType } from "../components/SapPanels.jsx";
+import { sapLiveCheck, sapFetchSource, detectSapObjectType, sapCapabilitiesNote } from "../components/SapPanels.jsx";
 import AsBuiltSpecPanel from "./AsBuiltSpecPanel.jsx";
 
 function ProjectFieldEditor({ caseData, auth }) {
@@ -4696,7 +4696,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const _allMcpServers     = await buildMcpConfig(freshMcpUrl);
       const mcpServers         = _specsStage.use_mcp ? _allMcpServers : [];
       const mcpNote = mcpServers.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
-      const mcpRulesNote = (mcpServers.length && _specsStage.include_mcp_rules && sapMcpRules) ? `\n\n${sapMcpRules}` : '';
+      const mcpRulesNote = ((mcpServers.length && _specsStage.include_mcp_rules && sapMcpRules) ? `\n\n${sapMcpRules}` : '')
+        + (_specsStage.include_capabilities ? `\n\n${sapCapabilitiesNote(ssCtx.settings)}` : '');
       const callSpec = async (rawPrompt, extraBlocks = []) => {
         const prompt = sanitizeForJson(rawPrompt);
         const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${sysLiveNote}${mcpNote}${mcpRulesNote}`;

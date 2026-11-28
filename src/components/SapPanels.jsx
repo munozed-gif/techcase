@@ -399,6 +399,28 @@ async function buildSapMcpToken(sapConfig, serverTypeOverride) {
  * Build the mcp_servers array for callClaude when a SAP env + MCP server URL are configured.
  * Returns undefined when either is missing so callClaude falls back to plain generation.
  */
+/** Options of one pipeline stage (Settings → SAP MCP Policy → Pipeline). */
+function pipelineStage(settings, stage) {
+  const stored = (settings?.['mcp_adt_pipeline_policy'] ?? {}).stages?.[stage] ?? {};
+  return { ...(MCP_ADT_PIPELINE_POLICY_DEFAULTS.stages[stage] ?? {}), ...stored };
+}
+
+/** Prompt note with the SAP system's capabilities (Settings → SAP MCP Policy → Capabilities). */
+function sapCapabilitiesNote(settings) {
+  const c = { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(settings?.['sap_adt_capabilities'] ?? {}) };
+  const yn = v => (v ? 'yes' : 'no');
+  return `SAP SYSTEM CAPABILITIES (use only what is available): S/4HANA ${yn(c.isS4Hana)}; NetWeaver 7.54+ (CDS views) ${yn(c.netWeaver754)}; `
+    + `transport creation via CTS ${yn(c.hasCts)}; syntax check ${yn(c.hasSyntaxCheck)}; activation ${yn(c.hasActivation)}.`;
+}
+
+/** Extra prompt text for a stage: the MCP rules and/or the capabilities, as configured. */
+function stagePromptExtras(settings, stage) {
+  const st = pipelineStage(settings, stage);
+  const rules = String(settings?.['sap_mcp_rules'] ?? '').trim();
+  return (st.include_mcp_rules && rules ? `\n\nSAP MCP RULES:\n${rules}` : '')
+    + (st.include_capabilities ? `\n\n${sapCapabilitiesNote(settings)}` : '');
+}
+
 async function buildSapMcpConfig(sapConfig, mcpServerUrl) {
   if (!sapConfig?.host) return undefined;
 
@@ -5682,12 +5704,16 @@ Return ONLY a valid JSON array (no markdown, no explanation). Each object must h
 - aiCapable: boolean (always false for type "config")
 - dependsOn: array of names of other objects in this list this depends on
 
-Suggest 5-15 objects covering the full scope.`;
+Suggest 5-15 objects covering the full scope.${stagePromptExtras(settings, 'blueprint')}`;
 
+      const _bpStage = pipelineStage(settings, 'blueprint');
+      const _bpIsAdt = ['abap-adt', 'abap-adt-readonly', 'abap-adt-both'].includes(sapConfig?.mcp_type);
+      const _bpMcp = _bpStage.use_mcp && !_bpIsAdt && sapConfig ? await buildSapMcpConfig(sapConfig, sapConfig?.mcp_server_url?.trim() || settings['sap_mcp_server_url'] || '').catch(() => undefined) : undefined;
       const resp = await callClaude({ feature: 'blueprint', 
         model: genModel,
         system: 'You are an expert SAP architect. Return only valid JSON arrays, no markdown.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+        ...(_bpMcp?.length ? { mcp_servers: _bpMcp } : {}),
         max_tokens: 8192,
       });
       const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
@@ -5750,12 +5776,16 @@ Return ONLY a valid JSON array (no markdown, no explanation). Each object must h
 - aiCapable: boolean (always false for type "config")
 - dependsOn: array of names of other objects in this list this depends on
 
-Suggest 5-15 objects covering the full scope of the described solution.`;
+Suggest 5-15 objects covering the full scope of the described solution.${stagePromptExtras(settings, 'blueprint')}`;
     try {
+      const _nlStage = pipelineStage(settings, 'blueprint');
+      const _nlIsAdt = ['abap-adt', 'abap-adt-readonly', 'abap-adt-both'].includes(sapConfig?.mcp_type);
+      const _nlMcp = _nlStage.use_mcp && !_nlIsAdt && sapConfig ? await buildSapMcpConfig(sapConfig, sapConfig?.mcp_server_url?.trim() || settings['sap_mcp_server_url'] || '').catch(() => undefined) : undefined;
       const resp = await callClaude({ feature: 'blueprint', 
         model: genModel,
         system: 'You are an expert SAP architect. Return only valid JSON arrays, no markdown.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+        ...(_nlMcp?.length ? { mcp_servers: _nlMcp } : {}),
         max_tokens: 8192,
       });
       const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
@@ -6046,14 +6076,15 @@ Output ONLY the ABAP source code, no explanations.`;
         // Feedback written in the pipeline's Results step ("What do you want to change or add
         // to the next run?"), plus the previous version when the object is being regenerated.
         const runFeedback = (runFeedbackRef.current ?? (settings['sap_impl_feedback'] ?? {})[caseId] ?? '').trim();
-        const prompt = basePrompt
+        const prompt = basePrompt + stagePromptExtras(settings, 'implement')
           + (runFeedback ? `\n\nFEEDBACK FROM PREVIOUS RUNS — apply it to this object where relevant:\n${runFeedback}` : '')
           + (obj.previousCode ? `\n\nPREVIOUS VERSION OF ${obj.name} (revise it per the feedback; keep what still applies):\n${String(obj.previousCode).slice(0, 12000)}` : '');
         if (runFeedback) addLog(`${obj.name}: applying run feedback${obj.previousCode ? ' to the previous version' : ''}.`, 'generating');
         // In ADT mode, Cloudflare quick tunnels block SSE from Anthropic's servers,
         // so MCP for generation never works. Skip it — generation goes directly.
         // The write step uses the bridge's own MCP subprocess pool (not SSE).
-        const genMcpServers = isAdtMode ? undefined : await buildSapMcpConfig(sapConfig, freshMcpUrl);
+        // Settings → SAP MCP Policy → Pipeline → Implement → "Use MCP" turns it off.
+        const genMcpServers = (isAdtMode || !pipelineStage(settings, 'implement').use_mcp) ? undefined : await buildSapMcpConfig(sapConfig, freshMcpUrl);
         const callArgs = {
           model: genModel,
           system: ddicPrompt
@@ -9338,4 +9369,4 @@ function SapMcpPolicyPanel({ auth }) {
   );
 }
 
-export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource, detectSapObjectType, SapMcpPolicyPanel, SAP_ADT_WRITE_POLICY_DEFAULTS, SAP_ADT_CAPABILITIES_DEFAULTS, SAP_MCP_RULES_DEFAULTS, SAP_ADT_OBJECT_MAP_DEFAULTS, resolveObjectTypeConfig, MCP_ADT_PIPELINE_POLICY_DEFAULTS, ABAP_CLOUD_ADT_OBJECT_MAP_PRESET };
+export { useClientProfile, sapCapabilitiesNote, pipelineStage, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource, detectSapObjectType, SapMcpPolicyPanel, SAP_ADT_WRITE_POLICY_DEFAULTS, SAP_ADT_CAPABILITIES_DEFAULTS, SAP_MCP_RULES_DEFAULTS, SAP_ADT_OBJECT_MAP_DEFAULTS, resolveObjectTypeConfig, MCP_ADT_PIPELINE_POLICY_DEFAULTS, ABAP_CLOUD_ADT_OBJECT_MAP_PRESET };
