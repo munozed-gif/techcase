@@ -1043,9 +1043,19 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const sapMcpServerUrl = (ssCtx.settings["sap_mcp_server_url"] ?? '').trim();
   const sapMcpRules = (ssCtx.settings["sap_mcp_rules"] ?? '').trim();
   const _protoRaw  = ssCtx.settings["prototype_model"];
-  const _SAFE      = 'claude-haiku-5-5';
-  const _ALIASES   = { 'claude-haiku-4-5': _SAFE, 'claude-haiku-4-5-20251001': _SAFE, 'claude-haiku-5-5': _SAFE, 'claude-sonnet-4-5': _SAFE, 'claude-sonnet-4-6': _SAFE, 'claude-sonnet-5': _SAFE, 'claude-sonnet-5-5': _SAFE, 'claude-opus-5-5': _SAFE, 'claude-fable-5-1': _SAFE };
-  const protoModel = (_protoRaw ? (_ALIASES[_protoRaw] ?? _protoRaw) : null) ?? genModel;
+  // The model chosen in Settings → AI is used as is; if a call with it fails, the prototype is
+  // retried once with the fallback model (prototype_fallback_model, default Haiku).
+  const protoModel = _protoRaw || genModel;
+  const protoFallbackModel = ssCtx.settings["prototype_fallback_model"] || 'claude-haiku-5-5';
+  const callPrototype = (system, messages) =>
+    callClaude({ feature: 'prototype', model: protoModel, system, messages, max_tokens: 40000 })
+      .catch(e => {
+        if (protoFallbackModel && protoFallbackModel !== protoModel) {
+          console.warn('[prototype] ' + protoModel + ' failed (' + (e?.message ?? e) + '), retrying with ' + protoFallbackModel);
+          return callClaude({ feature: 'prototype', model: protoFallbackModel, system, messages, max_tokens: 40000 });
+        }
+        throw e;
+      });
   const liveCheckEnabled = (ssCtx.settings["generation_context"] ?? {}).sap_live_check === true;
   const clientLiveCheckVal = (ssCtx.settings['sap_client_live_check'] ?? {})[caseData.client_id] ?? null;
   const clientPerms = (ssCtx.settings['sap_client_live_check_perms'] ?? {})[caseData.client_id] ?? {};
@@ -4796,13 +4806,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           const protoStyle = genProfile.prototype_style ?? 'auto';
           const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
           const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(prototypeSources(specC, specA, specD), protoStyle) }];
-          let protoHtml = await callClaude({ feature: 'prototype',  model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 40000 })
-            .catch(e => {
-              if (e.message?.includes('did not match the expected pattern')) {
-                return callClaude({ feature: 'prototype',  model: 'claude-haiku-5-5', system: protoSys, messages: protoMsgs, max_tokens: 40000 });
-              }
-              throw e;
-            });
+          let protoHtml = await callPrototype(protoSys, protoMsgs);
           if (!protoHtml) throw new Error('Empty prototype response');
           protoHtml = sanitizeForJson(protoHtml).trim();
           if (protoHtml.startsWith('```')) {
@@ -5087,13 +5091,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         const specA = aiSpecA; const specB = aiSpecB;
         const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
         const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(prototypeSources(newSpecs?.c || aiSpecC, newSpecs?.a || aiSpecA, newSpecs?.d || aiSpecD), profile.prototype_style ?? 'auto') }];
-        let protoHtml = await callClaude({ feature: 'prototype',  model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 40000 })
-          .catch(e => {
-            if (e.message?.includes('did not match the expected pattern')) {
-              return callClaude({ feature: 'prototype',  model: 'claude-haiku-5-5', system: protoSys, messages: protoMsgs, max_tokens: 40000 });
-            }
-            throw e;
-          });
+        let protoHtml = await callPrototype(protoSys, protoMsgs);
         if (!protoHtml) throw new Error('Empty prototype response');
         protoHtml = sanitizeForJson(protoHtml).trim();
         if (protoHtml.startsWith('```')) {
@@ -7944,13 +7942,7 @@ ${sapObjResult}`;
                       try {
                         const _protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
                         const _protoMsgs = [{ role: 'user', content: buildPrototypePrompt(prototypeSources(), protoStyle) }];
-                        let html = await callClaude({ feature: 'prototype',  model: resolvedModel, system: _protoSys, messages: _protoMsgs, max_tokens: 40000 })
-                          .catch(e => {
-                            if (e.message?.includes('did not match the expected pattern')) {
-                              return callClaude({ feature: 'prototype',  model: 'claude-haiku-5-5', system: _protoSys, messages: _protoMsgs, max_tokens: 40000 });
-                            }
-                            throw e;
-                          });
+                        let html = await callPrototype(_protoSys, _protoMsgs);
                         if (!html) throw new Error('Model returned empty response');
                         html = sanitizeForJson(html).trim();
                         if (html.startsWith('```')) {

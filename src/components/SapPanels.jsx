@@ -64,12 +64,23 @@ function useClientProfile(userId) {
 // ABAP CODING STANDARDS
 // ============================================================
 
+/** Problem with an object-type prefix: the name it produces breaks the SAP naming rules (or null). */
+function prefixNamingProblem(std, objType) {
+  const pfx = String((std?.objectTypePrefixes ?? {})[objType] ?? '').trim().toUpperCase();
+  if (!pfx) return null;
+  const global = std?.namespacePrefix ? `/${String(std.namespacePrefix).toUpperCase()}/` : String(std?.globalPrefix || 'Z').toUpperCase();
+  const sample = (/^(Z|Y|\/)/.test(pfx) ? pfx : global + pfx) + 'NAME';
+  const probs = sapNamingProblems(objType, sample).filter(p => !/^Too long/.test(p));
+  return probs.length ? `${sample}: ${probs[0]}` : null;
+}
+
 const ABAP_STANDARDS_DEFAULTS = {
   globalPrefix: 'Z',
   namespacePrefix: '',
   objectTypePrefixes: {
     program: 'R_', class: 'CL_', interface: 'IF_',
-    function_module: '', table: 'ZT_', enhancement: 'E_', badi: 'BD_', other: '',
+    // Tables: no underscore in position 2 or 3 (SAP rule), so 'T' (ZTNAME), not 'ZT_'.
+    function_module: '', table: 'T', enhancement: 'E_', badi: 'BD_', other: '',
   },
   authorId: '',
   headerTemplate:
@@ -319,7 +330,7 @@ function buildAbapStandardsPrompt(standards, objectType, objectName, act, caseDa
     ``,
     `NAMING:`,
     `  Global prefix for new objects: ${globalPfx}`,
-    typePfx ? `  Object type prefix for ${objectType}: ${typePfx} (e.g. ${globalPfx}${typePfx}${objectName.replace(/^[A-Z\/]+/, '')})` : '',
+    typePfx ? `  Object type prefix for ${objectType}: ${typePfx} (e.g. ${/^(Z|Y|\/)/i.test(typePfx) ? '' : globalPfx}${typePfx}${objectName.replace(/^[A-Z\/]+/, '')})` : '',
     standards.localVarNaming ? `  Local variables: lv_ prefix, local structures: ls_, local tables: lt_, field-symbols: <lv_>/<ls_>/<lt_>` : '',
     ``,
     `PROGRAM HEADER (place at the very top):`,
@@ -4534,6 +4545,7 @@ function AbapStandardsPanel({ level, entityId, clientId, projectId, auth }) {
                 <label className="block text-[10px] text-gray-500 mb-0.5 capitalize">{ot.replace('_', ' ')}</label>
                 <input value={(form.objectTypePrefixes ?? {})[ot] ?? ''} onChange={e => fPfx(ot, e.target.value)}
                   disabled={!canEdit} className={inputCls} maxLength={10} placeholder="—" />
+                {prefixNamingProblem(form, ot) && <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 flex items-start gap-1"><AlertTriangle size={10} className="mt-0.5 flex-shrink-0" />{prefixNamingProblem(form, ot)}</p>}
               </div>
             ))}
           </div>
@@ -4819,6 +4831,7 @@ function AbapTemplatesSection({ auth }) {
                   <div key={ot}>
                     <label className="block text-[10px] text-gray-500 mb-0.5 capitalize">{ot.replace('_',' ')}</label>
                     <input value={(editForm.objectTypePrefixes ?? {})[ot] ?? ''} onChange={e => fPfx(ot, e.target.value)} className={inputCls} maxLength={10} placeholder="—" />
+                    {prefixNamingProblem(editForm, ot) && <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 flex items-start gap-1"><AlertTriangle size={10} className="mt-0.5 flex-shrink-0" />{prefixNamingProblem(editForm, ot)}</p>}
                   </div>
                 ))}
               </div>
