@@ -3,6 +3,7 @@ import { User as _LUser } from "lucide-react";
 import { Ico } from "./Ico.jsx";
 import { useState } from "react";
 import { NovaLandingMark } from "../views/LandingView.jsx";
+import { usePermissions } from "../hooks/useSystemSettings.jsx";
 
 const ORB_COLORS = ['#10B981','#3B82F6','#8B5CF6','#EC4899','#F59E0B','#0EA5E9','#F97316','#EF4444'];
 
@@ -109,6 +110,8 @@ function Chip({ children, color = 'var(--t-text-accent)', bg = 'var(--t-row-bg)'
 
 export function GalaxyExplorer({ openCases, applications, auth, onApply, appliedCaseIds, platformLogoUrl, consultantCaseCounts = {} }) {
   const [level, setLevel]             = useState(1);
+  // Apply CTA: any role with apply_to_cases (headhunters have their own flow; admin's can() is always true)
+  const canApply = usePermissions(auth).can('apply_to_cases') && !auth.isAdmin && !auth.isHeadhunter;
   const [selCustomer, setSelCustomer] = useState(null);
   const [selCase, setSelCase]         = useState(null);
   const [fading, setFading]           = useState(false);
@@ -438,7 +441,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
               <StatTile value={cs.applications?.length ?? 0} label="Applied" />
               {!!cs.time_commitment && <StatTile value={`${cs.time_commitment}%`} label="Commit" />}
             </div>
-            {auth.isConsultant && (
+            {canApply && (
               applied
                 ? <div style={{ textAlign: 'center', padding: '10px', background: 'rgba(5,150,105,0.08)', border: '1px solid rgba(5,150,105,0.3)', borderRadius: 10, color: '#059669', fontSize: 13, fontWeight: 600 }}>✓ Application submitted</div>
                 : <button onClick={() => onApply(cs)} style={{ width: '100%', background: 'linear-gradient(135deg,#1A4B8C,#2563EB)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700, padding: '11px', cursor: 'pointer', boxShadow: '0 4px 16px rgba(37,99,235,0.3)' }}>

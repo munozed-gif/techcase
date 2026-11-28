@@ -1221,8 +1221,7 @@ function ProjectDocsTab({ projectId, auth, createdBy }) {
   const allDocs   = ssCtx.settings["project_docs"] ?? {};
   const docs      = allDocs[projectId] ?? [];
 
-  const isCreator = auth.user?.id === createdBy;
-  const canEdit = perms.can('upload_project_docs') && (auth.isAdmin || auth.isManager || isCreator);
+  const canEdit = perms.can('upload_project_docs');
 
   const [showUpload,   setShowUpload]   = useState(false);
   const [uploadType,   setUploadType]   = useState("");
@@ -1703,6 +1702,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth, createdBy }) {
 function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [], importedCasesCount = 0 }) {
   const { t, lang } = useT();
   const wizardMode = useWizardMode(auth);
+  const perms = usePermissions(auth);
   const projPartnerCtx = usePartnerContext(auth.user?.id);
   const projPartner = project?.partner_id ? projPartnerCtx.partnerById(project.partner_id) : null;
   const projPartnerManage = !!projPartner && projPartner.status === "approved" && ["owner", "admin"].includes(projPartner.role);
@@ -2123,7 +2123,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
   }
 
   const canEdit = auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id || projPartnerManage;
-  const canEditLifecycle = auth.isAdmin || auth.isManager || auth.profile?.role === "project_manager" || project.created_by === auth.user?.id;
+  const canEditLifecycle = perms.can("edit_lifecycle") || project.created_by === auth.user?.id;
   const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
   const projProgress = projCases.length === 0 ? 0 : Math.round(projCases.filter(c => TERMINAL.includes(c.status)).length / projCases.length * 100);
 
@@ -2170,7 +2170,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     ...(canEdit ? [{ id: "spec_gen",  label: "Spec Gen",                 icon: Sparkles,   count: null }] : []),
     ...((auth.isAdmin || auth.isManager || projPartnerManage) ? [{ id: "validations", label: "Validations", icon: Shield, count: null }] : []),
     ...((auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id || consultants.some(c => c.user_id === auth.user?.id)) ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
-    ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) ? [{ id: "transport", label: "Transports", icon: Truck, count: null }] : []),
+    ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser || perms.can("release_transports") || perms.can("confirm_transport_imports")) ? [{ id: "transport", label: "Transports", icon: Truck, count: null }] : []),
   ];
 
   const projTabStatus = (() => {
@@ -3316,7 +3316,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         )}
 
         {/* Transports */}
-        {tab.id === "transport" && (auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) && (
+        {tab.id === "transport" && (auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser || perms.can("release_transports") || perms.can("confirm_transport_imports")) && (
           <TransportTab projectData={project} projectCases={projCases} auth={auth} />
         )}
 
@@ -3748,7 +3748,7 @@ function ProjectsView({ auth, initialProjectId, onNavigate }) {
           <h1 className="text-2xl font-bold text-gray-900">{t("projects.title")}</h1>
           <p className="text-gray-500 text-sm mt-1">{t(displayed.length !== 1 ? "count.project_many" : "count.project_one").replace("{n}", displayed.length)}</p>
         </div>
-        {(auth.isAdmin || auth.isManager || auth.isClient || perms.can("create_projects") || partnerCtx.canCreateProjects) && (
+        {(perms.can("create_projects") || partnerCtx.canCreateProjects) && (
           <button onClick={() => setShowCreate(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm transition-colors">
             {t("projects.new")}
@@ -3837,7 +3837,7 @@ function ProjectsView({ auth, initialProjectId, onNavigate }) {
           title={t("projects.no_projects")}
           subtitle={t("projects.no_proj_hint")}
           action={
-            (auth.isAdmin || auth.isManager || auth.isClient || perms.can("create_projects")) && (
+            perms.can("create_projects") && (
               <button onClick={() => setShowCreate(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm mt-2">
                 {t("projects.create_first")}

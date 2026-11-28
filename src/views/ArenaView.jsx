@@ -990,8 +990,8 @@ function ArenaView({ auth, onNavigate }) {
     // Fall back to "estimated" for templates that predate the is_arena field
     const isArenaStage = arenaKeys.length > 0 ? arenaKeys.includes(c.status) : c.status === "estimated";
     if (!isArenaStage || c.case_assignments?.some(a => a.is_active !== false)) return false;
-    // Clients only see their own cases unless arena_see_all_cases is enabled
-    if (auth.isClient && !can('arena_see_all_cases') && c.client_id !== auth.user?.id) return false;
+    // Without arena_see_all_cases (Settings → Roles) a user only sees their own cases
+    if (!can('arena_see_all_cases') && c.client_id !== auth.user?.id) return false;
     const vis = visCfg.getCaseVisibility(c.id, c.client_id);
     if (vis === 'private') return false;
     if (vis === 'invite-only') {
@@ -1288,8 +1288,8 @@ function ArenaView({ auth, onNavigate }) {
               </div>
             </div>
 
-            {/* Apply CTA — consultant */}
-            {auth.isConsultant && can('apply_to_cases') && (
+            {/* Apply CTA — any role with apply_to_cases (headhunters use their own flow below; admin's can() is always true) */}
+            {can('apply_to_cases') && !auth.isAdmin && !auth.isHeadhunter && (
               alreadyApplied ? (
                 <button disabled style={{ width:'100%', background:'rgba(5,150,105,0.1)', border:'1px solid rgba(5,150,105,0.3)', borderRadius:12, color:'#059669', fontSize:14, fontWeight:600, padding:'11px', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
                   <Check size={13} />{t('arena.applied')}
@@ -1303,7 +1303,7 @@ function ArenaView({ auth, onNavigate }) {
             )}
 
             {/* Apply to manage CTA — headhunter */}
-            {auth.isHeadhunter && hhCanApply && (() => {
+            {auth.isHeadhunter && hhCanApply && can('apply_to_cases') && (() => {
               const alreadyProposed = myProposalCaseIds.has(c.id);
               const isAssigned = !!c.head_hunter_id;
               if (isAssigned) {

@@ -278,11 +278,13 @@ function useWizardMode(auth) {
   const role = auth?.profile?.role ?? null;
 
   function getMode(type) {
-    if (!role) return "ask";
+    if (!role) return null;
     const stored = settings["wizard_modes"] ?? {};
     const storedForType = stored[type] ?? {};
     const defaults = WIZARD_MODE_DEFAULTS[type] ?? {};
-    return storedForType[role] ?? defaults[role] ?? "ask";
+    const mode = storedForType[role] ?? defaults[role] ?? "ask";
+    // "ask" = show the Express / Advanced chooser; the wizards expect null (not "ask") for that.
+    return mode === "ask" ? null : mode;
   }
 
   return { getMode };

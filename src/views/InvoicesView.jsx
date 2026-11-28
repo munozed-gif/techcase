@@ -39,12 +39,12 @@ function InvoicesView({ auth }) {
       if (auth.isClient) q = q.eq("client_id", auth.user?.id);
       const { data } = await q;
       setCases(data ?? []);
-      if (auth.isAdmin || auth.isManager) {
+      if (canManageInv && !auth.isClient) {
         const { data: cls } = await supabase.from("users").select("id, full_name, client_profiles(company_name)").eq("role", "client").order("full_name");
         setClients(cls ?? []);
       }
     })();
-  }, [auth]);
+  }, [auth, canManageInv]);
 
   const displayed = statusFilter ? invoices.filter(i => i.status === statusFilter) : invoices;
   const totalBilled      = invoices.reduce((s, i) => s + (i.amount ?? 0), 0);
@@ -54,7 +54,7 @@ function InvoicesView({ auth }) {
   async function handleCreate() {
     setCreateError("");
     const clientId = auth.isClient ? auth.user?.id : (form.client_id || null);
-    if (!clientId && (auth.isAdmin || auth.isManager)) {
+    if (!clientId && !auth.isClient) {
       setCreateError("Please select a client."); return;
     }
     setSaving(true);
@@ -189,7 +189,7 @@ function InvoicesView({ auth }) {
 
       {/* Create Invoice Modal */}
       <Modal open={showCreate} onClose={() => { setShowCreate(false); setCreateError(""); }} title={t("invoices.new_title")}>
-        {canManageInv && (
+        {canManageInv && !auth.isClient && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
             <select value={form.client_id} onChange={e => setForm(p => ({ ...p, client_id: e.target.value }))}
