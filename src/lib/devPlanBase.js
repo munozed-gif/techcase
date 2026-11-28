@@ -49,7 +49,7 @@ export function planObjects(pick, settings) {
       : Number.isFinite(r.statedHours) ? r.statedHours : r.std;
     // Arena hours written in the spec too (only when the standard hours are the spec's own).
     const arena = (override === undefined || override === null || override === '') && Number.isFinite(r.statedArena) ? r.statedArena : null;
-    return { name: r.name, type: r.type, kind: r.kind, complexity: r.complexity, std, arena, description: r.description ?? '' };
+    return { name: r.name, type: r.type, kind: r.kind, complexity: r.complexity, std, arena, description: r.description ?? '', stated: Number.isFinite(r.statedHours) || (override !== undefined && override !== null && override !== '') };
   });
 }
 
@@ -73,15 +73,25 @@ export function alignWithObjects(activities, objects, lang = 'es') {
   const out = activities.map(a => {
     if (a.phase !== 'development') return a;
     const hay = norm(`${a.title} ${a.description}`);
-    const o = objects.find((x, i) => !used.has(i) && x.name && hay.includes(norm(x.name).split(/[\s(]/)[0]));
-    if (!o) return a;
+    // SAP names (ZCL_..., /SCMTMS/...) match on their first word; descriptive names ("Custom Logic de ...",
+    // "Set ...") on the whole name, so a common word does not attach the wrong object.
+    const key = x => { const n = norm(x.name).replace(/\s*\(.*$/, '').trim(); return isCustomObject(x) || /^[A-Z0-9_\/]+$/.test(n.split(/\s/)[0]) && !/\s/.test(n) ? n.split(/[\s(]/)[0] : n; };
+    const o = objects.find((x, i) => !used.has(i) && x.name && key(x).length >= 3 && hay.includes(key(x)));
+    // A development activity with no object of the spec is work the approved estimate does not include.
+    if (!o) return null;
     used.add(objects.indexOf(o));
     return { ...a, est_hours: o.std, sap_object_type: KIND_TO_SAP_TYPE[o.kind] ?? a.sap_object_type, _specObject: o.name, _specArena: o.arena };
   });
+  for (let k = out.length - 1; k >= 0; k--) if (out[k] === null) out.splice(k, 1);
   objects.forEach((o, i) => {
-    if (used.has(i) || !isCustomObject(o)) return;   // standard objects that are only read are not built
+    // Every object the approved spec charges hours for is in the plan, so the plan adds up to the spec.
+    // Without stated hours, standard objects that are only read are not built.
+    const stated = !!o.stated && Number(o.std) > 0;
+    if (used.has(i) || (!isCustomObject(o) && !stated)) return;
+    const verb = isCustomObject(o) ? (es ? 'Desarrollar' : 'Build')
+      : /config|auth|fiori/.test(o.kind ?? '') ? (es ? 'Configurar' : 'Configure') : (es ? 'Implementar' : 'Implement');
     out.push({
-      title: `${es ? 'Desarrollar' : 'Build'} ${o.name}`.slice(0, 200),
+      title: `${verb} ${o.name}`.slice(0, 200),
       description: o.description || `${o.type}`, acceptance_criteria: es ? 'Objeto según la especificación aprobada; Code Inspector sin errores.' : 'Object as in the approved specification; Code Inspector without errors.',
       est_hours: o.std, phase: 'development', sap_object_type: KIND_TO_SAP_TYPE[o.kind] ?? 'none', _specObject: o.name, _specArena: o.arena,
       _selected: true, _type: activities[0]?._type ?? 'activity',
