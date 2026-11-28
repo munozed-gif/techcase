@@ -7081,7 +7081,12 @@ There is NO dedicated BAdI tool: never call a tool name that is not in your tool
   2. Interface of each BAdI: runQuery SELECT BADI_NAME, INTER_NAME FROM BADI_MAIN WHERE BADI_NAME = '<BADI>'.
   3. Methods and parameters of the interface: objectStructure with objectUrl "/sap/bc/adt/oo/interfaces/" + the interface name in lower case, URL-encoded; or getObjectSource on that URL + "/source/main".
   4. Say which method runs when the document is created or changed and whether its parameters let you SET a field of the node the requirement needs (e.g. a changing table of the ROOT node with the custom field).
-Keep at most 8 BAdIs, the most relevant first. Never invent a name: list only what the tools returned; if a level could not be read, write which tool and URL/query you used and the error text.` : ''}
+Keep at most 8 BAdIs, the most relevant first. Never invent a name: list only what the tools returned; if a level could not be read, write which tool and URL/query you used and the error text.
+Then CONFIRM the recommended BAdI (the one you would implement) before recommending it — three checks, each with the tool/query used:
+  A. Document scope: does it run for the document category the requirement needs (e.g. freight units, TOR_CAT 'FU', not only freight orders)? Read the BAdI's filter (BADI_MAIN / the spot structure / the BAdI documentation via abapDocumentation) and the interface parameters; if the method gets the documents with their category, say so.
+  B. Field reachable: expand the type of the parameter the method CHANGES (objectStructure / ddicElement on its table/structure type, following includes) and list whether the requirement's custom field (e.g. ZZ1_*) is a component. Also check in DD03L where the custom field really is (SELECT TABNAME, FIELDNAME, ROLLNAME FROM DD03L WHERE FIELDNAME LIKE 'ZZ1_%' AND ROLLNAME = '<data element>').
+  C. System release: SELECT COMPONENT, RELEASE, EXTRELEASE FROM CVERS WHERE COMPONENT IN ('SAP_BASIS','S4CORE','SAP_ABA') — and state the S/4HANA version it means.
+Add after the BAdI table a short "${lang === 'es' ? 'Confirmación de la BAdI recomendada' : 'Recommended BAdI confirmation'}" list: A / B / C, each ✓ confirmed, ✗ refuted or ? not verifiable, with the evidence in one line.` : ''}
 Use ONLY read tools (search, structure, DDIC, source, table contents, SELECT queries). Never create, change, activate, delete, lock or release anything.
 
 Then produce a section titled:
