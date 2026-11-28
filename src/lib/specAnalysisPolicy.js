@@ -38,7 +38,7 @@ export const SPEC_ANALYSIS_DEFAULTS = {
   },
   max_tokens: {
     summary: 3000, sap_coverage: 4000, validation: 4000, live_check_objects: 8000, live_check_data: 4000,
-    requirements: 12000, questions: 8000, review: 8000, coverage: 8000, generation_review: 8000,
+    requirements: 24000, questions: 8000, review: 8000, coverage: 8000, generation_review: 8000,
   },
   apply_answers: { batch_size: 15, max_tokens: 16000 },
   review_spec_chars: 30000,
