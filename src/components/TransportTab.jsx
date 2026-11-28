@@ -9,6 +9,7 @@ import { supabase } from "../lib/supabase.js";
 import { useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
 import { bridgeAuthHeaders } from "../lib/bridgeAuth.js";
 import { resolvePolicies } from "../lib/validationPolicies.js";
+import { TRANSPORT_ENV_DEFAULTS } from "../lib/sapPipelineDefaults.js";
 
 // ── Release a transport in SAP (ADT CTS) through the ADT bridge ─────────
 // Importing into QA/PRD is not possible through ADT (it needs STMS/tp on the target
@@ -31,7 +32,8 @@ async function sapReleaseTransport(env, transport, scope = {}) {
       // Server-side validation (/api/adt-write): the case / project the transport belongs to
       caseId: scope.caseId || undefined, projectId: scope.projectId || undefined,
     }),
-    signal: AbortSignal.timeout(120000),
+    // Settings → SAP MCP ADT Policy → Implementation → "Write timeout" (default 120 s)
+    signal: AbortSignal.timeout(Math.max(1, Number(scope.timeoutS) || 120) * 1000),
   });
   const text = await r.text();
   try { return JSON.parse(text); } catch { return { ok: false, error: `Bridge returned HTTP ${r.status}: ${text.slice(0, 200)}` }; }
@@ -372,6 +374,11 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     ? (allSapConfigs[clientId] ?? allSapConfigs[`proj_${projectId}`] ?? {})
     : (allSapConfigs[`proj_${projectId}`] ?? {});
   const sapEnvironments = sapData.environments ?? (sapData.host ? [sapData] : []);
+  // Starting values of the tab: the environment's "Transport defaults" (environment form), else TRANSPORT_ENV_DEFAULTS.
+  // Before an environment is picked, the development (or first) environment's defaults apply.
+  const trDefaultsOf = (env) => ({ ...TRANSPORT_ENV_DEFAULTS, ...(env?.transportDefaults ?? {}) });
+  const primaryEnv = sapEnvironments.find(e => (e.envType ?? 'dev') === 'dev') ?? sapEnvironments[0] ?? null;
+  const initialTrDefaults = trDefaultsOf(primaryEnv);
 
   // ── Requests (from DB) ────────────────────────────────────
   const [requests, setRequests] = useState([]);
@@ -398,18 +405,18 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
   // ── Step / mode state ─────────────────────────────────────
   const [trStep, setTrStep] = useState(1);
-  const [transportMode, setTransportMode] = useState('external');
+  const [transportMode, setTransportMode] = useState(initialTrDefaults.mode);
   const [fromEnvId, setFromEnvId] = useState('');
   const [toEnvId, setToEnvId] = useState('');
   const [fromClient, setFromClient] = useState('');
   const [toClient, setToClient] = useState('');
-  const [stopOnError, setStopOnError] = useState(true);
+  const [stopOnError, setStopOnError] = useState(initialTrDefaults.stopOnError !== false);
   const [logTab, setLogTab] = useState('platform');
 
   // ── Add-request form ──────────────────────────────────────
   const [newNumber, setNewNumber] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newType, setNewType] = useState('workbench');
+  const [newType, setNewType] = useState(initialTrDefaults.type);
   const [bulkText, setBulkText] = useState('');
   const [showBulk, setShowBulk] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -623,7 +630,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     setImportField(req.id, { status: 'importing', log: [`Releasing ${req.request_number} in ${releaseEnv?.name ?? 'SAP'}…`] });
     let result;
     try {
-      result = releaseEnv?.host ? await sapReleaseTransport(releaseEnv, req.request_number, { caseId: req.case_id ?? caseId, projectId: req.project_id ?? projectId })
+      result = releaseEnv?.host ? await sapReleaseTransport(releaseEnv, req.request_number, { caseId: req.case_id ?? caseId, projectId: req.project_id ?? projectId, timeoutS: settings['sap_impl_policy']?.write_timeout_s })
         : { ok: false, error: 'No SAP environment configured for this case' };
     } catch (e) { result = { ok: false, error: e.message }; }
     const msgs = (result.messages ?? []).map(m => `${m.type ? m.type + ': ' : ''}${m.text}`);
@@ -681,11 +688,35 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
   const [bpNewName, setBpNewName] = useState('');
   const [bpNewDesc, setBpNewDesc] = useState('');
   const [bpNewType, setBpNewType] = useState('bcset');
-  const [bpNewSysType, setBpNewSysType] = useState('s4_onprem');
+  const [bpNewSysType, setBpNewSysType] = useState(initialTrDefaults.bcsetTarget);
   const [bpBulkText, setBpBulkText] = useState('');
   const [bpShowBulk, setBpShowBulk] = useState(false);
   const [bpActivateEnvId, setBpActivateEnvId] = useState('');
-  const [bpActivateMode, setBpActivateMode] = useState('U'); // U=Update, O=Overwrite
+  const [bpActivateMode, setBpActivateMode] = useState(initialTrDefaults.activate); // U=Update, O=Overwrite
+
+  // Apply an environment's transport defaults: on first load of the settings, and when the source
+  // environment (transport mode, stop on error, request type) or the BC set target environment
+  // (system type, activation mode) is picked. Environments without their own defaults keep the current values.
+  const trDefaultsApplied = useRef(false);
+  useEffect(() => {
+    if (trDefaultsApplied.current || !primaryEnv) return;
+    trDefaultsApplied.current = true;
+    const d = trDefaultsOf(primaryEnv);
+    setTransportMode(d.mode); setStopOnError(d.stopOnError !== false); setNewType(d.type);
+    setBpNewSysType(d.bcsetTarget); setBpActivateMode(d.activate);
+  }, [primaryEnv?.id]);
+  useEffect(() => {
+    const env = sapEnvironments.find(e => e.id === fromEnvId);
+    if (!env?.transportDefaults) return;
+    const d = trDefaultsOf(env);
+    setTransportMode(d.mode); setStopOnError(d.stopOnError !== false); setNewType(d.type);
+  }, [fromEnvId]);
+  useEffect(() => {
+    const env = sapEnvironments.find(e => e.id === bpActivateEnvId);
+    if (!env?.transportDefaults) return;
+    const d = trDefaultsOf(env);
+    setBpNewSysType(d.bcsetTarget); setBpActivateMode(d.activate);
+  }, [bpActivateEnvId]);
   const [bpActivateStates, setBpActivateStates] = useState({});
   const [bpScript, setBpScript] = useState('');
   const [bpScriptCopied, setBpScriptCopied] = useState(false);

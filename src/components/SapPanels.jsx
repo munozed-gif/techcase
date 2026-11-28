@@ -10,8 +10,8 @@ import {
   Laptop, Lock, Monitor, Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { specPackage } from "../lib/devPlanBase.js";
-import { PIPELINE_OBJECT_TYPE_DEFAULTS } from "../lib/sapPipelineDefaults.js";
+import { specPackage, pickPlanSpec } from "../lib/devPlanBase.js";
+import { PIPELINE_OBJECT_TYPE_DEFAULTS, TRANSPORT_ENV_DEFAULTS } from "../lib/sapPipelineDefaults.js";
 import { bridgeAuthHeaders, appAccessToken, resolveVmUrl } from "../lib/bridgeAuth.js";
 import { sapHasPassword, sapMcpAuthToken, storeSapEnvPasswords } from "../lib/sapCreds.js";
 import { ProjectVpnSelector, projectVpnAction } from "./SapVpnProfiles.jsx";
@@ -215,6 +215,44 @@ const MCP_ADT_PIPELINE_POLICY_DEFAULTS = {
   // 'ai-generate'     → AI generates ABAP source code, then writes it to SAP via ADT bridge
   object_types: { ...PIPELINE_OBJECT_TYPE_DEFAULTS },
 };
+
+// Layer 6: Automatic implementation settings (system_settings.sap_impl_policy).
+// Every default equals the value that used to be hard-coded, except blueprint_spec_source.
+const SAP_IMPL_POLICY_DEFAULTS = {
+  blueprint_spec_source:      'approved', // 'approved' | 'a' | 'b' | 'c' | 'd' — spec preselected for "AI Suggest from Spec"
+  blueprint_spec_chars:       12000,      // characters of the spec sent to the blueprint prompt
+  blueprint_min_objects:      5,          // "Suggest N-M objects" in the blueprint prompts
+  blueprint_max_objects:      15,
+  blueprint_max_tokens:       8192,       // max_tokens of the blueprint generation calls
+  implementation_model:       '',         // model for ABAP / DDL / DDIC generation ('' = settings.ai_model)
+  code_max_tokens:            8000,       // max_tokens of ABAP / DDL source generation
+  previous_code_chars:        12000,      // characters of the previous version sent when regenerating
+  ddic_definition_max_tokens: 1500,       // max_tokens of the domain / data element definition (JSON)
+  activity_code_max_tokens:   4000,       // max_tokens of "Generate" on an implementation activity
+  existing_source_chars:      3000,       // characters of the existing SAP source sent when modifying an activity's object
+  write_timeout_s:            120,        // timeout of one write request to SAP through the bridge
+  write_retries:              0,          // extra tries on network / timeout / 5xx errors (never on SAP validation errors)
+  auto_fix_syntax_attempts:   0,          // times the model may fix the code after a syntax error and write again
+  transport_description_template: 'Arena: {case_ref} {title}', // {case_ref} {title} {case_id} {date}
+  transport_description_max:  60,         // SAP limit for the transport short text is 60
+  bridge_poll_s:              10,         // poll interval while waiting for the VM / ADT bridge to reconnect after a restart
+  vpn_wait_s:                 8,          // wait after the VPN start command before re-checking the VPN status
+  sap_check_attempts:         2,          // attempts of the SAP connectivity check (/sap-info) in the infrastructure check
+  sap_check_timeout_s:        35,         // timeout of each SAP connectivity check attempt
+  mcp_test_timeout_s:         45,         // timeout of the MCP tool chain test (R+W + R/O) in the infrastructure check
+};
+
+function implPolicy(settings) {
+  return { ...SAP_IMPL_POLICY_DEFAULTS, ...((settings ?? {})['sap_impl_policy'] ?? {}) };
+}
+
+// Positive number from the policy, or the default when the stored value is not usable.
+function implNum(pol, key, min = 0) {
+  const v = pol?.[key];
+  if (v === '' || v == null || typeof v === 'boolean') return SAP_IMPL_POLICY_DEFAULTS[key];
+  const n = Number(v);
+  return Number.isFinite(n) && n >= min ? n : SAP_IMPL_POLICY_DEFAULTS[key];
+}
 
 // ABAP Cloud (BTP) preset — overrides classic ADT paths for CDS-based DDIC types.
 // In cloud environments, domain/data_element/table/structure are defined as CDS DDL sources.
@@ -593,10 +631,14 @@ define structure ${name} {
 }
 
 // Description for the one transport a case's objects go into when the bridge has to
-// create it (SAP allows 60 characters).
-function caseTransportDescription(caseData) {
-  const ref = caseData?.case_ref ? `${caseData.case_ref} ` : '';
-  return sapShortText(`Arena: ${ref}${caseData?.title ?? ''}`.trim());
+// create it (SAP allows 60 characters). Template and length: Settings → SAP MCP ADT Policy → Implementation.
+function caseTransportDescription(caseData, settings) {
+  const pol = implPolicy(settings);
+  const tpl = typeof pol.transport_description_template === 'string' && pol.transport_description_template.trim()
+    ? pol.transport_description_template : SAP_IMPL_POLICY_DEFAULTS.transport_description_template;
+  const vals = { case_ref: caseData?.case_ref ?? '', title: caseData?.title ?? '', case_id: caseData?.id ?? '', date: new Date().toISOString().slice(0, 10) };
+  const text = tpl.replace(/\{(case_ref|title|case_id|date)\}/g, (_, k) => String(vals[k]));
+  return sapShortText(text, Math.min(60, implNum(pol, 'transport_description_max', 1)));
 }
 
 // Add a transport the pipeline wrote an object into to the case's Transport tab
@@ -645,6 +687,21 @@ const SAP_OUTCOME_HINT = {
   unverified: 'Written to SAP but SAP did not confirm it exists — check it in SAP or press Retry.',
 };
 
+// Write options from Settings → SAP MCP ADT Policy → Implementation (timeout, retries).
+function implWriteOpts(settings, onRetry) {
+  const pol = implPolicy(settings);
+  return { timeoutS: implNum(pol, 'write_timeout_s', 1), retries: implNum(pol, 'write_retries', 0), ...(onRetry ? { onRetry } : {}) };
+}
+
+// SAP's syntax error text from a bridge write result (write rejected by the syntax check, or
+// written but not activated because of syntax errors); null when it is not a syntax error.
+function sapSyntaxErrorText(result) {
+  if (!result) return null;
+  if (!result.ok && (result.step === 'syntaxCheck' || /syntax/i.test(result.error ?? ''))) return String(result.error ?? '').slice(0, 2000);
+  if (result.ok && /syntax/i.test(result.activateError ?? '')) return String(result.activateError).slice(0, 2000);
+  return null;
+}
+
 async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest, pkg, description, policy, capabilities, globalObjectMap, opts = {}) {
   const objCfg = resolveObjectTypeConfig(objectType, objectName, globalObjectMap, config.adt_object_map);
   const path = objCfg.path;
@@ -664,6 +721,11 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
   const proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
   const adtWriteBase = proxyUrl?.replace(/\/sap-proxy\/?$/, '');
   if (adtWriteBase && !adtWriteBase.includes('/api/sap-proxy')) {
+    // Timeout and retries: Settings → SAP MCP ADT Policy → Implementation (opts from implWriteOpts).
+    // Retries only on network errors, timeouts and HTTP 5xx; SAP answers (validation errors) are returned as-is.
+    const timeoutMs = Math.max(1, Number(opts.timeoutS) || SAP_IMPL_POLICY_DEFAULTS.write_timeout_s) * 1000;
+    const retries = Math.max(0, Math.min(5, Math.floor(Number(opts.retries) || 0)));
+    for (let attempt = 0; ; attempt++) {
     try {
       const r = await fetch('/api/adt-write', {
         method: 'POST',
@@ -691,15 +753,26 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
           policy: policy ?? SAP_ADT_WRITE_POLICY_DEFAULTS,
           capabilities: capabilities ?? SAP_ADT_CAPABILITIES_DEFAULTS,
         }),
-        signal: AbortSignal.timeout(120000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       const rawText = await r.text();
       let data;
       try { data = JSON.parse(rawText); }
       catch { data = { ok: false, error: `Invalid response from bridge (HTTP ${r.status}): ${rawText.slice(0, 200)}` }; }
+      if (r.status >= 500 && data?.ok !== true && attempt < retries) {
+        opts.onRetry?.(attempt + 1, `HTTP ${r.status}`);
+        await new Promise(res => setTimeout(res, 2000 * (attempt + 1)));
+        continue;
+      }
       return data;
     } catch (e) {
+      if (attempt < retries) {
+        opts.onRetry?.(attempt + 1, e.message?.slice(0, 80) || 'network error');
+        await new Promise(res => setTimeout(res, 2000 * (attempt + 1)));
+        continue;
+      }
       return { ok: false, phase: 'write', error: e.message?.slice(0, 120) || 'Queue write failed' };
+    }
     }
   }
 
@@ -940,6 +1013,55 @@ const SAP_ENV_TYPE_META = {
   prd: { label: 'Production (PRD)', color: 'bg-red-100 text-red-700' },
   snd: { label: 'Sandbox (SND)',    color: 'bg-green-100 text-green-700' },
 };
+
+// Environment form → "Transport defaults": optional env.transportDefaults, the starting values of the
+// Transport tab when this environment is selected (empty = TRANSPORT_ENV_DEFAULTS). Saved with the environment.
+function EnvTransportDefaults({ env, canEdit, onChange }) {
+  const [open, setOpen] = useState(false);
+  const td = { ...TRANSPORT_ENV_DEFAULTS, ...(env.transportDefaults ?? {}) };
+  const set = (k, v) => onChange({ ...td, [k]: v });
+  const selCls = "w-full border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100";
+  const rows = [
+    { k: 'mode', label: 'Transport mode', desc: 'External = between systems; internal = between clients of the same system.', opts: [['external', 'External (different systems)'], ['internal', 'Internal (same system)']] },
+    { k: 'stopOnError', label: 'Stop on error', desc: 'Pause the import / release sequence when a transport fails.', opts: [['true', 'Yes'], ['false', 'No']] },
+    { k: 'type', label: 'Request type', desc: 'Type preselected when a transport request is added by hand.', opts: [['workbench', 'Workbench'], ['customizing', 'Customizing']] },
+    { k: 'bcsetTarget', label: 'BC set target', desc: 'System type preselected for a new BC set / building block.', opts: [['ecc', 'SAP ECC'], ['s4_onprem', 'S/4HANA On-Prem'], ['s4_cloud', 'S/4HANA Cloud']] },
+    { k: 'activate', label: 'BC set activation', desc: 'U = update (keep existing values), O = overwrite all values.', opts: [['U', 'U — Update'], ['O', 'O — Overwrite']] },
+  ];
+  return (
+    <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
+      <button type="button" onClick={() => setOpen(o => !o)} className="flex items-center gap-2 w-full text-left group">
+        <ChevronRight size={12} className={`text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide group-hover:text-gray-600 dark:group-hover:text-gray-300">Transport defaults</span>
+        {env.transportDefaults && (
+          <span className="ml-auto text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full">custom</span>
+        )}
+      </button>
+      {open && (
+        <div className="mt-3 space-y-2">
+          <p className="text-xs text-gray-400 leading-snug">Starting values of the Transport tab when this environment is selected. Saved with the environment.</p>
+          {rows.map(({ k, label, desc, opts }) => (
+            <div key={k} className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+              <div>
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{label}</p>
+                <p className="text-[11px] text-gray-400 leading-snug">{desc}</p>
+              </div>
+              <select value={String(td[k])} disabled={!canEdit} className={selCls}
+                onChange={e => set(k, k === 'stopOnError' ? e.target.value === 'true' : e.target.value)}>
+                {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+          ))}
+          {env.transportDefaults && canEdit && (
+            <button type="button" onClick={() => onChange(undefined)} className="text-xs text-red-600 dark:text-red-400 hover:text-red-600">
+              Use the standard defaults
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SapIntegrationPanel({ clientId, auth, editable = null }) {
   const { t, lang } = useT();
@@ -1575,6 +1697,8 @@ function SapIntegrationPanel({ clientId, auth, editable = null }) {
                       )}
                     </div>
 
+                    <EnvTransportDefaults env={env} canEdit={canEdit} onChange={v => updateEnvField(env.id, 'transportDefaults', v)} />
+
                     {canEdit && (
                       <div className="flex items-center gap-3">
                         <button onClick={() => saveEnvironments(environments)} disabled={saving}
@@ -2178,6 +2302,9 @@ function AbapTemplateSection({ projectId, canEdit }) {
 }
 
 function McpRestartButton({ mcpUrl }) {
+  const { settings: _rbSettings } = useSystemSettings();
+  // Settings → SAP MCP ADT Policy → Implementation → "Bridge poll interval"
+  const _pollMs = implNum(implPolicy(_rbSettings), 'bridge_poll_s', 1) * 1000;
   const [state, setState] = useState('idle'); // idle | restarting | queued | done | error
   const [msg, setMsg] = useState('');
   const pollRef = useRef(null);
@@ -2226,16 +2353,16 @@ function McpRestartButton({ mcpUrl }) {
           return;
         }
       } catch { /* ignore */ }
-      elapsed += 10000;
+      elapsed += _pollMs;
       if (elapsed >= maxWait) {
         setState('error'); setMsg('Timed out — check VM');
         setTimeout(() => { setState('idle'); setMsg(''); }, 5000);
         return;
       }
       setMsg(`Waiting for VM… (${Math.round((maxWait - elapsed) / 1000)}s)`);
-      pollRef.current = setTimeout(poll, 10000);
+      pollRef.current = setTimeout(poll, _pollMs);
     };
-    pollRef.current = setTimeout(poll, 10000);
+    pollRef.current = setTimeout(poll, _pollMs);
   }
 
   const label = state === 'restarting' ? 'Restarting…'
@@ -2269,6 +2396,13 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const STORAGE_KEY = `infra_v2_${env.id}`;
   const bundledVersion = mcpScript.match(/version:\s*'([^']+)'/)?.[1] ?? '?';
   const { settings: sysSettings } = useSystemSettings();
+  // Settings → SAP MCP ADT Policy → Implementation: bridge / VPN / SAP check timings
+  const _hp = implPolicy(sysSettings);
+  const bridgePollMs     = implNum(_hp, 'bridge_poll_s', 1) * 1000;
+  const vpnWaitMs        = implNum(_hp, 'vpn_wait_s', 0) * 1000;
+  const sapCheckAttempts = Math.max(1, Math.min(10, Math.floor(implNum(_hp, 'sap_check_attempts', 1))));
+  const sapCheckTimeoutMs = implNum(_hp, 'sap_check_timeout_s', 1) * 1000;
+  const mcpTestTimeoutMs = implNum(_hp, 'mcp_test_timeout_s', 1) * 1000;
   const diagnosisModel = sysSettings['analysis_model'] ?? sysSettings['ai_model'] ?? 'claude-haiku-5-5';
   const infraCfgRaw = sysSettings['infra_check_settings'] ?? {};
   // Pick the correct per-type sub-key; fall back to flat format for backwards compat
@@ -2780,8 +2914,8 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         if (sd.vpn === true) {
           startOk = true;
         } else {
-          addLog('vpn', 'Start command sent — waiting 8s for tunnel…');
-          await new Promise(r => setTimeout(r, 8000));
+          addLog('vpn', `Start command sent — waiting ${Math.round(vpnWaitMs / 1000)}s for tunnel…`);
+          await new Promise(r => setTimeout(r, vpnWaitMs));
           const rechk = await fetch(`${vmMcpBase}/status`, { signal: AbortSignal.timeout(8000) }).then(r => r.json()).catch(() => null);
           startOk = rechk?.vpn === true;
         }
@@ -3021,7 +3155,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(await bridgeAuthHeaders(currentMcpBase)) },
           body: JSON.stringify({ host: env.host, username: env.username, password: env.password, client: env.client || '100' }),
-          signal: AbortSignal.timeout(35000),
+          signal: AbortSignal.timeout(sapCheckTimeoutMs),
         });
         return r.json();
       };
@@ -3029,12 +3163,15 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       // ── Step 1: direct HTTP connectivity check (informational) ──────────────────
       let sapResult = null;
       let sapDirectErr = null;
-      try {
-        sapResult = await doSapCheck();
-      } catch (e) {
-        sapDirectErr = e.message?.slice(0, 60);
-        addLog('sap', `Direct HTTP check attempt 1 failed (${sapDirectErr}) — retrying…`, 'warn');
-        try { await new Promise(r => setTimeout(r, 2000)); sapResult = await doSapCheck(); sapDirectErr = null; } catch (e2) { sapDirectErr = e2.message?.slice(0, 60); }
+      for (let _att = 1; _att <= sapCheckAttempts; _att++) {
+        try {
+          if (_att > 1) await new Promise(r => setTimeout(r, 2000));
+          sapResult = await doSapCheck(); sapDirectErr = null;
+          break;
+        } catch (e) {
+          sapDirectErr = e.message?.slice(0, 60);
+          if (_att < sapCheckAttempts) addLog('sap', `Direct HTTP check attempt ${_att} failed (${sapDirectErr}) — retrying…`, 'warn');
+        }
       }
 
       // ── Step 2: MCP tool chain test (ADT mode) — always run regardless of direct check ─
@@ -3047,7 +3184,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...(await bridgeAuthHeaders(currentMcpBase)) },
             body: JSON.stringify({ host: env.host, username: env.username, password: env.password, client: env.client || '100' }),
-            signal: AbortSignal.timeout(45000),
+            signal: AbortSignal.timeout(mcpTestTimeoutMs),
           });
           if (tr.ok) {
             mcpTest = await tr.json();
@@ -3088,7 +3225,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         setLiveNode('sap', { ...liveNodes.current.sap, status: 'error', detail: sapErrDetail });
         addLog('sap', isAdtMcpMode
           ? `SAP unreachable via both direct HTTP and MCP. VPN active but SAP host may be wrong or refusing connections. Detail: ${sapDirectErr || 'timeout'}`
-          : 'SAP unreachable after 2 attempts', 'error');
+          : `SAP unreachable after ${sapCheckAttempts} attempt${sapCheckAttempts === 1 ? '' : 's'}`, 'error');
       } else {
         const code = sapResult.status;
         const errMsg = sapResult.error || `HTTP ${code || 'error'}`;
@@ -3152,7 +3289,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
     setRestartVmMsg('Restart requested — waiting for VM to reconnect…');
     let elapsed = 0;
     const maxWait = 120000;
-    const pollInterval = 10000;
+    const pollInterval = bridgePollMs;
     const poll = async () => {
       try {
         const { data } = await supabase
@@ -3228,16 +3365,16 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
           return;
         }
       } catch { /* ignore */ }
-      elapsed += 10000;
+      elapsed += bridgePollMs;
       if (elapsed >= maxWait) {
         setRestartAdtMsg('ADT bridge did not reconnect within 2 min — check VM');
         setRestartingAdt(false);
         return;
       }
       setRestartAdtMsg(`Waiting for bridge to reconnect… (${Math.round((maxWait - elapsed) / 1000)}s)`);
-      restartAdtPollRef.current = setTimeout(poll, 10000);
+      restartAdtPollRef.current = setTimeout(poll, bridgePollMs);
     };
-    restartAdtPollRef.current = setTimeout(poll, 10000);
+    restartAdtPollRef.current = setTimeout(poll, bridgePollMs);
   }
 
   const isUserVpnMode = env.vpn_mode === 'user';
@@ -4347,6 +4484,8 @@ function ProjectOwnSapPanel({ projectId, auth, createdBy }) {
                         )}
                       </div>
 
+                      <EnvTransportDefaults env={env} canEdit={canEdit} onChange={v => updateEnvField(env.id, 'transportDefaults', v)} />
+
                       {canEdit && (
                         <div className="flex items-center gap-3">
                           <button onClick={() => saveEnvironments(environments)} disabled={saving}
@@ -5294,7 +5433,10 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
 
   // AI Suggest from Spec
   const [showSpecPickerModal, setShowSpecPickerModal] = useState(false);
-  const [bpSpecChoice, setBpSpecChoice] = useState('a');
+  // Preselected spec: Settings → SAP MCP ADT Policy → Implementation → "Blueprint spec source"
+  const _bpSpecDefault = implPolicy(settings).blueprint_spec_source;
+  const [bpSpecChoice, setBpSpecChoice] = useState(_bpSpecDefault);
+  useEffect(() => { setBpSpecChoice(_bpSpecDefault); }, [_bpSpecDefault]);
   const [bpSpecGenerating, setBpSpecGenerating] = useState(false);
 
   // Load reviewer info on mount
@@ -5652,7 +5794,13 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
         .eq('case_id', caseData.id)
         .maybeSingle();
       const notes = specRow?.notes ? JSON.parse(specRow.notes) : {};
-      const specContent = notes[`spec${bpSpecChoice.toUpperCase()}`] ?? '';
+      const _implPol = implPolicy(settings);
+      // 'approved' = the spec signed off / sent to the customer, falling back C → A → B → D
+      // (same rule as the development plan, src/lib/devPlanBase.js).
+      const _specKey = bpSpecChoice === 'approved'
+        ? (pickPlanSpec(specRow, { dev_plan_settings: { base: 'approved', fallback: ['c', 'a', 'b', 'd'], full_spec: true } })?.key ?? 'a')
+        : bpSpecChoice;
+      const specContent = notes[`spec${_specKey.toUpperCase()}`] ?? '';
 
       // Fetch prototype doc if it exists
       const { data: protoDocs } = await supabase
@@ -5663,10 +5811,10 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
         .limit(1);
       const hasPrototype = (protoDocs?.length ?? 0) > 0;
 
-      const specLabel = { a: 'ABAP Custom Development', b: 'Standard SAP', c: 'Customer Proposal', d: 'Client Specification' }[bpSpecChoice] ?? bpSpecChoice.toUpperCase();
+      const specLabel = { a: 'ABAP Custom Development', b: 'Standard SAP', c: 'Customer Proposal', d: 'Client Specification' }[_specKey] ?? _specKey.toUpperCase();
 
       const contextSection = specContent
-        ? `\n\n## Functional/Technical Specification (${specLabel})\n${specContent.slice(0, 12000)}`
+        ? `\n\n## Functional/Technical Specification (${specLabel})\n${specContent.slice(0, implNum(_implPol, 'blueprint_spec_chars', 1))}`
         : `\nCase: ${caseData.title}\nDescription: ${caseData.description ?? ''}\nSAP Module: ${caseData.area_sap ?? 'general'}\nActivities: ${activities.slice(0, 15).map(a => a.title).join(', ')}`;
 
       const protoNote = hasPrototype ? '\n\nNote: A UI prototype has also been generated for this case — factor that into the UI/Fiori objects if relevant.' : '';
@@ -5687,7 +5835,7 @@ Return ONLY a valid JSON array (no markdown, no explanation). Each object must h
 - aiCapable: boolean (always false for type "config")
 - dependsOn: array of names of other objects in this list this depends on
 
-Suggest 5-15 objects covering the full scope.${stagePromptExtras(settings, 'blueprint')}`;
+Suggest ${implNum(_implPol, 'blueprint_min_objects', 1)}-${implNum(_implPol, 'blueprint_max_objects', 1)} objects covering the full scope.${stagePromptExtras(settings, 'blueprint')}`;
 
       const _bpStage = pipelineStage(settings, 'blueprint');
       const _bpIsAdt = ['abap-adt', 'abap-adt-readonly', 'abap-adt-both'].includes(sapConfig?.mcp_type);
@@ -5697,7 +5845,7 @@ Suggest 5-15 objects covering the full scope.${stagePromptExtras(settings, 'blue
         system: 'You are an expert SAP architect. Return only valid JSON arrays, no markdown.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
         ...(_bpMcp?.length ? { mcp_servers: _bpMcp } : {}),
-        max_tokens: 8192,
+        max_tokens: implNum(_implPol, 'blueprint_max_tokens', 256),
       });
       const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const parsed = JSON.parse(raw.replace(/```json?/g, '').replace(/```/g, '').trim());
@@ -5746,6 +5894,7 @@ Suggest 5-15 objects covering the full scope.${stagePromptExtras(settings, 'blue
   async function handleNlGenerate() {
     if (!nlText.trim()) return;
     setNlGenerating(true);
+    const _implPol = implPolicy(settings);
     const prompt = `You are an SAP architect. Based on this description, generate a complete set of SAP implementation objects needed.
 
 Description: ${nlText}
@@ -5759,7 +5908,7 @@ Return ONLY a valid JSON array (no markdown, no explanation). Each object must h
 - aiCapable: boolean (always false for type "config")
 - dependsOn: array of names of other objects in this list this depends on
 
-Suggest 5-15 objects covering the full scope of the described solution.${stagePromptExtras(settings, 'blueprint')}`;
+Suggest ${implNum(_implPol, 'blueprint_min_objects', 1)}-${implNum(_implPol, 'blueprint_max_objects', 1)} objects covering the full scope of the described solution.${stagePromptExtras(settings, 'blueprint')}`;
     try {
       const _nlStage = pipelineStage(settings, 'blueprint');
       const _nlIsAdt = ['abap-adt', 'abap-adt-readonly', 'abap-adt-both'].includes(sapConfig?.mcp_type);
@@ -5769,7 +5918,7 @@ Suggest 5-15 objects covering the full scope of the described solution.${stagePr
         system: 'You are an expert SAP architect. Return only valid JSON arrays, no markdown.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
         ...(_nlMcp?.length ? { mcp_servers: _nlMcp } : {}),
-        max_tokens: 8192,
+        max_tokens: implNum(_implPol, 'blueprint_max_tokens', 256),
       });
       const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const parsed = JSON.parse(raw.replace(/```json?/g, '').replace(/```/g, '').trim());
@@ -5843,6 +5992,9 @@ Suggest 5-15 objects covering the full scope of the described solution.${stagePr
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
     const writePolicy = { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(settings['sap_adt_write_policy'] ?? {}) };
     const sapCaps    = { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(settings['sap_adt_capabilities'] ?? {}) };
+    // Settings → SAP MCP ADT Policy → Implementation: model and limits for source generation
+    const implPol    = implPolicy(settings);
+    const implModel  = implPol.implementation_model || genModel;
     const _storedPP  = settings['mcp_adt_pipeline_policy'] ?? {};
     const pipelineObjTypes = { ...MCP_ADT_PIPELINE_POLICY_DEFAULTS.object_types, ...(_storedPP.object_types ?? {}) };
 
@@ -5976,11 +6128,11 @@ Suggest 5-15 objects covering the full scope of the described solution.${stagePr
                 } else {
                   updateObj(obj.id, { status: 'generating', error: null });
                   addLog(`${obj.name}: generating ${obj.type === 'domain' ? 'domain' : 'data element'} definition...`, 'generating');
-                  notePrompt(obj, { kind: 'definition', model: genModel,
+                  notePrompt(obj, { kind: 'definition', model: implModel,
                     system: 'You are an expert SAP ABAP Dictionary developer. Output only JSON.', prompt: _ddicPrompt });
-                  const _resp = await callClaude({ feature: 'sap_implementation',  model: genModel,
+                  const _resp = await callClaude({ feature: 'sap_implementation',  model: implModel,
                     system: 'You are an expert SAP ABAP Dictionary developer. Output only JSON.',
-                    messages: [{ role: 'user', content: [{ type: 'text', text: _ddicPrompt }] }], max_tokens: 1500 });
+                    messages: [{ role: 'user', content: [{ type: 'text', text: _ddicPrompt }] }], max_tokens: implNum(implPol, 'ddic_definition_max_tokens', 256) });
                   _ddicProps = parseDdicProps(typeof _resp === 'string' ? _resp : (_resp.content?.[0]?.text ?? ''));
                 }
                 updateObj(obj.id, { generatedCode: JSON.stringify(_ddicProps, null, 2) });
@@ -6001,7 +6153,7 @@ Suggest 5-15 objects covering the full scope of the described solution.${stagePr
               obj.transport || runTransport || undefined,
               obj.package || packageReq || undefined,
               obj.description || undefined, writePolicy, sapCaps, ssCtx.settings['sap_adt_object_map'] ?? {},
-              { caseId: caseData.id, transportDescription: caseTransportDescription(caseData),
+              { ...implWriteOpts(ssCtx.settings, (n, why) => addLog(`${obj.name}: write failed (${why}) — retry ${n}…`, 'warn')), caseId: caseData.id, transportDescription: caseTransportDescription(caseData, ssCtx.settings),
                 ...(_ddicProps ? { ddicProperties: _ddicProps, overwriteDdic: !!(obj.regenerate || obj.previousCode) } : {}) });
             if (obj.regenerate) updateObj(obj.id, { regenerate: false });
             if (_r.ddic?.error) addLog(`${obj.name}: could not set the definition in SAP — ${_r.ddic.error}`, 'warn');
@@ -6064,7 +6216,7 @@ Output ONLY the ABAP source code, no explanations.`;
         const runFeedback = (runFeedbackRef.current ?? (settings['sap_impl_feedback'] ?? {})[caseId] ?? '').trim();
         const prompt = basePrompt + stagePromptExtras(settings, 'implement')
           + (runFeedback ? `\n\nFEEDBACK FROM PREVIOUS RUNS — apply it to this object where relevant:\n${runFeedback}` : '')
-          + (obj.previousCode ? `\n\nPREVIOUS VERSION OF ${obj.name} (revise it per the feedback; keep what still applies):\n${String(obj.previousCode).slice(0, 12000)}` : '');
+          + (obj.previousCode ? `\n\nPREVIOUS VERSION OF ${obj.name} (revise it per the feedback; keep what still applies):\n${String(obj.previousCode).slice(0, implNum(implPol, 'previous_code_chars', 0))}` : '');
         if (runFeedback) addLog(`${obj.name}: applying run feedback${obj.previousCode ? ' to the previous version' : ''}.`, 'generating');
         // In ADT mode, Cloudflare quick tunnels block SSE from Anthropic's servers,
         // so MCP for generation never works. Skip it — generation goes directly.
@@ -6072,15 +6224,15 @@ Output ONLY the ABAP source code, no explanations.`;
         // Settings → SAP MCP Policy → Pipeline → Implement → "Use MCP" turns it off.
         const genMcpServers = (isAdtMode || !pipelineStage(settings, 'implement').use_mcp) ? undefined : await buildSapMcpConfig(sapConfig, freshMcpUrl);
         const callArgs = {
-          model: genModel,
+          model: implModel,
           system: ddicPrompt
             ? 'You are an expert SAP ABAP Dictionary developer. Output only the DDL source, no markdown.'
             : 'You are an expert SAP ABAP developer. Output only clean ABAP source code.',
           messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-          max_tokens: 8000,
+          max_tokens: implNum(implPol, 'code_max_tokens', 256),
           mcp_servers: genMcpServers,
         };
-        notePrompt(obj, { kind: ddicPrompt ? 'ddl' : 'abap', model: genModel, system: callArgs.system, prompt });
+        notePrompt(obj, { kind: ddicPrompt ? 'ddl' : 'abap', model: implModel, system: callArgs.system, prompt });
         let resp;
         try {
           resp = await callClaude(callArgs);
@@ -6120,7 +6272,30 @@ Output ONLY the ABAP source code, no explanations.`;
             : sapConfig.mcp_type === 'abap-adt-both' ? 'mcp-abap-abap-adt-api (127 tools R+W) ← write server from abap-adt-both'
             : 'custom MCP';
           addLog(`${obj.name}: applying via ${applyVia ? `ADT bridge [${mcpTypeLabel}] | tunnel: ${freshMcpUrl} → ${sapConfig.host}` : `browser → ${sapConfig.host}`}`, 'applying');
-          const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || runTransport || undefined, obj.package || packageReq || undefined, obj.description || undefined, writePolicy, sapCaps, ssCtx.settings['sap_adt_object_map'] ?? {}, { caseId: caseData.id, transportDescription: caseTransportDescription(caseData) });
+          const _writeSrc = (src) => sapWriteSourceDetail(applyCfg, obj.type, obj.name, src, obj.transport || runTransport || undefined, obj.package || packageReq || undefined, obj.description || undefined, writePolicy, sapCaps, ssCtx.settings['sap_adt_object_map'] ?? {}, { ...implWriteOpts(ssCtx.settings, (n, why) => addLog(`${obj.name}: write failed (${why}) — retry ${n}…`, 'warn')), caseId: caseData.id, transportDescription: caseTransportDescription(caseData, ssCtx.settings) });
+          let result = await _writeSrc(code);
+          // Settings → SAP MCP ADT Policy → Implementation → "Auto-fix syntax errors": ask the
+          // implementation model to fix the code with SAP's error text and write it again.
+          const _fixMax = Math.min(5, Math.floor(implNum(implPol, 'auto_fix_syntax_attempts', 0)));
+          for (let _fix = 1; _fix <= _fixMax && sapSyntaxErrorText(result) && !stopRef.current; _fix++) {
+            const _errText = sapSyntaxErrorText(result);
+            addLog(`${obj.name}: syntax error — asking ${implModel} to fix it (attempt ${_fix}/${_fixMax})…`, 'generating');
+            try {
+              const _fixResp = await callClaude({ feature: 'sap_implementation', model: implModel,
+                system: 'You are an expert SAP ABAP developer. Fix the source so it passes the SAP syntax check. Output only the complete corrected source, no markdown, no explanations.',
+                messages: [{ role: 'user', content: [{ type: 'text', text: `SAP rejected ${obj.type} ${obj.name} with this syntax error:\n${_errText}\n\nSource:\n${code}\n\nReturn the complete corrected source.` }] }],
+                max_tokens: implNum(implPol, 'code_max_tokens', 256) });
+              const _fixed = stripCodeFences(typeof _fixResp === 'string' ? _fixResp : (_fixResp.content?.[0]?.text ?? ''));
+              if (!_fixed.trim()) { addLog(`${obj.name}: fix attempt ${_fix} returned no code — stopping auto-fix.`, 'warn'); break; }
+              code = _fixed;
+              updateObj(obj.id, { generatedCode: code });
+              result = await _writeSrc(code);
+              addLog(sapSyntaxErrorText(result) ? `${obj.name}: fix attempt ${_fix} still has syntax errors.` : `${obj.name}: fix attempt ${_fix} written to SAP.`, sapSyntaxErrorText(result) ? 'warn' : 'info');
+            } catch (_fe) {
+              addLog(`${obj.name}: fix attempt ${_fix} failed — ${_fe.message?.slice(0, 120)}`, 'warn');
+              break;
+            }
+          }
           if (result.ok) {
             const usedTransport = result.transport || obj.transport || runTransport || null;
             if (!obj.transport) adoptTransport(result.transport, result.transportSource);
@@ -6275,7 +6450,7 @@ Output ONLY the ABAP source code, no explanations.`;
     const applyPolicy = { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(ssCtx.settings['sap_adt_write_policy'] ?? {}),
       requirePackage: resolvePolicies(ssCtx.settings, caseValidationScope(caseData)).sap_require_package.mode === 'block' };
     const applyCaps   = { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(ssCtx.settings['sap_adt_capabilities'] ?? {}) };
-    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined, applyPolicy, applyCaps, ssCtx.settings['sap_adt_object_map'] ?? {}, { caseId: caseData.id, transportDescription: caseTransportDescription(caseData) });
+    const result = await sapWriteSourceDetail(applyCfg, obj.type, obj.name, code, obj.transport || transportReq || undefined, obj.package || packageReq || undefined, obj.description || undefined, applyPolicy, applyCaps, ssCtx.settings['sap_adt_object_map'] ?? {}, { ...implWriteOpts(ssCtx.settings, (n, why) => addLog(`${obj.name}: write failed (${why}) — retry ${n}…`, 'warn')), caseId: caseData.id, transportDescription: caseTransportDescription(caseData, ssCtx.settings) });
     if (result.ok) {
       const usedTransport = result.transport || obj.transport || transportReq || null;
       if (!obj.transport && !transportReq && result.transport && (!result.transportSource || result.transportSource === 'created')) onTransportCreated?.(result.transport);
@@ -7122,9 +7297,11 @@ Output ONLY the ABAP source code, no explanations.`;
             <p className="text-xs text-gray-500 dark:text-gray-400">Select which specification to use as context. The AI will extract all SAP objects required based on that document.</p>
             <div className="space-y-2">
               {[
+                { key: 'approved', label: 'Approved spec', desc: 'The spec signed off / sent to the customer (falls back to C, A, B, D)' },
                 { key: 'a', label: 'Spec A — ABAP Custom Development', desc: 'Technical objects, programs, classes, BAdIs' },
                 { key: 'b', label: 'Spec B — Standard SAP', desc: 'Standard config and SPRO approach' },
                 { key: 'c', label: 'Spec C — Customer Proposal', desc: 'Customer-facing functional proposal' },
+                { key: 'd', label: 'Spec D — Client Specification', desc: 'Customer summary' },
               ].map(({ key, label, desc }) => (
                 <label key={key}
                   className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${bpSpecChoice === key ? 'border-violet-400 bg-violet-50 dark:bg-violet-900/20' : 'border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
@@ -7284,6 +7461,9 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [savingPackage, setSavingPackage] = useState(false);
   const [packageFromSpec, setPackageFromSpec] = useState(null); // package filled in from the approved spec
   const genModel = settings["ai_model"] ?? 'claude-haiku-5-5';
+  // Settings → SAP MCP ADT Policy → Implementation: model and limits for ABAP / DDL generation
+  const implPol = implPolicy(settings);
+  const implModel = implPol.implementation_model || genModel;
 
   // Re-sync local state once settings finish loading (avoids stale-init on async load)
   const { loading: settingsLoading } = ssCtx;
@@ -7439,9 +7619,9 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
         system = 'You are an expert SAP ABAP developer specializing in customizing automation. Return only raw ABAP code.';
       }
       const resp = await callClaude({ feature: 'sap_implementation', 
-        model: genModel, system,
+        model: implModel, system,
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-        max_tokens: 8000,
+        max_tokens: implNum(implPol, 'code_max_tokens', 256),
       });
       const configScript = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), generatingScript: false, configScript, scriptType: isCloud ? 'cloud' : 'abap' } };
@@ -7473,7 +7653,7 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
         : enrichedSapConfig;
 
       addLog(`Writing ${programName} to SAP…`);
-      const writeResult = await sapWriteSourceDetail(effectiveCfg, 'program', programName, specState.configScript, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {}, { caseId: caseData.id, transportDescription: caseTransportDescription(caseData) });
+      const writeResult = await sapWriteSourceDetail(effectiveCfg, 'program', programName, specState.configScript, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {}, { ...implWriteOpts(ssCtx.settings), caseId: caseData.id, transportDescription: caseTransportDescription(caseData, ssCtx.settings) });
       if (writeResult.ok && !transportReq && writeResult.transport && (!writeResult.transportSource || writeResult.transportSource === 'created')) setTransportReq(writeResult.transport);
       if (!writeResult.ok) throw new Error(writeResult.error ?? writeResult.hint ?? `HTTP ${writeResult.status}`);
       addLog('✓ Program written to SAP');
@@ -7557,16 +7737,16 @@ Activity: ${act.title}
 Description: ${act.description ?? ''}
 Case: ${caseData.title}
 SAP Module: ${caseData.area_sap ?? 'general'}
-${isModification ? `\nExisting source to MODIFY:\n\`\`\`abap\n${existingSource.slice(0, 3000)}\n\`\`\`` : '\nThis is a NEW object — generate complete source.'}
+${isModification ? `\nExisting source to MODIFY:\n\`\`\`abap\n${existingSource.slice(0, implNum(implPol, 'existing_source_chars', 0))}\n\`\`\`` : '\nThis is a NEW object — generate complete source.'}
 
 ${standardsBlock}${feedbackBlock}
 
 Output ONLY the ABAP source code, no explanations. Follow the coding standards above exactly.`;
       const resp = await callClaude({ feature: 'sap_implementation', 
-        model: genModel,
+        model: implModel,
         system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP source code. Follow all coding standards provided in the user message without exception.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-        max_tokens: 4000,
+        max_tokens: implNum(implPol, 'activity_code_max_tokens', 256),
         mcp_servers: await buildSapMcpConfig(sapConfig, sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']),
       });
       const code = stripCodeFences(typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? ''));
@@ -7584,7 +7764,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     if (!obj?.objectName || !code) return;
     setActField(act.id, { applying: true, applyLog: [`Connecting to SAP via /api/sap-proxy → ${sapConfig.host}…`] });
     const pushLog = msg => setActField(act.id, s => ({ applyLog: [...(s.applyLog ?? []), msg] }));
-    const result = await sapWriteSourceDetail(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {}, { caseId: caseData.id, transportDescription: caseTransportDescription(caseData) });
+    const result = await sapWriteSourceDetail(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {}, { ...implWriteOpts(ssCtx.settings, (n, why) => pushLog(`Write failed (${why}) — retry ${n}…`)), caseId: caseData.id, transportDescription: caseTransportDescription(caseData, ssCtx.settings) });
     if (result.ok && !transportReq && result.transport && (!result.transportSource || result.transportSource === 'created')) setTransportReq(result.transport);
     if (result.ok) {
       pushLog(`✓ Applied successfully (HTTP ${result.status})`);
@@ -7804,10 +7984,10 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
     const prompt = prompts[obj.type] ?? `Generate ABAP source code for ${typeMeta.label ?? obj.type} object ${obj.name}.\nDescription: ${obj.description ?? ''}\nOutput ONLY the ABAP source.`;
     try {
       const resp = await callClaude({ feature: 'sap_implementation', 
-        model: genModel,
+        model: implModel,
         system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP or CDS DDL source code. No markdown fences, no explanations.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-        max_tokens: 8000,
+        max_tokens: implNum(implPol, 'code_max_tokens', 256),
       });
       const adtCode = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), generatingAdt: false, adtCode } };
@@ -9094,6 +9274,9 @@ function SapMcpPolicyPanel({ auth }) {
   const [pipelinePolicy, setPipelinePolicy] = useState(() => _buildPP(settings));
   useEffect(() => { setPipelinePolicy(_buildPP(settings)); }, [settings]);
 
+  const [impl, setImpl] = useState(() => implPolicy(settings));
+  useEffect(() => { setImpl(implPolicy(settings)); }, [settings]);
+
   async function handleSave() {
     setSaving(true);
     try {
@@ -9102,6 +9285,7 @@ function SapMcpPolicyPanel({ auth }) {
       if (activeLayer === 'policy')   await ssCtx.setSetting('sap_adt_write_policy', policy);
       if (activeLayer === 'caps')     await ssCtx.setSetting('sap_adt_capabilities', caps);
       if (activeLayer === 'pipeline') await ssCtx.setSetting('mcp_adt_pipeline_policy', pipelinePolicy);
+      if (activeLayer === 'impl')     await ssCtx.setSetting('sap_impl_policy', impl);
       setSaved(true); setTimeout(() => setSaved(false), 2500);
     } catch (e) { alert('Save failed: ' + e.message); }
     finally { setSaving(false); }
@@ -9116,6 +9300,7 @@ function SapMcpPolicyPanel({ auth }) {
       if (activeLayer === 'policy')   { setPolicy({ ...SAP_ADT_WRITE_POLICY_DEFAULTS }); await ssCtx.setSetting('sap_adt_write_policy', {}); }
       if (activeLayer === 'caps')     { setCaps({ ...SAP_ADT_CAPABILITIES_DEFAULTS }); await ssCtx.setSetting('sap_adt_capabilities', {}); }
       if (activeLayer === 'pipeline') { setPipelinePolicy(_buildPP({})); await ssCtx.setSetting('mcp_adt_pipeline_policy', {}); }
+      if (activeLayer === 'impl')     { setImpl({ ...SAP_IMPL_POLICY_DEFAULTS }); await ssCtx.setSetting('sap_impl_policy', {}); }
       setSaved(true); setTimeout(() => setSaved(false), 2500);
     } catch (e) { alert('Reset failed: ' + e.message); }
     finally { setSaving(false); }
@@ -9127,6 +9312,44 @@ function SapMcpPolicyPanel({ auth }) {
     { id: 'policy',   label: 'Write Policy',    desc: 'Syntax check, activate, verify' },
     { id: 'caps',     label: 'Capabilities',    desc: 'SAP feature flags' },
     { id: 'pipeline', label: 'Pipeline Policy', desc: 'Per-stage MCP control' },
+    { id: 'impl',     label: 'Implementation',  desc: 'Blueprint, generation, writes, health' },
+  ];
+
+  // Fields of the 'impl' layer (system_settings.sap_impl_policy). kind: number | text | select
+  const IMPL_SECTIONS = [
+    { title: 'Blueprint', fields: [
+      { key: 'blueprint_spec_source', kind: 'select', label: 'Blueprint spec source', desc: 'Spec preselected in "AI Suggest from Spec". Approved = the spec signed off / sent to the customer, falling back to C, A, B, D.',
+        opts: [['approved', 'Approved spec'], ['a', 'Spec A — ABAP custom development'], ['b', 'Spec B — Standard SAP'], ['c', 'Spec C — Customer proposal'], ['d', 'Spec D — Customer summary']] },
+      { key: 'blueprint_spec_chars',  kind: 'number', min: 1,   label: 'Spec characters', desc: 'Characters of the spec sent to the blueprint prompt.' },
+      { key: 'blueprint_min_objects', kind: 'number', min: 1,   label: 'Minimum objects', desc: 'Lower bound in "Suggest N-M objects" of the blueprint prompts.' },
+      { key: 'blueprint_max_objects', kind: 'number', min: 1,   label: 'Maximum objects', desc: 'Upper bound in "Suggest N-M objects" of the blueprint prompts.' },
+      { key: 'blueprint_max_tokens',  kind: 'number', min: 256, label: 'Blueprint max tokens', desc: 'Maximum output tokens of a blueprint generation.' },
+    ]},
+    { title: 'Code generation', fields: [
+      { key: 'implementation_model', kind: 'select', label: 'Implementation model', desc: 'Model that writes ABAP, DDL and DDIC definitions. The blueprint and instructions keep the generation model (Settings → AI).',
+        opts: [['', 'Same as the generation model'], ['claude-haiku-4-5-20251001', 'Claude Haiku 4.5'], ['claude-haiku-5-5', 'Claude Haiku 5.5'], ['claude-sonnet-4-6', 'Claude Sonnet 4.6'], ['claude-sonnet-5-5', 'Claude Sonnet 5.5']] },
+      { key: 'code_max_tokens',            kind: 'number', min: 256, label: 'Code max tokens', desc: 'Maximum output tokens of an ABAP / DDL source generation (pipeline run, ADT code, config scripts).' },
+      { key: 'previous_code_chars',        kind: 'number', min: 0,   label: 'Previous version characters', desc: 'Characters of the previous version sent when an object is regenerated with feedback.' },
+      { key: 'ddic_definition_max_tokens', kind: 'number', min: 256, label: 'DDIC definition max tokens', desc: 'Maximum output tokens of a domain / data element definition.' },
+      { key: 'activity_code_max_tokens',   kind: 'number', min: 256, label: 'Activity code max tokens', desc: 'Maximum output tokens of "Generate" on an implementation activity.' },
+      { key: 'existing_source_chars',      kind: 'number', min: 0,   label: 'Existing source characters', desc: 'Characters of the existing SAP source sent when an activity modifies an object.' },
+    ]},
+    { title: 'Writing to SAP', fields: [
+      { key: 'write_timeout_s',          kind: 'number', min: 1, label: 'Write timeout (s)', desc: 'Timeout of one write or release request through the ADT bridge.' },
+      { key: 'write_retries',            kind: 'number', min: 0, max: 5, label: 'Write retries', desc: 'Extra tries on network errors, timeouts and HTTP 5xx. SAP validation errors are never retried.' },
+      { key: 'auto_fix_syntax_attempts', kind: 'number', min: 0, max: 5, label: 'Auto-fix syntax errors', desc: 'Times the implementation model may fix the code from the SAP syntax error and write it again (0 = off).' },
+    ]},
+    { title: 'Transport naming', fields: [
+      { key: 'transport_description_template', kind: 'text', label: 'Transport description', desc: 'Short text of the transport created for a case. Placeholders: {case_ref} {title} {case_id} {date}.' },
+      { key: 'transport_description_max',      kind: 'number', min: 1, max: 60, label: 'Description max length', desc: 'Characters of the transport short text (SAP allows at most 60).' },
+    ]},
+    { title: 'Bridge / VPN health', fields: [
+      { key: 'bridge_poll_s',       kind: 'number', min: 1, label: 'Bridge poll interval (s)', desc: 'How often the VM / ADT bridge is checked while waiting for it to reconnect after a restart.' },
+      { key: 'vpn_wait_s',          kind: 'number', min: 0, label: 'VPN start wait (s)', desc: 'Wait after the VPN start command before checking the VPN status again.' },
+      { key: 'sap_check_attempts',  kind: 'number', min: 1, max: 10, label: 'SAP check attempts', desc: 'Attempts of the SAP connectivity check in the infrastructure check.' },
+      { key: 'sap_check_timeout_s', kind: 'number', min: 1, label: 'SAP check timeout (s)', desc: 'Timeout of each SAP connectivity check attempt.' },
+      { key: 'mcp_test_timeout_s',  kind: 'number', min: 1, label: 'MCP tool test timeout (s)', desc: 'Timeout of the MCP tool chain test (R+W and R/O servers) in the infrastructure check.' },
+    ]},
   ];
 
   const OBJECT_TYPE_ROWS = Object.keys(SAP_ADT_OBJECT_MAP_DEFAULTS);
@@ -9262,6 +9485,45 @@ function SapMcpPolicyPanel({ auth }) {
             <Toggle value={caps.hasRoMcp}      onChange={v => setCaps(p => ({ ...p, hasRoMcp: v }))}      disabled={!canEdit} label="R/O MCP (mcp-abap-adt)"          desc="The 16-tool read-only MCP server is installed and running on the VM alongside the bridge." />
             <Toggle value={caps.hasSyntaxCheck} onChange={v => setCaps(p => ({ ...p, hasSyntaxCheck: v }))} disabled={!canEdit} label="Syntax Check tool"              desc="The syntaxCheckCode tool is available in the R+W MCP server." />
             <Toggle value={caps.hasActivation} onChange={v => setCaps(p => ({ ...p, hasActivation: v }))} disabled={!canEdit} label="Activation tool"                  desc="The activateByName tool is available in the R+W MCP server." />
+          </div>
+        )}
+
+        {activeLayer === 'impl' && (
+          <div className="space-y-5">
+            <p className="text-xs text-gray-500 dark:text-white/45">Settings of the automatic SAP implementation. Empty or invalid numbers use the default shown as placeholder. Changes apply on the next run.</p>
+            {IMPL_SECTIONS.map(sec => (
+              <div key={sec.title} className="border border-gray-100 dark:border-white/10 rounded-xl overflow-hidden">
+                <div className="px-4 py-2 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10">
+                  <span className="text-xs font-semibold text-gray-700 dark:text-white/80">{sec.title}</span>
+                </div>
+                <div className="px-4">
+                  {sec.fields.map(f => {
+                    const inpCls = "w-full border border-gray-200 dark:border-white/15 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-800 dark:text-white placeholder:text-gray-300";
+                    const dflt = SAP_IMPL_POLICY_DEFAULTS[f.key];
+                    return (
+                      <div key={f.key} className="grid grid-cols-1 sm:grid-cols-[1fr_14rem] gap-2 sm:gap-4 py-3 border-b border-gray-100 dark:border-white/10 last:border-b-0 items-center">
+                        <div>
+                          <div className="text-sm font-medium text-gray-800 dark:text-white/85">{f.label}</div>
+                          <div className="text-xs text-gray-500 dark:text-white/45 mt-0.5">{f.desc}</div>
+                        </div>
+                        {f.kind === 'select' ? (
+                          <select value={impl[f.key] ?? dflt} disabled={!canEdit} className={inpCls}
+                            onChange={e => setImpl(p => ({ ...p, [f.key]: e.target.value }))}>
+                            {f.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                          </select>
+                        ) : f.kind === 'text' ? (
+                          <input value={impl[f.key] ?? ''} disabled={!canEdit} placeholder={String(dflt)} className={`${inpCls} font-mono`}
+                            onChange={e => setImpl(p => ({ ...p, [f.key]: e.target.value }))} />
+                        ) : (
+                          <input type="number" min={f.min} max={f.max} value={impl[f.key] ?? ''} disabled={!canEdit} placeholder={String(dflt)} className={inpCls}
+                            onChange={e => setImpl(p => ({ ...p, [f.key]: e.target.value === '' ? '' : Number(e.target.value) }))} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

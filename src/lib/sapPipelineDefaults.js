@@ -24,3 +24,13 @@ export const PIPELINE_OBJECT_TYPE_DEFAULTS = {
   report:          'ai-generate',
   smartform:       'manual',
 };
+
+// Defaults of the case / project Transport tab. An SAP environment can override them
+// (env.transportDefaults, edited in the environment form → "Transport defaults").
+export const TRANSPORT_ENV_DEFAULTS = {
+  mode:        'external',  // 'external' (different systems) | 'internal' (same system)
+  stopOnError: true,        // pause the import / release sequence when a transport fails
+  type:        'workbench', // type of a request added by hand: 'workbench' | 'customizing'
+  bcsetTarget: 's4_onprem', // system type of a new BC set: 'ecc' | 's4_onprem' | 's4_cloud'
+  activate:    'U',         // BC set activation mode: 'U' (update) | 'O' (overwrite)
+};
