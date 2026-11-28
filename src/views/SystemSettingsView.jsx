@@ -1217,6 +1217,11 @@ const CAP_ICONS = {
   manage_migrations:          Rocket,
   auto_assign_creator:        UserCheck,
   view_sap_implementation:    FileCode2,
+  run_sap_implementation:     Rocket,
+  edit_sap_setup:             Settings,
+  release_transports:         Send,
+  confirm_transport_imports:  CheckCircle2,
+  approve_asbuilt_spec:       BadgeCheck,
   view_transports:            Zap,
 };
 
