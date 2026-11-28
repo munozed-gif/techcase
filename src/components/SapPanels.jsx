@@ -7219,7 +7219,11 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const sapEnvironments = sapEnvironmentsFromSettings.length > 0 ? sapEnvironmentsFromSettings : sapEnvsFromConns;
   const sapProjectEnvMap = settings['sap_project_env'] ?? {};
   const sapCaseEnvMap    = settings['sap_case_env']    ?? {};
-  const selectedSapEnvId = sapCaseEnvMap[caseData.id] ?? sapProjectEnvMap[caseData.project_id] ?? null;
+  // The implementation has its own environment per case (sap_case_impl_env); changing it does not
+  // change the one the Spec tab checks against (sap_case_env). Empty = the Spec tab's, then the project's.
+  const sapCaseImplEnvMap = settings['sap_case_impl_env'] ?? {};
+  const selectedSapEnvId = sapCaseImplEnvMap[caseData.id] ?? sapCaseEnvMap[caseData.id] ?? sapProjectEnvMap[caseData.project_id] ?? null;
+  const specEnvName = (() => { const id = sapCaseEnvMap[caseData.id] ?? sapProjectEnvMap[caseData.project_id]; return (sapEnvironments.find(e => e.id === id) ?? sapEnvironments[0])?.name ?? ''; })();
   const sapConfig = selectedSapEnvId
     ? (sapEnvironments.find(e => e.id === selectedSapEnvId) ?? sapEnvironments[0] ?? null)
     : (sapEnvironments[0] ?? null);
@@ -7233,7 +7237,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   }
   const enrichedSapConfig = enrichWithVpn(sapConfig);
   async function saveCaseEnv(envId) {
-    await ssCtx.setSettingEntry('sap_case_env', caseData.id, envId || null);
+    await ssCtx.setSettingEntry('sap_case_impl_env', caseData.id, envId || null);
   }
 
   // ── Object / activity state ─────────────────────────────
@@ -8181,9 +8185,9 @@ FALLBACK:
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-white/50 mb-1">{t('sap.case_env_label')}</label>
                 <div className="flex gap-2 items-center">
-                  <select value={sapCaseEnvMap[caseData.id] ?? ''} onChange={e => saveCaseEnv(e.target.value)}
+                  <select value={sapCaseImplEnvMap[caseData.id] ?? ''} onChange={e => saveCaseEnv(e.target.value)}
                     className="flex-1 border border-gray-200 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-                    <option value="">{t('sap.case_env_inherit')}</option>
+                    <option value="">{t('sap.impl_env_inherit').replace('{n}', specEnvName)}</option>
                     {sapEnvironments.map(env => {
                       const meta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
                       return <option key={env.id} value={env.id}>{env.name} ({meta.label})</option>;
@@ -8195,6 +8199,7 @@ FALLBACK:
                     </span>
                   )}
                 </div>
+                <p className="text-[11px] text-gray-400 dark:text-white/35 mt-1">{t('sap.impl_env_hint')}</p>
               </div>
             )}
             <div>

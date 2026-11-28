@@ -604,7 +604,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
   // ── Run ───────────────────────────────────────────────────
   // Environment the case's transports live in (the one the SAP implementation writes to).
   const releaseEnv = (() => {
-    const caseEnvId = caseId ? (settings['sap_case_env'] ?? {})[caseId] : null;
+    const caseEnvId = caseId ? ((settings['sap_case_impl_env'] ?? {})[caseId] ?? (settings['sap_case_env'] ?? {})[caseId]) : null;
     const projEnvId = projectId ? (settings['sap_project_env'] ?? {})[projectId] : null;
     return sapEnvironments.find(e => e.id === caseEnvId)
       ?? sapEnvironments.find(e => e.id === projEnvId)
