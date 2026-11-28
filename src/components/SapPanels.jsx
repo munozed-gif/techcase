@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { specPackage } from "../lib/devPlanBase.js";
+import { PIPELINE_OBJECT_TYPE_DEFAULTS } from "../lib/sapPipelineDefaults.js";
 import { bridgeAuthHeaders, appAccessToken, resolveVmUrl } from "../lib/bridgeAuth.js";
 import { sapHasPassword, sapMcpAuthToken, storeSapEnvPasswords } from "../lib/sapCreds.js";
 import { ProjectVpnSelector, projectVpnAction } from "./SapVpnProfiles.jsx";
@@ -212,26 +213,7 @@ const MCP_ADT_PIPELINE_POLICY_DEFAULTS = {
   // 'manual'          → skip entirely (user configures in SAP manually)
   // 'adt-create-only' → create ADT skeleton (no ABAP source); user sets props in SE11/SE91
   // 'ai-generate'     → AI generates ABAP source code, then writes it to SAP via ADT bridge
-  object_types: {
-    config:          'manual',
-    // Tables/structures need their full DDL definition to activate; an empty
-    // skeleton can never be activated, so the AI writes the definition.
-    table:           'ai-generate',
-    structure:       'ai-generate',
-    domain:          'adt-create-only',
-    data_element:    'adt-create-only',
-    message_class:   'adt-create-only',
-    program:         'ai-generate',
-    include:         'ai-generate',
-    class:           'ai-generate',
-    function_module: 'ai-generate',
-    bapi:            'ai-generate',
-    odata:           'manual',
-    badi:            'ai-generate',
-    enhancement:     'ai-generate',
-    report:          'ai-generate',
-    smartform:       'manual',
-  },
+  object_types: { ...PIPELINE_OBJECT_TYPE_DEFAULTS },
 };
 
 // ABAP Cloud (BTP) preset — overrides classic ADT paths for CDS-based DDIC types.
@@ -1641,11 +1623,12 @@ function SapIntegrationPanel({ clientId, auth, editable = null }) {
       {/* AI model in use — read from settings, never hardcoded */}
       {(() => {
         const aiModel = ssCtx.settings["ai_model"];
+        // Same labels as the model list in Settings → AI.
         const MODEL_LABELS = {
-          "claude-haiku-4-5-20251001":  t("model.haiku_label"),
-          "claude-sonnet-4-6":          t("model.sonnet_label"),
-          "claude-sonnet-5-20251001":   t("model.sonnet_label"),
-          "claude-opus-5-20250101":     t("model.opus_label"),
+          "claude-haiku-4-5-20251001":  t("model.haiku45_label"),
+          "claude-haiku-5-5":           t("model.haiku55_label"),
+          "claude-sonnet-4-6":          t("model.sonnet46_label"),
+          "claude-sonnet-5-5":          t("model.sonnet55_label"),
         };
         const displayName = aiModel
           ? (MODEL_LABELS[aiModel] ?? aiModel)

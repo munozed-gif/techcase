@@ -2,14 +2,10 @@
 // Arena can implement the SAP objects, the SAP MCP policy's object types and the factors.
 import { supabase } from "./supabase.js";
 import { estimationFactors, SENIORITY_LEVELS } from "./estimation.js";
+import { PIPELINE_OBJECT_TYPE_DEFAULTS } from "./sapPipelineDefaults.js";
 
 const ADT_TYPES = ['abap-adt', 'abap-adt-readonly', 'abap-adt-both'];
-const DEFAULT_OBJECT_TYPES = {
-  config: 'manual', table: 'ai-generate', structure: 'ai-generate', domain: 'adt-create-only',
-  data_element: 'adt-create-only', message_class: 'adt-create-only', program: 'ai-generate',
-  include: 'ai-generate', class: 'ai-generate', function_module: 'ai-generate', bapi: 'ai-generate',
-  odata: 'manual', badi: 'ai-generate', enhancement: 'ai-generate', report: 'ai-generate', smartform: 'manual',
-};
+const DEFAULT_OBJECT_TYPES = PIPELINE_OBJECT_TYPE_DEFAULTS;
 
 /** SAP environment of the case: the project's own first, then the customer's (or legacy client's). */
 export function caseSapEnvironment(caseData, settings) {
