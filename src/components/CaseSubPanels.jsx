@@ -7072,11 +7072,16 @@ RELEASED BAdIs — candidate extension points. Find the BAdIs this requirement c
 - released enhancement spots / BAdIs of the requirement's area: runQuery on ARS_W_API_STATE with OBJECT_TYPE IN ('ENHS','BADI','SXSD') (or no type filter) and OBJECT_KEY LIKE the area's namespaces and business keywords (e.g. '%SCMTMS%TOR%', '/SCMTMS/%', '%FREIGHT%' for TM freight units/orders), RELEASE_STATE = 'RELEASED';
 - BAdI definitions and their spots, interface and methods: BADI_MAIN (BADI_NAME, ENHSPOTNAME, INTER_NAME) with the same keywords; open the interface (objectStructure) to read the method names and parameters;
 - for key-user custom fields (ZZ1_/YY1_), the BAdIs offered for custom logic of the field's business context (released C0 BAdIs whose interface works on that business object's node).
-For EVERY enhancement spot you find, go down to the BAdI level — a spot alone is not an answer:
-  1. list the BAdI definitions of the spot: open the spot with the ADT tools (objectStructure / searchObject on the spot name, ADT path /sap/bc/adt/enhancements/enhsxsb/<spot>), or query the spot-to-BAdI tables (BADI_SPOTS: BADI_NAME, ENHSPOT; or ENHSPOTOBJ / ENHOBJ), trying the next source if one fails;
-  2. for each BAdI, its interface (BADI_MAIN.INTER_NAME) and the interface's methods with their parameters (objectStructure / classInterface on the interface);
-  3. say which method runs when the document is created or changed and whether its parameters let you SET a field of the node the requirement needs (e.g. a changing table of the ROOT node with the custom field).
-Keep at most 8 BAdIs, the most relevant first. Never invent a name: list only what the queries or tools returned; if a level could not be read, say which and why.` : ''}
+For EVERY enhancement spot you find, go down to the BAdI level — a spot alone is not an answer.
+There is NO dedicated BAdI tool: never call a tool name that is not in your tool list (e.g. there is no "badiDefinitions"). Use only these tools, in this order, moving to the next way if one fails:
+  1. BAdIs of the spot:
+     a. objectStructure with objectUrl "/sap/bc/adt/enhancements/enhsxsb/" + the spot name in lower case, URL-encoded ("/" → "%2f"), e.g. /sap/bc/adt/enhancements/enhsxsb/%2fscmtms%2fes_freight_unit — the structure lists the spot's BAdI definitions;
+     b. or getObjectSource on that same URL + "/source/main";
+     c. or runQuery: first check which link table exists (SELECT TABNAME FROM DD02L WHERE TABNAME IN ('BADI_SPOTS','ENHSPOTOBJ','ENHOBJ')), then e.g. SELECT * FROM BADI_SPOTS WHERE ENHSPOT = '<SPOT>' (columns may differ: read DD03L for the table's fields first).
+  2. Interface of each BAdI: runQuery SELECT BADI_NAME, INTER_NAME FROM BADI_MAIN WHERE BADI_NAME = '<BADI>'.
+  3. Methods and parameters of the interface: objectStructure with objectUrl "/sap/bc/adt/oo/interfaces/" + the interface name in lower case, URL-encoded; or getObjectSource on that URL + "/source/main".
+  4. Say which method runs when the document is created or changed and whether its parameters let you SET a field of the node the requirement needs (e.g. a changing table of the ROOT node with the custom field).
+Keep at most 8 BAdIs, the most relevant first. Never invent a name: list only what the tools returned; if a level could not be read, write which tool and URL/query you used and the error text.` : ''}
 Use ONLY read tools (search, structure, DDIC, source, table contents, SELECT queries). Never create, change, activate, delete, lock or release anything.
 
 Then produce a section titled:
