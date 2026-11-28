@@ -170,7 +170,7 @@ function TimeEntriesView({ auth }) {
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("time.col_desc")}</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("time.col_billable")}</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("time.col_approved")}</th>
-                {(auth.isAdmin || auth.isManager) && <th className="px-5 py-3" />}
+                {perms.can("delete_time_entries") && <th className="px-5 py-3" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -196,12 +196,12 @@ function TimeEntriesView({ auth }) {
                   <td className="px-5 py-3">
                     {e.is_approved
                       ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><Check size={10} className="mr-0.5 inline" />{t("time.approved")}</span>
-                      : (auth.isAdmin || auth.isManager)
+                      : perms.can("approve_time")
                         ? <button onClick={() => approveEntry(e.id, true)} className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full hover:bg-yellow-100">{t("time.approve")}</button>
                         : <span className="text-xs text-gray-400">{t("time.pending")}</span>
                     }
                   </td>
-                  {(auth.isAdmin || auth.isManager) && (
+                  {perms.can("delete_time_entries") && (
                     <td className="px-5 py-3">
                       <button onClick={() => deleteEntry(e.id)} className="text-xs text-red-400 hover:text-red-600 border border-red-100 px-2 py-0.5 rounded hover:bg-red-50">{t("action.delete")}</button>
                     </td>
@@ -312,7 +312,7 @@ function TimeEntriesView({ auth }) {
                     : <span className="text-xs text-amber-600 font-medium mt-0.5 block">{pending} pending</span>
                   }
                 </div>
-                {(auth.isAdmin || auth.isManager) && !allOk && (
+                {perms.can("approve_time") && !allOk && (
                   <button onClick={ev => { ev.stopPropagation(); bulkApprove(g.id); }}
                     disabled={approvingId === g.id}
                     className="flex-shrink-0 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50">
@@ -349,7 +349,7 @@ function TimeEntriesView({ auth }) {
                           <th className="text-right pb-2 font-semibold">Hours</th>
                           <th className="text-center pb-2 font-semibold">Billable</th>
                           <th className="text-center pb-2 font-semibold">Status</th>
-                          {(auth.isAdmin || auth.isManager) && <th className="pb-2" />}
+                          {perms.can("delete_time_entries") && <th className="pb-2" />}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
@@ -367,12 +367,12 @@ function TimeEntriesView({ auth }) {
                             <td className="py-2 pr-3 text-center">
                               {e.is_approved
                                 ? <span className="text-green-600 font-bold">✓</span>
-                                : (auth.isAdmin || auth.isManager)
+                                : perms.can("approve_time")
                                   ? <button onClick={() => approveEntry(e.id, true)} className="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded text-xs hover:bg-amber-100">{t("action.approve")}</button>
                                   : <span className="text-amber-500">{t("label.pending")}</span>
                               }
                             </td>
-                            {(auth.isAdmin || auth.isManager) && (
+                            {perms.can("delete_time_entries") && (
                               <td className="py-2">
                                 <button onClick={() => deleteEntry(e.id)} className="text-red-300 hover:text-red-500">✕</button>
                               </td>
@@ -502,7 +502,7 @@ function TimeEntriesView({ auth }) {
       </div>
 
       {/* Pending approval banner */}
-      {(auth.isAdmin || auth.isManager) && pendingCount > 0 && (
+      {perms.can("approve_time") && pendingCount > 0 && (
         <div className="mb-4 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
           <AlertTriangle size={15} className="text-amber-500 flex-shrink-0" />
           <span className="text-sm text-amber-800">

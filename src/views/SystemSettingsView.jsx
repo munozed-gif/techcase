@@ -1200,6 +1200,21 @@ const CAP_ICONS = {
   edit_lifecycle:             Zap,
   export_pdf_docs:            Download,
   upload_project_docs:        Database,
+  add_subcases:               Plus,
+  view_case_costs:            DollarSign,
+  change_case_sap_env:        Monitor,
+  invite_case_client:         Mail,
+  manage_case_consultants:    UserCog,
+  save_as_template:           FileCode2,
+  manage_milestones:          Trophy,
+  post_internal_comments:     Lock,
+  delete_time_entries:        Trash2,
+  bulk_edit_cases:            ListChecks,
+  move_kanban_cards:          FolderKanban,
+  manage_sla:                 Shield,
+  manage_db_connections:      Database,
+  manage_team_members:        UserPlus,
+  manage_migrations:          Rocket,
 };
 
 function SettingsRolesTab({ ssCtx }) {
@@ -1321,14 +1336,15 @@ function SettingsRolesTab({ ssCtx }) {
   }
 
   const PERM_GROUPS = [
-    { label: "Cases",               icon: FolderOpen,  caps: ["create_cases","view_all_cases","apply_to_cases","arena_see_all_cases","reopen_cases"] },
+    { label: "Cases",               icon: FolderOpen,  caps: ["create_cases","view_all_cases","apply_to_cases","arena_see_all_cases","reopen_cases","add_subcases","bulk_edit_cases","move_kanban_cards","view_case_costs","change_case_sap_env","invite_case_client","manage_case_consultants","manage_milestones","post_internal_comments","save_as_template"] },
     { label: "Documents & Specs",   icon: FileText,    caps: ["upload_docs","view_docs","delete_docs","delete_own_docs","approve_specs","regen_specs","submit_specs","generate_dev_plan","export_pdf_docs","approve_asbuilt_spec"] },
     { label: "SAP Implementation", icon: Zap,         caps: ["run_sap_implementation","edit_sap_setup","release_transports","confirm_transport_imports"] },
-    { label: "Activities & Time",   icon: ListChecks,  caps: ["add_activities","log_time","edit_activity_phase","edit_activity_predecessors","bulk_delete_activities","bulk_delete_subcases"] },
+    { label: "Activities & Time",   icon: ListChecks,  caps: ["add_activities","log_time","approve_time","delete_time_entries","edit_activity_phase","edit_activity_predecessors","bulk_delete_activities","bulk_delete_subcases"] },
     { label: "Lifecycle",           icon: Zap,         caps: ["view_lifecycle","edit_lifecycle"] },
     { label: "Projects",            icon: Briefcase,   caps: ["create_projects","upload_project_docs","manage_proposals","manage_own_project_proposals"] },
     { label: "Invoices & Reports",  icon: Receipt,     caps: ["manage_invoices","view_reports"] },
-    { label: "Team & Audit",        icon: Users,       caps: ["require_team_signup","view_audit_log"] },
+    { label: "Team & Audit",        icon: Users,       caps: ["require_team_signup","view_audit_log","manage_team_members"] },
+    { label: "Operations",          icon: Shield,      caps: ["manage_sla","manage_db_connections","manage_migrations"] },
   ];
 
   function PermTable({ caps, leaderboard = false }) {

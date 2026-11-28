@@ -748,7 +748,7 @@ function CaseDetail({ caseData: caseDataProp, auth, onStatusChange, onDelete, on
   const myApp = applications.find(a => a.consultant_id === auth.user?.id);
   const doneMilestones = milestones.filter(m => m.is_done).length;
   const milestonePct = milestones.length ? Math.round((doneMilestones / milestones.length) * 100) : 0;
-  const canAddSubCase = (auth.isAdmin || auth.isManager || auth.isClient)
+  const canAddSubCase = perms.can("add_subcases")
     && !["completed", "cancelled"].includes(caseData.status)
     && stageRules.editable;
 
@@ -2639,7 +2639,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
       ? allTabs.filter(t => stageRules.visible_tabs.includes(t.id))
       : allTabs).filter(t => t.id !== 'documents' || perms.can('view_docs'));
     // Costs: Arena administrators and managers only, on every stage.
-    const filtered = (auth.isAdmin || auth.isManager)
+    const filtered = perms.can("view_case_costs")
       ? [...filtered0, { id: "costs", label: lang === 'es' ? 'Costos' : 'Costs', icon: Coins, count: null }]
       : filtered0;
     const order = stageRules.tab_order;
@@ -2825,7 +2825,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                   })()}
                   {_activeSapEnv && (auth.isAdmin || auth.isManager || auth.isConsultant) && (() => {
                     const meta = SAP_ENV_TYPE_META[_activeSapEnv.envType] ?? SAP_ENV_TYPE_META.dev;
-                    const canSwitch = _sapEnvs.length > 1 && (auth.isAdmin || auth.isManager);
+                    const canSwitch = _sapEnvs.length > 1 && perms.can("change_case_sap_env");
                     return (
                       <div className="relative">
                         <button
@@ -3544,7 +3544,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
           </div>
 
           {/* Client Invitation */}
-          {(auth.isConsultant || auth.isAdmin || auth.isManager) && (
+          {perms.can("invite_case_client") && (
             <CaseInviteCard caseData={caseData} auth={auth} />
           )}
 
@@ -3666,7 +3666,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                         <div className="text-[10px] text-gray-400 truncate">{a.users?.email}</div>
                       </div>
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-green-100 text-green-700 rounded flex-shrink-0">Consultant</span>
-                      {(auth.isManager || auth.isAdmin) && (
+                      {perms.can("manage_case_consultants") && (
                         <button onClick={() => releaseConsultant(a.consultant_id)} disabled={releasingId === a.consultant_id}
                           title="Release consultant"
                           className="ml-1 p-0.5 rounded hover:bg-red-100 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
@@ -3687,14 +3687,14 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                     </div>
                   ))}
                   {/* Add co-consultant button */}
-                  {(auth.isManager || auth.isAdmin) && !showCoAssign && (
+                  {perms.can("manage_case_consultants") && !showCoAssign && (
                     <button onClick={() => setShowCoAssign(true)}
                       className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-semibold mt-1 px-1">
                       <UserPlus className="w-3.5 h-3.5" /> Add co-consultant
                     </button>
                   )}
                   {/* Co-assign panel */}
-                  {(auth.isManager || auth.isAdmin) && showCoAssign && (
+                  {perms.can("manage_case_consultants") && showCoAssign && (
                     <div className="mt-2 rounded-lg p-2.5" style={{ border:'1px solid var(--t-border)', background:'var(--t-tab-inactive)' }}>
                       <div className="flex items-center gap-2 mb-2">
                         <input autoFocus value={coAssignSearch}
@@ -3914,7 +3914,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
               </p>
             </div>
           )}
-          {(auth.isAdmin || auth.isManager) && (
+          {perms.can("save_as_template") && (
             <div className="border-t border-gray-100 pt-4 mt-2">
               <button onClick={() => setShowSaveAsTemplate(true)}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
@@ -3970,7 +3970,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
               )}
 
               {/* Edit / Delete — visible on hover (admins/managers/consultants only) */}
-              {(auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.editable && (
+              {perms.can("manage_milestones") && stageRules.editable && (
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   {editingMilestoneId === m.id ? (
                     <>
@@ -4013,7 +4013,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
           {milestones.length === 0 && (
             <p className="text-sm text-gray-400 text-center py-4">{t("case.no_milestones")}</p>
           )}
-          {(auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.editable && (
+          {perms.can("manage_milestones") && stageRules.editable && (
             <div className="mt-4 space-y-1.5">
               <div className="flex gap-2">
                 <input value={newMilestone} onChange={e => setNewMilestone(e.target.value)}
@@ -4084,7 +4084,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                   className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
-            {(auth.isAdmin || auth.isManager) && (
+            {perms.can("post_internal_comments") && (
               <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
                 <input type="checkbox" checked={commentForm.isInternal}
                   onChange={e => setCommentForm(p => ({ ...p, isInternal: e.target.checked }))}
@@ -6039,7 +6039,7 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
                     {tab.id === "time" && (
         <TimeLogPanel caseId={caseData.id} caseTitle={caseData.title} auth={auth} />
       )}
-                    {tab.id === "costs" && (auth.isAdmin || auth.isManager) && (
+                    {tab.id === "costs" && perms.can("view_case_costs") && (
         <CaseCostsTab caseData={caseData} activities={activities} settings={cdSettings} lang={lang} auth={auth} />
       )}
 

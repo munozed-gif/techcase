@@ -3,12 +3,14 @@ import { Clock } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useTimeEntries } from "../hooks/useCoreHooks.js";
+import { usePermissions } from "../hooks/useSystemSettings.jsx";
 import { fmtDate } from "../lib/uiUtils.jsx";
 import { Spinner } from "./ProfileComponents.jsx";
 import { logEvent } from "../lib/utils.js";
 import { TimeRangeFields, fmtTimeRange } from "./ui.jsx";
 
 function TimeLogPanel({ caseId, caseTitle, auth }) {
+  const perms = usePermissions(auth);
   const { t, lang } = useT();
   const [logs, setLogs]         = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -171,7 +173,7 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
                 <td className="py-2 pr-4 text-gray-500 max-w-xs truncate">{log.description || "—"}</td>
                 <td className="py-2 pr-4 text-gray-700">{log.users?.full_name ?? "—"}</td>
                 <td className="py-2">
-                  {(log.user_id === auth.user?.id || auth.isAdmin || auth.isManager) && (
+                  {(log.user_id === auth.user?.id || perms.can("delete_time_entries")) && (
                     <button onClick={() => handleDelete(log)}
                       className="text-xs text-red-400 hover:text-red-600 px-2 py-0.5 rounded border border-red-100 hover:bg-red-50">
                       {t("action.delete")}

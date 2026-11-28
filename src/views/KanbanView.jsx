@@ -5,7 +5,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useProjects } from "../hooks/useCoreHooks.js";
-import { filterCasesByVisibility, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
+import { filterCasesByVisibility, useSystemSettings, useVisibilitySettings, usePermissions } from "../hooks/useSystemSettings.jsx";
 import { logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { PRIORITY_LABEL_KEYS, STATUS_LABEL_KEYS, cap, fmtDate } from "../lib/uiUtils.jsx";
@@ -118,6 +118,7 @@ function KanbanView({ auth }) {
   const { t } = useT();
   const { cases: _rawCasesKB, loading, updateCase, refetch: refetchKB } = useCases();
   const _kanbanVisCfg = useVisibilitySettings();
+  const perms = usePermissions(auth);
   const cases = filterCasesByVisibility(_rawCasesKB, auth, _kanbanVisCfg);
   const { templates: lcTemplates } = useLifecycleTemplates();
   const [selectedCase, setSelectedCase]       = useState(null);
@@ -195,7 +196,7 @@ function KanbanView({ auth }) {
     );
   }
 
-  const canMove = auth.isAdmin || auth.isManager;
+  const canMove = perms.can("move_kanban_cards");
 
   // Column header height varies by size
   const colHeaderPy = cardSize === "s" ? "pt-2 pb-1" : "pt-4 pb-2";

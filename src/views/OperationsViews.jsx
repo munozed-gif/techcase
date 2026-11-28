@@ -9,7 +9,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useNotifications, useLeaderboard, useNotificationPrefs } from "../hooks/useNotificationHooks.js";
 import { useClientTeamMembers, useDbConnections, useInvoices, useSlaConfig, useTimeEntries } from "../hooks/useCoreHooks.js";
-import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { usePlanConfig, useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
 import { logEvent, notify, resolveNavigation } from "../lib/utils.js";
 import { Badge, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
@@ -701,6 +701,7 @@ function SlaClientView({ auth }) {
 }
 
 function SlaClientDetail({ client, auth }) {
+  const perms = usePermissions(auth);
   const { t } = useT();
   const { sla, loading, updateSla } = useSlaConfig(client.id);
   const [editing, setEditing] = useState(false);
@@ -743,7 +744,7 @@ function SlaClientDetail({ client, auth }) {
           <h2 className="font-bold text-gray-900">{client.client_profiles?.company_name ?? client.full_name}</h2>
           <p className="text-sm text-gray-400">{client.email}</p>
         </div>
-        {(auth.isAdmin || auth.isManager) && (
+        {perms.can("manage_sla") && (
           <button onClick={() => setEditing(p => !p)}
             className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
             {editing ? t("action.cancel") : t("sla.edit")}
@@ -796,7 +797,7 @@ function SlaClientDetail({ client, auth }) {
         <div className="text-center py-8 text-gray-400">
           <div className="mb-2 flex justify-center"><FileText className="w-8 h-8 text-gray-300" /></div>
           <p className="text-sm">{t("sla.no_sla_client")}</p>
-          {(auth.isAdmin || auth.isManager) && (
+          {perms.can("manage_sla") && (
             <button onClick={() => setEditing(true)}
               className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
               {t("sla.configure")}
@@ -1103,6 +1104,7 @@ function VpnProfileBadges({ meta = {}, host, port }) {
 }
 
 function DbConnectionsList({ client, auth }) {
+  const perms = usePermissions(auth);
   const { t } = useT();
   const { connections, addConnection, deleteConnection } = useDbConnections(client.id);
   const [showAdd, setShowAdd] = useState(false);
@@ -1153,7 +1155,7 @@ function DbConnectionsList({ client, auth }) {
           <h2 className="font-bold text-gray-900">{client.client_profiles?.company_name ?? client.full_name}</h2>
           <p className="text-sm text-gray-400">{connections.length === 1 ? t("conn.count_one") : t("conn.count_many").replace("{n}", connections.length)}</p>
         </div>
-        {(auth.isAdmin || auth.isManager) && (
+        {perms.can("manage_db_connections") && (
           <button onClick={() => setShowAdd(p => !p)}
             className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
             {t("conn.add_btn")}
@@ -1270,7 +1272,7 @@ function DbConnectionsList({ client, auth }) {
                 {conn.meta?.sap_client && <span className="text-xs text-gray-500 font-mono">{t("conn.sap_client_num").replace("{n}", conn.meta.sap_client)}</span>}
                 {conn.meta?.vpn_protocol && <span className="text-xs text-indigo-500 font-mono">{conn.meta.vpn_protocol}</span>}
               </div>
-              {(auth.isAdmin || auth.isManager) && (
+              {perms.can("manage_db_connections") && (
                 <button onClick={() => deleteConnection(conn.id)}
                   className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded border border-red-100 hover:bg-red-50">
                   {t("action.remove")}
@@ -1364,6 +1366,7 @@ function ClientTeamView({ auth }) {
 }
 
 function ClientTeamList({ client, auth }) {
+  const perms = usePermissions(auth);
   const { t } = useT();
   const { members, addMember, updateMember, removeMember } = useClientTeamMembers(client.id);
   const [showAdd, setShowAdd]      = useState(false);
@@ -1462,7 +1465,7 @@ function ClientTeamList({ client, auth }) {
           <h2 className="font-bold text-gray-900">{client.client_profiles?.company_name ?? client.full_name}</h2>
           <p className="text-sm text-gray-400">{members.length === 1 ? t("team.count_one") : t("team.count_many").replace("{n}", members.length)}</p>
         </div>
-        {(auth.isAdmin || auth.isManager || auth.isClient) && (
+        {(perms.can("manage_team_members") || auth.isClient) && (
           <button onClick={() => { setShowAdd(p => !p); setAddError(null); }}
             className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
             {t("team.add_btn")}
@@ -1589,7 +1592,7 @@ function ClientTeamList({ client, auth }) {
                     </div>
                     {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
                   </div>
-                  {(auth.isAdmin || auth.isManager) && (
+                  {perms.can("manage_team_members") && (
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button onClick={() => startEdit(m)}
                         className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">

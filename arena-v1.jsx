@@ -1060,15 +1060,15 @@ export default function App() {
         : <Dashboard auth={auth} />;
       case "lifecycle":      return (auth.isAdmin || auth.isManager) ? <LifecycleSettingsView auth={auth} /> : <Dashboard auth={auth} />;
       case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} onNavigate={({ view, userId, clientId }) => { setPendingUserId(userId ?? null); setPendingUserBackView("settings"); setPendingClientId(clientId ?? null); setActiveView(view); }} /> : <Dashboard auth={auth} />;
-      case "audit_log":      return (auth.isAdmin || auth.isManager)
-        ? <AuditLogDashboard onNavigate={({ view, caseId, projectId, userId }) => {
+      case "audit_log":      return <PermGate auth={auth} cap="view_audit_log" fallback={<Dashboard auth={auth} />}>
+          <AuditLogDashboard onNavigate={({ view, caseId, projectId, userId }) => {
             setPendingCaseId(caseId ?? null);
             setPendingProjectId(projectId ?? null);
             setPendingUserId(userId ?? null);
             setPendingUserBackView("audit_log");
             setActiveView(view);
           }} />
-        : <Dashboard auth={auth} />;
+        </PermGate>;
       case "approvals":      return (auth.isAdmin || auth.isManager) ? <UserApprovalQueue /> : <Dashboard auth={auth} />;
       case "templates":      return (auth.isAdmin || auth.isManager) ? <CaseTemplatesView auth={auth} /> : <Dashboard auth={auth} />;
       case "notifications":  return <NotificationsView />;

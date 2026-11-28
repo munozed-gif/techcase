@@ -36,6 +36,22 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   release_transports:         { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   confirm_transport_imports:  { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   approve_asbuilt_spec:       { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
+  add_subcases:               { admin:true, manager:true, consultant:false, client:true, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  view_case_costs:            { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  change_case_sap_env:        { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  invite_case_client:         { admin:true, manager:true, consultant:true, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  manage_case_consultants:    { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  save_as_template:           { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  manage_milestones:          { admin:true, manager:true, consultant:true, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  post_internal_comments:     { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  approve_time:               { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  delete_time_entries:        { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  bulk_edit_cases:            { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  move_kanban_cards:          { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  manage_sla:                 { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  manage_db_connections:      { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  manage_team_members:        { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  manage_migrations:          { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
 };
 
 // ============================================================

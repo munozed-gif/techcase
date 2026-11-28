@@ -15,6 +15,7 @@ import {
 import { supabase } from "../lib/supabase.js";
 import { callClaude } from "../lib/utils.js";
 import { useT } from "../i18n/index.jsx";
+import { usePermissions } from "../hooks/useSystemSettings.jsx";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import { DEFAULT_MIGRATION_CONFIG } from "../lib/businessConstants.js";
@@ -169,6 +170,7 @@ function userName(users, id) {
 // ─── MigrationHub ─────────────────────────────────────────────────────────────
 
 export function MigrationHub({ auth }) {
+  const perms = usePermissions(auth);
   const { t } = useT();
   const [migProjects, setMigProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -211,7 +213,7 @@ export function MigrationHub({ auth }) {
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t('mig.subtitle')}</p>
         </div>
-        {(auth.isAdmin || auth.isManager) && (
+        {perms.can("manage_migrations") && (
           <button
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -665,6 +667,7 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
 // ════════════════════════════════════════════════════════════════
 
 function PhasesTab({ migProject, auth }) {
+  const perms = usePermissions(auth);
   const { t } = useT();
   const users = useFetchUsers();
   const [gates, setGates]           = useState({});
@@ -837,7 +840,7 @@ function PhasesTab({ migProject, auth }) {
             const doneCount   = phaseDelivs.filter(d => d.completed).length;
             const allDone     = phaseDelivs.length > 0 && doneCount === phaseDelivs.length;
             const isActive    = idx === activeCIdx;
-            const canComplete = (auth.isAdmin || auth.isManager) && allDone && status !== 'completed';
+            const canComplete = perms.can("manage_migrations") && allDone && status !== 'completed';
 
             const color      = PHASE_HEX[phase];
             const colorLight = PHASE_LIGHT[phase];
@@ -911,7 +914,7 @@ function PhasesTab({ migProject, auth }) {
                       {marking === phase ? t('mig.marking') : t('mig.mark_complete')}
                     </button>
                   )}
-                  {isActive && (auth.isAdmin || auth.isManager) && !allDone && status === 'in_progress' && (
+                  {isActive && perms.can("manage_migrations") && !allDone && status === 'in_progress' && (
                     <p style={{ fontSize:11, color:"#F59E0B", display:"flex", alignItems:"center", gap:4, margin:"4px 0 0", flexShrink:0 }}>
                       <AlertCircle size={11} />{t('mig.all_deliverables_required')}
                     </p>
@@ -940,6 +943,7 @@ function PhasesTab({ migProject, auth }) {
 // ════════════════════════════════════════════════════════════════
 
 function WricefTab({ migProject, auth }) {
+  const perms = usePermissions(auth);
   const { t } = useT();
   const users = useFetchUsers();
   const [objects, setObjects] = useState([]);
@@ -1085,7 +1089,7 @@ function WricefTab({ migProject, auth }) {
             <Download className="w-3.5 h-3.5" />
             {t('mig.wricef_export')}
           </button>
-          {(auth.isAdmin || auth.isManager) && (
+          {perms.can("manage_migrations") && (
             <button
               onClick={() => { setEditing(null); setShowModal(true); }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -1317,6 +1321,7 @@ function WricefModal({ migProjectId, auth, users, editing, t, onClose, onSaved }
 // ════════════════════════════════════════════════════════════════
 
 function CutoverTab({ migProject, auth }) {
+  const perms = usePermissions(auth);
   const { t } = useT();
   const users = useFetchUsers();
   const [runs, setRuns]             = useState([]);
@@ -1434,7 +1439,7 @@ function CutoverTab({ migProject, auth }) {
                   <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">{t('mig.run_not_configured')}</p>
                 )}
 
-                {(auth.isAdmin || auth.isManager) && (
+                {perms.can("manage_migrations") && (
                   <button
                     onClick={() => { setEditingRun(run ?? { run_type: runType, migration_project_id: migProject.id }); setShowRunModal(true); }}
                     className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
@@ -1461,7 +1466,7 @@ function CutoverTab({ migProject, auth }) {
             >
               {runTypeFilterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            {(auth.isAdmin || auth.isManager) && (
+            {perms.can("manage_migrations") && (
               <button
                 onClick={() => { setEditingTask(null); setShowTaskModal(true); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -1538,7 +1543,7 @@ function CutoverTab({ migProject, auth }) {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        {(auth.isAdmin || auth.isManager) && (
+                        {perms.can("manage_migrations") && (
                           <button
                             onClick={() => { setEditingTask(task); setShowTaskModal(true); }}
                             className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
@@ -1589,6 +1594,7 @@ function CutoverTab({ migProject, auth }) {
 // ─── RunModal ─────────────────────────────────────────────────────────────────
 
 function RunModal({ migProjectId, auth, run, t, onClose, onSaved }) {
+  const perms = usePermissions(auth);
   const isNew = !run?.id;
   const [saving, setSaving] = useState(false);
   const [errMsg, setErrMsg] = useState('');
@@ -1616,7 +1622,7 @@ function RunModal({ migProjectId, auth, run, t, onClose, onSaved }) {
       go_no_go:           form.go_no_go           || null,
       migration_project_id: migProjectId,
     };
-    if (form.go_no_go && (auth.isAdmin || auth.isManager)) {
+    if (form.go_no_go && perms.can("manage_migrations")) {
       payload.go_no_go_by = auth.user?.id;
       payload.go_no_go_at = new Date().toISOString();
     }
@@ -1651,7 +1657,7 @@ function RunModal({ migProjectId, auth, run, t, onClose, onSaved }) {
         <Input label={t('mig.run_downtime_start')} type="datetime-local" value={form.downtime_start}    onChange={e => set('downtime_start', e.target.value)} />
         <Input label={t('mig.run_downtime_end')}   type="datetime-local" value={form.downtime_end}      onChange={e => set('downtime_end', e.target.value)} />
         <Select label={t('mig.run_status')} options={statusOpts} value={form.status} onChange={e => set('status', e.target.value)} />
-        {(auth.isAdmin || auth.isManager) && (
+        {perms.can("manage_migrations") && (
           <Select label={t('mig.run_go_no_go')} options={goNoGoOpts} value={form.go_no_go} onChange={e => set('go_no_go', e.target.value)} />
         )}
         <Textarea label={t('mig.run_notes')} value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} />
@@ -1685,6 +1691,7 @@ const DATA_SEV_CLS = {
 };
 
 function DataTab({ migProject, auth }) {
+  const perms = usePermissions(auth);
   const { t } = useT();
   const users = useFetchUsers();
   const [objects, setObjects]     = useState([]);
@@ -1737,7 +1744,7 @@ function DataTab({ migProject, auth }) {
     ? (objects.reduce((s, o) => s + (o.go_live_pct ?? 0), 0) / objects.length).toFixed(1)
     : '—';
 
-  const canEdit = auth.isAdmin || auth.isManager;
+  const canEdit = perms.can("manage_migrations");
 
   if (loading) return <Spinner />;
   if (error) return <p className="text-red-500 text-sm">{error}</p>;
@@ -1998,6 +2005,7 @@ const SIMPLIF_STATUS_CLS = {
 };
 
 function SimplifTab({ migProject, auth }) {
+  const perms = usePermissions(auth);
   const { t } = useT();
   const users = useFetchUsers();
   const [items, setItems]         = useState([]);
@@ -2033,7 +2041,7 @@ function SimplifTab({ migProject, auth }) {
   const resolved   = items.filter(i => i.status === 'resolved').length;
   const mandatory  = items.filter(i => i.impact === 'mandatory_change').length;
 
-  const canEdit = auth.isAdmin || auth.isManager;
+  const canEdit = perms.can("manage_migrations");
 
   const areaOptions = ['FI','MM','SD','PP','HR','Basis','Technical','Other'];
   const impactOptions = ['mandatory_change','optional','informational'];

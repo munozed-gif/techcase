@@ -1464,6 +1464,7 @@ function ConnForm({ f, setF, onTypeChange, onSave, onCancel, isEdit, saving, t }
 
 function ProjectConnectionsTab({ projectId, clientId, auth, createdBy }) {
   const { t } = useT();
+  const perms = usePermissions(auth);
   const { projectConns, clientConns, addConnection, updateConnection, deleteConnection } = useProjectDbConnections(projectId, clientId);
   const [showAdd, setShowAdd] = useState(false);
   const defaultForm = { db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "", meta: {} };
@@ -1544,7 +1545,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth, createdBy }) {
     setSaving(false);
   }
 
-  const canEdit = auth.isAdmin || auth.isManager || createdBy === auth.user?.id;
+  const canEdit = perms.can("manage_db_connections") || createdBy === auth.user?.id;
 
   const ConnCard = ({ conn, readOnly }) => {
     if (editingId === conn.id) return (
@@ -2970,7 +2971,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                     className="text-sm border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors">
                     <LayoutTemplate size={13} /> Apply Template
                   </button>
-                  {(auth.isAdmin || auth.isManager) && projCases.length > 0 && (
+                  {perms.can("save_as_template") && projCases.length > 0 && (
                     <button onClick={() => setShowSaveTmplModal(true)}
                       className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors">
                       <Copy size={13} /> Save as Template

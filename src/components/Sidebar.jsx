@@ -6,7 +6,7 @@ import {
   ShieldCheck, SlidersHorizontal, Target, TrendingUp, User, UserCheck, UsersRound,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
-import { usePlatformBranding, useVisibilitySettings, useSystemSettings, usePlanConfig } from "../hooks/useSystemSettings.jsx";
+import { usePlatformBranding, useVisibilitySettings, useSystemSettings, usePlanConfig, usePermissions } from "../hooks/useSystemSettings.jsx";
 import { Tm } from "./BrandMark.jsx";
 import { ROLE_TO_PLAN_TYPE } from "../lib/businessConstants.js";
 import { NotificationBell } from "./NotificationBell.jsx";
@@ -69,6 +69,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
   const sidebarVisCfg = useVisibilitySettings();
   const branding = usePlatformBranding();
   const ssCtx = useSystemSettings();
+  const perms = usePermissions(auth);
   const planCfg = usePlanConfig();
   const partnerCtx = usePartnerContext(auth?.user?.id);
   const { seller } = useMySeller(auth?.user?.id);
@@ -218,6 +219,16 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       const SALES_NAV = { id: "sales", Icon: TrendingUp, labelKey: "nav.sales" };
       items = at >= 0 ? [...items.slice(0, at + 1), SALES_NAV, ...items.slice(at + 1)] : [...items, SALES_NAV];
     }
+  }
+  // Audit log follows the view_audit_log capability (Settings -> Roles).
+  if (perms.can("view_audit_log")) {
+    if (!items.some(i => i.id === "audit_log")) {
+      const at = items.findIndex(i => i.id === "reports");
+      const AUDIT_NAV = { id: "audit_log", Icon: ClipboardList, labelKey: "log.nav" };
+      items = at >= 0 ? [...items.slice(0, at + 1), AUDIT_NAV, ...items.slice(at + 1)] : [...items, AUDIT_NAV];
+    }
+  } else {
+    items = items.filter(i => i.id !== "audit_log");
   }
   // Hide consultants nav for clients in Internal mode — they don't participate in marketplace
   if (role === 'client' && auth?.user?.id) {

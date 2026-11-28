@@ -481,7 +481,7 @@ function CasesView({ auth, initialCaseId }) {
       })()}
 
       {/* Cases Grid */}
-      {(auth.isAdmin || auth.isManager) && displayed.length > 0 && (
+      {can("bulk_edit_cases") && displayed.length > 0 && (
         <div className="flex items-center gap-2 mb-2 px-1">
           <input type="checkbox"
             checked={selectedCases.size === displayed.length && displayed.length > 0}
@@ -505,7 +505,7 @@ function CasesView({ auth, initialCaseId }) {
                 const cc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", bg: "#f9fafb" };
                 return (
                   <div className="flex items-center gap-3">
-                    {(auth.isAdmin || auth.isManager) && (
+                    {can("bulk_edit_cases") && (
                       <div className="self-start pt-1 shrink-0">
                         <input type="checkbox"
                           checked={selectedCases.has(c.id)}
@@ -574,7 +574,7 @@ function CasesView({ auth, initialCaseId }) {
       )}
 
       {/* Bulk Action Toolbar */}
-      {(auth.isAdmin || auth.isManager) && selectedCases.size > 0 && (
+      {can("bulk_edit_cases") && selectedCases.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex-wrap">
           <span className="text-sm font-medium">{t("bulk.selected").replace("{n}", selectedCases.size)}</span>
           <div className="w-px h-5 bg-gray-600" />
