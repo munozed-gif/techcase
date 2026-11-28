@@ -2412,7 +2412,8 @@ function SettingsGenerationTab({ ssCtx }) {
                 <p className="text-xs text-gray-400 mt-0.5">{t(descKey)}</p>
               </div>
               <input type="number" min={500} step={500} value={form.context[key]}
-                onChange={e => setForm(p => ({ ...p, context: { ...p.context, [key]: e.target.value === '' ? '' : Math.max(500, +e.target.value) } }))}
+                onChange={e => setForm(p => ({ ...p, context: { ...p.context, [key]: e.target.value === '' ? '' : +e.target.value } }))}
+                onBlur={e => { if (e.target.value !== '') setForm(p => ({ ...p, context: { ...p.context, [key]: Math.max(500, +e.target.value) } })); }}
                 className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-right focus:outline-none focus:border-blue-400" />
             </div>
           ))}
@@ -2568,7 +2569,8 @@ function SettingsGenerationTab({ ssCtx }) {
               <p className="text-xs text-gray-400 mt-0.5">{t("gen.max_tokens_desc")}</p>
             </div>
             <input type="number" min={1000} step={1000} value={form.profiles[activeProfile].max_tokens}
-              onChange={e => setForm(prev => ({ ...prev, profiles: { ...prev.profiles, [activeProfile]: { ...prev.profiles[activeProfile], max_tokens: e.target.value === '' ? '' : Math.max(1000, +e.target.value) } } }))}
+              onChange={e => setForm(prev => ({ ...prev, profiles: { ...prev.profiles, [activeProfile]: { ...prev.profiles[activeProfile], max_tokens: e.target.value === '' ? '' : +e.target.value } } }))}
+              onBlur={e => { if (e.target.value !== '') setForm(prev => ({ ...prev, profiles: { ...prev.profiles, [activeProfile]: { ...prev.profiles[activeProfile], max_tokens: Math.max(1000, +e.target.value) } } })); }}
               className="w-28 border border-gray-200 rounded-lg px-2 py-1 text-sm text-right focus:outline-none focus:border-blue-400" />
           </div>
 
@@ -2647,7 +2649,8 @@ function SettingsGenerationTab({ ssCtx }) {
                     <p className="text-[10px] text-gray-400 mt-0.5">Longest response of the prototype call (HTML). Raise it when prototypes come back cut off.</p>
                   </div>
                   <input type="number" min={1000} step={1000} value={form.profiles[activeProfile].prototype_max_tokens}
-                    onChange={e => setForm(prev => ({ ...prev, profiles: { ...prev.profiles, [activeProfile]: { ...prev.profiles[activeProfile], prototype_max_tokens: e.target.value === '' ? '' : Math.max(1000, +e.target.value) } } }))}
+                    onChange={e => setForm(prev => ({ ...prev, profiles: { ...prev.profiles, [activeProfile]: { ...prev.profiles[activeProfile], prototype_max_tokens: e.target.value === '' ? '' : +e.target.value } } }))}
+              onBlur={e => { if (e.target.value !== '') setForm(prev => ({ ...prev, profiles: { ...prev.profiles, [activeProfile]: { ...prev.profiles[activeProfile], prototype_max_tokens: Math.max(1000, +e.target.value) } } })); }}
                     className="w-28 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:border-indigo-400" />
                 </div>
                 <p className="text-[11px] text-gray-500 mt-2 leading-relaxed">

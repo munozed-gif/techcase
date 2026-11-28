@@ -101,7 +101,8 @@ export function computeEstimate(objects, { settings, estCtx, scenarios = 0, over
   const cfg = specHoursSettings(settings);
   const ef = estCtx?.factors ?? estimationFactors(settings);
   const r1 = n => roundHours(n, ef);                      // to round_step (default 0.5 h)
-  const factors = estCtx?.factors, seniority = estCtx?.seniority ?? ef.default_seniority ?? 'mid', liveCheck = !!estCtx?.liveCheck;
+  // Same factors for the standard rounding and the Arena hours, also without an estCtx (dev plan, loading).
+  const factors = ef, seniority = estCtx?.seniority ?? ef.default_seniority ?? 'mid', liveCheck = !!estCtx?.liveCheck;
   const modeOf = kind => {
     if (!estCtx?.arenaAvailable) return 'manual';
     const p = KIND_TO_POLICY[kind];

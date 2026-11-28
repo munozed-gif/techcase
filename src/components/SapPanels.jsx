@@ -7554,9 +7554,10 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
 
   async function savePackage(val) {
     setSavingPackage(true);
-    const cur = settings['sap_impl_package'] ?? {};
-    await ssCtx.setSetting('sap_impl_package', { ...cur, [caseData.id]: val });
-    setSavingPackage(false);
+    // One entry, merged in the database: the automatic fill from the spec runs on load and must not
+    // overwrite other cases' packages from a stale cached copy.
+    try { await ssCtx.setSettingEntry('sap_impl_package', caseData.id, val); }
+    finally { setSavingPackage(false); }
   }
   async function saveSpecs(newSpecs) {
     const cur = settings['sap_impl_specs'] ?? {};
@@ -7653,7 +7654,7 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
         : enrichedSapConfig;
 
       addLog(`Writing ${programName} to SAP…`);
-      const writeResult = await sapWriteSourceDetail(effectiveCfg, 'program', programName, specState.configScript, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {}, { ...implWriteOpts(ssCtx.settings), caseId: caseData.id, transportDescription: caseTransportDescription(caseData, ssCtx.settings) });
+      const writeResult = await sapWriteSourceDetail(effectiveCfg, 'program', programName, specState.configScript, transportReq || undefined, packageReq || undefined, undefined, { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(ssCtx.settings['sap_adt_write_policy'] ?? {}), requirePackage: resolvePolicies(ssCtx.settings, caseValidationScope(caseData)).sap_require_package.mode === 'block' }, { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(ssCtx.settings['sap_adt_capabilities'] ?? {}) }, ssCtx.settings['sap_adt_object_map'] ?? {}, { ...implWriteOpts(ssCtx.settings), caseId: caseData.id, transportDescription: caseTransportDescription(caseData, ssCtx.settings) });
       if (writeResult.ok && !transportReq && writeResult.transport && (!writeResult.transportSource || writeResult.transportSource === 'created')) setTransportReq(writeResult.transport);
       if (!writeResult.ok) throw new Error(writeResult.error ?? writeResult.hint ?? `HTTP ${writeResult.status}`);
       addLog('✓ Program written to SAP');
@@ -7764,7 +7765,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     if (!obj?.objectName || !code) return;
     setActField(act.id, { applying: true, applyLog: [`Connecting to SAP via /api/sap-proxy → ${sapConfig.host}…`] });
     const pushLog = msg => setActField(act.id, s => ({ applyLog: [...(s.applyLog ?? []), msg] }));
-    const result = await sapWriteSourceDetail(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined, undefined, undefined, undefined, undefined, ssCtx.settings['sap_adt_object_map'] ?? {}, { ...implWriteOpts(ssCtx.settings, (n, why) => pushLog(`Write failed (${why}) — retry ${n}…`)), caseId: caseData.id, transportDescription: caseTransportDescription(caseData, ssCtx.settings) });
+    const result = await sapWriteSourceDetail(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined, packageReq || undefined, undefined, { ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(ssCtx.settings['sap_adt_write_policy'] ?? {}), requirePackage: resolvePolicies(ssCtx.settings, caseValidationScope(caseData)).sap_require_package.mode === 'block' }, { ...SAP_ADT_CAPABILITIES_DEFAULTS, ...(ssCtx.settings['sap_adt_capabilities'] ?? {}) }, ssCtx.settings['sap_adt_object_map'] ?? {}, { ...implWriteOpts(ssCtx.settings, (n, why) => pushLog(`Write failed (${why}) — retry ${n}…`)), caseId: caseData.id, transportDescription: caseTransportDescription(caseData, ssCtx.settings) });
     if (result.ok && !transportReq && result.transport && (!result.transportSource || result.transportSource === 'created')) setTransportReq(result.transport);
     if (result.ok) {
       pushLog(`✓ Applied successfully (HTTP ${result.status})`);
@@ -9540,6 +9541,17 @@ function SapMcpPolicyPanel({ auth }) {
               { key: 'specs',     label: 'Generate Specs',    toggles: [
                 { field: 'use_mcp',              label: 'Use MCP for spec generation',             desc: 'Pass MCP servers to Claude when generating specifications.' },
                 { field: 'include_mcp_rules',    label: 'Include MCP Rules in spec generation',   desc: 'Append sap_mcp_rules text to the spec generation system prompt.' },
+                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',    desc: 'Add the Capabilities flags (S/4HANA, CDS, CTS, syntax check, activation) to the spec generation prompt.' },
+              ]},
+              { key: 'blueprint', label: 'Generate Blueprint', toggles: [
+                { field: 'use_mcp',              label: 'Use MCP for blueprint generation',       desc: 'Pass MCP servers when generating the blueprint object list (non-ADT connections only).' },
+                { field: 'include_mcp_rules',    label: 'Include MCP Rules',                      desc: 'Append sap_mcp_rules text to the blueprint generation prompt.' },
+                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',    desc: 'Add the Capabilities flags to the blueprint generation prompt.' },
+              ]},
+              { key: 'implement', label: 'Implement Objects', toggles: [
+                { field: 'use_mcp',              label: 'Use MCP (non-ADT mode)',                 desc: 'Pass MCP servers during ABAP code generation in non-ADT mode.' },
+                { field: 'include_mcp_rules',    label: 'Include MCP Rules in generation prompt', desc: 'Append sap_mcp_rules text to the ABAP code generation prompt.' },
+                { field: 'include_capabilities', label: 'Include SAP Capabilities in context',    desc: 'Add the Capabilities flags to the ABAP code generation prompt.' },
               ]},
             ].map(({ key, label, toggles }) => {
               const dflt = MCP_ADT_PIPELINE_POLICY_DEFAULTS.stages[key] ?? {};
