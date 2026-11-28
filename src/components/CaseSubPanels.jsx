@@ -2210,6 +2210,11 @@ ${md}`;
       if (selectedSpec === key) setAiContent(newMd);
       setSavedSpecUrls(prev => ({ ...prev, [key]: null, ...(key === 'c' ? { d: null } : {}) }));
       await saveAiNotesPatch({ [key === 'c' ? 'specC' : 'specA']: newMd, ...(key === 'c' && calc.d ? { specD: calc.d } : {}), regenDiff: nextDiff, specGeneratedAt: new Date().toISOString() });
+      // The documents attached to the case (Documents tab) follow the corrected text.
+      await saveAllSpecsAsDocuments(
+        key === 'a' ? newMd : aiSpecA, aiSpecB,
+        key === 'c' ? newMd : aiSpecC, key === 'c' && calc.d ? calc.d : aiSpecD,
+        sapCheck, proposalCheck, { keepPrototype: true }).catch(() => {});
       setReqLoading(null);
       await handleCheckCoverage(key, newMd);
       await handleGenerationReview({ key, text: newMd }).catch(() => {});
@@ -3164,10 +3169,11 @@ ${mdToHtml(markdownContent)}
     setDownloadingPdf(false);
   }
 
-  async function saveAllSpecsAsDocuments(specA, specB, specC, specD, sap, proposal) {
+  async function saveAllSpecsAsDocuments(specA, specB, specC, specD, sap, proposal, { keepPrototype = false } = {}) {
     setSavingDoc(true);
     try {
-      const SPEC_PREFIXES = ['SpecA_CustomABAP', 'SpecB_StandardSAP', 'SpecC_PropuestaCliente', 'SpecD_EspecCliente', 'Prototype_'];
+      // keepPrototype: only the spec texts changed (e.g. "Fix gaps"), the prototype document stays.
+      const SPEC_PREFIXES = ['SpecA_CustomABAP', 'SpecB_StandardSAP', 'SpecC_PropuestaCliente', 'SpecD_EspecCliente', ...(keepPrototype ? [] : ['Prototype_'])];
       if (deleteDocument && documents?.length) {
         const oldDocs = documents.filter(d =>
           d.file_name && SPEC_PREFIXES.some(p => d.file_name.startsWith(p))
