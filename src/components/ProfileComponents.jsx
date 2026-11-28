@@ -20,7 +20,13 @@ function Badge({ children, className = "" }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${className}`}>{children}</span>;
 }
 
-function Spinner() {
+// Without size: page / panel loader (centered block). With size: small inline spinner for buttons.
+function Spinner({ size } = {}) {
+  if (size) {
+    const b = Math.max(1.5, Math.round(size / 6));
+    return <span className="inline-block align-[-2px] rounded-full border-current border-t-transparent animate-spin flex-shrink-0"
+      style={{ width: size, height: size, borderWidth: b, borderStyle: 'solid' }} />;
+  }
   return (
     <div className="flex items-center justify-center h-48">
       <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
