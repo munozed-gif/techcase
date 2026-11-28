@@ -2392,9 +2392,10 @@ function SettingsGenerationTab({ ssCtx }) {
               <p className="text-sm font-medium text-gray-700">{t("gen.ctx_doc_lang")}</p>
               <p className="text-xs text-gray-400 mt-0.5">{t("gen.ctx_doc_lang_desc")}</p>
             </div>
-            <select value={form.context.default_doc_language ?? 'es'}
+            <select value={form.context.default_doc_language ?? ''}
               onChange={e => setForm(p => ({ ...p, context: { ...p.context, default_doc_language: e.target.value } }))}
               className="border border-gray-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:border-blue-400">
+              <option value="">{t("gen.ctx_lang_ui")}</option>
               <option value="es">{t("gen.ctx_lang_es")}</option>
               <option value="en">{t("gen.ctx_lang_en")}</option>
             </select>

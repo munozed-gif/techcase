@@ -166,7 +166,14 @@ export function planDesignHours(pick) {
 }
 
 /** Scale the design activities so they add up to the spec's analysis & design hours (0.5 h steps). */
-export function scaleDesign(activities, hours) {
+// Rounding of the scaled design hours: Settings → Arena estimation → round_step / min_hours (0.5 / 0.5).
+function roundDesign(n, factors) {
+  const step = Number(factors?.round_step) > 0 ? Number(factors.round_step) : 0.5;
+  const min = Number.isFinite(Number(factors?.min_hours)) && factors?.min_hours !== '' && factors?.min_hours != null ? Number(factors.min_hours) : 0.5;
+  return Math.max(min, Math.round(n / step) * step);
+}
+
+export function scaleDesign(activities, hours, factors = null) {
   const design = activities.filter(a => a.phase === 'design');
   const sum = design.reduce((s, a) => s + (Number(a.est_hours) || 0), 0);
   if (!design.length || !hours || !sum) return activities;
@@ -175,7 +182,7 @@ export function scaleDesign(activities, hours) {
   const out = activities.map(a => {
     if (a.phase !== 'design') return a;
     const isLast = a === design[design.length - 1];
-    const h = isLast ? Math.max(0.5, Math.round(left * 2) / 2) : Math.max(0.5, Math.round((Number(a.est_hours) || 0) * f * 2) / 2);
+    const h = isLast ? roundDesign(left, factors) : roundDesign((Number(a.est_hours) || 0) * f, factors);
     left -= h;
     return { ...a, est_hours: h };
   });
@@ -184,7 +191,7 @@ export function scaleDesign(activities, hours) {
 
 /** After the Arena estimate: use the Arena hours written in the spec (objects, test phases) and make
  *  the design activities add up to the spec's analysis & design Arena hours. */
-export function applySpecArena(activities, pick) {
+export function applySpecArena(activities, pick, factors = null) {
   const designArena = planPhaseHours(pick).arena.analysis;
   let out = activities.map(a => (Number.isFinite(a._specArena) && a._specArena > 0 ? { ...a, est_hours: a._specArena } : a));
   const design = out.filter(a => a.phase === 'design');
@@ -193,7 +200,7 @@ export function applySpecArena(activities, pick) {
     const f = designArena / sum; let left = designArena;
     out = out.map(a => {
       if (a.phase !== 'design') return a;
-      const h = a === design[design.length - 1] ? Math.max(0.5, Math.round(left * 2) / 2) : Math.max(0.5, Math.round(a.est_hours * f * 2) / 2);
+      const h = a === design[design.length - 1] ? roundDesign(left, factors) : roundDesign(a.est_hours * f, factors);
       left -= h; return { ...a, est_hours: h };
     });
   }

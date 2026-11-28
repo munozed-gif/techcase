@@ -67,13 +67,14 @@ import {
   gateTabs,
 } from "../lib/businessConstants.js";
 import { resolveGate, caseValidationScope } from "../lib/validationPolicies.js";
-import { applyArenaEstimate, arenaHours, estimateTotals, IMPL_MODE_LABEL, SENIORITY_LABEL, SENIORITY_LEVELS } from "../lib/estimation.js";
+import { applyArenaEstimate, arenaHours, estimateTotals, IMPL_MODE_LABEL, SENIORITY_LABEL, SENIORITY_LEVELS, estimationFactors } from "../lib/estimation.js";
 import { caseEstimationContext } from "../lib/estimationContext.js";
 import { setAiContext } from "../lib/utils.js";
 import { CaseCostsTab } from "../components/CaseCostsTab.jsx";
 import { TimeRangeFields } from "../components/ui.jsx";
 import { Coins } from "lucide-react";
 import { EffectiveRulesPanel } from "../components/ValidationRulesPanel.jsx";
+import { docLanguageFor } from "../lib/specHours.js";
 
 // ── HTML document builder for AI-generated markdown docs ──────────────────────
 function buildMarkdownHtmlDoc({ eyebrow, title, caseTitle, date, accentRgb, metaRows, markdown }) {
@@ -2150,17 +2151,17 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
       const objMatch = (jsonRaw.match(/\{[\s\S]*\}/) ?? [])[0] ?? '{}';
       const parsedRaw = tryParse(jsonRaw) ?? tryParse(stripped) ?? tryParse(objMatch) ?? [];
       // Hours of the spec's objects (and any object the AI left out) — the plan matches the approved estimate.
-      const aligned = specObjs.length ? alignWithObjects(parsedRaw, specObjs, planPick?.notes?.docLang || lang) : parsedRaw;
+      const aligned = specObjs.length ? alignWithObjects(parsedRaw, specObjs, docLanguageFor(planPick?.notes?.docLang, cdSettings, lang)) : parsedRaw;
       // Design activities add up to the spec's "Analysis & design" hours.
-      const scaled = planPick?.cfg?.align_objects ? scaleDesign(aligned, planDesignHours(planPick)) : aligned;
+      const scaled = planPick?.cfg?.align_objects ? scaleDesign(aligned, planDesignHours(planPick), estimationFactors(cdSettings)) : aligned;
       // Unit tests and UAT support from the spec's estimate, so the plan adds up to the spec's total.
       const parsedStandard = planPick?.cfg?.include_tests
-        ? [...scaled, ...planTestActivities(planPick, planPick?.notes?.docLang || lang, outputMode === 'subcases' ? 'subcase' : 'activity')]
+        ? [...scaled, ...planTestActivities(planPick, docLanguageFor(planPick?.notes?.docLang, cdSettings, lang), outputMode === 'subcases' ? 'subcase' : 'activity')]
         : scaled;
       // Arena estimate next to the standard one (automation × seniority, see lib/estimation.js).
       const estCtx = await caseEstimationContext(caseData, cdSettings, { isStaff: auth.isAdmin || auth.isManager });
       // Arena hours written in the approved spec win over the formula, so the plan matches the document.
-      const parsedActivities = planPick?.cfg?.align_objects ? applySpecArena(applyArenaEstimate(parsedStandard, estCtx), planPick) : applyArenaEstimate(parsedStandard, estCtx);
+      const parsedActivities = planPick?.cfg?.align_objects ? applySpecArena(applyArenaEstimate(parsedStandard, estCtx), planPick, estCtx.factors) : applyArenaEstimate(parsedStandard, estCtx);
       const estTot = estimateTotals(parsedActivities);
 
       console.log('[DevPlan] raw length:', jsonRaw.length, '| parsedActivities:', parsedActivities.length);

@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import DOMPurify from "dompurify";
 import { ClipboardCheck } from "lucide-react";
 import { diffSpecs, KIND_LABEL } from "../lib/specDiff.js";
-import { applySpecHours, replaceEstimateSection, countMatrixScenarios, readObjects, computeEstimate } from "../lib/specHours.js";
+import { applySpecHours, replaceEstimateSection, countMatrixScenarios, readObjects, computeEstimate, docLanguageFor } from "../lib/specHours.js";
 import { activeRules, rulesPromptBlock, checkRules } from "../lib/projectRules.js";
 import { normalizeRequirements, parseJsonArray, requirementsPromptBlock, coverageStats, inScope, textHash } from "../lib/requirements.js";
 import { RequirementsChecklist, CoveragePanel, SectionHeader } from "./SpecRequirements.jsx";
@@ -48,7 +48,7 @@ import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES,
   DEFAULT_ACTIVITY_PHASES, ROLE_COLORS,
 } from "../lib/businessConstants.js";
-import { sapLiveCheck, sapFetchSource, detectSapObjectType, sapCapabilitiesNote } from "../components/SapPanels.jsx";
+import { sapLiveCheck, sapFetchSource, detectSapObjectType, sapCapabilitiesNote, sapMcpRulesText } from "../components/SapPanels.jsx";
 import AsBuiltSpecPanel from "./AsBuiltSpecPanel.jsx";
 
 function ProjectFieldEditor({ caseData, auth }) {
@@ -1069,7 +1069,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const pol = specAnalysisPolicy(ssCtx.settings);
   const covGate = { minPct: pol.signoff.coverage_min_pct, partialIsGap: pol.signoff.partial_counts_as_gap };
   const sapMcpServerUrl = (ssCtx.settings["sap_mcp_server_url"] ?? '').trim();
-  const sapMcpRules = (ssCtx.settings["sap_mcp_rules"] ?? '').trim();
+  const sapMcpRules = sapMcpRulesText(ssCtx.settings);
   const _protoRaw  = ssCtx.settings["prototype_model"];
   // The model chosen in Settings → AI is used as is; if a call with it fails, the prototype is
   // retried once with the fallback model (prototype_fallback_model, default Haiku).
@@ -1251,7 +1251,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [signoff, setSignoff] = useState(null);
   const docLangRef = useRef(null);                          // language of the customer documents (notes.docLang)
   // Specs and questions for the customer are written in the customer's language; analysis stays in the user's.
-  const specLang = () => docLangRef.current || lang;
+  // Detected language of the documents, else Settings → AI → default document language, else the interface.
+  const specLang = () => docLanguageFor(docLangRef.current, ssCtx.settings, lang);
   const MAX_DOC_IMAGES = 16;                                // images per AI call (embedded + attached)             // notes.signoff: { by, name, at, specHash }
   const genGateOverrideRef = useRef(false);
   // Latest AI notes of the spec (kept across quick consecutive saves).

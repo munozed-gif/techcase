@@ -419,6 +419,13 @@ async function buildSapMcpToken(sapConfig, serverTypeOverride) {
  * Build the mcp_servers array for callClaude when a SAP env + MCP server URL are configured.
  * Returns undefined when either is missing so callClaude falls back to plain generation.
  */
+/** MCP rules for the prompts: the saved text (Settings → SAP MCP Policy → Rules), else the defaults
+ *  that tab shows. An admin who saves an empty text turns the rules off. */
+function sapMcpRulesText(settings) {
+  const v = settings?.['sap_mcp_rules'];
+  return String(v == null ? SAP_MCP_RULES_DEFAULTS : v).trim();
+}
+
 /** Options of one pipeline stage (Settings → SAP MCP Policy → Pipeline). */
 function pipelineStage(settings, stage) {
   const stored = (settings?.['mcp_adt_pipeline_policy'] ?? {}).stages?.[stage] ?? {};
@@ -436,7 +443,7 @@ function sapCapabilitiesNote(settings) {
 /** Extra prompt text for a stage: the MCP rules and/or the capabilities, as configured. */
 function stagePromptExtras(settings, stage) {
   const st = pipelineStage(settings, stage);
-  const rules = String(settings?.['sap_mcp_rules'] ?? '').trim();
+  const rules = sapMcpRulesText(settings);
   return (st.include_mcp_rules && rules ? `\n\nSAP MCP RULES:\n${rules}` : '')
     + (st.include_capabilities ? `\n\n${sapCapabilitiesNote(settings)}` : '');
 }
@@ -9641,4 +9648,4 @@ function SapMcpPolicyPanel({ auth }) {
   );
 }
 
-export { useClientProfile, sapCapabilitiesNote, pipelineStage, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource, detectSapObjectType, SapMcpPolicyPanel, SAP_ADT_WRITE_POLICY_DEFAULTS, SAP_ADT_CAPABILITIES_DEFAULTS, SAP_MCP_RULES_DEFAULTS, SAP_ADT_OBJECT_MAP_DEFAULTS, resolveObjectTypeConfig, MCP_ADT_PIPELINE_POLICY_DEFAULTS, ABAP_CLOUD_ADT_OBJECT_MAP_PRESET };
+export { useClientProfile, sapCapabilitiesNote, pipelineStage, sapMcpRulesText, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource, detectSapObjectType, SapMcpPolicyPanel, SAP_ADT_WRITE_POLICY_DEFAULTS, SAP_ADT_CAPABILITIES_DEFAULTS, SAP_MCP_RULES_DEFAULTS, SAP_ADT_OBJECT_MAP_DEFAULTS, resolveObjectTypeConfig, MCP_ADT_PIPELINE_POLICY_DEFAULTS, ABAP_CLOUD_ADT_OBJECT_MAP_PRESET };

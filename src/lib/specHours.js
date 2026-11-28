@@ -58,8 +58,11 @@ const raw = (n, es) => { const s = String(Number(n)); return es ? s.replace('.',
 // Values are already rounded by computeEstimate (estimation_factors.round_step, default 0.5 h).
 const fmt = (n, es) => { const v = Math.round(Number(n) * 100) / 100; const s = String(v); return es ? s.replace('.', ',') : s; };
 
-/** Default language of the generated documents (generation_context.default_doc_language, default 'es'). */
+/** Default language of the generated documents (generation_context.default_doc_language; '' = the
+ *  interface language, which callers pass; 'es' as the last fallback here, as before). */
 export const defaultDocLanguage = settings => (settings?.generation_context ?? {}).default_doc_language || 'es';
+/** Language of a case's documents: the detected one, else the configured default, else the interface. */
+export const docLanguageFor = (detected, settings, uiLang) => detected || (settings?.generation_context ?? {}).default_doc_language || uiLang;
 
 /** Objects of the technical-objects table, with complexity and description. */
 export function readObjects(md) {
