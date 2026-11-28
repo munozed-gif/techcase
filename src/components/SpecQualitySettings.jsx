@@ -308,6 +308,7 @@ function AnalysisPolicySettings({ ssCtx }) {
           {Num({ sec: 'live_check', k: 'max_objects', label: 'Objetos buscados como máximo', hint: 'Nombres Z/Y del caso que se buscan en el sistema.', unit: 'objetos' })}
           {Num({ sec: 'live_check', k: 'source_chars', label: 'Caracteres del código existente', hint: 'Comienzo del código fuente encontrado que se envía a la IA.', unit: 'caract.', step: 500 })}
         </div>
+        {Check({ sec: 'live_check', k: 'badi_search', label: 'Buscar BAdIs liberadas', hint: 'En la verificación en vivo, busca las BAdIs y puntos de ampliación liberados (C0/C1) del área del requerimiento, con su interfaz y si sirven para el caso.' })}
       </div>
 
       <div className={box}>

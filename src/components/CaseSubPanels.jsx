@@ -7064,6 +7064,12 @@ EXISTING EXTENSIONS — previous work. Look for extensions already made in this 
 - custom fields and extension objects: searchObject for YY1_* and ZZ1_* (data elements, append structures, CDS extensions) and keep only the ones related to the objects of this requirement;
 - appended fields: ddicElement / objectStructure of the main tables and UI structures of the requirement, listing fields whose names start with ZZ1_, YY1_, ZZ or Z (append structures / customer includes);
 - Z/Y classes, BAdI implementations or enhancements whose name or package points to this area (searchObject with the business keywords of the requirement).
+${pol.live_check.badi_search ? `
+RELEASED BAdIs — candidate extension points. Find the BAdIs this requirement could implement (to fill a field, add logic on save, determine a value…):
+- released enhancement spots / BAdIs of the requirement's area: runQuery on ARS_W_API_STATE with OBJECT_TYPE IN ('ENHS','BADI','SXSD') (or no type filter) and OBJECT_KEY LIKE the area's namespaces and business keywords (e.g. '%SCMTMS%TOR%', '/SCMTMS/%', '%FREIGHT%' for TM freight units/orders), RELEASE_STATE = 'RELEASED';
+- BAdI definitions and their spots, interface and methods: BADI_MAIN (BADI_NAME, ENHSPOTNAME, INTER_NAME) with the same keywords; open the interface (objectStructure) to read the method names and parameters;
+- for key-user custom fields (ZZ1_/YY1_), the BAdIs offered for custom logic of the field's business context (released C0 BAdIs whose interface works on that business object's node).
+Keep at most 8 candidates, the most relevant first. Never invent a name: list only what the queries returned.` : ''}
 Use ONLY read tools (search, structure, DDIC, source, table contents, SELECT queries). Never create, change, activate, delete, lock or release anything.
 
 Then produce a section titled:
@@ -7076,7 +7082,9 @@ Only include objects you actually checked. If no relevant objects are named, wri
 After the table add:
 ### ${lang === 'es' ? 'Extensiones existentes' : 'Existing extensions'}
 a short list of the custom fields / appends / Z objects found that relate to this requirement (name, where it is, what it seems to hold), or one line saying none were found and what was searched.
-### ${lang === 'es' ? 'Conclusión Clean Core' : 'Clean Core conclusion'}
+${pol.live_check.badi_search ? `### ${lang === 'es' ? 'BAdIs liberadas candidatas' : 'Candidate released BAdIs'}
+A markdown table with columns: BAdI | ${lang === 'es' ? 'Punto de ampliación' : 'Enhancement spot'} | ${lang === 'es' ? 'Interfaz / método' : 'Interface / method'} | ${lang === 'es' ? 'Estado' : 'State'} | ${lang === 'es' ? '¿Sirve para el caso?' : 'Fits the case?'} — only BAdIs the queries returned; State is the release state read (e.g. "Released C0"). Then one line: the recommended BAdI, or that none was found and what was searched (keywords, tables).
+` : ''}### ${lang === 'es' ? 'Conclusión Clean Core' : 'Clean Core conclusion'}
 2–4 lines in ${langName}: is there a released (C0/C1) extension point or key-user option for this requirement, which one, and what must still be confirmed. Base it only on what you read in the system.${_analyzeRulesNote}
 
 Analysis to process:

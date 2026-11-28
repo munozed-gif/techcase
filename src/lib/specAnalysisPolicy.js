@@ -48,6 +48,7 @@ export const SPEC_ANALYSIS_DEFAULTS = {
     modification_keywords: 'modif, updat, enhanc, extend, fix, correct, adjust',
     max_objects: 3,
     source_chars: 3000,
+    badi_search: true,   // search the released BAdIs / enhancement spots of the requirement's area
   },
   doc_summary: { enabled: true, model: '', max_tokens: 200, input_chars: 3000 },   // model '' = DOC_SUMMARY_DEFAULT_MODEL; 'analysis' = analysis_model
   video: { ...VIDEO_DEFAULTS },   // max_frames 40, batch_frames 12, batch_mb 3, max_mb 200, max_tokens 4000, summary_max_tokens 1500
@@ -87,6 +88,7 @@ export function specAnalysisPolicy(settings) {
       modification_keywords: typeof s.live_check?.modification_keywords === 'string' ? s.live_check.modification_keywords : D.live_check.modification_keywords,
       max_objects: num(s.live_check?.max_objects, D.live_check.max_objects, 0),
       source_chars: num(s.live_check?.source_chars, D.live_check.source_chars, 0),
+      badi_search: s.live_check?.badi_search === false ? false : D.live_check.badi_search,
     },
     doc_summary: {
       enabled: bool(s.doc_summary?.enabled, D.doc_summary.enabled),
