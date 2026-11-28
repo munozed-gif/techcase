@@ -6077,6 +6077,9 @@ Suggest ${implNum(_implPol, 'blueprint_min_objects', 1)}-${implNum(_implPol, 'bl
     for (const obj of sorted) {
       if (stopRef.current) { addLog('Stopped by user.', 'skipped'); break; }
       if (obj.status === 'done') { addLog(`${obj.name}: already done, skipping.`, 'skipped'); continue; }
+      // Excluded from the implementation in the blueprint (e.g. a standard object that is only read,
+      // or an alternative not approved): never written to SAP.
+      if (obj.status === 'skipped') { addLog(`${obj.name}: excluded from the implementation, skipping.`, 'skipped'); continue; }
 
       // Check deps
       const depsDone = (obj.dependsOn ?? []).every(depId => {
@@ -6089,10 +6092,11 @@ Suggest ${implNum(_implPol, 'blueprint_min_objects', 1)}-${implNum(_implPol, 'bl
         continue;
       }
 
-      const objMode = pipelineObjTypes[obj.type] ?? (obj.aiCapable ? 'ai-generate' : 'manual');
+      // An object marked manual in the blueprint (AI-capable off) stays manual whatever its type's policy.
+      const objMode = obj.aiCapable === false ? 'manual' : (pipelineObjTypes[obj.type] ?? (obj.aiCapable ? 'ai-generate' : 'manual'));
       if (objMode === 'manual') {
         updateObj(obj.id, { status: 'manual' });
-        addLog(`${obj.name}: manual (policy: ${obj.type} → manual).`, 'manual');
+        addLog(`${obj.name}: manual (${obj.aiCapable === false ? 'marked manual in the blueprint' : `policy: ${obj.type} → manual`}).`, 'manual');
         continue;
       }
       // Per-object validations: SAP naming rules and object approval.
@@ -6914,6 +6918,15 @@ Output ONLY the ABAP source code, no explanations.`;
                     <button onClick={() => updateObj(selectedObj.id, { status: 'done', manualDone: true, appliedAt: new Date().toISOString(), appliedNote: `Marked done manually by ${auth?.profile?.full_name ?? 'a user'}.`, error: null })}
                       title="This object is configured manually in SAP — mark it done once it is in place"
                       className="px-2.5 py-1 text-xs font-medium bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">Mark done (manual)</button>
+                  )}
+                  {canDevelop && !['done', 'applying', 'generating', 'skipped'].includes(selectedObj.status) && (
+                    <button onClick={() => updateObj(selectedObj.id, { status: 'skipped', error: null })}
+                      title="Never write this object to SAP (a standard object that is only read, or an alternative not approved)"
+                      className="px-2.5 py-1 text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors">Exclude</button>
+                  )}
+                  {canDevelop && selectedObj.status === 'skipped' && (
+                    <button onClick={() => updateObj(selectedObj.id, { status: 'planned', error: null })}
+                      className="px-2.5 py-1 text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">Include again</button>
                   )}
                   {selectedObj.status === 'done' && canDevelop && (
                     <button onClick={() => updateObj(selectedObj.id, { status: 'planned', appliedAt: null, error: null, appliedTransport: null, appliedPackage: null, appliedActivateError: null, appliedNote: null })}
