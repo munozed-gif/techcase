@@ -2614,6 +2614,8 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
   const caseOverrideAllowed = !caseData.client_id ? true : (clientLifecycle?.allow_case_override ?? sysLcDefault?.case?.allow_override ?? true);
   const caseVisibility = visCfg.getCaseVisibility(caseData.id, caseData.client_id);
 
+  const canSeeImplTab = perms.can("view_sap_implementation") || perms.can("run_sap_implementation");
+  const canSeeTransportTab = perms.can("view_transports") || perms.can("release_transports") || perms.can("confirm_transport_imports");
   const allTabs = [
     { id: "detail",     label: t("case.tab_details"),    icon: ClipboardList, count: null },
     { id: "activities", label: t("case.tab_activities"), icon: ListChecks,    count: activities.length || null },
@@ -2626,12 +2628,9 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
     ...(caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient || auth.isHeadhunter) ? [{ id: "hh_proposals", label: t("case.tab_hh_proposals"), icon: Crosshair, count: auth.isHeadhunter ? null : (hhProposals.filter(p => p.status === "pending").length || null) }] : []),
     ...(perms.can("view_lifecycle") && (auth.isAdmin || caseOverrideAllowed) ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     { id: "spec",           label: t("case.tab_spec"),         icon: FileText, count: null },
-    ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser)
-      ? [{ id: "implementation", label: t("sap.impl_tab_title"), icon: Code2, count: null }]
-      : []),
-    ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser)
-      ? [{ id: "transport", label: t("sap.tab_transport"), icon: Truck, count: null }]
-      : []),
+    // Settings → Roles: seeing the tab, or being allowed to act in it.
+    ...(canSeeImplTab ? [{ id: "implementation", label: t("sap.impl_tab_title"), icon: Code2, count: null }] : []),
+    ...(canSeeTransportTab ? [{ id: "transport", label: t("sap.tab_transport"), icon: Truck, count: null }] : []),
     ...(perms.can("view_audit_log") ? [{ id: "audit_log", label: t("case.tab_audit_log"), icon: ClipboardList, count: null }] : []),
   ];
   const tabs = (() => {
@@ -6049,11 +6048,11 @@ ${tableHtml(lang === 'es' ? ['Rol','Nombre','Firma','Fecha'] : ['Role','Name','S
         <SpecificationTab caseData={caseData} auth={auth} documents={documents} addDocument={addDocument} deleteDocument={deleteDocument} refetchDocuments={refetchDocuments} onUpdate={onUpdate} />
       )}
 
-                    {tab.id === "implementation" && (auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) && (
+                    {tab.id === "implementation" && canSeeImplTab && (
         <SapImplementationTab caseData={caseData} auth={auth} activities={activities} updateActivity={updateActivity} />
       )}
 
-                    {tab.id === "transport" && (auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) && (
+                    {tab.id === "transport" && canSeeTransportTab && (
         <TransportTab caseData={caseData} auth={auth} />
       )}
 

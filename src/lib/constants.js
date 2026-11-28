@@ -51,6 +51,8 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   manage_sla:                 { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   manage_db_connections:      { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   manage_team_members:        { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  view_sap_implementation:    { admin:true, manager:true, consultant:true, client:false, key_user:true, headhunter:false, final_user:false, internal_consultant:true, project_manager:true },
+  view_transports:            { admin:true, manager:true, consultant:true, client:false, key_user:true, headhunter:false, final_user:false, internal_consultant:true, project_manager:true },
   auto_assign_creator:        { admin:false, manager:false, consultant:true, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false, area_leader:false },
   manage_migrations:          { admin:true, manager:true, consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
 };
