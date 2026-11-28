@@ -169,6 +169,7 @@ function resolveObjectTypeConfig(objectType, objectName, globalObjectMap, envObj
 // Layer 3: Write policy toggles (sent with every write request to the bridge)
 const SAP_ADT_WRITE_POLICY_DEFAULTS = {
   requirePackage:          false, // Block write if no package configured (objects would go to $TMP)
+  packageFromSpec:         true,  // App only: fill an empty package from the approved spec (SAP Implementation tab)
   syntaxCheckBeforeWrite:  false, // Run syntaxCheckCode before setObjectSource
   stopOnSyntaxError:       true,  // Abort write if syntax check returns errors
   activateAfterWrite:      true,  // Call activateByName after setObjectSource
@@ -7322,6 +7323,8 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   // so the objects do not end up in $TMP by mistake. The consultant can still change it.
   useEffect(() => {
     if (settingsLoading || String(settings['sap_impl_package']?.[caseData.id] ?? '').trim()) return;
+    // System setting: Settings → SAP MCP Policy → Write policy → "Package from approved spec".
+    if ({ ...SAP_ADT_WRITE_POLICY_DEFAULTS, ...(settings['sap_adt_write_policy'] ?? {}) }.packageFromSpec === false) return;
     let off = false;
     (async () => {
       try {
@@ -9200,6 +9203,7 @@ function SapMcpPolicyPanel({ auth }) {
           <div>
             <p className="text-xs text-gray-500 mb-1">These toggles control what the bridge does on each write operation. Changes take effect immediately on the next run.</p>
             <Toggle value={policy.requirePackage}         onChange={v => setPolicy(p => ({ ...p, requirePackage: v }))}         disabled={!canEdit} label="Require Package"          desc="Block write if no SAP package is configured. Objects would otherwise land in $TMP (non-transportable)." />
+            <Toggle value={policy.packageFromSpec}        onChange={v => setPolicy(p => ({ ...p, packageFromSpec: v }))}        disabled={!canEdit} label="Package from approved spec" desc="When a case's SAP package is empty, fill it in with the development package the approved spec names (e.g. a Z package in its technical objects). The consultant can still change it." />
             <Toggle value={policy.autoCreateTransport}    onChange={v => setPolicy(p => ({ ...p, autoCreateTransport: v }))}    disabled={!canEdit} label="Auto-create Transport"     desc="Automatically create a Workbench transport request when package ≠ $TMP and no TR is provided." />
             <Toggle value={policy.syntaxCheckBeforeWrite} onChange={v => setPolicy(p => ({ ...p, syntaxCheckBeforeWrite: v }))} disabled={!canEdit} label="Syntax Check Before Write" desc="Run syntaxCheckCode via R+W MCP before saving. Requires the syntaxCheckCode tool." />
             <Toggle value={policy.stopOnSyntaxError}      onChange={v => setPolicy(p => ({ ...p, stopOnSyntaxError: v }))}      disabled={!canEdit} label="Stop on Syntax Error"      desc="Abort the write if syntax check returns errors. Only relevant when Syntax Check is enabled." />
