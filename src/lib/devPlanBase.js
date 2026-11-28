@@ -187,3 +187,22 @@ export function applySpecArena(activities, pick) {
   }
   return out;
 }
+
+/**
+ * Development package the spec puts the objects in (e.g. ZE26TMPA_PLANIFICACION), or null.
+ * First a row of the technical objects table whose type is a package; then a "paquete X" /
+ * "package X" mention in the text. Only customer packages (Z / Y / /NAMESPACE/), never $TMP.
+ */
+export function specPackage(text) {
+  const src = String(text ?? '');
+  const isPkg = n => /^(Z|Y|\/[A-Z0-9_]+\/)[A-Z0-9_\/]{1,29}$/i.test(n) && !/^\$/.test(n);
+  for (const line of src.split('\n')) {
+    if (!line.trim().startsWith('|')) continue;
+    const cells = line.split('|').slice(1, -1).map(c => c.replace(/\*\*|`/g, '').trim());
+    if (!cells.some(c => /^(paquete|package|devclass|paquete de desarrollo|development package)\b/i.test(c))) continue;
+    const name = cells.find(c => isPkg(c));
+    if (name) return name.toUpperCase();
+  }
+  const m = src.match(/\b(?:paquete|package)(?:\s+de\s+desarrollo|\s+transportable)?\s+[`*]*((?:Z|Y)[A-Z0-9_]{2,29})\b/i);
+  return m && isPkg(m[1]) ? m[1].toUpperCase() : null;
+}

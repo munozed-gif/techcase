@@ -10,6 +10,7 @@ import {
   Laptop, Lock, Monitor, Play, Plus, Save, Settings, Sparkles, Terminal, ThumbsDown, ThumbsUp, Upload, User, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { specPackage } from "../lib/devPlanBase.js";
 import { bridgeAuthHeaders, appAccessToken, resolveVmUrl } from "../lib/bridgeAuth.js";
 import { sapHasPassword, sapMcpAuthToken, storeSapEnvPasswords } from "../lib/sapCreds.js";
 import { ProjectVpnSelector, projectVpnAction } from "./SapVpnProfiles.jsx";
@@ -7249,6 +7250,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [savingTransport, setSavingTransport] = useState(false);
   const [packageReq, setPackageReq] = useState(settings['sap_impl_package']?.[caseData.id] ?? '');
   const [savingPackage, setSavingPackage] = useState(false);
+  const [packageFromSpec, setPackageFromSpec] = useState(null); // package filled in from the approved spec
   const genModel = settings["ai_model"] ?? 'claude-haiku-5-5';
 
   // Re-sync local state once settings finish loading (avoids stale-init on async load)
@@ -7316,6 +7318,26 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     await ssCtx.setSetting('sap_impl_transport', { ...cur, [caseData.id]: val });
     setSavingTransport(false);
   }
+  // Empty package: take the one the approved spec names (e.g. "paquete ZE26TMPA_PLANIFICACION"),
+  // so the objects do not end up in $TMP by mistake. The consultant can still change it.
+  useEffect(() => {
+    if (settingsLoading || String(settings['sap_impl_package']?.[caseData.id] ?? '').trim()) return;
+    let off = false;
+    (async () => {
+      try {
+        const { data } = await supabase.from('case_specifications').select('status, notes').eq('case_id', caseData.id).maybeSingle();
+        if (off || !data || data.status !== 'approved') return;
+        let n = {}; try { n = typeof data.notes === 'string' ? JSON.parse(data.notes) : (data.notes ?? {}); } catch { n = {}; }
+        const key = n.approvedSpec || n.signoff?.specKey || 'c';
+        const pkg = specPackage(n[`spec${key.toUpperCase()}`]) ?? specPackage(n.specA) ?? specPackage(n.specC);
+        if (!pkg || off) return;
+        setPackageReq(pkg); setPackageFromSpec(pkg);
+        await savePackage(pkg);
+      } catch { /* best effort */ }
+    })();
+    return () => { off = true; };
+  }, [settingsLoading, caseData.id]);
+
   async function savePackage(val) {
     setSavingPackage(true);
     const cur = settings['sap_impl_package'] ?? {};
@@ -8217,6 +8239,9 @@ FALLBACK:
                 onBlur={() => savePackage(packageReq)}
                 placeholder="e.g. ZDEV or $TMP"
                 className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              {packageFromSpec && packageReq === packageFromSpec && (
+                <p className="text-[11px] text-gray-400 dark:text-white/35 mt-1">{t('sap.pkg_from_spec')}</p>
+              )}
             </div>
           </div>
 
