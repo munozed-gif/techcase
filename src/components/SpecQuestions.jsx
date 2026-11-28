@@ -132,26 +132,26 @@ export function QuestionsPanel({ questions, onChange, onExtract, loading, error,
         </div>
       )}
       {open && askable.length > 0 && (
-        <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-2.5 space-y-2.5">
-          <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide">{L(`Pending by area · ${askable.length} of ${liveQuestions(list).length}`, `Pendientes por área · ${askable.length} de ${liveQuestions(list).length}`)}</p>
+        <div className="rounded-lg border border-gray-100 bg-gray-50/60 dark:bg-white/[0.04] dark:border-white/10 p-2.5 space-y-2.5">
+          <p className="text-[11px] font-semibold text-gray-600 dark:text-white/60 uppercase tracking-wide">{L(`Pending by area · ${askable.length} of ${liveQuestions(list).length}`, `Pendientes por área · ${askable.length} de ${liveQuestions(list).length}`)}</p>
           {byArea.filter(x => x.n > 0).map(x => (
             <div key={x.area} className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${areaCls(x.area)}`}>{qAreaName(x.area, lang)}</span>
-                <span className="text-[11px] text-gray-500">{L(`${x.total - x.n}/${x.total} answered · ${x.n} pending`, `${x.total - x.n}/${x.total} respondidas · ${x.n} pendientes`)}</span>
+                <span className="text-[11px] text-gray-500 dark:text-white/50">{L(`${x.total - x.n}/${x.total} answered · ${x.n} pending`, `${x.total - x.n}/${x.total} respondidas · ${x.n} pendientes`)}</span>
                 {canEdit && (
-                  <button onClick={() => onSendLink(x.area)} className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:underline"><Send size={11} />{L('Link for this area', 'Enlace para esta área')}</button>
+                  <button onClick={() => onSendLink(x.area)} className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 dark:text-blue-300 hover:underline"><Send size={11} />{L('Link for this area', 'Enlace para esta área')}</button>
                 )}
               </div>
               <ul className="space-y-1">
                 {askable.filter(q => areaOf(q) === x.area).map(q => (
-                  <li key={q.id} className="flex items-start gap-2 text-xs bg-white border border-gray-100 rounded-lg px-2 py-1.5">
-                    <span className="font-mono font-semibold text-gray-500 flex-shrink-0">{q.id}</span>
+                  <li key={q.id} className="flex items-start gap-2 text-xs bg-white border border-gray-100 dark:bg-gray-900/70 dark:border-white/10 rounded-lg px-2 py-1.5">
+                    <span className="font-mono font-semibold text-gray-500 dark:text-white/50 flex-shrink-0">{q.id}</span>
                     <span className={`px-1 py-0.5 rounded border text-[10px] font-semibold flex-shrink-0 ${STATUS_CLS[q.status] ?? STATUS_CLS.open}`}>{statusTxt(q.status)}</span>
-                    <span className="flex-1 text-gray-700"><QRefText text={q.text} />{q.assumption ? <span className="block text-[11px] text-gray-500 mt-0.5">{L('Assumption', 'Supuesto')}: <QRefText text={q.assumption} /></span> : null}</span>
+                    <span className="flex-1 text-gray-700 dark:text-white/85"><QRefText text={q.text} />{q.assumption ? <span className="block text-[11px] text-gray-500 dark:text-white/50 mt-0.5">{L('Assumption', 'Supuesto')}: <QRefText text={q.assumption} /></span> : null}</span>
                     {canEdit && <span className="flex flex-col gap-1 flex-shrink-0">
-                      <button onClick={() => { setAreaFilter(x.area); startAnswer(q); }} className="px-1.5 py-0.5 text-[10px] rounded border border-gray-200 text-gray-600 hover:bg-gray-50">{L('Answer', 'Responder')}</button>
-                      {q.assumption?.trim() && <button onClick={() => { setAreaFilter(x.area); startConfirm(q); }} className="px-1.5 py-0.5 text-[10px] rounded border border-violet-200 text-violet-700 hover:bg-violet-50 whitespace-nowrap">{L('Confirm assumption', 'Confirmar supuesto')}</button>}
+                      <button onClick={() => { setAreaFilter(x.area); startAnswer(q); }} className="px-1.5 py-0.5 text-[10px] rounded border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-white/15 dark:text-white/70 dark:hover:bg-white/5">{L('Answer', 'Responder')}</button>
+                      {q.assumption?.trim() && <button onClick={() => { setAreaFilter(x.area); startConfirm(q); }} className="px-1.5 py-0.5 text-[10px] rounded border border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-400/40 dark:text-violet-300 dark:hover:bg-violet-500/10 whitespace-nowrap">{L('Confirm assumption', 'Confirmar supuesto')}</button>}
                     </span>}
                   </li>
                 ))}
