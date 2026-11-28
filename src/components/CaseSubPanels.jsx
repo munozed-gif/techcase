@@ -20,7 +20,7 @@ import { specAnalysisPolicy, modificationRegex, docSummaryModel, truncatedNote }
 import { detectDocLang } from "../lib/docLang.js";
 import { SignoffPanel } from "./SpecSignoff.jsx";
 import {
-  AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
+  AlertTriangle, Archive, ArrowDown, ArrowUp, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
   Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Laptop, Link2, ListChecks, Paperclip, Pause, Play,
   RefreshCw, RotateCcw, Search, SlidersHorizontal, Sparkles, Star, Target, User,
   UserCheck, Users, Wand2, X, XCircle, Zap,
@@ -1361,6 +1361,10 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
 
   // Approval workflow sub-steps (Node 4)
   const [approvalStep, setApprovalStep]     = useState('generated'); // 'generated'|'checking'|'sending'|'approved'
+  // Reading order of the case documents (notes.docOrder = document ids). When set, later documents
+  // prevail over earlier ones (e.g. a meeting or an e-mail after the functional spec updates it).
+  const [docOrder, setDocOrderState] = useState(null);
+  const docOrderRef = useRef(null);
   const [specFeedback, setSpecFeedback]     = useState(''); // cumulative per-cycle feedback text
   const [genLog, setGenLog]                 = useState([]); // mirrors spec.generation_log
 
@@ -1440,7 +1444,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   // Files this platform generated earlier (specs, prototypes, dev plans): never sent to the AI as
   // input — a regeneration must start from the customer's documents only, not from its last output.
   const isGeneratedDoc = doc =>
-    /^(Spec[A-D]_|Prototype_|DevPlan_|FuncSpec_|AsBuilt_|Proposal_)/i.test(doc?.file_name ?? '') ||
+    /^(Spec[A-D]_|SpecAprobada_|Prototype_|DevPlan_|FuncSpec_|AsBuilt_|Proposal_)/i.test(doc?.file_name ?? '') ||
     /^\[(Prototype|Spec|DevPlan|FuncSpec)/i.test(doc?.description ?? '');
 
   // Image → base64 JPEG/PNG for the AI, scaled to at most 1568 px (the model's useful size) so a
@@ -1457,6 +1461,19 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     return { type: 'image', source: { type: 'base64', media_type: keepPng ? 'image/png' : 'image/jpeg', data: await blobToBase64(out) } };
   }
 
+  // Case documents in reading order: the ones in notes.docOrder first, in that order; the rest after,
+  // oldest first. Returns [] order info when no order is set.
+  function orderDocs(list) {
+    const order = docOrderRef.current;
+    if (!Array.isArray(order) || !order.length) return list;
+    const pos = d => { const i = order.indexOf(d.id); return i < 0 ? 1e6 + new Date(d.created_at ?? 0).getTime() / 1e6 : i; };
+    return [...list].sort((a, b) => pos(a) - pos(b));
+  }
+  async function saveDocOrder(ids) {
+    docOrderRef.current = ids; setDocOrderState(ids);
+    try { await saveAiNotesPatch({ docOrder: ids }); } catch (e) { alert(e.message); }
+  }
+
   async function buildDocumentBlocks() {
     const blocks = [];
     // Customer documents only. Order: specs (Word, PDF, text, images) → spreadsheets (test matrices,
@@ -1467,6 +1484,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       .filter(d => !isGeneratedDoc(d))
       .filter(d => { const k = `${(d.file_name ?? '').toLowerCase()}|${d.file_size_kb ?? ''}`; if (seen.has(k)) return false; seen.add(k); return true; })
       .sort((a, b) => rank(a) - rank(b));
+    const ordered = Array.isArray(docOrderRef.current) && docOrderRef.current.length > 0;
+    if (ordered) docs.splice(0, docs.length, ...orderDocs(docs));
     let budget = DOC_CHARS_TOTAL;
     let scenarios = 0;
     let imageCount = 0;
@@ -1480,7 +1499,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       const imageType = IMAGE_EXTS[ext] ?? ((doc.file_type ?? '').startsWith('image/') ? doc.file_type : null);
       // Types the extract-text API can convert to readable text (doc = Word 97-2003)
       const isExtractable = isText || isHtml || ['docx', 'doc', 'xlsx', 'xls'].includes(ext);
-      const label = `[Document: ${doc.file_name}]`;
+      const label = ordered ? `[Document ${docs.indexOf(doc) + 1} of ${docs.length} in reading order: ${doc.file_name}]` : `[Document: ${doc.file_name}]`;
 
       if (isTranscriptDoc(doc)) {
         // Meeting transcript (Teams / Zoom subtitles): read as "[mm:ss] Speaker: text".
@@ -1516,6 +1535,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
           const resp = await fetch(doc.file_url);
           const blob = await resp.blob();
           const b64 = await blobToBase64(blob);
+          if (ordered) blocks.push({ type: 'text', text: `${label} (PDF below)` });
           blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } });
         } else if (isExtractable) {
           if (budget <= 2000) {
@@ -1556,6 +1576,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     setScenarioCount(scenarios);
     const dl = detectDocLang(langSample);
     if (dl && dl !== docLangRef.current) { docLangRef.current = dl; saveAiNotesPatch({ docLang: dl }).catch(() => {}); }
+    if (ordered) {
+      blocks.unshift({ type: 'text', text: `READING ORDER AND PRECEDENCE — the customer documents below are in the reading order the consultant set:\n${docs.map((d, i) => `${i + 1}. ${d.file_name}`).join('\n')}\nRead them in that order. When a later document changes, contradicts or completes an earlier one (e.g. a meeting, an e-mail or a transcript after the functional specification), the LATER document PREVAILS: use its version as the current requirement and add a short note of the change with its source, e.g. "(actualizado por <document>; antes: <old value>)". Such a difference is NOT a contradiction, an ambiguity, an open question or a pending point — do not ask the customer about it and do not mark it for review. Only differences between documents with no clear order, or within the same document, can be contradictions.` });
+    }
     if (imageCount > 0 || docs.some(d => /\.pdf$/i.test(d.file_name ?? ''))) {
       blocks.unshift({ type: 'text', text: 'NOTE ON SCREENSHOTS: the customer documents include images (screenshots of SAP screens, table extracts, test data). Read them as part of the requirements: take the IDs, document numbers, test data, field values and screen labels they show, and use them as facts (e.g. which order belongs to which delivery, warehouse, plant, movement type, queue, program or transaction). Do not ask the customer for information a screenshot already shows — cite it instead ("según la captura de …"). If a screen looks custom (non-standard labels or layout), say it is probably a Z development and treat the program name as an open point.' });
     }
@@ -1570,7 +1593,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   // Fingerprint of the customer documents (generated Arena files excluded).
   const inputDocsHash = (() => {
     const key = (documents ?? []).filter(d => !isGeneratedDoc(d))
-      .map(d => `${d.file_name}|${d.created_at ?? ''}|${d.file_size_kb ?? ''}`).sort().join('\n');
+      .map(d => `${d.file_name}|${d.created_at ?? ''}|${d.file_size_kb ?? ''}`).sort().join('\n')
+      + ((docOrder ?? []).length ? `\norder:${docOrder.join(',')}` : '');
     let h = 5381; for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
     return `${(h >>> 0).toString(36)}`;
   })();
@@ -1939,7 +1963,8 @@ Respond with ONLY a JSON array, no markdown fences:
 - CONTRADICTIONS between the documents (or within one): e.g. the spec says one value and the test matrix another;
 - AMBIGUITIES: rules or terms that can be read in more than one way;
 - MISSING INFORMATION needed to specify a requirement (values, tables, conditions, volumes, users).
-Only real, specific points — quote both sides of a contradiction with its source. Do not ask about things the documents answer. For each one propose the assumption the spec will use if the customer does not answer.
+Only real, specific points — quote both sides of a contradiction with its source. Do not ask about things the documents answer. For each one propose the assumption the spec will use if the customer does not answer.${(docOrderRef.current ?? []).length ? `
+The documents have a READING ORDER (see the note above them): a difference that a later document resolves is an update, not a contradiction — never turn it into a question.` : ''}
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? ''}${analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : ''}${summaryIn ? `\nRequest Summary (pre-analysis):\n${summaryIn}` : ''}${(reqs ?? []).length ? `\nRequirements checklist:\n${reqs.filter(r => !r.outOfScope).map(r => `- ${r.id}: ${r.text}`).join('\n')}` : ''}${answeredBlock()}
@@ -3340,6 +3365,7 @@ ${mdToHtml(markdownContent)}
           setGenReview(nd.generationReview?.md ? nd.generationReview : null);
           setSignoff(nd.signoff ?? null);
           if (nd.docLang) docLangRef.current = nd.docLang;
+          if (Array.isArray(nd.docOrder)) { docOrderRef.current = nd.docOrder; setDocOrderState(nd.docOrder); }
           setHoursOverrides(nd.hoursOverrides ?? {});
           if (nd.scenarioCount !== undefined) { setScenarioCount(nd.scenarioCount); docScenariosRef.current = nd.scenarioCount; }
           if (nd.activeProfile) setActiveProfile(nd.activeProfile);
@@ -5986,7 +6012,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
     const inputDocs = (documents ?? []).filter(doc => {
       const name = doc.file_name ?? '';
       const desc = doc.description ?? '';
-      return !/^(SpecA_|SpecB_|SpecC_|SpecD_|Prototype_|DevPlan_|FuncSpec_)/i.test(name) &&
+      return !/^(SpecA_|SpecB_|SpecC_|SpecD_|SpecAprobada_|Prototype_|DevPlan_|FuncSpec_)/i.test(name) &&
              !/^\[(Prototype|Spec|DevPlan|FuncSpec)/i.test(desc);
     });
 
@@ -6879,16 +6905,43 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 <div className="space-y-3">
                   {/* Case documents */}
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <h3 className="text-sm font-semibold text-blue-800 mb-1">Case Documents</h3>
-                    <p className="text-xs text-blue-500 mb-3">Files attached directly to this case</p>
+                    <h3 className="text-sm font-semibold text-blue-800 mb-1">{L('Case Documents', 'Documentos del caso')}</h3>
+                    <p className="text-xs text-blue-500 mb-1">{L('Files attached directly to this case', 'Archivos adjuntos directamente al caso')}</p>
+                    {inputDocs.length > 1 && (
+                      <div className="flex items-start gap-2 text-[11px] text-blue-700 dark:text-blue-300 mb-3">
+                        <ListChecks size={12} className="mt-0.5 flex-shrink-0" />
+                        <span className="flex-1">{(docOrder ?? []).length
+                          ? L('Reading order set: the analysis reads them from top to bottom and a later document prevails over an earlier one (its change is noted, not asked as an ambiguity).',
+                              'Orden de lectura definido: el análisis los lee de arriba hacia abajo y un documento posterior prevalece sobre uno anterior (el cambio se anota, no se pregunta como ambigüedad).')
+                          : L('Set the reading order with the arrows (e.g. the functional spec first, then the documents that update it). Without an order, differences between documents can become questions.',
+                              'Define el orden de lectura con las flechas (p. ej. primero la EF y después los documentos que la actualizan). Sin orden, las diferencias entre documentos pueden convertirse en preguntas.')}</span>
+                        {(docOrder ?? []).length > 0 && !analysisLocked && (auth.isAdmin || isCaseOwner) && (
+                          <button onClick={() => saveDocOrder([])} className="underline whitespace-nowrap">{L('Clear order', 'Quitar orden')}</button>
+                        )}
+                      </div>
+                    )}
                     {inputDocs.length === 0 ? (
                       <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">{t("spec.no_docs_ai")}</p>
                     ) : (
                       <div className="space-y-1.5">
-                        {inputDocs.map(doc => {
+                        {orderDocs(inputDocs).map((doc, idx, arr) => {
                           const st = docReadStatus(doc.file_name, doc.file_type);
+                          const canOrder = !analysisLocked && (auth.isAdmin || isCaseOwner) && arr.length > 1;
+                          const move = dir => {
+                            const ids = arr.map(d => d.id);
+                            const j = idx + dir; if (j < 0 || j >= ids.length) return;
+                            [ids[idx], ids[j]] = [ids[j], ids[idx]];
+                            saveDocOrder(ids);
+                          };
                           return (
                             <div key={doc.id} className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-100">
+                              {(docOrder ?? []).length > 0 && <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 w-4 text-right flex-shrink-0">{idx + 1}</span>}
+                              {canOrder && (
+                                <span className="flex flex-col flex-shrink-0">
+                                  <button onClick={() => move(-1)} disabled={idx === 0} title={L('Read earlier', 'Leer antes')} className="text-blue-500 hover:text-blue-700 disabled:opacity-25"><ArrowUp size={11} /></button>
+                                  <button onClick={() => move(1)} disabled={idx === arr.length - 1} title={L('Read later (prevails)', 'Leer después (prevalece)')} className="text-blue-500 hover:text-blue-700 disabled:opacity-25"><ArrowDown size={11} /></button>
+                                </span>
+                              )}
                               <Paperclip className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                               <span className="text-xs text-gray-700 font-medium flex-1 min-w-0 truncate">{doc.file_name}</span>
                               <span className="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">{doc.file_size_kb} KB</span>
